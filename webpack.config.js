@@ -3,19 +3,19 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 const devOverride = {
   mode: "development",
   devtool: "eval-source-map",
-}
+};
 
 const prodOverride = {
   mode: "production",
-}
+};
 
-module.exports =  {
+module.exports = {
   entry: {
     main: "./src/index.tsx",
   },
   output: {
     filename: "[name].js",
-    path: resolve(__dirname) + "/build",
+    path: __dirname + "/build",
   },
   module: {
     rules: [
@@ -37,8 +37,8 @@ module.exports =  {
     }),
   ],
   resolve: {
-    extensions: ['.js', '.jsx', '.ts', '.tsx'],
+    extensions: [".js", ".jsx", ".ts", ".tsx"],
   },
   target: "web",
-  ...( process.env.NODE_ENV === 'production' ? prodOverride : devOverride)
+  ...(process.env.NODE_ENV === "production" ? prodOverride : devOverride),
 };
