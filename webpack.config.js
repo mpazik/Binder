@@ -32,8 +32,19 @@ module.exports = {
   },
   plugins: [
     new HtmlWebpackPlugin({
-      title: "Binder",
       chunks: ["main"],
+      templateContent: ({ htmlWebpackPlugin }) => `
+    <html lang="en">
+      <head>
+        <title>binder</title>  
+        ${htmlWebpackPlugin.tags.headTags}
+      <body>
+      </head>
+        ${htmlWebpackPlugin.tags.bodyTags}
+      </body>
+    </html>
+  `,
+      inject: false,
     }),
   ],
   resolve: {
