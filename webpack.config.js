@@ -1,4 +1,5 @@
 const HtmlWebpackPlugin = require("html-webpack-plugin");
+const CopyWebpackPlugin = require("copy-webpack-plugin");
 
 const devOverride = {
   mode: "development",
@@ -46,6 +47,7 @@ module.exports = {
   `,
       inject: false,
     }),
+    new CopyWebpackPlugin({ patterns: [{ from: "assets" }] }),
   ],
   resolve: {
     extensions: [".js", ".jsx", ".ts", ".tsx"],
