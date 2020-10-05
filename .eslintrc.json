@@ -4,7 +4,8 @@
   "plugins": [
     "@typescript-eslint",
     "unused-imports",
-    "import"
+    "import",
+    "react-hooks"
   ],
   "extends": [
     "eslint:recommended",
@@ -27,6 +28,8 @@
       "alphabetize": {
         "order": "asc"
       }
-    }]
+    }],
+    "react-hooks/rules-of-hooks": "error", // Checks rules of Hooks
+    "react-hooks/exhaustive-deps": "warn" // Checks effect dependencies
   }
 }

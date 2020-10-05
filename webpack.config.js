@@ -25,7 +25,7 @@ module.exports = {
         use: ["style-loader", "css-loader"],
       },
       {
-        test: /\.ts(x)$/,
+        test: /\.ts(x?)$/,
         use: "ts-loader",
         exclude: /node_modules/,
       },
@@ -37,7 +37,7 @@ module.exports = {
       templateContent: ({ htmlWebpackPlugin }) => `
     <html lang="en">
       <head>
-        <title>binder</title>  
+        <title>binder</title>
         ${htmlWebpackPlugin.tags.headTags}
       <body>
       </head>
