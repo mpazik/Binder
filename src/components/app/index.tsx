@@ -19,11 +19,11 @@ const AppWillLinkedData: React.FC<{ list: LinkedDataWithHash[] }> = ({
   console.log(hash, list);
 
   return (
-    <div>
-      <div>
+    <div className="container-lg clearfix">
+      <div className="col-3 float-left ">
         <Navigation list={list} current={hash} />
       </div>
-      <div>
+      <div className="col-9 float-left border p-5">
         {ldWithHash ? (
           <Article ld={ldWithHash.ld} />
         ) : (
