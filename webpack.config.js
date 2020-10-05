@@ -1,4 +1,5 @@
 const HtmlWebpackPlugin = require("html-webpack-plugin");
+const CopyWebpackPlugin = require("copy-webpack-plugin");
 
 const devOverride = {
   mode: "development",
@@ -24,7 +25,7 @@ module.exports = {
         use: ["style-loader", "css-loader"],
       },
       {
-        test: /\.ts(x)$/,
+        test: /\.ts(x?)$/,
         use: "ts-loader",
         exclude: /node_modules/,
       },
@@ -32,9 +33,22 @@ module.exports = {
   },
   plugins: [
     new HtmlWebpackPlugin({
-      title: "Binder",
       chunks: ["main"],
+      templateContent: ({ htmlWebpackPlugin }) => `
+    <html lang="en">
+      <head>
+        <title>binder</title>
+        <link href="/primer.css" rel="stylesheet" />
+        ${htmlWebpackPlugin.tags.headTags}
+      <body>
+      </head>
+        ${htmlWebpackPlugin.tags.bodyTags}
+      </body>
+    </html>
+  `,
+      inject: false,
     }),
+    new CopyWebpackPlugin({ patterns: [{ from: "assets" }] }),
   ],
   resolve: {
     extensions: [".js", ".jsx", ".ts", ".tsx"],

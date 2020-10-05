@@ -3,7 +3,9 @@
   "parser": "@typescript-eslint/parser",
   "plugins": [
     "@typescript-eslint",
-    "unused-imports"
+    "unused-imports",
+    "import",
+    "react-hooks"
   ],
   "extends": [
     "eslint:recommended",
@@ -12,6 +14,22 @@
   ],
   "rules": {
     "unused-imports/no-unused-imports-ts": "warn",
-    "unused-imports/no-unused-vars-ts": "warn"
+    "unused-imports/no-unused-vars-ts": "warn",
+    "import/order": ["warn", {
+      "newlines-between": "always",
+      "pathGroups": [
+        {
+          "pattern": "react",
+          "group": "external",
+          "position": "before"
+        }
+      ],
+      "pathGroupsExcludedImportTypes": ["builtin"],
+      "alphabetize": {
+        "order": "asc"
+      }
+    }],
+    "react-hooks/rules-of-hooks": "error", // Checks rules of Hooks
+    "react-hooks/exhaustive-deps": "warn" // Checks effect dependencies
   }
 }
