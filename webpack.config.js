@@ -13,6 +13,7 @@ const prodOverride = {
 module.exports = {
   entry: {
     main: "./src/index.tsx",
+    worker: "./service-worker/index.ts",
   },
   output: {
     filename: "[name].js",
@@ -55,4 +56,15 @@ module.exports = {
   },
   target: "web",
   ...(process.env.NODE_ENV === "production" ? prodOverride : devOverride),
+  devServer: {
+    proxy: {
+      "/proxy": {
+        target: "ignored",
+        changeOrigin: true,
+        pathRewrite: (path, req) =>
+          new URL(req.url.slice("/proxy/".length)).pathname,
+        router: (req) => new URL(req.url.slice("/proxy/".length)).origin,
+      },
+    },
+  },
 };

@@ -1,26 +1,22 @@
 import React from "react";
 
-import { HashName } from "../../utils/hash";
-import { LinkedDataWithHash } from "../../utils/linked-data";
+import { DirectoryRecord } from "../../functions/indexes/directory-index";
+import { HashName, hashNameToHashUri } from "../../utils/hash";
 
 export const Navigation: React.FC<{
-  list: LinkedDataWithHash[];
+  list: DirectoryRecord[];
   current?: HashName;
 }> = ({ list, current }) => {
   return (
     <nav className="menu">
-      {list.map(({ ld, hash }) => (
+      {list.map(({ props: { name }, hash }) => (
         <a
+          key={hash}
           className="menu-item"
-          href={hash}
+          href={hashNameToHashUri(hash)}
           aria-current={hash === current ? "page" : undefined}
         >
-          {ld.name}
-        </a>
-      ))}
-      {list.map(({ ld, hash }) => (
-        <a className="menu-item" href={hash}>
-          {ld.name}
+          {name}
         </a>
       ))}
     </nav>

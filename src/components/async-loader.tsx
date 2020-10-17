@@ -14,10 +14,11 @@ export const AsyncLoader = <T extends unknown>({
   const [result, error, loading] = usePromise(promise);
 
   if (error) {
+    console.error(error);
     return (
       <div>
         <h1>Error</h1>
-        <p>{error}</p>
+        <p>{JSON.stringify(error)}</p>
       </div>
     );
   }

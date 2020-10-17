@@ -1,10 +1,6 @@
 {
   "compilerOptions": {
     "target": "ES2018",
-    "lib": [
-      "es2019",
-      "dom"
-    ],
     "skipLibCheck": true,
     "esModuleInterop": true,
     "strict": true,
@@ -14,9 +10,18 @@
     "isolatedModules": true,
     "jsx": "react",
     "sourceMap": false,
-    "types": ["node", "react", "styled-components"]
+    "types": [
+      "node",
+      "react",
+      "styled-components"
+    ]
   },
-  "include": [
-    "src"
+  "references": [
+    {
+      "path": "src"
+    },
+    {
+      "path": "service-worker"
+    }
   ]
 }

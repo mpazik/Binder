@@ -2,14 +2,6 @@
   "name": "binder",
   "version": "0.1.0",
   "private": true,
-  "dependencies": {
-    "@primer/components": "^20.0.0",
-    "@primer/css": "^15.2.0",
-    "@primer/octicons": "^11.0.0",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1",
-    "styled-components": "^5.2.0"
-  },
   "scripts": {
     "start": "yarn start:dev",
     "start:dev": "webpack-dev-server --port 8090",
@@ -17,6 +9,16 @@
     "build": "NODE_ENV=production webpack",
     "lint": "yarn eslint",
     "fix": "prettier --write src && yarn eslint:fix"
+  },
+  "dependencies": {
+    "@primer/components": "^20.0.0",
+    "@primer/css": "^15.2.0",
+    "@primer/octicons": "^11.0.0",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
+    "readability": "git+https://git@github.com/mozilla/readability.git#d5eea06a0095b3138dbd1f6233f656d690200509",
+    "schema-dts": "^0.7.1",
+    "styled-components": "^5.2.0"
   },
   "devDependencies": {
     "@types/react": "^16.9.49",

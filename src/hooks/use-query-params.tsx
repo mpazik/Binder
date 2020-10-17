@@ -12,12 +12,12 @@ export const useQueryParams = (): URLSearchParams => {
   const hijackLink = (event: Event) => {
     const target = event.target as HTMLElement;
     if (!target || target.nodeName !== "A") return;
-    const url = target.getAttribute("href");
-    if (!url || (url && url.startsWith("#"))) {
+    const uri = target.getAttribute("href");
+    if (!uri || (uri && uri.startsWith("#"))) {
       return;
     }
     const queryParams = new URLSearchParams(window.location.search);
-    queryParams.set("url", url);
+    queryParams.set("uri", uri);
     window.history.pushState({}, "", "?" + queryParams.toString());
     setQueryParams(queryParams);
     event.preventDefault();

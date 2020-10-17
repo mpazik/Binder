@@ -1,23 +1,21 @@
+import { Article } from "schema-dts";
+
 import { HashName } from "../utils/hash";
-import {
-  fileExtension,
-  LinkedData,
-  LinkedDataWithHash,
-} from "../utils/linked-data";
+import { fileExtension, LinkedDataWithItsHash } from "../utils/linked-data";
 
 export const fetchLinkedDataList = (): Promise<HashName[]> =>
   fetch("./linked-data/list.json").then((it) => it.json());
 
-export const fetchLinkedData = (name: HashName): Promise<LinkedData> =>
+export const fetchArticledLd = (name: HashName): Promise<Article> =>
   fetch(`./linked-data/${name}.${fileExtension}`).then((it) => it.json());
 
 export const fetchLinkedDataAssets = async (): Promise<
-  LinkedDataWithHash[]
+  LinkedDataWithItsHash<Article>[]
 > => {
   const list = await fetchLinkedDataList();
   return await Promise.all(
     list.map(async (it) => ({
-      ld: await fetchLinkedData(it),
+      ld: await fetchArticledLd(it),
       hash: it,
     }))
   );

@@ -1,16 +1,18 @@
-import { HashName } from "./hash";
+import { CreativeWork, URL } from "schema-dts";
 
-export type LinkedData = {
-  "@context": string;
-  "@type": string;
-  encodingFormat: string;
-  name: string;
-  url: string[];
-};
+import { HashName, HashUri, isHashUri } from "./hash";
 
 export const fileExtension = "jsonld";
 
-export type LinkedDataWithHash = {
+export type LinkedDataWithItsHash<Ld extends CreativeWork = CreativeWork> = {
   hash: HashName;
-  ld: LinkedData;
+  ld: Ld;
 };
+
+export const findUri = (ld: CreativeWork): URL | undefined =>
+  [ld.url || []].flat().find((it) => !isHashUri(it));
+
+export const findHashUri = (ld: CreativeWork): HashUri | undefined =>
+  [ld.url || []].flat().find((it) => isHashUri(it)) as HashUri;
+
+export const jsonLdMimeType = "application/ld+json";
