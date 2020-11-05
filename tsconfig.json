@@ -3,6 +3,10 @@
     "target": "ES2018",
     "skipLibCheck": true,
     "esModuleInterop": true,
+    "lib": [
+      "es2019",
+      "dom"
+    ],
     "strict": true,
     "module": "esnext",
     "moduleResolution": "node",
