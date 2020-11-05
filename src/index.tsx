@@ -5,7 +5,7 @@ import ReactDOM from "react-dom";
 import { App } from "./components/app";
 
 (async () => {
-  await navigator.serviceWorker.register("./service-worker.js");
+  await navigator.serviceWorker.register("./worker.js");
 
   const root = document.createElement("div");
   root.id = "root";
