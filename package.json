@@ -11,6 +11,7 @@
     "fix": "prettier --write src && yarn eslint:fix"
   },
   "dependencies": {
+    "@github/details-menu-element": "^1.0.9",
     "@primer/components": "^20.0.0",
     "@primer/css": "^15.2.0",
     "@primer/octicons": "^11.0.0",

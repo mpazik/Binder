@@ -37,6 +37,7 @@ import { measureAsyncTime } from "../../utils/performance";
 import { ArticleView } from "../article-view";
 import { AsyncLoader } from "../async-loader";
 import { Navigation } from "../navigation";
+import { Profile } from "../profile";
 
 const Nav: React.FC<{ hash: HashName; directoryIndex: DirectoryIndex }> = ({
   hash,
@@ -46,6 +47,7 @@ const Nav: React.FC<{ hash: HashName; directoryIndex: DirectoryIndex }> = ({
 
   return (
     <div id="navigation">
+      <Profile />
       <AsyncLoader promise={promise}>
         {(items) => <Navigation list={items} current={hash} />}
       </AsyncLoader>

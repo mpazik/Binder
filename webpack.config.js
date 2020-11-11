@@ -1,5 +1,6 @@
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
+const webpack = require("webpack");
 
 const devOverride = {
   mode: "development",
@@ -8,6 +9,30 @@ const devOverride = {
 
 const prodOverride = {
   mode: "production",
+};
+
+const devConfig = {
+  PROXY_SERVER: JSON.stringify("/proxy/"),
+  GDRIVE_APP_DIR_NAME: JSON.stringify("binder (Dev)"),
+  // these keys are public as they get to the end code anyway. They are obfuscated to make difficult to scrap them from the repo
+  GDRIVE_CLIENT_ID: JSON.stringify(
+    "Mzk4NjgzNTAxOTk3LWhyN2lpajQ2b3ZuZmdlNDJqYmk1amU4dWgxNmJkamozLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29t"
+  ),
+  GDRIVE_API_KEY: JSON.stringify(
+    "QUl6YVN5QmhfcGpVdGZYOFFjV1NGVVFzZWtMcHg5bV82dzBPTGZv"
+  ),
+};
+
+const prodConfig = {
+  PROXY_SERVER: JSON.stringify("https://cors-anywhere.herokuapp.com/"),
+  GDRIVE_APP_DIR_NAME: JSON.stringify("binder"),
+  // these keys are public as they get to the end code anyway. They are obfuscated to make difficult to scrap them from the repo
+  GDRIVE_CLIENT_ID: JSON.stringify(
+    "Mzk4NjgzNTAxOTk3LWhyN2lpajQ2b3ZuZmdlNDJqYmk1amU4dWgxNmJkamozLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29t"
+  ),
+  GDRIVE_API_KEY: JSON.stringify(
+    "QUl6YVN5QmhfcGpVdGZYOFFjV1NGVVFzZWtMcHg5bV82dzBPTGZv"
+  ),
 };
 
 module.exports = {
@@ -50,6 +75,9 @@ module.exports = {
       inject: false,
     }),
     new CopyWebpackPlugin({ patterns: [{ from: "assets" }] }),
+    new webpack.DefinePlugin(
+      process.env.NODE_ENV === "production" ? prodConfig : devConfig
+    ),
   ],
   resolve: {
     extensions: [".js", ".jsx", ".ts", ".tsx"],
