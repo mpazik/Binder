@@ -3,15 +3,18 @@ import React, { useCallback } from "react";
 import { Article, URL } from "schema-dts";
 
 import { ArticleContentFetcher } from "../functions/article-content-fetcher";
-import { findUri } from "../utils/linked-data";
+import { ArticleLdFetcher } from "../functions/article-ld-fetcher";
+import { linkHijackToQueryParams } from "../functions/url-hijack";
+import { findUri, LinkedDataWithItsHash } from "../utils/linked-data";
+import { useProvider } from "../utils/react";
 
 import { AsyncLoader } from "./async-loader";
 
-export const ArticleView: React.FC<{
+const ArticleViewIn: React.FC<{
   article: Article;
   contentFetcher: ArticleContentFetcher;
-}> = ({ article, contentFetcher }) => {
-  const url = findUri(article);
+}> = ({ contentFetcher, article }) => {
+  const uri = findUri(article);
   return (
     <AsyncLoader
       promise={useCallback(() => contentFetcher(article), [
@@ -19,13 +22,13 @@ export const ArticleView: React.FC<{
         article,
       ])}
     >
-      {(content) => (
+      {(content: Document) => (
         <div id="content" className="mb-3 markdown-body">
           <div className="Subhead">
             <div className="Subhead-heading">{article.name}</div>
-            {url && (
+            {uri && (
               <div className="Subhead-description">
-                From: <a href={url}>{new URL(url).hostname}</a>
+                From: <a href={uri}>{new URL(uri).hostname}</a>
               </div>
             )}
           </div>
@@ -34,6 +37,41 @@ export const ArticleView: React.FC<{
           />
         </div>
       )}
+    </AsyncLoader>
+  );
+};
+
+export const ArticleView: React.FC<{
+  articleLdFetcher: ArticleLdFetcher;
+  contentFetcher: ArticleContentFetcher;
+  onArticleLoaded?: (article: LinkedDataWithItsHash<Article>) => void;
+}> = ({
+  contentFetcher,
+  articleLdFetcher,
+  onArticleLoaded = () => {
+    // do nothing.
+  },
+}) => {
+  const queryParams = useProvider(
+    linkHijackToQueryParams,
+    new URLSearchParams(window.location.search)
+  );
+  const uri =
+    queryParams.get("uri") || "https://pl.wikipedia.org/wiki/Dedal_z_Sykionu";
+
+  return (
+    <AsyncLoader
+      promise={useCallback(() => articleLdFetcher(uri), [
+        articleLdFetcher,
+        uri,
+      ])}
+    >
+      {(article: LinkedDataWithItsHash<Article>) => {
+        onArticleLoaded(article);
+        return (
+          <ArticleViewIn article={article.ld} contentFetcher={contentFetcher} />
+        );
+      }}
     </AsyncLoader>
   );
 };

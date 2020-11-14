@@ -1,6 +1,7 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 
 import "./styles.css";
+import "./loading.css";
 
 import { Article } from "schema-dts";
 
@@ -29,8 +30,6 @@ import {
   createLocalStoreRead,
   createLocalStoreWrite,
 } from "../../functions/local-store";
-import { useQueryParams } from "../../hooks/use-query-params";
-import { throwIfNull } from "../../utils/errors";
 import { HashName } from "../../utils/hash";
 import { LinkedDataWithItsHash } from "../../utils/linked-data";
 import { measureAsyncTime } from "../../utils/performance";
@@ -39,7 +38,7 @@ import { AsyncLoader } from "../async-loader";
 import { Navigation } from "../navigation";
 import { Profile } from "../profile";
 
-const Nav: React.FC<{ hash: HashName; directoryIndex: DirectoryIndex }> = ({
+const Nav: React.FC<{ hash?: HashName; directoryIndex: DirectoryIndex }> = ({
   hash,
   directoryIndex,
 }) => {
@@ -59,31 +58,23 @@ const AppWithLinkedData: React.FC<{
   articleContentFetcher: ArticleContentFetcher;
   directoryIndex: DirectoryIndex;
 }> = ({ articleContentFetcher, articleLdFetcher, directoryIndex }) => {
-  const queryParams = useQueryParams();
-  const uri = throwIfNull(queryParams.get("uri"));
+  const [currentArticle, setCurrentArticle] = useState<
+    LinkedDataWithItsHash<Article>
+  >();
 
-  const promise = useCallback(() => articleLdFetcher(uri), [
-    articleLdFetcher,
-    uri,
-  ]);
   return (
-    <AsyncLoader promise={promise}>
-      {(ldWithHash: LinkedDataWithItsHash<Article>) => {
-        return (
-          <div>
-            <Nav hash={ldWithHash.hash} directoryIndex={directoryIndex} />
-            <div id="container">
-              <div className="p-4">
-                <ArticleView
-                  article={ldWithHash.ld}
-                  contentFetcher={articleContentFetcher}
-                />
-              </div>
-            </div>
-          </div>
-        );
-      }}
-    </AsyncLoader>
+    <div>
+      <Nav hash={currentArticle?.hash} directoryIndex={directoryIndex} />
+      <div id="container">
+        <div className="p-4">
+          <ArticleView
+            articleLdFetcher={articleLdFetcher}
+            contentFetcher={articleContentFetcher}
+            onArticleLoaded={setCurrentArticle}
+          />
+        </div>
+      </div>
+    </div>
   );
 };
 

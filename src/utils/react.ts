@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import { portal, Provider } from "./connections";
 import { Consumer, Processor } from "./functions";
 
 export const useProcessor = <T, S>(
@@ -11,4 +12,18 @@ export const useProcessor = <T, S>(
     processor,
   ]);
   return [state, setAction];
+};
+
+export const useProvider = <T>(provider: Provider<T>, initialState: T): T => {
+  const [state, setState] = useState<T>(initialState);
+
+  useEffect(() => {
+    const [register, handler] = portal();
+    provider(register, (data) => {
+      setState(data);
+    });
+    return handler;
+  });
+
+  return state;
 };

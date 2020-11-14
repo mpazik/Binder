@@ -20,12 +20,5 @@
       "styled-components"
     ]
   },
-  "references": [
-    {
-      "path": "src"
-    },
-    {
-      "path": "service-worker"
-    }
-  ]
+  "include": ["src"]
 }
