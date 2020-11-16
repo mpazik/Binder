@@ -1,7 +1,4 @@
-import {
-  newStateMachineHandler,
-  stateMachineWithFeedback,
-} from "../../utils/named-state";
+import { stateMachineWithFeedback } from "../../utils/named-state";
 
 import { createProfile, GDriveProfile } from "./app-files";
 import { GApi, initializeGoogleDrive, signIn, signOut } from "./auth";
@@ -24,9 +21,9 @@ export type GDriveState =
 
 export const initGdriveState: GDriveState = ["initializing"];
 
-export const gdrive = stateMachineWithFeedback(
+export const gdrive = stateMachineWithFeedback<GDriveState, GDriveAction>(
   initGdriveState,
-  newStateMachineHandler<GDriveState, GDriveAction>({
+  {
     initializing: {
       initialize: (gapi) => {
         return gapi.auth2.getAuthInstance().isSignedIn.get()
@@ -51,7 +48,7 @@ export const gdrive = stateMachineWithFeedback(
         return ["loggingIn", gapi];
       },
     },
-  }),
+  },
   {
     initializing: () =>
       initializeGoogleDrive().then<GDriveAction>((gapi) => [

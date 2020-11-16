@@ -1,4 +1,5 @@
-import { Processor, Reducer, reducerProcessor } from "./functions";
+import { Processor } from "./connections";
+import { Reducer, reducerProcessor } from "./functions";
 
 export type NamedAction<N, T = void> = T extends void
   ? [name: N]
@@ -53,10 +54,7 @@ type Behaviours<S extends SomeState, A extends SomeAction> = {
   };
 };
 
-export const newStateMachineHandler = <
-  S extends SomeState,
-  A extends SomeAction
->(
+const newStateMachineHandler = <S extends SomeState, A extends SomeAction>(
   behaviours: Behaviours<S, A>
 ): Reducer<S, A> => (state, action): S => {
   const behaviour = behaviours[state[0] as S[0]];
@@ -72,23 +70,31 @@ export const newStateMachineHandler = <
   );
 };
 
+export const stateMachine = <S extends SomeState, A extends SomeAction>(
+  initState: S,
+  behaviours: Behaviours<S, A>
+): Processor<A, S> => (push) => {
+  push(initState);
+  return reducerProcessor(newStateMachineHandler(behaviours), initState)(push);
+};
+
 export const stateMachineWithFeedback = <
   S extends SomeState,
   A extends SomeAction
 >(
   initState: S,
-  reducer: Reducer<S, A>,
+  behaviours: Behaviours<S, A>,
   feedbacks: StateFeedbacks<S, A>
 ): Processor<A, S> => (push) => {
-  const reduce = reducerProcessor(reducer, initState);
-  const handleState = (state: S) => {
-    push(state);
+  const handleAction = stateMachine(
+    initState,
+    behaviours
+  )((state) => {
     const feedback = feedbacks[state[0] as S[0]];
     if (feedback) {
-      feedback(state[1]).then(handleAction);
+      feedback(state[1]).then((action) => handleAction(action));
     }
-  };
-  const handleAction = reduce(handleState);
-  handleState(initState);
+    push(state);
+  });
   return handleAction;
 };

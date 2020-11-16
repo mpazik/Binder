@@ -33,8 +33,8 @@ import {
 import { HashName } from "../../utils/hash";
 import { LinkedDataWithItsHash } from "../../utils/linked-data";
 import { measureAsyncTime } from "../../utils/performance";
-import { ArticleView } from "../article-view";
-import { AsyncLoader } from "../async-loader";
+import { ArticleComponent } from "../article-component";
+import { AsyncLoader } from "../common/async-loader";
 import { Navigation } from "../navigation";
 import { Profile } from "../profile";
 
@@ -67,7 +67,7 @@ const AppWithLinkedData: React.FC<{
       <Nav hash={currentArticle?.hash} directoryIndex={directoryIndex} />
       <div id="container">
         <div className="p-4">
-          <ArticleView
+          <ArticleComponent
             articleLdFetcher={articleLdFetcher}
             contentFetcher={articleContentFetcher}
             onArticleLoaded={setCurrentArticle}

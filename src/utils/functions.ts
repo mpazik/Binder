@@ -1,7 +1,8 @@
+import { Processor } from "./connections";
+
 export type Reducer<S, A> = (state: S, action: A) => S;
 
 export type Consumer<T> = (value: T) => void;
-export type Processor<T, S> = (push: Consumer<S>) => Consumer<T>;
 
 export type Reduce<T, S> = (val: T) => S;
 

@@ -26,7 +26,7 @@ const removeBaseUrlFromFragments = (
   });
 };
 
-type ArticleContent = {
+export type ArticleContent = {
   content: Document;
   linkedData: Article;
 };

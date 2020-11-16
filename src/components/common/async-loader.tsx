@@ -1,6 +1,6 @@
 import React from "react";
 
-import { usePromise } from "../hooks/use-promise";
+import { usePromise } from "../../hooks/use-promise";
 
 type Props<T extends unknown> = {
   promise: () => Promise<T>;
