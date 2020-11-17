@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 
 import { Article, URL } from "schema-dts";
 
@@ -6,18 +6,30 @@ import { ArticleContentFetcher } from "../functions/article-content-fetcher";
 import { ArticleLdFetcher } from "../functions/article-ld-fetcher";
 import { ArticleContent } from "../functions/article-processor";
 import { linkHijackToQueryParams } from "../functions/url-hijack";
+import { HandlerRegister, map, Processor } from "../utils/connections";
 import { findUri, LinkedDataWithItsHash } from "../utils/linked-data";
 import { newStateMapper, stateMachine } from "../utils/named-state";
-import { useProcessor, useProvider } from "../utils/react";
+import { useProvider } from "../utils/react";
 
 import { CenterLoading } from "./common/center-loading";
 
-type ArticleViewAction = ["loading"] | ["loaded", ArticleContent];
+type ArticleViewAction =
+  | ["loading", URL]
+  | ["loadedLinkedData", LinkedDataWithItsHash<Article>]
+  | ["loadedContent", Document];
 
 export type ArticleViewState =
   | ["initializing"]
+  | ["initializingContent", LinkedDataWithItsHash<Article>]
   | ["loaded", ArticleContent]
-  | ["loading", { existingArticle: ArticleContent }];
+  | ["loading", { existingArticle: ArticleContent }]
+  | [
+      "loadingContent",
+      {
+        newArticleLdWithHash: LinkedDataWithItsHash<Article>;
+        existingArticle: ArticleContent;
+      }
+    ];
 
 const articleViewInitState: ArticleViewState = ["initializing"];
 const articleViewStateMachine = stateMachine<
@@ -25,14 +37,32 @@ const articleViewStateMachine = stateMachine<
   ArticleViewAction
 >(articleViewInitState, {
   initializing: {
-    loaded: (articleContent) => ["loaded", articleContent],
     loading: () => ["initializing"], // ignore loading action
+    loadedLinkedData: (articleWithHash) => [
+      "initializingContent",
+      articleWithHash,
+    ],
   },
-  loading: {
-    loaded: (articleContent) => ["loaded", articleContent],
+  initializingContent: {
+    loadedContent: (content, ldWithHash) => [
+      "loaded",
+      { content, linkedData: ldWithHash.ld },
+    ],
   },
   loaded: {
     loading: (_, existingArticle) => ["loading", { existingArticle }],
+  },
+  loading: {
+    loadedLinkedData: (articleWithHash, { existingArticle }) => [
+      "loadingContent",
+      { newArticleLdWithHash: articleWithHash, existingArticle },
+    ],
+  },
+  loadingContent: {
+    loadedContent: (content, { newArticleLdWithHash }) => [
+      "loaded",
+      { content, linkedData: newArticleLdWithHash.ld },
+    ],
   },
 });
 
@@ -55,81 +85,88 @@ const ArticleView: React.FC<ArticleContent> = ({ content, linkedData }) => {
   );
 };
 
+const ArticleViewWithLoader: React.FC<ArticleContent> = (existingArticle) => (
+  <React.Fragment>
+    <CenterLoading />
+    <ArticleView {...existingArticle} />
+  </React.Fragment>
+);
+
 const stateMapperToView = newStateMapper<
   ArticleViewState,
   ReturnType<React.FC>
 >({
   initializing: () => <CenterLoading />,
-  loading: ({ existingArticle }) => (
-    <React.Fragment>
-      <CenterLoading />
-      <ArticleView {...existingArticle} />
-    </React.Fragment>
-  ),
+  initializingContent: () => <CenterLoading />,
   loaded: (content) => <ArticleView {...content} />,
+  loading: ({ existingArticle }) => (
+    <ArticleViewWithLoader {...existingArticle} />
+  ),
+  loadingContent: ({ existingArticle }) => (
+    <ArticleViewWithLoader {...existingArticle} />
+  ),
 });
+
+const getUri = map(
+  (queryParams: URLSearchParams) =>
+    queryParams.get("uri") || "https://pl.wikipedia.org/wiki/Dedal_z_Sykionu"
+);
+
+const something = ({
+  onClose,
+  articleLdFetcher,
+  contentFetcher,
+}: {
+  onClose: HandlerRegister;
+  articleLdFetcher: ArticleLdFetcher;
+  contentFetcher: ArticleContentFetcher;
+}): Processor<string, ArticleViewAction> => (push) => (uri) => {
+  push(["loading", uri]);
+  const controller = new AbortController();
+  (async () => {
+    const article = await articleLdFetcher(uri, controller.signal);
+    push(["loadedLinkedData", article]);
+    const content = await contentFetcher(article.ld);
+    push(["loadedContent", content]);
+  })();
+  onClose(() => {
+    controller.abort();
+  });
+};
 
 const useArticleContentProvider = ({
   articleLdFetcher,
   contentFetcher,
-  onArticleLoaded,
 }: {
   articleLdFetcher: ArticleLdFetcher;
   contentFetcher: ArticleContentFetcher;
-  onArticleLoaded: (article: LinkedDataWithItsHash<Article>) => void;
+  onArticleLoaded?: (article: LinkedDataWithItsHash<Article>) => void;
 }): ArticleViewState => {
-  const queryParams = useProvider(
-    linkHijackToQueryParams,
-    new URLSearchParams(window.location.search)
-  );
-  const uri =
-    queryParams.get("uri") || "https://pl.wikipedia.org/wiki/Dedal_z_Sykionu";
-
-  const [articleViewState, setArticleViewAction] = useProcessor(
-    articleViewStateMachine,
-    articleViewInitState
-  );
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setArticleViewAction(["loading"]);
-    (async function anyNameFunction() {
-      const article = await articleLdFetcher(uri, controller.signal);
-      onArticleLoaded(article);
-      const content = await contentFetcher(article.ld);
-      setArticleViewAction(["loaded", { content, linkedData: article.ld }]);
-    })();
-
-    return () => {
-      controller.abort();
-    };
-  }, [
-    setArticleViewAction,
-    articleLdFetcher,
-    contentFetcher,
-    onArticleLoaded,
-    uri,
-  ]);
-
-  return articleViewState;
+  return useProvider((onClose, push) => {
+    linkHijackToQueryParams(
+      onClose,
+      getUri(
+        something({ onClose, articleLdFetcher, contentFetcher })(
+          articleViewStateMachine(push)
+        )
+      )
+    );
+  }, articleViewInitState as ArticleViewState);
 };
 
 export const ArticleComponent: React.FC<{
   articleLdFetcher: ArticleLdFetcher;
   contentFetcher: ArticleContentFetcher;
   onArticleLoaded?: (article: LinkedDataWithItsHash<Article>) => void;
-}> = ({
-  contentFetcher,
-  articleLdFetcher,
-  onArticleLoaded = () => {
-    // do nothing.
-  },
-}) => {
-  const articleViewState = useArticleContentProvider({
-    onArticleLoaded,
-    contentFetcher,
-    articleLdFetcher,
-  });
+}> = (props) => {
+  const articleViewState = useArticleContentProvider(props);
+  if (props.onArticleLoaded) {
+    if (articleViewState[0] === "initializingContent") {
+      props.onArticleLoaded(articleViewState[1]);
+    } else if (articleViewState[0] === "loadingContent") {
+      props.onArticleLoaded(articleViewState[1].newArticleLdWithHash);
+    }
+  }
 
   return stateMapperToView(articleViewState);
 };
