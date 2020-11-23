@@ -1,10 +1,15 @@
-import { Provider, ProviderFactory } from "../utils/connections";
+import {
+  mapProvider,
+  Provider,
+  ProviderFactory,
+  providerMerge,
+} from "../utils/connections";
 
 import { queryParamProvider } from "./browser";
 
 const linkHijack: ProviderFactory<{ element?: Node }, string> = ({
   element = document,
-}) => (onClose, push) => {
+}) => (signal, push) => {
   const hijackLink = (event: Event) => {
     const target = event.target as HTMLElement;
     if (!target || target.nodeName !== "A") return;
@@ -18,18 +23,17 @@ const linkHijack: ProviderFactory<{ element?: Node }, string> = ({
 
   element.addEventListener("click", hijackLink);
 
-  onClose(() => element.removeEventListener("click", hijackLink));
+  signal.addEventListener("aborted", () =>
+    element.removeEventListener("click", hijackLink)
+  );
 };
 
-export const linkHijackToQueryParams: Provider<URLSearchParams> = (
-  onClose,
-  push
-) => {
-  linkHijack({})(onClose, (uri) => {
+export const linkHijackToQueryParams: Provider<URLSearchParams> = providerMerge(
+  mapProvider(linkHijack({}), (uri) => {
     const queryParams = new URLSearchParams(window.location.search);
     queryParams.set("uri", uri);
     window.history.pushState({}, "", "?" + queryParams.toString());
-    push(queryParams);
-  });
-  queryParamProvider(onClose, push);
-};
+    return queryParams;
+  }),
+  queryParamProvider
+);

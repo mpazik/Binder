@@ -1,25 +1,24 @@
 import { Provider } from "../utils/connections";
 
-export const urlHashProvider: Provider<string> = (onClose, push) => {
+export const urlHashProvider: Provider<string> = (signal, push) => {
   const update = () => {
     const hash = location.hash;
     push(hash);
   };
   update();
   window.addEventListener("hashchange", update);
-  onClose(() => {
-    window.removeEventListener("hashchange", update);
-  });
+  signal.addEventListener("aborted", () =>
+    window.removeEventListener("hashchange", update)
+  );
 };
 
-export const queryParamProvider: Provider<URLSearchParams> = (
-  onClose,
-  push
-) => {
+export const queryParamProvider: Provider<URLSearchParams> = (signal, push) => {
   const update = () => push(new URLSearchParams(window.location.search));
 
   update();
   window.addEventListener("popstate", update);
 
-  onClose(() => document.removeEventListener("popstate", update));
+  signal.addEventListener("aborted", () =>
+    document.removeEventListener("popstate", update)
+  );
 };

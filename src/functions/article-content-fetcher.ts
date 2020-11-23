@@ -8,10 +8,7 @@ import { measureAsyncTime } from "../utils/performance";
 import { parseArticleContent } from "./article-processor";
 import { StoreRead } from "./local-store";
 
-export type ArticleContentFetcher = (
-  article: Article,
-  signal?: AbortSignal
-) => Promise<Document>;
+export type ArticleContentFetcher = (article: Article) => Promise<Document>;
 
 export const createArticleContentFetcher = (
   storeRead: StoreRead

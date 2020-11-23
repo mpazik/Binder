@@ -22,5 +22,7 @@ export const reducerProcessor = <S, A>(
   initState: S
 ): Processor<A, S> => (push) => {
   const reduce = createReducer(reducer, initState);
-  return (value) => push(reduce(value));
+  return (value) => {
+    push(reduce(value));
+  };
 };

@@ -28,12 +28,6 @@ type ActionByName<A extends SomeAction, N extends A[0]> = A extends NamedAction<
 type StatesHandler<S extends SomeState> = {
   [SK in S[0]]?: (state: StateByName<S, SK>[1]) => void;
 };
-type StatesAsyncHandler<S extends SomeState> = {
-  [SK in S[0]]?: (state: StateByName<S, SK>[1]) => Promise<void>;
-};
-type StateFeedbacks<S extends SomeState, A extends SomeAction> = {
-  [SK in S[0]]?: (state: StateByName<S, SK>[1]) => Promise<A>;
-};
 
 export const newStateHandler = <S extends SomeState>(
   handlers: StatesHandler<S>
@@ -78,6 +72,13 @@ export const stateMachine = <S extends SomeState, A extends SomeAction>(
   return reducerProcessor(newStateMachineHandler(behaviours), initState)(push);
 };
 
+type StateFeedbacks<S extends SomeState, A extends SomeAction> = {
+  [SK in S[0]]?: (
+    state: StateByName<S, SK>[1],
+    abortSignal: AbortSignal
+  ) => Promise<A>;
+};
+
 export const stateMachineWithFeedback = <
   S extends SomeState,
   A extends SomeAction
@@ -86,13 +87,19 @@ export const stateMachineWithFeedback = <
   behaviours: Behaviours<S, A>,
   feedbacks: StateFeedbacks<S, A>
 ): Processor<A, S> => (push) => {
+  let abortController = new AbortController();
+
   const handleAction = stateMachine(
     initState,
     behaviours
   )((state) => {
+    abortController.abort();
+    abortController = new AbortController();
     const feedback = feedbacks[state[0] as S[0]];
     if (feedback) {
-      feedback(state[1]).then((action) => handleAction(action));
+      feedback(state[1], abortController.signal).then((action) =>
+        handleAction(action)
+      );
     }
     push(state);
   });

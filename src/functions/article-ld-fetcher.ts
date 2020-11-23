@@ -34,7 +34,9 @@ export const createArticleLdFetcher = (
       };
     }
 
-    const response = await fetchTroughProxy(uri, { signal });
+    const response = await fetchTroughProxy(uri, {
+      signal: signal,
+    });
     const { linkedData, content } = await processToArticle(response);
     const contentHash = await storeWrite(
       new Blob([content.documentElement.innerHTML], { type: articleMediaType })
