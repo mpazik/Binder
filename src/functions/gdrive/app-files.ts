@@ -1,5 +1,5 @@
 import { GDRIVE_APP_DIR_NAME } from "../../config";
-import { openDb, storeGet, StoreName, storePut } from "../../utils/indexeddb";
+import { openDb, storeGet, StoreName, storePut } from "../../libs/indexeddb";
 
 import {
   GApi,

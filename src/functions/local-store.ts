@@ -1,11 +1,11 @@
-import { hashBlob, HashName } from "../utils/hash";
+import { hashBlob, HashName } from "../libs/hash";
 import {
   openSingleStoreDb,
   SingleStoreDb,
   storeGet,
   storePut,
-} from "../utils/indexeddb";
-import { Opaque } from "../utils/types";
+} from "../libs/indexeddb";
+import { Opaque } from "../libs/types";
 
 export type StoreRead = (hash: HashName) => Promise<Blob | undefined>;
 export type StoreWrite = (data: Blob) => Promise<HashName>;

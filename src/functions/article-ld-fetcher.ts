@@ -1,13 +1,13 @@
 import { Article } from "schema-dts";
 
-import { throwIfNull } from "../utils/errors";
+import { throwIfNull } from "../libs/errors";
 import {
   HashName,
   hashNameToHashUri,
   hashUriToHashName,
   isHashUri,
-} from "../utils/hash";
-import { jsonLdMimeType, LinkedDataWithItsHash } from "../utils/linked-data";
+} from "../libs/hash";
+import { jsonLdMimeType, LinkedDataWithItsHash } from "../libs/linked-data";
 
 import { articleMediaType, processToArticle } from "./article-processor";
 import { fetchTroughProxy } from "./fetch-trough-proxy";

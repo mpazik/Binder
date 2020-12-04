@@ -1,9 +1,9 @@
 import { Readability } from "readability";
 import { Article } from "schema-dts";
 
-import { throwIfNull } from "../utils/errors";
-import { createArticle } from "../utils/ld-schemas";
-import { measureTime } from "../utils/performance";
+import { throwIfNull } from "../libs/errors";
+import { createArticle } from "../libs/ld-schemas";
+import { measureTime } from "../libs/performance";
 
 export const articleMediaType = "text/html";
 export type ArticleProcessor = (r: Response) => Promise<Article>;

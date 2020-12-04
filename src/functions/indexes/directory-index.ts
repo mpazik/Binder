@@ -1,13 +1,13 @@
-import { throwIfNull } from "../../utils/errors";
-import { HashName } from "../../utils/hash";
+import { throwIfNull } from "../../libs/errors";
+import { HashName } from "../../libs/hash";
 import {
   openSingleStoreDb,
   SingleStoreDb,
   storeGetAllWithKeys,
   storePut,
-} from "../../utils/indexeddb";
-import { measureAsyncTime } from "../../utils/performance";
-import { Opaque } from "../../utils/types";
+} from "../../libs/indexeddb";
+import { measureAsyncTime } from "../../libs/performance";
+import { Opaque } from "../../libs/types";
 import { createLinkedDataProvider } from "../linked-data-provider";
 import { LocalStoreDb } from "../local-store";
 

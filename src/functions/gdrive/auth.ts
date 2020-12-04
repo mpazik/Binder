@@ -1,5 +1,5 @@
 import { GDRIVE_API_KEY, GDRIVE_CLIENT_ID } from "../../config";
-import { Opaque } from "../../utils/types";
+import { Opaque } from "../../libs/types";
 
 const DISCOVERY_DOCS = [
   "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest",
@@ -62,7 +62,7 @@ const loadScript = () =>
 
 export const initializeGoogleDrive = async (): Promise<GApi> => {
   const gapi = await loadScript();
-  await new Promise((resolve) => gapi.load("client:auth2", resolve));
+  await new Promise<void>((resolve) => gapi.load("client:auth2", resolve));
   await gapi.client.init(
     {
       apiKey: atob(GDRIVE_API_KEY),

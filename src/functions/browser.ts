@@ -1,4 +1,4 @@
-import { Provider } from "../utils/connections";
+import { Provider } from "../libs/connections";
 
 export const urlHashProvider: Provider<string> = (signal, push) => {
   const update = () => {

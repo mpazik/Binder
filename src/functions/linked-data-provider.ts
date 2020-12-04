@@ -1,6 +1,6 @@
-import { HashName } from "../utils/hash";
-import { getDefaultStore } from "../utils/indexeddb";
-import { jsonLdMimeType, LinkedDataWithItsHash } from "../utils/linked-data";
+import { HashName } from "../libs/hash";
+import { getDefaultStore } from "../libs/indexeddb";
+import { jsonLdMimeType, LinkedDataWithItsHash } from "../libs/linked-data";
 
 import { LocalStoreDb } from "./local-store";
 

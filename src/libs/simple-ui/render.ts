@@ -1,0 +1,195 @@
+import { Attributes, JsonMl, mapJsonMl, newTagFactory } from "./jsonml";
+import { SimplifiedElementsMap, SimplifiedEvent, SimplifiedEventMap } from "./dom";
+import { Provider, OnCloseRegister } from "./connections";
+
+// todo render should be independent from JsonML and accpet only raw dom
+// there could be another jsonMl (jsonHtml) render that act as a glue code
+
+type CustomEventMap = {
+  display: SimplifiedEvent
+}
+export type EventMap = SimplifiedEventMap & CustomEventMap
+type EventHandlers = {
+  [K in keyof EventMap as `on${Capitalize<K>}`]: (event: EventMap[K]) => void;
+};
+type CustomElements = {
+  slot: {
+    key: string;
+    componentHandler: ComponentRuntime;
+  };
+};
+
+type Nodes = { [P in keyof SimplifiedElementsMap]: (SimplifiedElementsMap[P] & EventHandlers) } & CustomElements;
+
+type JsonHtml = JsonMl<Nodes>;
+
+export type Render = (jsonml: JsonHtml) => void;
+
+export type Listener<K extends keyof EventMap> = (event: EventMap[K]) => void;
+export type ComponentRuntime = (render: Render, onClose: OnCloseRegister) => void;
+export type Component<T = void> = (props: T) => ComponentRuntime;
+
+type Prop = string | number | boolean | Record<string, unknown> | Prop[] | undefined | Provider<any>;
+type ViewProps = Record<string, Prop> | void;
+export type View<T extends ViewProps> = (props: T) => JsonHtml;
+
+type ViewConfig = Record<string, Prop | Listener<any> | ComponentRuntime> | void;
+export type ViewSetup<C extends ViewConfig = void, T extends ViewProps = void> = (
+  config: C
+) => View<T>;
+
+type Slots = Map<string, { element: Element; runtime: ComponentRuntime }>;
+
+export const classList = (classes: Record<string, boolean>): string =>
+  Object.keys(classes)
+    .reduce((selectedClsses, className) => {
+      if (classes[className]) {
+        selectedClsses.push(className);
+      }
+      return selectedClsses;
+    }, [] as string[])
+    .join(" ");
+
+const convertToDom = (elem: JsonHtml): [Node, Slots] =>
+  mapJsonMl<Nodes, [Node, Slots]>(
+    elem,
+    (string) => [document.createTextNode(string), new Map()],
+    ([tag, attrs, children]) => {
+      const node = document.createElement(tag);
+      const slots: Slots = new Map();
+      if (tag === "slot") {
+        const { key, componentHandler } = attrs as CustomElements["slot"];
+        slots.set(key, { runtime: componentHandler, element: node });
+        return [node, slots];
+      }
+
+      for (const attrKey of Object.keys(attrs)) {
+        const attrVal = (attrs as Attributes<Nodes, typeof tag>)[
+          attrKey as keyof Attributes<Nodes, typeof tag>
+        ];
+        if (attrKey === "id") {
+          node.id = attrVal as string;
+        } else if (attrKey === "class") {
+          for (const cls of (attrVal as string).split(" ")) {
+            if (cls !== "") node.classList.add(cls);
+          }
+        } else if (typeof attrVal === "function") {
+          const type = attrKey.substr(2).toLowerCase();
+          const listener = attrVal as (event: Event) => void;
+          if (type === "display") {
+            setImmediate(() =>
+              listener(({
+                type: "display",
+                target: node,
+              } as unknown) as Event)
+            );
+          }
+          node.addEventListener(type, (e: Event) => listener(e));
+        } else if (typeof attrVal === "boolean") {
+          attrVal
+            ? node.setAttribute(attrKey, attrKey)
+            : node.removeAttribute(attrKey);
+        } else {
+          node.setAttribute(attrKey, attrVal!);
+        }
+      }
+
+      children.forEach(([child, childSlots]) => {
+        node.appendChild(child);
+        childSlots.forEach((value, key) => {
+          if (process.env.NODE_ENV !== 'production') {
+            if (slots.has(key)) {
+              throw new Error(`Slot with the key "${key}" is duplicated. Slot key must be unique`)
+            }
+          }
+          slots.set(key, value)
+        });
+      });
+
+      return [node, slots];
+    }
+  );
+
+export type Deactivate = () => void;
+
+const slotHandler = (parent: Element): Render => {
+  const existingSlots = new Map<
+    string,
+    { element: Element; deactivate: Deactivate }
+  >();
+
+  return (jsonml: JsonHtml) => {
+    console.debug('render', jsonml)
+    const [newChild, renderedSlots] = convertToDom(jsonml);
+
+    const rendered = new Set<string>(renderedSlots.keys());
+    const existing = new Set<string>(existingSlots.keys());
+
+    // reuse existing slot that already have rendered content
+    for (const slotKey of setIntersection(rendered, existing)) {
+      replaceByPrevious(
+        renderedSlots.get(slotKey)!.element,
+        existingSlots.get(slotKey)!.element
+      );
+    }
+
+    // activate components in newly rendered slots
+    for (const slotKey of setDifference(rendered, existing)) {
+      const { element, runtime } = renderedSlots.get(slotKey)!;
+      const deactivate = setupComponent(runtime, element)
+      existingSlots.set(slotKey, { element, deactivate });
+    }
+
+    // deactivate components for slots that disappeared
+    for (const slotKey of setDifference(existing, rendered)) {
+      const existingSlot = existingSlots.get(slotKey);
+      existingSlot!.deactivate();
+      existingSlots.delete(slotKey);
+    }
+
+    parent.innerHTML = "";
+    parent.appendChild(newChild);
+  };
+};
+
+export const setupComponent = (runtime: ComponentRuntime, element: Element): Deactivate => {
+  const abortController = new AbortController();
+  runtime(slotHandler(element), (handler) => {
+    abortController.signal.addEventListener('abort', handler)
+  });
+  return () => abortController.abort()
+}
+
+const replaceByPrevious = (current: Element, previous: Element) =>
+  current.parentNode!.replaceChild(previous, current);
+
+const setDifference = <T>(setA: Set<T>, setB: Set<T>): Set<T> =>
+  new Set([...setA].filter((x) => !setB.has(x)));
+
+const setIntersection = <T>(setA: Set<T>, setB: Set<T>): Set<T> =>
+  new Set([...setA].filter((x) => setB.has(x)));
+
+export type ComponentItem<I, ID , T = void> = (props: T & {itemProvider: Provider<I>, id: ID}) => ComponentRuntime;
+
+export const div = newTagFactory<Nodes>("div");
+export const h1 = newTagFactory<Nodes>("h1");
+export const h2 = newTagFactory<Nodes>("h2");
+export const h3 = newTagFactory<Nodes>("h3");
+export const h4 = newTagFactory<Nodes>("h4");
+export const h5 = newTagFactory<Nodes>("h5");
+export const h6 = newTagFactory<Nodes>("h6");
+export const input = newTagFactory<Nodes>("input");
+export const header = newTagFactory<Nodes>("header");
+export const span = newTagFactory<Nodes>("span");
+export const p = newTagFactory<Nodes>("p");
+export const button = newTagFactory<Nodes>("button");
+export const section = newTagFactory<Nodes>("section");
+export const footer = newTagFactory<Nodes>("footer");
+export const ul = newTagFactory<Nodes>("ul");
+export const label = newTagFactory<Nodes>("label");
+export const li = newTagFactory<Nodes>("li");
+export const a = newTagFactory<Nodes>("a");
+export const slot = (key: string, onRender: ComponentRuntime): JsonHtml => [
+  "slot",
+  { componentHandler: onRender, key },
+];

@@ -1,7 +1,7 @@
 import { Article } from "schema-dts";
 
-import { hashNameToHashUri } from "../utils/hash";
-import { jsonLdMimeType, LinkedDataWithItsHash } from "../utils/linked-data";
+import { hashNameToHashUri } from "../libs/hash";
+import { jsonLdMimeType, LinkedDataWithItsHash } from "../libs/linked-data";
 
 import { ArticleContent, articleMediaType } from "./article-processor";
 import { Indexer } from "./indexes/types";

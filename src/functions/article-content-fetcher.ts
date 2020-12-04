@@ -1,9 +1,9 @@
 import { Article } from "schema-dts";
 
-import { throwIfNull } from "../utils/errors";
-import { hashUriToHashName } from "../utils/hash";
-import { findHashUri } from "../utils/linked-data";
-import { measureAsyncTime } from "../utils/performance";
+import { throwIfNull } from "../libs/errors";
+import { hashUriToHashName } from "../libs/hash";
+import { findHashUri } from "../libs/linked-data";
+import { measureAsyncTime } from "../libs/performance";
 
 import { parseArticleContent } from "./article-processor";
 import { StoreRead } from "./local-store";

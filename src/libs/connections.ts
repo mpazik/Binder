@@ -26,6 +26,13 @@ export const mapProvider = <T, S>(
   provider(signal, (data) => push(map(data)));
 };
 
+export const mapInput = <T, S>(
+  input: Input<T>,
+  map: (value: T) => S
+): Input<S> => (push) => {
+  input((data) => push(map(data)));
+};
+
 export const providerMerge = <T>(
   p1: Provider<T>,
   p2: Provider<T>

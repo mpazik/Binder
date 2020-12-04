@@ -1,9 +1,9 @@
 import {
-  mapProvider,
+  mapInput,
   Provider,
   ProviderFactory,
   providerMerge,
-} from "../utils/connections";
+} from "../libs/connections";
 
 import { queryParamProvider } from "./browser";
 
@@ -29,7 +29,7 @@ const linkHijack: ProviderFactory<{ element?: Node }, string> = ({
 };
 
 export const linkHijackToQueryParams: Provider<URLSearchParams> = providerMerge(
-  mapProvider(linkHijack({}), (uri) => {
+  mapInput(linkHijack({}), (uri) => {
     const queryParams = new URLSearchParams(window.location.search);
     queryParams.set("uri", uri);
     window.history.pushState({}, "", "?" + queryParams.toString());

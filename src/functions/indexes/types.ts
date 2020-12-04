@@ -1,7 +1,7 @@
 import { CreativeWork } from "schema-dts";
 
-import { HashName } from "../../utils/hash";
-import { LinkedDataWithItsHash } from "../../utils/linked-data";
+import { HashName } from "../../libs/hash";
+import { LinkedDataWithItsHash } from "../../libs/linked-data";
 
 export type IndexRecord<T> = { props: T; hash: HashName };
 export type IndexingStrategy<T> = (linkedData: CreativeWork) => Promise<T>;

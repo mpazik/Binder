@@ -1,5 +1,5 @@
-import { HashUri } from "../../utils/hash";
-import { Opaque } from "../../utils/types";
+import { HashUri } from "../../libs/hash";
+import { Opaque } from "../../libs/types";
 
 import { GoogleAuthToken } from "./auth";
 
