@@ -1,6 +1,7 @@
-import { Attributes, JsonMl, mapJsonMl, newTagFactory } from "./jsonml";
+import { OnCloseRegister, Provider } from "../connections";
+
 import { SimplifiedElementsMap, SimplifiedEvent, SimplifiedEventMap } from "./dom";
-import { Provider, OnCloseRegister } from "./connections";
+import { Attributes, JsonMl, mapJsonMl, newTagFactory } from "./jsonml";
 
 // todo render should be independent from JsonML and accpet only raw dom
 // there could be another jsonMl (jsonHtml) render that act as a glue code
@@ -17,6 +18,11 @@ type CustomElements = {
     key: string;
     componentHandler: ComponentRuntime;
   };
+  html: {
+    innerHtml: string;
+  }
+  // eslint-disable-next-line @typescript-eslint/ban-types
+  fragment: {}
 };
 
 type Nodes = { [P in keyof SimplifiedElementsMap]: (SimplifiedElementsMap[P] & EventHandlers) } & CustomElements;
@@ -27,11 +33,12 @@ export type Render = (jsonml: JsonHtml) => void;
 
 export type Listener<K extends keyof EventMap> = (event: EventMap[K]) => void;
 export type ComponentRuntime = (render: Render, onClose: OnCloseRegister) => void;
+// setup component
 export type Component<T = void> = (props: T) => ComponentRuntime;
 
 type Prop = string | number | boolean | Record<string, unknown> | Prop[] | undefined | Provider<any>;
-type ViewProps = Record<string, Prop> | void;
-export type View<T extends ViewProps> = (props: T) => JsonHtml;
+type ViewProps = Record<string, Prop> | Prop | void;
+export type View<T extends ViewProps = void> = (props: T) => JsonHtml;
 
 type ViewConfig = Record<string, Prop | Listener<any> | ComponentRuntime> | void;
 export type ViewSetup<C extends ViewConfig = void, T extends ViewProps = void> = (
@@ -50,17 +57,41 @@ export const classList = (classes: Record<string, boolean>): string =>
     }, [] as string[])
     .join(" ");
 
+function handleChildren(node: Node, slots: Slots, children: [Node, Slots][]) {
+  children.forEach(([child, childSlots]) => {
+    node.appendChild(child);
+    childSlots.forEach((value, key) => {
+      if (process.env.NODE_ENV !== "production") {
+        if (slots.has(key)) {
+          throw new Error(`Slot with the key "${key}" is duplicated. Slot key must be unique`);
+        }
+      }
+      slots.set(key, value);
+    });
+  });
+}
+
 const convertToDom = (elem: JsonHtml): [Node, Slots] =>
   mapJsonMl<Nodes, [Node, Slots]>(
     elem,
     (string) => [document.createTextNode(string), new Map()],
     ([tag, attrs, children]) => {
-      const node = document.createElement(tag);
       const slots: Slots = new Map();
+
+      if (tag === 'fragment') {
+        const node = document.createDocumentFragment()
+        handleChildren(node, slots, children);
+        return [node, slots];
+      }
+
+      const node = document.createElement(tag);
       if (tag === "slot") {
         const { key, componentHandler } = attrs as CustomElements["slot"];
         slots.set(key, { runtime: componentHandler, element: node });
         return [node, slots];
+      } else if (tag === "html") {
+        node.innerHTML = (attrs as CustomElements['html'])['innerHtml']
+        return [node, slots]
       }
 
       for (const attrKey of Object.keys(attrs)) {
@@ -94,17 +125,7 @@ const convertToDom = (elem: JsonHtml): [Node, Slots] =>
         }
       }
 
-      children.forEach(([child, childSlots]) => {
-        node.appendChild(child);
-        childSlots.forEach((value, key) => {
-          if (process.env.NODE_ENV !== 'production') {
-            if (slots.has(key)) {
-              throw new Error(`Slot with the key "${key}" is duplicated. Slot key must be unique`)
-            }
-          }
-          slots.set(key, value)
-        });
-      });
+      handleChildren(node, slots, children);
 
       return [node, slots];
     }
@@ -189,6 +210,20 @@ export const ul = newTagFactory<Nodes>("ul");
 export const label = newTagFactory<Nodes>("label");
 export const li = newTagFactory<Nodes>("li");
 export const a = newTagFactory<Nodes>("a");
+export const strong = newTagFactory<Nodes>("strong");
+export const b = newTagFactory<Nodes>("b");
+export const article = newTagFactory<Nodes>("article");
+export const details = newTagFactory<Nodes>("details");
+export const summary = newTagFactory<Nodes>("summary");
+export const fragment = (...children: JsonHtml[]): JsonHtml => [
+  'fragment',
+  {},
+  ...children
+];
+export const dangerousInnerHtml = (html: string): JsonHtml => [
+  "html",
+  { innerHtml: html },
+];
 export const slot = (key: string, onRender: ComponentRuntime): JsonHtml => [
   "slot",
   { componentHandler: onRender, key },

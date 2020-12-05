@@ -1,5 +1,3 @@
-import { equal } from "../utils/equal";
-
 import {
   BiProcessor,
   Consumer,
@@ -7,6 +5,7 @@ import {
   Provider,
   OnCloseRegister,
 } from "./types";
+import { equal } from "./utils/equal";
 
 export const map = <T, S>(transform: (v: T) => S): Processor<T, S> => (
   push

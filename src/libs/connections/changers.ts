@@ -75,7 +75,7 @@ export type ObjectChange<T, C = unknown> =
   | [op: "chg", key: keyof T, ...changes: C[]]
   | [op: "all", ...changes: C[]];
 
-export const objectChanger = <S extends Record<string, any>, C>(
+export const objectChanger = <S extends Record<any, any>, C = unknown>(
   applyChanges: (prop: S[keyof S], change: C) => S[keyof S]
 ) => (state: S, op: ObjectChange<S, C>): S => {
   switch (op[0]) {
@@ -125,7 +125,7 @@ export type EntityListChange<I, ID, C = unknown> =
 export const entityListChanger = <I, ID, C = unknown>(
   getId: (item: I) => ID,
   applyChanges: (item: I, change: C) => I
-) => (state: I[], op: EntityListChange<I, ID, C>) => {
+) => (state: I[], op: EntityListChange<I, ID, C>): I[] => {
   const findIndex = (id: ID) => state.findIndex((it) => getId(it) === id);
   switch (op[0]) {
     case "to": {

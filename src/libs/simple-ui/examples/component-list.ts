@@ -1,4 +1,18 @@
 import {
+  Consumer,
+  dataPortal,
+  EntityListChange,
+  entityListChanger,
+  map,
+  ObjectChange,
+  objectChanger,
+  pipe,
+  Provider,
+  reducer,
+  wrap,
+} from "../../connections";
+import { itemsReconciliation } from "../items-reconciliation";
+import {
   button,
   Component,
   div,
@@ -7,18 +21,6 @@ import {
   span,
   ViewSetup,
 } from "../render";
-import {
-  Consumer,
-  dataPortal,
-  EntityListChange,
-  entityListChanger,
-  map,
-  objectChanger,
-  Provider,
-  reducer,
-} from "../connections";
-import { log, pipe, wrap } from "../connections/processors";
-import { itemsReconciliation } from "../items-reconciliation";
 
 type ItemId = string;
 type Item = { id: ItemId; value: string };
@@ -93,7 +95,7 @@ const getItemId = (it: Item) => it.id;
 
 const main: Component = () => (render) => {
   const [listUpdatesProvider, updateList] = dataPortal<
-    EntityListChange<Item, ItemId>
+    EntityListChange<Item, ItemId, ObjectChange<Item>>
   >();
 
   const generateId = newIdGenerator();
@@ -112,9 +114,9 @@ const main: Component = () => (render) => {
   listUpdatesProvider(
     reducer(
       [],
-      entityListChanger<Item, ItemId>(
+      entityListChanger<Item, ItemId, ObjectChange<Item>>(
         getItemId,
-        objectChanger((it) => it)
+        objectChanger<Item>((it) => it)
       )
     )(
       itemsReconciliation<Item, ItemId>(getItemId)(

@@ -9,6 +9,8 @@ export type LinkedDataWithItsHash<Ld extends CreativeWork = CreativeWork> = {
   ld: Ld;
 };
 
+export const getHash = (ld: LinkedDataWithItsHash): HashName => ld.hash;
+
 export const findUri = (ld: CreativeWork): URL | undefined =>
   [ld.url || []].flat().find((it) => !isHashUri(it));
 

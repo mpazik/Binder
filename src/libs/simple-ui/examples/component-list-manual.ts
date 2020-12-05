@@ -1,4 +1,15 @@
 import {
+  entityListChanger,
+  Consumer,
+  dataPortal,
+  reducer,
+  EntityListChange,
+  map,
+  pipe,
+  wrap,
+} from "../../connections";
+import { ItemProvider } from "../items-reconciliation";
+import {
   button,
   Component,
   div,
@@ -7,16 +18,6 @@ import {
   span,
   ViewSetup,
 } from "../render";
-import {
-  entityListChanger,
-  Consumer,
-  dataPortal,
-  reducer,
-  EntityListChange,
-  map,
-} from "../connections";
-import { pipe, wrap } from "../connections/processors";
-import { ItemProvider, itemsReconciliation } from "../items-reconciliation";
 
 type ItemId = string;
 type Item = { id: ItemId; value: string };

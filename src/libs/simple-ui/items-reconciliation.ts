@@ -1,4 +1,5 @@
-import { dataPortal, Processor, Provider } from "./connections";
+import { dataPortal, Processor, Provider } from "../connections";
+
 import { equal } from "./utils/equal";
 
 export type ItemProvider<I, ID> = { id: ID; provider: Provider<I> };
@@ -28,7 +29,7 @@ export const itemsReconciliation = <I, ID>(
     };
   };
 
-  return (items) => {
+  return (items: I[]) => {
     if (firstRun) {
       // initialize state on the first run
       firstRun = false;

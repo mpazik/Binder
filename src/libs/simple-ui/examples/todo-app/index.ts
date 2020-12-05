@@ -1,3 +1,25 @@
+import { urlHashProvider } from "../../../browser-providers";
+import {
+  Consumer,
+  dataPortal,
+  Provider,
+  combineLatest,
+  filter,
+  fork,
+  forkMapJoin,
+  map,
+  mapTo,
+  match,
+  onAnimationFrame,
+  passOnlyChanged,
+  pipe,
+  reducer,
+  split,
+  wrap,
+  wrapMerge,
+} from "../../../connections";
+import "todomvc-app-css/index.css";
+import { itemsReconciliation } from "../../items-reconciliation";
 import {
   a,
   button,
@@ -17,11 +39,12 @@ import {
   setupComponent,
   slot,
   span,
+  strong,
   ul,
   View,
   ViewSetup,
 } from "../../render";
-import { newTodo, Todo, TodoId } from "./model";
+
 import {
   addNewTodo,
   countActive,
@@ -37,27 +60,7 @@ import {
   TodoChange,
   todosChanger,
 } from "./functions";
-import { urlHashProvider } from "../../browser-providers";
-import {
-  combineLatest,
-  filter,
-  fork,
-  forkMapJoin,
-  map,
-  mapTo,
-  match,
-  onAnimationFrame,
-  passOnlyChanged,
-  pipe,
-  reducer,
-  split,
-  wrap,
-  wrapMerge,
-} from "../../connections/processors";
-import { Consumer, dataPortal, Provider } from "../../connections";
-
-import "todomvc-app-css/index.css";
-import { itemsReconciliation } from "../../items-reconciliation";
+import { newTodo, Todo, TodoId } from "./model";
 
 const TodoItemView: ViewSetup<
   {
@@ -198,7 +201,7 @@ const FooterView: View<{
     { class: "footer" },
     span(
       { class: "todo-count" },
-      ["strong", count.toString()],
+      strong(count.toString()),
       " ",
       activeTodoWord,
       " left"

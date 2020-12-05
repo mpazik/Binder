@@ -1,5 +1,4 @@
-import { Processor } from "./connections";
-import { Reducer, reducerProcessor } from "./functions";
+import { Processor, reducer } from "./connections";
 
 export type NamedAction<N, T = void> = T extends void
   ? [name: N]
@@ -50,7 +49,7 @@ type Behaviours<S extends SomeState, A extends SomeAction> = {
 
 const newStateMachineHandler = <S extends SomeState, A extends SomeAction>(
   behaviours: Behaviours<S, A>
-): Reducer<S, A> => (state, action): S => {
+) => (state: S, action: A): S => {
   const behaviour = behaviours[state[0] as S[0]];
   const handler = behaviour[action[0] as A[0]];
   if (!handler) {
@@ -67,10 +66,7 @@ const newStateMachineHandler = <S extends SomeState, A extends SomeAction>(
 export const stateMachine = <S extends SomeState, A extends SomeAction>(
   initState: S,
   behaviours: Behaviours<S, A>
-): Processor<A, S> => (push) => {
-  push(initState);
-  return reducerProcessor(newStateMachineHandler(behaviours), initState)(push);
-};
+): Processor<A, S> => reducer(initState, newStateMachineHandler(behaviours));
 
 type StateFeedbacks<S extends SomeState, A extends SomeAction> = {
   [SK in S[0]]?: (

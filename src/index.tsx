@@ -1,8 +1,5 @@
-import React from "react";
-
-import ReactDOM from "react-dom";
-
 import { App } from "./components/app";
+import { setupComponent } from "./libs/simple-ui/render";
 
 (async () => {
   await navigator.serviceWorker.register("./worker.js");
@@ -11,10 +8,5 @@ import { App } from "./components/app";
   root.id = "root";
   document.body.appendChild(root);
 
-  ReactDOM.render(
-    <React.StrictMode>
-      <App />
-    </React.StrictMode>,
-    document.getElementById("root")
-  );
+  setupComponent(App, root);
 })();

@@ -1,3 +1,4 @@
+import { Processor, reducer } from "../../connections";
 import {
   button,
   Component,
@@ -7,7 +8,6 @@ import {
   View,
   ViewSetup,
 } from "../render";
-import { Processor, reducer } from "../connections";
 
 const item: View<{ name: string }> = ({ name }) => p(name);
 

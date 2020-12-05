@@ -1,4 +1,4 @@
-import { OnCloseRegister } from "./connections";
+import { OnCloseRegister } from "./types";
 
 export type Network<T> = (props: T, onClose: OnCloseRegister) => void;
 

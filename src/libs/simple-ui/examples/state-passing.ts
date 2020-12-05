@@ -1,17 +1,15 @@
+import { dataPortal, Provider } from "../../connections";
 import {
   button,
   Component,
   ComponentRuntime,
   div,
-  h1,
   h3,
   setupComponent,
   slot,
   span,
-  View,
   ViewSetup,
 } from "../render";
-import { dataPortal, Provider } from "../connections";
 
 const createIncreaseState = (consume: (state: number) => void) => {
   let n = 1;
@@ -51,7 +49,7 @@ const MainView: ViewSetup<
     slot("bottom-slot", bottomSlot)
   );
 
-const main: Component = () => (render, onClose) => {
+const main: Component = () => (render) => {
   const [randomNumberProvider, setRandomNumber] = dataPortal<number>();
   const renderMainView = MainView({
     init: "test",

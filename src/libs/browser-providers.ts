@@ -11,3 +11,15 @@ export const urlHashProvider: ClosableProvider<string> = (onClose, push) => {
     window.removeEventListener("hashchange", update);
   });
 };
+
+export const queryParamProvider: ClosableProvider<URLSearchParams> = (
+  onClose,
+  push
+) => {
+  const update = () => push(new URLSearchParams(window.location.search));
+
+  update();
+  window.addEventListener("popstate", update);
+
+  onClose(() => document.removeEventListener("popstate", update));
+};

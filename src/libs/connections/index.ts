@@ -1,12 +1,11 @@
-import { Consumer, CloseHandler, Provider, OnCloseRegister } from "./types";
+import { Consumer, Provider } from "./types";
 export type {
   Consumer,
-  CloseHandler,
-  OnCloseRegister,
   Provider,
   Processor,
   ClosableProvider,
   ProviderSetup,
+  OnCloseRegister,
 } from "./types";
 export {
   entityListChanger,
@@ -20,17 +19,7 @@ export type {
   BooleanChange,
   ObjectChange,
 } from "./changers";
-export {
-  reducer,
-  combineLatest,
-  map,
-  filter,
-  fork,
-  merge,
-  filterType,
-  flatten,
-  match,
-} from "./processors";
+export * from "./processors";
 
 export const dataPortal = <T>(): [
   provider: Provider<T>,
@@ -51,11 +40,11 @@ export const dataPortal = <T>(): [
   ];
 };
 
-export const actionPortal = (): [
-  register: OnCloseRegister,
-  handler: CloseHandler
-] => {
-  let handler: CloseHandler | undefined;
+export type Action = () => void;
+export type HandlerRegister = (action: () => void) => void;
+
+export const actionPortal = (): [register: HandlerRegister, action: Action] => {
+  let handler: Action | undefined;
   return [
     (h) => (handler = h),
     () => {

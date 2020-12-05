@@ -1,9 +1,5 @@
-import React, { useCallback, useState } from "react";
-
 import "./styles.css";
 import "./loading.css";
-
-import { Article } from "schema-dts";
 
 import {
   ArticleContentFetcher,
@@ -30,53 +26,15 @@ import {
   createLocalStoreRead,
   createLocalStoreWrite,
 } from "../../functions/local-store";
-import { HashName } from "../../utils/hash";
-import { LinkedDataWithItsHash } from "../../utils/linked-data";
-import { measureAsyncTime } from "../../utils/performance";
-import { ArticleComponent } from "../article-component";
-import { AsyncLoader } from "../common/async-loader";
-import { Navigation } from "../navigation";
-import { Profile } from "../profile";
-
-const Nav: React.FC<{ hash?: HashName; directoryIndex: DirectoryIndex }> = ({
-  hash,
-  directoryIndex,
-}) => {
-  const promise = useCallback(() => directoryIndex({}), [directoryIndex, hash]);
-
-  return (
-    <div id="navigation">
-      <Profile />
-      <AsyncLoader promise={promise}>
-        {(items) => <Navigation list={items} current={hash} />}
-      </AsyncLoader>
-    </div>
-  );
-};
-const AppWithLinkedData: React.FC<{
-  articleLdFetcher: ArticleLdFetcher;
-  articleContentFetcher: ArticleContentFetcher;
-  directoryIndex: DirectoryIndex;
-}> = ({ articleContentFetcher, articleLdFetcher, directoryIndex }) => {
-  const [currentArticle, setCurrentArticle] = useState<
-    LinkedDataWithItsHash<Article>
-  >();
-
-  return (
-    <div>
-      <Nav hash={currentArticle?.hash} directoryIndex={directoryIndex} />
-      <div id="container">
-        <div className="p-4">
-          <ArticleComponent
-            articleLdFetcher={articleLdFetcher}
-            contentFetcher={articleContentFetcher}
-            onArticleLoaded={setCurrentArticle}
-          />
-        </div>
-      </div>
-    </div>
-  );
-};
+import { dataPortal, map } from "../../libs/connections";
+import { HashName } from "../../libs/hash";
+import { getHash } from "../../libs/linked-data";
+import { measureAsyncTime } from "../../libs/performance";
+import { div, slot } from "../../libs/simple-ui/render";
+import { articleContentComponent } from "../article-component";
+import { asyncLoader } from "../common/async-loader";
+import { fileNavigation } from "../navigation";
+import { profilePanel } from "../profile";
 
 const initDb = async (): Promise<{
   articleLdFetcher: ArticleLdFetcher;
@@ -119,12 +77,38 @@ const initDb = async (): Promise<{
   return { articleLdFetcher, articleContentFetcher, directoryIndex };
 };
 
-export const App: React.FC = () => {
-  return (
-    <AsyncLoader
-      promise={useCallback(() => measureAsyncTime("init", initDb), [])}
-    >
-      {(services) => <AppWithLinkedData {...services} />}
-    </AsyncLoader>
-  );
-};
+export const App = asyncLoader(
+  measureAsyncTime("init", initDb),
+  ({ articleContentFetcher, articleLdFetcher, directoryIndex }) => (render) => {
+    const [articleHashProvider, articleHash] = dataPortal<HashName>();
+    render(
+      div(
+        div(
+          { id: "navigation" },
+          slot("profile", profilePanel()),
+          slot(
+            "content-nav",
+            fileNavigation({
+              directoryIndex,
+              hashProvider: articleHashProvider,
+            })
+          )
+        ),
+        div(
+          { id: "container" },
+          div(
+            { class: "p-4" },
+            slot(
+              "content",
+              articleContentComponent({
+                articleLdFetcher,
+                onArticleLoaded: map(getHash)(articleHash),
+                contentFetcher: articleContentFetcher,
+              })
+            )
+          )
+        )
+      )
+    );
+  }
+);

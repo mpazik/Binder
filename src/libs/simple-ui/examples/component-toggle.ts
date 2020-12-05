@@ -1,4 +1,14 @@
 import {
+  Consumer,
+  dataPortal,
+  map,
+  Provider,
+  ProviderSetup,
+  pipe,
+  wrap,
+} from "../../connections";
+import { Network, resumableNetwork } from "../../connections/network";
+import {
   button,
   Component,
   ComponentRuntime,
@@ -9,15 +19,6 @@ import {
   View,
   ViewSetup,
 } from "../render";
-import { Network, resumableNetwork } from "../network";
-import {
-  Consumer,
-  dataPortal,
-  map,
-  Provider,
-  ProviderSetup,
-} from "../connections";
-import { pipe, wrap } from "../connections/processors";
 
 const periodicProvider: ProviderSetup<number, number> = (start) => (
   onClose,

@@ -1,5 +1,5 @@
-import { newTodo, Todo, TodoId, TodoName } from "./model";
 import {
+  BooleanChange,
   booleanChanger,
   EntityListChange,
   entityListChanger,
@@ -9,9 +9,11 @@ import {
   ObjectChange,
   objectChanger,
   Processor,
-} from "../../connections";
+} from "../../../connections";
 
-export const isKey = (key: string) => (event: KeyboardEvent) =>
+import { newTodo, Todo, TodoId, TodoName } from "./model";
+
+export const isKey = (key: string) => (event: KeyboardEvent): boolean =>
   event.code === key;
 
 const inputValue = (event: Event): string =>
@@ -20,10 +22,10 @@ const inputValue = (event: Event): string =>
 export const onSubmit: Processor<KeyboardEvent, string> = (push) =>
   filter(isKey("Enter"))(fork(map(inputValue)(push), focusTarget));
 
-export const focusTarget = (event: Event) =>
+export const focusTarget = (event: Event): void =>
   (event.target as HTMLInputElement).focus();
 
-export const focusAndSelectTarget = (event: Event) => {
+export const focusAndSelectTarget = (event: Event): void => {
   const input = event.target as HTMLInputElement;
   input.focus();
   input.setSelectionRange(input.value.length, input.value.length);
@@ -53,7 +55,9 @@ export const getTodoId = (todo: Todo): TodoId => todo.id;
 export const todosChanger = entityListChanger<Todo, TodoId, ObjectChange<Todo>>(
   getTodoId,
   objectChanger((prop, change) =>
-    typeof prop === "boolean" ? booleanChanger()(prop, change) : prop
+    typeof prop === "boolean"
+      ? booleanChanger()(prop, change as BooleanChange)
+      : prop
   )
 );
 

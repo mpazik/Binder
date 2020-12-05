@@ -1,17 +1,27 @@
-import React, { useCallback, useEffect } from "react";
-
 import { Article, URL } from "schema-dts";
 
 import { ArticleContentFetcher } from "../functions/article-content-fetcher";
 import { ArticleLdFetcher } from "../functions/article-ld-fetcher";
 import { ArticleContent } from "../functions/article-processor";
 import { linkHijackToQueryParams } from "../functions/url-hijack";
-import { CancelableProcessor, Consumer, map } from "../utils/connections";
-import { findUri, LinkedDataWithItsHash } from "../utils/linked-data";
-import { newStateMapper, stateMachineWithFeedback } from "../utils/named-state";
-import { useCancelableProcessor } from "../utils/react";
+import { Action, actionPortal, fork, map } from "../libs/connections";
+import { findUri, LinkedDataWithItsHash } from "../libs/linked-data";
+import { newStateMapper, stateMachineWithFeedback } from "../libs/named-state";
+import {
+  a,
+  article,
+  button,
+  Component,
+  div,
+  dangerousInnerHtml,
+  slot,
+  span,
+  View,
+  fragment,
+  ViewSetup,
+} from "../libs/simple-ui/render";
 
-import { CenterLoading } from "./common/center-loading";
+import { centerLoading } from "./common/center-loading";
 
 type RetryAction = ["retry"];
 type ArticleViewAction =
@@ -126,100 +136,80 @@ const getUri = map(
     queryParams.get("uri") || "https://pl.wikipedia.org/wiki/Dedal_z_Sykionu"
 );
 
-const newArticleStateProcessor = ({
-  articleLdFetcher,
-  contentFetcher,
-}: {
+const articleContentView: View<ArticleContent> = ({ content, linkedData }) => {
+  const uri = findUri(linkedData);
+  return div(
+    { id: "content", class: "mb-3 markdown-body" },
+    div(
+      { class: "Subhead" },
+      div({ class: "Subhead-heading" }, String(linkedData.name)),
+      div(
+        { class: "Subhead-description" },
+        ...(uri
+          ? [span("From: ", a({ href: uri }, new URL(uri).hostname))]
+          : [])
+      )
+    ),
+    article(dangerousInnerHtml(content.body.innerHTML))
+  );
+};
+
+const articleViewWithLoader: View<ArticleContent> = (existingArticle) =>
+  fragment(
+    // slot("loading", centerLoading()),
+    articleContentView(existingArticle)
+  );
+
+const articleView: ViewSetup<{ retry: Action }, ArticleViewState> = ({
+  retry,
+}) =>
+  newStateMapper({
+    idle: () => slot("loading1", centerLoading()),
+    initializing: () => slot("loading2", centerLoading()),
+    initializingContent: () => slot("loading3", centerLoading()),
+    loaded: (content) => articleContentView(content),
+    loading: ({ existingArticle }) => articleViewWithLoader(existingArticle),
+    loadingContent: ({ existingArticle }) =>
+      articleViewWithLoader(existingArticle),
+    error: ({ reason }) => {
+      return div(
+        span("Error: ", reason),
+        button({ onClose: () => retry() }, "Retry")
+      );
+    },
+  });
+
+export const articleContentComponent: Component<{
   articleLdFetcher: ArticleLdFetcher;
   contentFetcher: ArticleContentFetcher;
-}): CancelableProcessor<RetryAction, ArticleViewState> => (signal, push) => {
+  onArticleLoaded?: (article: LinkedDataWithItsHash<Article>) => void;
+}> = ({ articleLdFetcher, onArticleLoaded, contentFetcher }) => (
+  render,
+  onClose
+) => {
+  const [onRetry, retry] = actionPortal();
   const articleViewStateMachine = newArticleViewStateMachine({
     articleLdFetcher,
     contentFetcher,
-  })(push);
+  })(
+    fork((state: ArticleViewState) => {
+      if (onArticleLoaded) {
+        if (state[0] === "initializingContent") {
+          onArticleLoaded(state[1]);
+        } else if (state[0] === "loadingContent") {
+          onArticleLoaded(state[1].newArticleLdWithHash);
+        }
+      }
+    }, map(articleView({ retry }))(render))
+  );
+  onRetry(() => articleViewStateMachine(["retry"]));
 
   linkHijackToQueryParams(
-    signal,
+    onClose,
     getUri(
       map((uri) => ["loading", uri] as ArticleViewAction)(
         articleViewStateMachine
       )
     )
   );
-
-  return articleViewStateMachine;
-};
-
-const ArticleView: React.FC<ArticleContent> = ({ content, linkedData }) => {
-  const uri = findUri(linkedData);
-  return (
-    <div id="content" className="mb-3 markdown-body">
-      <div className="Subhead">
-        <div className="Subhead-heading">{linkedData.name}</div>
-        <div className="Subhead-description">
-          {uri && (
-            <span>
-              From: <a href={uri}>{new URL(uri).hostname}</a>
-            </span>
-          )}
-        </div>
-      </div>
-      <article dangerouslySetInnerHTML={{ __html: content.body.innerHTML }} />
-    </div>
-  );
-};
-
-const ArticleViewWithLoader: React.FC<ArticleContent> = (existingArticle) => (
-  <React.Fragment>
-    <CenterLoading />
-    <ArticleView {...existingArticle} />
-  </React.Fragment>
-);
-
-const stateMapperToView = (retry: Consumer<RetryAction>) =>
-  newStateMapper<ArticleViewState, ReturnType<React.FC>>({
-    idle: () => <CenterLoading />,
-    initializing: () => <CenterLoading />,
-    initializingContent: () => <CenterLoading />,
-    loaded: (content) => <ArticleView {...content} />,
-    loading: ({ existingArticle }) => (
-      <ArticleViewWithLoader {...existingArticle} />
-    ),
-    loadingContent: ({ existingArticle }) => (
-      <ArticleViewWithLoader {...existingArticle} />
-    ),
-    error: ({ reason }) => {
-      return (
-        <div>
-          <span>Error: {reason}</span>
-          <button onClick={() => retry(["retry"])}>Retry</button>
-        </div>
-      );
-    },
-  });
-
-export const ArticleComponent: React.FC<{
-  articleLdFetcher: ArticleLdFetcher;
-  contentFetcher: ArticleContentFetcher;
-  onArticleLoaded?: (article: LinkedDataWithItsHash<Article>) => void;
-}> = ({ articleLdFetcher, contentFetcher, onArticleLoaded }) => {
-  const [articleViewState, retry] = useCancelableProcessor(
-    useCallback(
-      () => newArticleStateProcessor({ articleLdFetcher, contentFetcher }),
-      [articleLdFetcher, contentFetcher]
-    ),
-    articleViewInitState as ArticleViewState
-  );
-
-  useEffect(() => {
-    if (onArticleLoaded) {
-      if (articleViewState[0] === "initializingContent") {
-        onArticleLoaded(articleViewState[1]);
-      } else if (articleViewState[0] === "loadingContent") {
-        onArticleLoaded(articleViewState[1].newArticleLdWithHash);
-      }
-    }
-  }, [articleViewState, onArticleLoaded]);
-
-  return stateMapperToView(retry)(articleViewState);
 };
