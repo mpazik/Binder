@@ -1,5 +1,5 @@
 import { mapTo } from "../../libs/connections";
-import { Component, View } from "../../libs/simple-ui/render";
+import { ComponentRuntime, View } from "../../libs/simple-ui/render";
 
 const centerLoadingView: View = () => [
   "div",
@@ -14,7 +14,7 @@ const centerLoadingView: View = () => [
   },
 ];
 
-export const centerLoading: Component = () => (render, onClose) => {
+export const centerLoading: ComponentRuntime = (render, onClose) => {
   const timeout = setTimeout(mapTo(centerLoadingView())(render), 300);
 
   onClose(() => clearTimeout(timeout));

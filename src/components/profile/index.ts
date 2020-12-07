@@ -68,17 +68,17 @@ export const profileView: ViewSetup<
         div(
           { class: "flex-auto d-flex flex-column" },
           div(profile.user.displayName),
-          div({ class: " text-small text-gray" }, profile.user.emailAddress),
-          details(
-            { class: "dropdown details-reset details-overlay" },
-            summary(
-              { class: "btn-octicon", role: "button" },
-              dangerousInnerHtml(moreIcon)
-            ),
-            ul(
-              { class: "dropdown-menu dropdown-menu-sw right-0" },
-              li(a({ class: "dropdown-item", onClick: logout }, "Logout"))
-            )
+          div({ class: " text-small text-gray" }, profile.user.emailAddress)
+        ),
+        details(
+          { class: "dropdown details-reset details-overlay" },
+          summary(
+            { class: "btn-octicon", role: "button" },
+            dangerousInnerHtml(moreIcon)
+          ),
+          ul(
+            { class: "dropdown-menu dropdown-menu-sw right-0" },
+            li(a({ class: "dropdown-item", onClick: logout }, "Logout"))
           )
         )
       ),
@@ -89,5 +89,17 @@ export const profilePanel: Component = () => (render) => {
     logout: () => setAction(["logout"]),
     login: () => setAction(["login"]),
   });
-  const setAction = gdrive(map(renderView)(render));
+  const setAction = gdrive(
+    map(renderView)((viewDom) => {
+      render(
+        div(
+          {
+            class: "d-flex flex-wrap flex-content-around",
+            style: { height: "84px" },
+          },
+          viewDom
+        )
+      );
+    })
+  );
 };

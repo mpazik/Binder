@@ -4,20 +4,23 @@ import { ArticleContentFetcher } from "../functions/article-content-fetcher";
 import { ArticleLdFetcher } from "../functions/article-ld-fetcher";
 import { ArticleContent } from "../functions/article-processor";
 import { linkHijackToQueryParams } from "../functions/url-hijack";
-import { Action, actionPortal, fork, map } from "../libs/connections";
+import { Action, dataPortal, fork, map, Provider } from "../libs/connections";
 import { findUri, LinkedDataWithItsHash } from "../libs/linked-data";
-import { newStateMapper, stateMachineWithFeedback } from "../libs/named-state";
+import {
+  newStateHandler,
+  newStateMapper,
+  stateMachineWithFeedback,
+} from "../libs/named-state";
 import {
   a,
   article,
   button,
   Component,
-  div,
+  ComponentRuntime,
   dangerousInnerHtml,
+  div,
   slot,
   span,
-  View,
-  fragment,
   ViewSetup,
 } from "../libs/simple-ui/render";
 
@@ -131,46 +134,64 @@ const newArticleViewStateMachine = ({
     }
   );
 
+const nop = () => {
+  // ingore
+};
+
 const getUri = map(
   (queryParams: URLSearchParams) =>
     queryParams.get("uri") || "https://pl.wikipedia.org/wiki/Dedal_z_Sykionu"
 );
 
-const articleContentView: View<ArticleContent> = ({ content, linkedData }) => {
-  const uri = findUri(linkedData);
-  return div(
-    { id: "content", class: "mb-3 markdown-body" },
-    div(
-      { class: "Subhead" },
-      div({ class: "Subhead-heading" }, String(linkedData.name)),
-      div(
-        { class: "Subhead-description" },
-        ...(uri
-          ? [span("From: ", a({ href: uri }, new URL(uri).hostname))]
-          : [])
-      )
-    ),
-    article(dangerousInnerHtml(content.body.innerHTML))
+const articleContentComponent: Component<{
+  provider: Provider<ArticleContent>;
+}> = ({ provider }) => (render) => {
+  provider(
+    map(({ content, linkedData }: ArticleContent) => {
+      const uri = findUri(linkedData);
+      return div(
+        { id: "content", class: "mb-3 markdown-body" },
+        div(
+          { class: "Subhead" },
+          div({ class: "Subhead-heading" }, String(linkedData.name)),
+          div(
+            { class: "Subhead-description" },
+            ...(uri
+              ? [span("From: ", a({ href: uri }, new URL(uri).hostname))]
+              : [])
+          )
+        ),
+        article(dangerousInnerHtml(content.body.innerHTML))
+      );
+    })(render)
   );
 };
 
-const articleViewWithLoader: View<ArticleContent> = (existingArticle) =>
-  fragment(
-    // slot("loading", centerLoading()),
-    articleContentView(existingArticle)
-  );
-
-const articleView: ViewSetup<{ retry: Action }, ArticleViewState> = ({
-  retry,
-}) =>
+const articleView: ViewSetup<
+  { retry: Action; articleContentComponent: ComponentRuntime },
+  ArticleViewState
+> = ({ retry, articleContentComponent }) =>
   newStateMapper({
-    idle: () => slot("loading1", centerLoading()),
-    initializing: () => slot("loading2", centerLoading()),
-    initializingContent: () => slot("loading3", centerLoading()),
-    loaded: (content) => articleContentView(content),
-    loading: ({ existingArticle }) => articleViewWithLoader(existingArticle),
-    loadingContent: ({ existingArticle }) =>
-      articleViewWithLoader(existingArticle),
+    idle: () => {
+      return div(slot("loading", centerLoading));
+    },
+    initializing: () => {
+      return div(slot("loading", centerLoading));
+    },
+    initializingContent() {
+      return div(slot("loading", centerLoading));
+    },
+    loaded: () => div(slot("content", articleContentComponent)),
+    loading: () =>
+      div(
+        slot("loading", centerLoading),
+        slot("content", articleContentComponent)
+      ),
+    loadingContent: () =>
+      div(
+        slot("loading", centerLoading),
+        slot("content", articleContentComponent)
+      ),
     error: ({ reason }) => {
       return div(
         span("Error: ", reason),
@@ -179,7 +200,7 @@ const articleView: ViewSetup<{ retry: Action }, ArticleViewState> = ({
     },
   });
 
-export const articleContentComponent: Component<{
+export const articleComponent: Component<{
   articleLdFetcher: ArticleLdFetcher;
   contentFetcher: ArticleContentFetcher;
   onArticleLoaded?: (article: LinkedDataWithItsHash<Article>) => void;
@@ -187,22 +208,39 @@ export const articleContentComponent: Component<{
   render,
   onClose
 ) => {
-  const [onRetry, retry] = actionPortal();
+  const [articleContentProvider, updateArticleContent] = dataPortal<
+    ArticleContent
+  >();
+
   const articleViewStateMachine = newArticleViewStateMachine({
     articleLdFetcher,
     contentFetcher,
   })(
-    fork((state: ArticleViewState) => {
-      if (onArticleLoaded) {
-        if (state[0] === "initializingContent") {
-          onArticleLoaded(state[1]);
-        } else if (state[0] === "loadingContent") {
-          onArticleLoaded(state[1].newArticleLdWithHash);
-        }
-      }
-    }, map(articleView({ retry }))(render))
+    fork(
+      map(
+        articleView({
+          retry: () => {
+            articleViewStateMachine(["retry"]);
+          },
+          articleContentComponent: articleContentComponent({
+            provider: articleContentProvider,
+          }),
+        })
+      )(render),
+      newStateHandler<ArticleViewState>({
+        loaded: (state) => {
+          updateArticleContent(state);
+        },
+      }),
+      onArticleLoaded
+        ? newStateHandler<ArticleViewState>({
+            initializingContent: (state) => onArticleLoaded(state),
+            loadingContent: (state) =>
+              onArticleLoaded(state.newArticleLdWithHash),
+          })
+        : nop
+    )
   );
-  onRetry(() => articleViewStateMachine(["retry"]));
 
   linkHijackToQueryParams(
     onClose,

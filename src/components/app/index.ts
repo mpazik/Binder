@@ -31,7 +31,7 @@ import { HashName } from "../../libs/hash";
 import { getHash } from "../../libs/linked-data";
 import { measureAsyncTime } from "../../libs/performance";
 import { div, slot } from "../../libs/simple-ui/render";
-import { articleContentComponent } from "../article-component";
+import { articleComponent } from "../article-component";
 import { asyncLoader } from "../common/async-loader";
 import { fileNavigation } from "../navigation";
 import { profilePanel } from "../profile";
@@ -100,7 +100,7 @@ export const App = asyncLoader(
             { class: "p-4" },
             slot(
               "content",
-              articleContentComponent({
+              articleComponent({
                 articleLdFetcher,
                 onArticleLoaded: map(getHash)(articleHash),
                 contentFetcher: articleContentFetcher,

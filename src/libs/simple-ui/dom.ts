@@ -2,6 +2,7 @@ type HTMLElement = {
   autofocus: boolean;
   class: string;
   id: string;
+  style: CSSStyleDeclaration;
 };
 type HTMLAnchorElement = HTMLElement & {
   target: string;

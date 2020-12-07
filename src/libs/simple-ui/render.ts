@@ -82,6 +82,10 @@ const convertToDom = (elem: JsonHtml): [Node, Slots] =>
         const node = document.createDocumentFragment()
         handleChildren(node, slots, children);
         return [node, slots];
+      } else if (tag === "html") {
+        const node = document.createElement('div')
+        node.innerHTML = (attrs as CustomElements['html'])['innerHtml']
+        return [node, slots]
       }
 
       const node = document.createElement(tag);
@@ -89,9 +93,6 @@ const convertToDom = (elem: JsonHtml): [Node, Slots] =>
         const { key, componentHandler } = attrs as CustomElements["slot"];
         slots.set(key, { runtime: componentHandler, element: node });
         return [node, slots];
-      } else if (tag === "html") {
-        node.innerHTML = (attrs as CustomElements['html'])['innerHtml']
-        return [node, slots]
       }
 
       for (const attrKey of Object.keys(attrs)) {
@@ -103,6 +104,14 @@ const convertToDom = (elem: JsonHtml): [Node, Slots] =>
         } else if (attrKey === "class") {
           for (const cls of (attrVal as string).split(" ")) {
             if (cls !== "") node.classList.add(cls);
+          }
+        } else if (attrKey === "style") {
+          const styles = attrVal as CSSStyleDeclaration;
+          for (const styleKey of Object.keys(styles)) {
+            const styleKey1 = styleKey as keyof CSSStyleDeclaration;
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore
+            node.style[styleKey1] = styles[styleKey1]
           }
         } else if (typeof attrVal === "function") {
           const type = attrKey.substr(2).toLowerCase();
@@ -121,7 +130,7 @@ const convertToDom = (elem: JsonHtml): [Node, Slots] =>
             ? node.setAttribute(attrKey, attrKey)
             : node.removeAttribute(attrKey);
         } else {
-          node.setAttribute(attrKey, attrVal!);
+          node.setAttribute(attrKey, attrVal as string);
         }
       }
 
@@ -148,10 +157,14 @@ const slotHandler = (parent: Element): Render => {
 
     // reuse existing slot that already have rendered content
     for (const slotKey of setIntersection(rendered, existing)) {
-      replaceByPrevious(
-        renderedSlots.get(slotKey)!.element,
-        existingSlots.get(slotKey)!.element
-      );
+      const newElement = renderedSlots.get(slotKey)!.element;
+      const oldElement = existingSlots.get(slotKey)!.element;
+      if (newElement.parentNode) {
+        // replace new slot by the old slot with the content
+        newElement.parentNode.replaceChild(oldElement, newElement)
+      } else {
+        console.error('no-parent', oldElement)
+      }
     }
 
     // activate components in newly rendered slots

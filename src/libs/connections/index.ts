@@ -34,7 +34,7 @@ export const dataPortal = <T>(): [
       if (consumer) {
         consumer(value);
       } else {
-        throw new Error("invoiced data portal before it is set up");
+        throw new Error("invoked data portal before it is set up");
       }
     },
   ];
@@ -51,7 +51,7 @@ export const actionPortal = (): [register: HandlerRegister, action: Action] => {
       if (handler) {
         handler();
       } else {
-        throw new Error("invoiced action portal before it is set up");
+        throw new Error("invoked action portal before it is set up");
       }
     },
   ];

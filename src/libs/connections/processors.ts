@@ -38,12 +38,8 @@ export const match = <T, S>(map: Map<T, S>): Processor<T, S> => (push) => (
   if (newV) push(newV!);
 };
 
-export const fork = <T>(
-  push1: Consumer<T>,
-  push2: Consumer<T>
-): Consumer<T> => (data) => {
-  push1(data);
-  push2(data);
+export const fork = <T>(...consumers: Consumer<T>[]): Consumer<T> => (data) => {
+  consumers.forEach((push) => push(data));
 };
 
 export const forkMapJoin = <T, S>(
