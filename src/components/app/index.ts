@@ -9,6 +9,7 @@ import {
   ArticleLdFetcher,
   createArticleLdFetcher,
 } from "../../functions/article-ld-fetcher";
+import { GDriveState } from "../../functions/gdrive/controller";
 import { createCompositeIndexer } from "../../functions/indexes/composite-indexer";
 import {
   createDirectoryIndex,
@@ -21,12 +22,8 @@ import {
   createUrlIndexDb,
   createUrlIndexer,
 } from "../../functions/indexes/url-index";
-import {
-  createLocalStoreDb,
-  createLocalStoreRead,
-  createLocalStoreWrite,
-} from "../../functions/local-store";
-import { dataPortal, map } from "../../libs/connections";
+import { createStore, StoreState } from "../../functions/store";
+import { Consumer, dataPortal, map, Provider } from "../../libs/connections";
 import { HashName } from "../../libs/hash";
 import { getHash } from "../../libs/linked-data";
 import { measureAsyncTime } from "../../libs/performance";
@@ -40,14 +37,13 @@ const initDb = async (): Promise<{
   articleLdFetcher: ArticleLdFetcher;
   articleContentFetcher: ArticleContentFetcher;
   directoryIndex: DirectoryIndex;
+  gdriveStateConsumer: Consumer<GDriveState>;
+  storeStateProvider: Provider<StoreState>;
 }> => {
-  const localStoreDb = await createLocalStoreDb();
-  const localStoreRead = createLocalStoreRead(localStoreDb);
-  const localStoreWrite = createLocalStoreWrite(localStoreDb);
-
+  const [gdriveStateProvider, gdriveStateConsumer] = dataPortal<GDriveState>();
   const [urlIndexDb, directoryIndexDb] = await Promise.all([
-    createUrlIndexDb(localStoreDb),
-    createDirectoryIndexDb(localStoreDb),
+    createUrlIndexDb(),
+    createDirectoryIndexDb(),
   ]);
   const urlIndex = createUrlIndex(urlIndexDb);
   const urlIndexer = createUrlIndexer(urlIndexDb);
@@ -59,7 +55,10 @@ const initDb = async (): Promise<{
     directoryIndexer,
   ]);
 
-  const articleContentFetcher = createArticleContentFetcher(localStoreRead);
+  const store = await createStore(indexLinkedData);
+  gdriveStateProvider((state) => store.updateGdriveState(state));
+
+  const articleContentFetcher = createArticleContentFetcher(store.read);
 
   const getHash = async (uri: string): Promise<HashName | undefined> => {
     const result = await urlIndex({ url: uri });
@@ -69,23 +68,38 @@ const initDb = async (): Promise<{
   };
   const articleLdFetcher = createArticleLdFetcher(
     getHash,
-    localStoreRead,
-    localStoreWrite,
-    indexLinkedData
+    store.read,
+    store.write,
+    store.writeLinkedData
   );
 
-  return { articleLdFetcher, articleContentFetcher, directoryIndex };
+  return {
+    articleLdFetcher,
+    articleContentFetcher,
+    directoryIndex,
+    gdriveStateConsumer,
+    storeStateProvider: store.storeStateProvider,
+  };
 };
 
 export const App = asyncLoader(
   measureAsyncTime("init", initDb),
-  ({ articleContentFetcher, articleLdFetcher, directoryIndex }) => (render) => {
+  ({
+    articleContentFetcher,
+    articleLdFetcher,
+    directoryIndex,
+    gdriveStateConsumer,
+    storeStateProvider,
+  }) => (render) => {
     const [articleHashProvider, articleHash] = dataPortal<HashName>();
     render(
       div(
         div(
           { id: "navigation" },
-          slot("profile", profilePanel()),
+          slot(
+            "profile",
+            profilePanel({ gdriveStateConsumer, storeStateProvider })
+          ),
           slot(
             "content-nav",
             fileNavigation({

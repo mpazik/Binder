@@ -7,12 +7,11 @@ import {
   hashUriToHashName,
   isHashUri,
 } from "../libs/hash";
-import { jsonLdMimeType, LinkedDataWithItsHash } from "../libs/linked-data";
+import { LinkedDataWithItsHash } from "../libs/linked-data";
 
 import { articleMediaType, processToArticle } from "./article-processor";
 import { fetchTroughProxy } from "./fetch-trough-proxy";
-import { Indexer } from "./indexes/types";
-import { StoreRead, StoreWrite } from "./local-store";
+import { StoreRead, StoreWrite, StoreWriteLinkedData } from "./store";
 
 export type ArticleLdFetcher = (
   uri: string,
@@ -23,7 +22,7 @@ export const createArticleLdFetcher = (
   getHash: (uri: string) => Promise<HashName | undefined>,
   storeRead: StoreRead,
   storeWrite: StoreWrite,
-  indexLinkedData: Indexer
+  lsStoreWrite: StoreWriteLinkedData
 ): ArticleLdFetcher => {
   return async (uri, signal) => {
     const hash = isHashUri(uri) ? hashUriToHashName(uri) : await getHash(uri);
@@ -45,14 +44,7 @@ export const createArticleLdFetcher = (
       ...linkedData,
       url: [...[linkedData.url || []].flat(), hashNameToHashUri(contentHash)],
     };
-    const articleHash = await storeWrite(
-      new Blob([JSON.stringify(linkedDataWithContentHashUri)], {
-        type: jsonLdMimeType,
-      })
-    );
-
-    const ldData = { hash: articleHash, ld: linkedDataWithContentHashUri };
-    await indexLinkedData(ldData);
-    return ldData;
+    const articleHash = await lsStoreWrite(linkedDataWithContentHashUri);
+    return { hash: articleHash, ld: linkedDataWithContentHashUri };
   };
 };

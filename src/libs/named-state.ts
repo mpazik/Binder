@@ -32,11 +32,23 @@ export const newStateHandler = <S extends SomeState>(
   handlers: StatesHandler<S>
 ) => ([key, data]: S): void => handlers[key as S[0]]?.(data);
 
+export const handleState = <S extends SomeState>(
+  [key, data]: S,
+  handlers: StatesHandler<S>
+) => handlers[key as S[0]]?.(data);
+
 export const newStateMapper = <S extends SomeState, T>(
   mappers: {
     [SK in S[0]]: (state: StateByName<S, SK>[1]) => T;
   }
 ) => ([key, data]: S): T => mappers[key as S[0]](data);
+
+export const mapState = <S extends SomeState, T>(
+  [key, data]: S,
+  mappers: {
+    [SK in S[0]]: (state: StateByName<S, SK>[1]) => T;
+  }
+) => mappers[key as S[0]](data);
 
 type Behaviours<S extends SomeState, A extends SomeAction> = {
   [SK in S[0]]: {
@@ -63,7 +75,7 @@ const newStateMachineHandler = <S extends SomeState, A extends SomeAction>(
   );
 };
 
-export const stateMachine = <S extends SomeState, A extends SomeAction>(
+export const newStateMachine = <S extends SomeState, A extends SomeAction>(
   initState: S,
   behaviours: Behaviours<S, A>
 ): Processor<A, S> => reducer(initState, newStateMachineHandler(behaviours));
@@ -75,7 +87,7 @@ type StateFeedbacks<S extends SomeState, A extends SomeAction> = {
   ) => Promise<A>;
 };
 
-export const stateMachineWithFeedback = <
+export const newStateMachineWithFeedback = <
   S extends SomeState,
   A extends SomeAction
 >(
@@ -85,10 +97,7 @@ export const stateMachineWithFeedback = <
 ): Processor<A, S> => (push) => {
   let abortController = new AbortController();
 
-  const handleAction = stateMachine(
-    initState,
-    behaviours
-  )((state) => {
+  const handleState = (state: S) => {
     abortController.abort();
     abortController = new AbortController();
     const feedback = feedbacks[state[0] as S[0]];
@@ -98,6 +107,8 @@ export const stateMachineWithFeedback = <
       );
     }
     push(state);
-  });
+  };
+  const handleAction = newStateMachine(initState, behaviours)(handleState);
+  handleState(initState);
   return handleAction;
 };

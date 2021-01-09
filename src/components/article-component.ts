@@ -8,8 +8,8 @@ import { Action, dataPortal, fork, map, Provider } from "../libs/connections";
 import { findUri, LinkedDataWithItsHash } from "../libs/linked-data";
 import {
   newStateHandler,
+  newStateMachineWithFeedback,
   newStateMapper,
-  stateMachineWithFeedback,
 } from "../libs/named-state";
 import {
   a,
@@ -58,7 +58,7 @@ const newArticleViewStateMachine = ({
   articleLdFetcher: ArticleLdFetcher;
   contentFetcher: ArticleContentFetcher;
 }) =>
-  stateMachineWithFeedback<ArticleViewState, ArticleViewAction>(
+  newStateMachineWithFeedback<ArticleViewState, ArticleViewAction>(
     articleViewInitState,
     {
       idle: {
@@ -133,10 +133,6 @@ const newArticleViewStateMachine = ({
       },
     }
   );
-
-const nop = () => {
-  // ingore
-};
 
 const getUri = map(
   (queryParams: URLSearchParams) =>
@@ -238,7 +234,7 @@ export const articleComponent: Component<{
             loadingContent: (state) =>
               onArticleLoaded(state.newArticleLdWithHash),
           })
-        : nop
+        : () => {}
     )
   );
 

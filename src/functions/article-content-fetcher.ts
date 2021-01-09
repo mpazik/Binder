@@ -6,7 +6,7 @@ import { findHashUri } from "../libs/linked-data";
 import { measureAsyncTime } from "../libs/performance";
 
 import { parseArticleContent } from "./article-processor";
-import { StoreRead } from "./local-store";
+import { StoreRead } from "./store";
 
 export type ArticleContentFetcher = (article: Article) => Promise<Document>;
 

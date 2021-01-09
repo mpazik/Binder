@@ -7,10 +7,9 @@ import {
   storePut,
 } from "../../libs/indexeddb";
 import { findUri } from "../../libs/linked-data";
-import { measureAsyncTime } from "../../libs/performance";
 import { Opaque } from "../../libs/types";
-import { createLinkedDataProvider } from "../linked-data-provider";
-import { LocalStoreDb } from "../local-store";
+// import { createLinkedDataProvider } from "../linked-data-provider";
+// import { LocalStoreDb } from "../local-store";
 
 import { Index, Indexer, IndexingStrategy } from "./types";
 
@@ -19,15 +18,15 @@ export type UrlQuery = { url: string };
 export type UrlIndexDb = Opaque<SingleStoreDb<HashName>>;
 export type UrlIndex = Index<UrlQuery, string>;
 
-export const createUrlIndexDb = (
-  localStoreDb: LocalStoreDb
-): Promise<UrlIndexDb> =>
+export const createUrlIndexDb = (): // localStoreDb: LocalStoreDb
+Promise<UrlIndexDb> =>
   openSingleStoreDb("url-index", undefined, (db) => {
-    const indexer = createUrlIndexer(db as UrlIndexDb);
-    const linkedDataProvider = createLinkedDataProvider(localStoreDb);
-    return measureAsyncTime("url-indexing", async () =>
-      linkedDataProvider((result) => indexer(result))
-    );
+    return Promise.resolve();
+    // const indexer = createUrlIndexer(db as UrlIndexDb);
+    // const linkedDataProvider = createLinkedDataProvider(localStoreDb);
+    // return measureAsyncTime("url-indexing", async () =>
+    //   linkedDataProvider((result) => indexer(result))
+    // );
   }) as Promise<UrlIndexDb>;
 
 export const createUrlIndex = (urlIndexDb: UrlIndexDb): UrlIndex => async ({

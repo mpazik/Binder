@@ -6,10 +6,9 @@ import {
   storeGetAllWithKeys,
   storePut,
 } from "../../libs/indexeddb";
-import { measureAsyncTime } from "../../libs/performance";
 import { Opaque } from "../../libs/types";
-import { createLinkedDataProvider } from "../linked-data-provider";
-import { LocalStoreDb } from "../local-store";
+// import { createLinkedDataProvider } from "../linked-data-provider";
+// import { LocalStoreDb } from "../local-store";
 
 import { Indexer, IndexingStrategy, IndexRecord } from "./types";
 
@@ -19,15 +18,15 @@ export type DirectoryRecord = IndexRecord<DirectoryProps>;
 export type DirectoryIndexDb = Opaque<SingleStoreDb<DirectoryProps>>;
 export type DirectoryIndex = (q: DirectoryQuery) => Promise<DirectoryRecord[]>;
 
-export const createDirectoryIndexDb = (
-  localStoreDb: LocalStoreDb
-): Promise<DirectoryIndexDb> =>
-  openSingleStoreDb("directory-index", undefined, (db) => {
-    const indexer = createDirectoryIndexer(db as DirectoryIndexDb);
-    const linkedDataProvider = createLinkedDataProvider(localStoreDb);
-    return measureAsyncTime("directory-indexing", async () =>
-      linkedDataProvider((result) => indexer(result))
-    );
+export const createDirectoryIndexDb = (): // localStoreDb: LocalStoreDb
+Promise<DirectoryIndexDb> =>
+  openSingleStoreDb("directory-index", undefined, () => {
+    return Promise.resolve();
+    // const indexer = createDirectoryIndexer(db as DirectoryIndexDb);
+    // const linkedDataProvider = createLinkedDataProvider(localStoreDb);
+    // return measureAsyncTime("directory-indexing", async () =>
+    //   linkedDataProvider((result) => indexer(result))
+    // );
   }) as Promise<DirectoryIndexDb>;
 
 export const createDirectoryIndex = (

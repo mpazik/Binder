@@ -75,6 +75,28 @@ export const storeGet = <T>(
   storeName: StoreName = defaultStoreName
 ): Promise<T | undefined> => reqToPromise(getStore(db, storeName).get(query));
 
+export const storeIterate = <T>(
+  db: SingleStoreDb<T>,
+  handler: (key: IDBValidKey) => void,
+  storeName: StoreName = defaultStoreName
+): Promise<void> =>
+  new Promise((resolve, reject) => {
+    const request = getStore(db, storeName).openCursor();
+    request.onerror = (event: Event) => {
+      reject("error fetching data: " + event);
+    };
+    request.onsuccess = function (event) {
+      const cursor = (event.target as IDBRequest<IDBCursorWithValue | null>)
+        .result;
+      if (cursor) {
+        handler(cursor.primaryKey);
+        cursor.continue();
+      } else {
+        resolve();
+      }
+    };
+  });
+
 export const storeGetAll = <T>(
   db: SingleStoreDb<T>,
   query?: IDBValidKey | IDBKeyRange,
@@ -106,8 +128,11 @@ export const storeGetAllWithKeys = <T>(
     };
   });
 
-export const storeGetFirst = (db: IDBDatabase, storeName: string): unknown =>
-  new Promise<{ key: IDBValidKey; value: unknown } | undefined>((resolve) => {
+export const storeGetFirst = <T>(
+  db: IDBDatabase,
+  storeName: string
+): Promise<{ key: IDBValidKey; value: T } | undefined> =>
+  new Promise((resolve) => {
     getStore(db, storeName).openCursor().onsuccess = (event) => {
       const cursor = (event.target as IDBRequest<IDBCursorWithValue | null>)
         .result;

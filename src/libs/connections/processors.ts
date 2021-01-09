@@ -4,6 +4,7 @@ import {
   Processor,
   Provider,
   OnCloseRegister,
+  Merge,
 } from "./types";
 import { equal } from "./utils/equal";
 
@@ -23,7 +24,6 @@ export const reducer = <S, C>(
   reduce: (state: S, change: C) => S
 ): Processor<C, S> => (push) => {
   let state: S = initState;
-  push(initState);
   return (change) => {
     const newState = reduce(state, change);
     state = newState;
@@ -56,13 +56,15 @@ export const split = <T>(
   predicate(data) ? push1(data) : push2(data);
 };
 
-export const merge = <T, S>(initA?: T, initB?: S) => (
-  push: Consumer<T & S>
-): [Consumer<T>, Consumer<S>] => {
+export const merge = <T, S, W>(
+  combine: (stateA: T, stateB: S) => W,
+  initA?: T,
+  initB?: S
+): Merge<T, S, W> => (push) => {
   let stateA: T | undefined = initA;
   let stateB: S | undefined = initB;
   const tryPush = () =>
-    stateA && stateB ? push(Object.assign({}, stateA, stateB)) : undefined;
+    stateA && stateB ? push(combine(stateA, stateB)) : undefined;
   tryPush();
   return [
     (newStateA) => {
@@ -75,6 +77,9 @@ export const merge = <T, S>(initA?: T, initB?: S) => (
     },
   ];
 };
+
+export const objectMerge = <T, S>(initA?: T, initB?: S): Merge<T, S, T & S> =>
+  merge((stateA, stateB) => Object.assign({}, stateA, stateB), initA, initB);
 
 export function combineLatest<T1, T2, S extends T1 & T2>(
   init1: T1,
@@ -124,7 +129,7 @@ export const wrapMerge = <K1 extends keyof any, K2 extends keyof any>(
     wrap(key1)<T1>(),
     wrap(key2)<T2>()
   )(
-    merge<{ [A in K1]: T1 }, { [B in K2]: T2 }>(
+    objectMerge<{ [A in K1]: T1 }, { [B in K2]: T2 }>(
       initA !== undefined ? wrap(key1)<T1>()(initA) : undefined,
       initB !== undefined ? wrap(key2)<T2>()(initB) : undefined
     )(push)

@@ -1,6 +1,8 @@
 import { HashUri } from "../../libs/hash";
+import { jsonLdMimeType } from "../../libs/linked-data";
 import { Opaque } from "../../libs/types";
 
+import { GDriveConfig } from "./app-files";
 import { GoogleAuthToken } from "./auth";
 
 export type GDriveFileId = Opaque<string>;
@@ -195,7 +197,40 @@ export const listFiles = async (
   return findFiles(authToken, query);
 };
 
-export const findOrCreateFile = async (
+const mimeToExtension = new Map([
+  ["application/ld+json", "jsonld"],
+  ["text/html", "html"],
+]);
+
+const getFileName = (hash: string, mimeType: string, name?: string) => {
+  const extension = mimeToExtension.get(mimeType);
+  return (name ? name : hash) + (extension ? "." + extension : "");
+};
+
+export const findOrCreateFileByHash = async (
+  { token, dirs }: GDriveConfig,
+  hash: HashUri,
+  blob: Blob,
+  name?: string
+): Promise<GDriveFile> => {
+  const parent = blob.type === jsonLdMimeType ? dirs.linkedData : dirs.app;
+  const file = await findByHash(token, [parent], hash);
+  if (file) {
+    return file;
+  }
+  return createFile(
+    token,
+    {
+      name: getFileName(hash, blob.type, name),
+      mimeType: blob.type,
+      parents: [parent],
+      appProperties: { hashLink: hash },
+    },
+    blob
+  );
+};
+
+export const findOrCreateFileByName = async (
   authToken: GoogleAuthToken,
   name: string,
   mimeType: string,

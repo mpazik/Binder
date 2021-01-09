@@ -11,6 +11,7 @@ export type ClosableProvider<T> = (
 export type ProviderSetup<C, T> = (config: C) => ClosableProvider<T>;
 
 export type Processor<T, S> = (push: Consumer<S>) => Consumer<T>;
+export type Merge<T, S, W> = (push: Consumer<W>) => [Consumer<T>, Consumer<S>];
 
 export type ClosableProcessor<T, S> = (
   onClose: OnCloseRegister,

@@ -1,11 +1,10 @@
 import { Article } from "schema-dts";
 
 import { hashNameToHashUri } from "../libs/hash";
-import { jsonLdMimeType, LinkedDataWithItsHash } from "../libs/linked-data";
+import { LinkedDataWithItsHash } from "../libs/linked-data";
 
 import { ArticleContent, articleMediaType } from "./article-processor";
-import { Indexer } from "./indexes/types";
-import { StoreWrite } from "./local-store";
+import { StoreWrite, StoreWriteLinkedData } from "./store";
 
 export type ArticleSaver = (
   articleContent: ArticleContent
@@ -13,7 +12,7 @@ export type ArticleSaver = (
 
 export const createArticleSaver = (
   storeWrite: StoreWrite,
-  indexLinkedData: Indexer
+  ldStoreWrite: StoreWriteLinkedData
 ): ArticleSaver => {
   return async ({ content, linkedData }) => {
     const contentBlob = new Blob([content.documentElement.innerHTML], {
@@ -24,31 +23,7 @@ export const createArticleSaver = (
       ...linkedData,
       url: [...[linkedData.url || []].flat(), hashNameToHashUri(contentHash)],
     };
-
-    // await sync({
-    //   metadata: {
-    //     name: linkedData.name as string,
-    //     mimeType: linkedData.encodingFormat,
-    //   },
-    //   hash: contentHashUri,
-    // });
-
-    const articleLdBlob = new Blob(
-      [JSON.stringify(linkedDataWithContentHashUri)],
-      {
-        type: jsonLdMimeType,
-      }
-    );
-    const articleHash = await storeWrite(articleLdBlob);
-    // await sync({
-    //   metadata: {
-    //     mimeType: JsonLdMimeType,
-    //   },
-    //   hash: hashUri,
-    // });
-
-    const ldData = { hash: articleHash, ld: linkedDataWithContentHashUri };
-    await indexLinkedData(ldData);
-    return ldData;
+    const articleHash = await ldStoreWrite(linkedDataWithContentHashUri);
+    return { hash: articleHash, ld: linkedDataWithContentHashUri };
   };
 };

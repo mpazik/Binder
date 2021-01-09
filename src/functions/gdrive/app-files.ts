@@ -1,4 +1,5 @@
 import { GDRIVE_APP_DIR_NAME } from "../../config";
+import { HashUri } from "../../libs/hash";
 import { openDb, storeGet, StoreName, storePut } from "../../libs/indexeddb";
 
 import {
@@ -8,7 +9,12 @@ import {
   getUserProfile,
   GoogleAuthToken,
 } from "./auth";
-import { GDriveFileId, findOrCreateDir, findOrCreateFile } from "./file";
+import {
+  GDriveFileId,
+  findOrCreateDir,
+  findByHash,
+  getFileContent,
+} from "./file";
 
 export type GoogleConfing = {
   authToken: GoogleAuthToken;
@@ -19,7 +25,6 @@ const indexFilesStore = "index-files" as StoreName;
 const dirFilesStore = "dir-files" as StoreName;
 
 const LINKED_DATA_DIR_NAME = "linked-data";
-const INDEX_DIR_NAME = "index";
 
 const getOrCreateDir = async (
   { authToken, localDb }: GoogleConfing,
@@ -37,34 +42,24 @@ const getOrCreateDir = async (
   return fileId;
 };
 
-export const getAppDir = (config: GoogleConfing) =>
+export const getAppDir = (config: GoogleConfing): Promise<GDriveFileId> =>
   getOrCreateDir(config, GDRIVE_APP_DIR_NAME);
 
-export const getLinkedDataDir = (config: GoogleConfing, appDir: GDriveFileId) =>
+export const getLinkedDataDir = (
+  config: GoogleConfing,
+  appDir: GDriveFileId
+): Promise<GDriveFileId> =>
   getOrCreateDir(config, LINKED_DATA_DIR_NAME, appDir);
 
-export const getIndexDir = (config: GoogleConfing, appDir: GDriveFileId) =>
-  getOrCreateDir(config, INDEX_DIR_NAME, appDir);
-
-export const getIndexFile = async (
-  { authToken, localDb }: GoogleConfing,
-  indexName: string,
-  indexDir: GDriveFileId
-): Promise<GDriveFileId> => {
-  const localFileId = await storeGet<GDriveFileId>(
-    localDb,
-    indexName,
-    indexFilesStore
-  );
-  if (localFileId) return localFileId;
-  const file = await findOrCreateFile(
-    authToken,
-    indexName + ".jsonld",
-    "application/json",
-    indexDir
-  );
-  await storePut(localDb, file, indexName, indexFilesStore);
-  return file.fileId;
+export const getContent = async (
+  { dirs, token }: GDriveConfig,
+  hash: HashUri
+): Promise<Blob> => {
+  const file = await findByHash(token, [dirs.app, dirs.linkedData], hash);
+  if (!file) {
+    throw new Error(`Did not find a file for hash ${hash}`);
+  }
+  return getFileContent(token, file.fileId);
 };
 
 export type GoogleDriveDb = IDBDatabase;
@@ -84,7 +79,6 @@ export type GDriveConfig = {
   dirs: {
     app: GDriveFileId;
     linkedData: GDriveFileId;
-    index: GDriveFileId;
   };
   token: GoogleAuthToken;
 };
@@ -94,15 +88,11 @@ const createConfig = async (gapi: GApi): Promise<GDriveConfig> => {
   const localDb = await openFileIdsDb();
   const cfg = { authToken: token, localDb };
   const app = await getAppDir(cfg);
-  const [index, linkedData] = await Promise.all([
-    getIndexDir(cfg, app),
-    getLinkedDataDir(cfg, app),
-  ]);
+  const [linkedData] = await Promise.all([getLinkedDataDir(cfg, app)]);
   return {
     dirs: {
       app,
       linkedData,
-      index,
     },
     token,
   };
