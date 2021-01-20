@@ -1,4 +1,4 @@
-import { Readability } from "readability";
+import { Readability } from "@mozilla/readability";
 import { Article } from "schema-dts";
 
 import { throwIfNull } from "../libs/errors";
@@ -24,6 +24,28 @@ const removeBaseUrlFromFragments = (
       it.setAttribute("href", href.replace(baseUrl, ""));
     }
   });
+};
+
+const removeWrappers = (element: Element, parent: Element): Element => {
+  if (element.childNodes.length === 1 && element.tagName === "DIV") {
+    const childNode = element.childNodes[0];
+    if (childNode.nodeType === Node.ELEMENT_NODE) {
+      parent.replaceChild(childNode, element);
+      return removeWrappers(childNode as Element, parent);
+    }
+  }
+  return element;
+};
+
+const removeRootAndContentWrappers = (contentDocument: Document) => {
+  const newRoot = removeWrappers(
+    contentDocument.body.childNodes[0] as HTMLElement,
+    contentDocument.body
+  );
+  newRoot.id = "content";
+  Array.from(newRoot.children).forEach((child) =>
+    removeWrappers(child, newRoot)
+  );
 };
 
 export type ArticleContent = {
@@ -55,6 +77,7 @@ export const processToArticle: (
     articleMediaType
   );
 
+  removeRootAndContentWrappers(contentDocument);
   removeBaseUrlFromFragments(contentDocument, baseUrl);
 
   return {

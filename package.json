@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@github/details-menu-element": "^1.0.9",
+    "@mozilla/readability": "^0.4.0",
     "@primer/components": "^20.0.0",
     "@primer/css": "^15.2.0",
     "@primer/octicons": "^11.0.0",
@@ -20,6 +21,7 @@
     "styled-components": "^5.2.0"
   },
   "devDependencies": {
+    "@types/mozilla-readability": "^0.2.0",
     "@typescript-eslint/eslint-plugin": "^4.3.0",
     "@typescript-eslint/parser": "^4.3.0",
     "copy-webpack-plugin": "^6.2.0",

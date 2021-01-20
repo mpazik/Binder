@@ -1,1 +1,1 @@
-declare module "readability";
+declare module "@mozilla/readability";
