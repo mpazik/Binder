@@ -7,7 +7,7 @@ import {
   setupComponent,
   View,
   ViewSetup,
-} from "../renderer";
+} from "../render";
 
 const item: View<{ name: string }> = ({ name }) => p(name);
 
