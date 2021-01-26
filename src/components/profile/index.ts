@@ -6,7 +6,6 @@ import { newStateMapper } from "../../libs/named-state";
 import {
   a,
   Component,
-  dangerousInnerHtml,
   details,
   div,
   li,
@@ -67,7 +66,7 @@ export const profileView: ViewSetup<
     logged: (profile) =>
       div(
         { class: "d-flex", style: { width: "100%" } },
-        div({ class: "p-2" }, dangerousInnerHtml(gdriveLogoIcon)),
+        div({ class: "p-2", dangerouslySetInnerHTML: gdriveLogoIcon }),
         div(
           { class: "flex-auto d-flex flex-column" },
           div(profile.user.displayName),
@@ -75,10 +74,11 @@ export const profileView: ViewSetup<
         ),
         details(
           { class: "dropdown details-reset details-overlay" },
-          summary(
-            { class: "btn-octicon", role: "button" },
-            dangerousInnerHtml(moreIcon)
-          ),
+          summary({
+            class: "btn-octicon",
+            role: "button",
+            dangerouslySetInnerHTML: moreIcon,
+          }),
           ul(
             { class: "dropdown-menu dropdown-menu-sw right-0" },
             li(a({ class: "dropdown-item", onClick: logout }, "Logout"))
@@ -88,7 +88,7 @@ export const profileView: ViewSetup<
     uploading: (profile) =>
       div(
         { class: "d-flex", style: { width: "100%" } },
-        div({ class: "p-2" }, dangerousInnerHtml(uploadIcon)),
+        div({ class: "p-2", dangerouslySetInnerHTML: uploadIcon }),
         div(
           { class: "flex-auto d-flex flex-column" },
           div(profile.user.displayName),
@@ -98,7 +98,7 @@ export const profileView: ViewSetup<
     downloading: (profile) =>
       div(
         { class: "d-flex", style: { width: "100%" } },
-        div({ class: "p-2" }, dangerousInnerHtml(downloadIcon)),
+        div({ class: "p-2", dangerouslySetInnerHTML: downloadIcon }),
         div(
           { class: "flex-auto d-flex flex-column" },
           div(profile.user.displayName),

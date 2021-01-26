@@ -18,16 +18,13 @@ type CustomElements = {
     key: string;
     componentHandler: ComponentRuntime;
   };
-  html: {
-    innerHtml: string;
-  }
   // eslint-disable-next-line @typescript-eslint/ban-types
   fragment: {}
 };
 
 type Nodes = { [P in keyof SimplifiedElementsMap]: (SimplifiedElementsMap[P] & EventHandlers) } & CustomElements;
 
-type JsonHtml = JsonMl<Nodes>;
+export type JsonHtml = JsonMl<Nodes>;
 
 export type Render = (jsonml: JsonHtml) => void;
 
@@ -71,6 +68,8 @@ function handleChildren(node: Node, slots: Slots, children: [Node, Slots][]) {
   });
 }
 
+const trueBooleanAttributes = ['contenteditable']
+
 const convertToDom = (elem: JsonHtml): [Node, Slots] =>
   mapJsonMl<Nodes, [Node, Slots]>(
     elem,
@@ -82,10 +81,6 @@ const convertToDom = (elem: JsonHtml): [Node, Slots] =>
         const node = document.createDocumentFragment()
         handleChildren(node, slots, children);
         return [node, slots];
-      } else if (tag === "html") {
-        const node = document.createElement('div')
-        node.innerHTML = (attrs as CustomElements['html'])['innerHtml']
-        return [node, slots]
       }
 
       const node = document.createElement(tag);
@@ -113,6 +108,8 @@ const convertToDom = (elem: JsonHtml): [Node, Slots] =>
             // @ts-ignore
             node.style[styleKey1] = styles[styleKey1]
           }
+        } else if (attrKey === 'dangerouslySetInnerHTML') {
+          node.innerHTML = attrVal as string
         } else if (typeof attrVal === "function") {
           const type = attrKey.substr(2).toLowerCase();
           const listener = attrVal as (event: Event) => void;
@@ -127,7 +124,7 @@ const convertToDom = (elem: JsonHtml): [Node, Slots] =>
           node.addEventListener(type, (e: Event) => listener(e));
         } else if (typeof attrVal === "boolean") {
           attrVal
-            ? node.setAttribute(attrKey, attrKey)
+            ? trueBooleanAttributes.includes(attrKey) ? node.setAttribute(attrKey, 'true') :  node.setAttribute(attrKey, attrKey)
             : node.removeAttribute(attrKey);
         } else {
           node.setAttribute(attrKey, attrVal as string);
@@ -232,10 +229,6 @@ export const fragment = (...children: JsonHtml[]): JsonHtml => [
   'fragment',
   {},
   ...children
-];
-export const dangerousInnerHtml = (html: string): JsonHtml => [
-  "html",
-  { innerHtml: html },
 ];
 export const slot = (key: string, onRender: ComponentRuntime): JsonHtml => [
   "slot",

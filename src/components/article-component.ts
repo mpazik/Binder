@@ -157,7 +157,7 @@ const articleContentComponent: Component<{
               : [])
           )
         ),
-        article(dangerousInnerHtml(content.body.innerHTML))
+        article({ dangerouslySetInnerHTML: content.body.innerHTML })
       );
     })(render)
   );

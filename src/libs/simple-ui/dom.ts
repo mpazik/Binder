@@ -3,6 +3,7 @@ type HTMLElement = {
   class: string;
   id: string;
   style: CSSStyleDeclaration;
+  dangerouslySetInnerHTML: string;
 };
 type HTMLAnchorElement = HTMLElement & {
   target: string;
