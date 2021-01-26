@@ -24,3 +24,33 @@
 article {
     font-size: 18px;
 }
+
+.editable.markdown-body a {
+    cursor: pointer;
+}
+
+.diff {
+    position: absolute;
+    cursor: pointer;
+    width: 100%;
+}
+.diff.add {
+    background: #bef5cb;
+}
+.diff.del {
+    background: #fdaeb7;
+}
+.diff.mod {
+    background: #c8e1ff;
+}
+
+.local-diff-add {
+    display: inline-block;
+    width: 4px;
+    background: #bef5cb;
+    height: 16px;
+}
+
+.local-diff-del {
+    background: #fdaeb7;
+}

@@ -16,11 +16,12 @@
     "@primer/components": "^20.0.0",
     "@primer/css": "^15.2.0",
     "@primer/octicons": "^11.0.0",
-    "readability": "git+https://git@github.com/mozilla/readability.git#d5eea06a0095b3138dbd1f6233f656d690200509",
+    "diff": "^5.0.0",
     "schema-dts": "^0.7.1",
     "styled-components": "^5.2.0"
   },
   "devDependencies": {
+    "@types/diff": "^5.0.0",
     "@types/mozilla-readability": "^0.2.0",
     "@typescript-eslint/eslint-plugin": "^4.3.0",
     "@typescript-eslint/parser": "^4.3.0",

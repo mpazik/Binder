@@ -26,10 +26,11 @@ type Nodes = { [P in keyof SimplifiedElementsMap]: (SimplifiedElementsMap[P] & E
 
 export type JsonHtml = JsonMl<Nodes>;
 
-export type Render = (jsonml: JsonHtml) => void;
+export type Render<T = void> = (props: T) => JsonHtml;
+export type Renderer = (jsonml: JsonHtml) => void;
 
 export type Listener<K extends keyof EventMap> = (event: EventMap[K]) => void;
-export type ComponentRuntime = (render: Render, onClose: OnCloseRegister) => void;
+export type ComponentRuntime = (render: Renderer, onClose: OnCloseRegister) => void;
 // setup component
 export type Component<T = void> = (props: T) => ComponentRuntime;
 
@@ -139,7 +140,7 @@ const convertToDom = (elem: JsonHtml): [Node, Slots] =>
 
 export type Deactivate = () => void;
 
-const slotHandler = (parent: Element): Render => {
+const slotHandler = (parent: Element): Renderer => {
   const existingSlots = new Map<
     string,
     { element: Element; deactivate: Deactivate }
