@@ -26,8 +26,7 @@ type Nodes = { [P in keyof SimplifiedElementsMap]: (SimplifiedElementsMap[P] & E
 
 export type JsonHtml = JsonMl<Nodes>;
 
-export type Render<T = void> = (props: T) => JsonHtml;
-export type Renderer = (jsonml: JsonHtml) => void;
+export type Renderer = (jsonml?: JsonHtml) => void;
 
 export type Listener<K extends keyof EventMap> = (event: EventMap[K]) => void;
 export type ComponentRuntime = (render: Renderer, onClose: OnCloseRegister) => void;
@@ -37,11 +36,15 @@ export type Component<T = void> = (props: T) => ComponentRuntime;
 type Prop = string | number | boolean | Record<string, unknown> | Prop[] | undefined | Provider<any>;
 type ViewProps = Record<string, Prop> | Prop | void;
 export type View<T extends ViewProps = void> = (props: T) => JsonHtml;
+export type OptionalView<T extends ViewProps = void> = (props: T) => JsonHtml | undefined;
 
-type ViewConfig = Record<string, Prop | Listener<any> | ComponentRuntime> | void;
-export type ViewSetup<C extends ViewConfig = void, T extends ViewProps = void> = (
+// type ViewConfig = Record<string, Prop | Listener<any> | ComponentRuntime> | void;
+export type ViewSetup<C = void, T extends ViewProps = void> = (
   config: C
 ) => View<T>;
+export type OptionalViewSetup<C = void, T extends ViewProps = void> = (
+  config: C
+) => OptionalView<T>;
 
 type Slots = Map<string, { element: Element; runtime: ComponentRuntime }>;
 
@@ -146,8 +149,12 @@ const slotHandler = (parent: Element): Renderer => {
     { element: Element; deactivate: Deactivate }
   >();
 
-  return (jsonml: JsonHtml) => {
+  return (jsonml?: JsonHtml) => {
     console.debug('render', jsonml)
+    if (jsonml === undefined) {
+      parent.innerHTML = "";
+      return
+    }
     const [newChild, renderedSlots] = convertToDom(jsonml);
 
     const rendered = new Set<string>(renderedSlots.keys());

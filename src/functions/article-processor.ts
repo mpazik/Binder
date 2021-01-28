@@ -37,12 +37,22 @@ const removeWrappers = (element: Element, parent: Element): Element => {
   return element;
 };
 
+export const documentContentRoodId = "content";
+
+export const getDocumentContentRoot = (contentDocument: Document) =>
+  throwIfNull(
+    contentDocument.getElementById("content"),
+    () =>
+      'expected that article document would have root element with id "content'
+  );
+
 const removeRootAndContentWrappers = (contentDocument: Document) => {
   const newRoot = removeWrappers(
     contentDocument.body.childNodes[0] as HTMLElement,
     contentDocument.body
   );
-  newRoot.id = "content";
+
+  newRoot.id = documentContentRoodId;
   Array.from(newRoot.children).forEach((child) =>
     removeWrappers(child, newRoot)
   );

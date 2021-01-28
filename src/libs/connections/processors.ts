@@ -48,6 +48,22 @@ export const forkMapJoin = <T, S>(
 ): Processor<T, S> =>
   map<T, S>((v) => Object.assign({}, map1(v), map2(v)) as S);
 
+export const join = <T>(
+  providerA: Provider<T>,
+  providerB: Provider<T>
+): Provider<T> => (push: Consumer<T>) => {
+  providerA(push);
+  providerB(push);
+};
+
+export const withInitValue = <T>(
+  provider: Provider<T>,
+  init: T
+): Provider<T> => (push: Consumer<T>) => {
+  push(init);
+  provider(push);
+};
+
 export const split = <T>(
   predicate: (v: T) => boolean,
   push1: Consumer<T>,

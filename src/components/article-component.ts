@@ -2,7 +2,10 @@ import { Article, URL } from "schema-dts";
 
 import { ArticleContentFetcher } from "../functions/article-content-fetcher";
 import { ArticleLdFetcher } from "../functions/article-ld-fetcher";
-import { ArticleContent } from "../functions/article-processor";
+import {
+  ArticleContent,
+  getDocumentContentRoot,
+} from "../functions/article-processor";
 import { linkHijackToQueryParams } from "../functions/url-hijack";
 import {
   Action,
@@ -10,9 +13,9 @@ import {
   dataPortal,
   fork,
   map,
+  passOnlyChanged,
   Provider,
 } from "../libs/connections";
-import { throwIfNull } from "../libs/errors";
 import { findUri, LinkedDataWithItsHash } from "../libs/linked-data";
 import {
   newStateHandler,
@@ -24,17 +27,26 @@ import {
   article,
   button,
   Component,
-  ComponentRuntime,
   div,
+  JsonHtml,
   slot,
   span,
   ViewSetup,
 } from "../libs/simple-ui/render";
 import { throttleArg } from "../libs/throttle";
 
-import { DiffBarClicked, diffGutter } from "./article/diff-gutter";
-import { renderDiffModal } from "./article/diff-modal";
-import { centerLoading } from "./common/center-loading";
+import {
+  changesIndicatorBar,
+  documentChangeTopRelativePosition,
+} from "./article/change-indicator-bar";
+import {
+  DocumentChange,
+  newDocumentComparator,
+  revertDocumentChange,
+} from "./article/document-change";
+import { renderDocumentChangeModal } from "./article/document-change-modal";
+import { editBar, EditBarState } from "./article/edit-bar";
+import { centerLoadingSlot } from "./common/center-loading-component";
 import { modal, ModalState } from "./common/modal";
 
 type RetryAction = ["retry"];
@@ -150,38 +162,57 @@ const getUri = map(
     queryParams.get("uri") || "https://pl.wikipedia.org/wiki/Dedal_z_Sykionu"
 );
 
-const articleContentComponent: Component<{
+const changesToEditorBarState = (changes: DocumentChange[]): EditBarState =>
+  changes.length === 0
+    ? ["hidden"]
+    : ["visible", { editor: changes[0].editor }];
+
+const articleContentView: Component<{
   provider: Provider<ArticleContent>;
-}> = ({ provider }) => (render) => {
+  onEdit: Consumer<Document>;
+}> = ({ provider, onEdit }) => (render) => {
   provider(
     map(({ content, linkedData }: ArticleContent) => {
-      const [changesProvider, changesConsumer] = dataPortal<Element>();
-      const refreshDiffDebounce = throttleArg<Element>(changesConsumer, 300);
+      const uri = findUri(linkedData);
+      const contentRoot = getDocumentContentRoot(content);
+
+      // ideally should be triggered on resize too
+      const [onInputProvider, onInputConsumer] = dataPortal<Element>();
+      const onInputThrottledConsumer = throttleArg<Element>(
+        onInputConsumer,
+        300
+      );
+      const [changesProvider, changesConsumer] = dataPortal<DocumentChange[]>();
+      const [changesProviderForBar, changesConsumerForBar] = dataPortal<
+        DocumentChange[]
+      >();
+      onInputProvider(map(newDocumentComparator(contentRoot))(changesConsumer));
+
+      const [editBarStateProvider, editBarStateConsumer] = dataPortal<
+        EditBarState
+      >();
+      changesProvider(
+        fork(
+          changesConsumerForBar,
+          map(changesToEditorBarState)(passOnlyChanged(editBarStateConsumer))
+        )
+      );
+
       const [stateProvider, stateConsumer] = dataPortal<ModalState>();
-      const onDiffBarClick: Consumer<DiffBarClicked> = ({
-        oldLines,
-        position,
-        revert,
-      }) => {
+      const onDiffBarClick: Consumer<DocumentChange> = (change) => {
+        const { oldLines } = change;
         stateConsumer({
-          top: position,
+          top: documentChangeTopRelativePosition(change),
           left: 20,
-          content: renderDiffModal({
+          content: renderDocumentChangeModal({
             oldLines,
             onRevert: () => {
-              revert();
+              revertDocumentChange(change);
               stateConsumer(undefined);
             },
           }),
         });
       };
-
-      const uri = findUri(linkedData);
-      const contentRoot = throwIfNull(
-        content.getElementById("content"),
-        () =>
-          'expected that article document would have root element with id "content'
-      );
 
       return div(
         { id: "content" },
@@ -199,9 +230,8 @@ const articleContentComponent: Component<{
           { id: "editor", class: "mb-3 position-relative" },
           slot(
             "gutter",
-            diffGutter({
-              changesProvider,
-              initialContent: contentRoot.cloneNode(true) as Element,
+            changesIndicatorBar({
+              changesProvider: changesProviderForBar,
               onDiffBarClick,
             })
           ),
@@ -211,9 +241,17 @@ const articleContentComponent: Component<{
             contenteditable: true,
             class: "editable markdown-body ml-4 flex-1",
             style: { outline: "none" },
-            onInput: (e) => refreshDiffDebounce(e.target as HTMLElement),
+            onInput: (e) => onInputThrottledConsumer(e.target as HTMLElement),
             dangerouslySetInnerHTML: contentRoot?.innerHTML,
-          })
+          }),
+          slot(
+            "edit-bar",
+            editBar({
+              initialContent: content,
+              onPublish: onEdit,
+              provider: editBarStateProvider,
+            })
+          )
         )
       );
     })(render)
@@ -221,36 +259,18 @@ const articleContentComponent: Component<{
 };
 
 const articleView: ViewSetup<
-  { retry: Action; articleContentComponent: ComponentRuntime },
+  { retry: Action; articleContentSlot: JsonHtml },
   ArticleViewState
-> = ({ retry, articleContentComponent }) =>
+> = ({ retry, articleContentSlot }) =>
   newStateMapper({
-    idle: () => {
-      return div(slot("loading", centerLoading));
-    },
-    initializing: () => {
-      return div(slot("loading", centerLoading));
-    },
-    initializingContent() {
-      return div(slot("loading", centerLoading));
-    },
-    loaded: () => div(slot("content", articleContentComponent)),
-    loading: () =>
-      div(
-        slot("loading", centerLoading),
-        slot("content", articleContentComponent)
-      ),
-    loadingContent: () =>
-      div(
-        slot("loading", centerLoading),
-        slot("content", articleContentComponent)
-      ),
-    error: ({ reason }) => {
-      return div(
-        span("Error: ", reason),
-        button({ onClose: () => retry() }, "Retry")
-      );
-    },
+    idle: () => div(centerLoadingSlot()),
+    initializing: () => div(centerLoadingSlot()),
+    initializingContent: () => div(centerLoadingSlot()),
+    loading: () => div(centerLoadingSlot(), articleContentSlot),
+    loadingContent: () => div(centerLoadingSlot(), articleContentSlot),
+    loaded: () => div(articleContentSlot),
+    error: ({ reason }) =>
+      div(span("Error: ", reason), button({ onClose: () => retry() }, "Retry")),
   });
 
 export const articleComponent: Component<{
@@ -265,6 +285,16 @@ export const articleComponent: Component<{
     ArticleContent
   >();
 
+  const articleContentSlot = slot(
+    "content",
+    articleContentView({
+      provider: articleContentProvider,
+      onEdit: (document) => {
+        console.log("new document", document);
+      },
+    })
+  );
+
   const articleViewStateMachine = newArticleViewStateMachine({
     articleLdFetcher,
     contentFetcher,
@@ -275,9 +305,7 @@ export const articleComponent: Component<{
           retry: () => {
             articleViewStateMachine(["retry"]);
           },
-          articleContentComponent: articleContentComponent({
-            provider: articleContentProvider,
-          }),
+          articleContentSlot,
         })
       )(render),
       newStateHandler<ArticleViewState>({

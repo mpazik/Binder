@@ -1,6 +1,6 @@
-import { button, div, Render } from "../../libs/simple-ui/render";
+import { button, div, View } from "../../libs/simple-ui/render";
 
-export const renderDiffModal: Render<{
+export const renderDocumentChangeModal: View<{
   oldLines: Element[];
   onRevert: () => void;
 }> = ({ oldLines, onRevert }) =>
