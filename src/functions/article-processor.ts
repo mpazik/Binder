@@ -6,7 +6,6 @@ import { createArticle } from "../libs/ld-schemas";
 import { measureTime } from "../libs/performance";
 
 export const articleMediaType = "text/html";
-export type ArticleProcessor = (r: Response) => Promise<Article>;
 
 export const parseArticleContent = (body: string): Document => {
   const parser = new DOMParser();
@@ -39,7 +38,7 @@ const removeWrappers = (element: Element, parent: Element): Element => {
 
 export const documentContentRoodId = "content";
 
-export const getDocumentContentRoot = (contentDocument: Document) =>
+export const getDocumentContentRoot = (contentDocument: Document): HTMLElement =>
   throwIfNull(
     contentDocument.getElementById("content"),
     () =>
@@ -74,13 +73,12 @@ export const processToArticle: (
   const base = dom.createElement("base");
   const baseUrl = response.url;
   base.href = baseUrl;
-  console.log("response url", baseUrl);
   dom.head.appendChild(base);
   const article = throwIfNull(
     measureTime("readability", () => new Readability(dom).parse())
   );
 
-  const articleLd = createArticle(article.title, articleMediaType, [baseUrl]);
+  const articleLd = createArticle(baseUrl, article.title, articleMediaType, [baseUrl]);
 
   const contentDocument = domParser.parseFromString(
     article.content,
