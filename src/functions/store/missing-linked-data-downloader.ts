@@ -1,14 +1,13 @@
 import { asyncPool } from "../../libs/async-pool";
-import { hashNameToHashUri, hashUriToHashName } from "../../libs/hash";
 import { GDriveConfig, getContent } from "../gdrive/app-files";
 import { listFiles } from "../gdrive/file";
 import { Indexer } from "../indexes/types";
 
-import { StoreIterate, StoreWrite } from "./local-store";
+import { LinkedDataStoreIterate, LinkedDataStoreWrite } from "./local-store";
 
 export const newMissingLinkedDataDownloader = (
-  localStoreIterate: StoreIterate,
-  localStoreWrite: StoreWrite,
+  storeIterate: LinkedDataStoreIterate,
+  storeWrite: LinkedDataStoreWrite,
   index: Indexer,
   config: GDriveConfig
 ) => async (since?: Date): Promise<Date> => {
@@ -20,21 +19,17 @@ export const newMissingLinkedDataDownloader = (
   );
 
   const filesToDownload = fileModifiedSinceLastCheck.slice();
-  await localStoreIterate((hash) => {
-    removeItemByPredicate(
-      filesToDownload,
-      (it) => it.hashUri === hashNameToHashUri(hash)
-    );
+  await storeIterate((hashUri) => {
+    removeItemByPredicate(filesToDownload, (it) => it.hashUri === hashUri);
   });
 
   await asyncPool(3, filesToDownload, async (file) => {
     const content = await getContent(config, file.hashUri);
     if (content) {
-      await localStoreWrite(content);
-      await index({
-        ld: JSON.parse(await content.text()),
-        hash: hashUriToHashName(file.hashUri),
-      });
+      const linkedDataWithHash = await storeWrite(
+        JSON.parse(await content.text())
+      );
+      await index(linkedDataWithHash);
     } else {
       console.error(
         `No file ${file.hashUri} on gdrive but it was  returned during listing`

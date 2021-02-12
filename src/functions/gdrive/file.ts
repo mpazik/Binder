@@ -1,5 +1,5 @@
 import { HashUri } from "../../libs/hash";
-import { jsonLdMimeType } from "../../libs/linked-data";
+import { jsonldFileExtension, jsonLdMimeType } from "../../libs/linked-data";
 import { Opaque } from "../../libs/types";
 
 import { GDriveConfig } from "./app-files";
@@ -198,7 +198,7 @@ export const listFiles = async (
 };
 
 const mimeToExtension = new Map([
-  ["application/ld+json", "jsonld"],
+  ["application/ld+json", jsonldFileExtension],
   ["text/html", "html"],
 ]);
 

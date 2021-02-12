@@ -1,29 +1,25 @@
-import { Article } from "schema-dts";
-
-import { hashNameToHashUri } from "../libs/hash";
-import { LinkedDataWithItsHash } from "../libs/linked-data";
+import { LinkedData, LinkedDataWithHashId } from "../libs/linked-data";
 
 import { ArticleContent, articleMediaType } from "./article-processor";
-import { StoreWrite, StoreWriteLinkedData } from "./store";
+import { LinkedDataStoreWrite, ResourceStoreWrite } from "./store";
 
 export type ArticleSaver = (
   articleContent: ArticleContent
-) => Promise<LinkedDataWithItsHash<Article>>;
+) => Promise<LinkedDataWithHashId>;
 
 export const createArticleSaver = (
-  storeWrite: StoreWrite,
-  ldStoreWrite: StoreWriteLinkedData
+  storeWrite: ResourceStoreWrite,
+  ldStoreWrite: LinkedDataStoreWrite
 ): ArticleSaver => {
   return async ({ content, linkedData }) => {
     const contentBlob = new Blob([content.documentElement.innerHTML], {
       type: articleMediaType,
     });
     const contentHash = await storeWrite(contentBlob);
-    const linkedDataWithContentHashUri: Article = {
+    const linkedDataWithContentHashUri: LinkedData = {
       ...linkedData,
-      url: [...[linkedData.url || []].flat(), hashNameToHashUri(contentHash)],
+      url: [...[linkedData.url || []].flat(), contentHash],
     };
-    const articleHash = await ldStoreWrite(linkedDataWithContentHashUri);
-    return { hash: articleHash, ld: linkedDataWithContentHashUri };
+    return await ldStoreWrite(linkedDataWithContentHashUri);
   };
 };

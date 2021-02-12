@@ -40,9 +40,9 @@ const indexer: IndexingStrategy<Url> = (data) =>
   Promise.resolve(throwIfNull(findUri(data)));
 
 export const createUrlIndexer = (urlIndexDb: UrlIndexDb): Indexer => {
-  return async ({ ld, hash }) => {
+  return async (ld) => {
     return indexer(ld)
-      .then((url) => storePut(urlIndexDb, hash, url))
+      .then((url) => storePut(urlIndexDb, ld["@id"], url))
       .then(); // ignore storePut result
   };
 };

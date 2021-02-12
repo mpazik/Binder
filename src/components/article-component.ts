@@ -1,4 +1,4 @@
-import { Article, URL } from "schema-dts";
+import { URL } from "schema-dts";
 
 import { ArticleContentFetcher } from "../functions/article-content-fetcher";
 import { ArticleLdFetcher } from "../functions/article-ld-fetcher";
@@ -16,7 +16,7 @@ import {
   passOnlyChanged,
   Provider,
 } from "../libs/connections";
-import { findUri, LinkedDataWithItsHash } from "../libs/linked-data";
+import { findUri, LinkedDataWithHashId } from "../libs/linked-data";
 import {
   newStateHandler,
   newStateMachineWithFeedback,
@@ -52,7 +52,7 @@ import { modal, ModalState } from "./common/modal";
 type RetryAction = ["retry"];
 type ArticleViewAction =
   | ["loading", URL]
-  | ["loadedLinkedData", LinkedDataWithItsHash<Article>]
+  | ["loadedLinkedData", LinkedDataWithHashId]
   | ["loadedContent", Document]
   | ["fail", string]
   | RetryAction;
@@ -60,14 +60,14 @@ type ArticleViewAction =
 export type ArticleViewState =
   | ["idle"]
   | ["initializing", URL]
-  | ["initializingContent", LinkedDataWithItsHash<Article>]
+  | ["initializingContent", LinkedDataWithHashId]
   | ["loaded", ArticleContent]
   | ["loading", { existingArticle: ArticleContent; newUrl: URL }]
   | [
       "loadingContent",
       {
         newUrl: URL;
-        newArticleLdWithHash: LinkedDataWithItsHash<Article>;
+        newArticleLdWithHash: LinkedDataWithHashId;
         existingArticle: ArticleContent;
       }
     ]
@@ -97,7 +97,7 @@ const newArticleViewStateMachine = ({
       initializingContent: {
         loadedContent: (content, ldWithHash) => [
           "loaded",
-          { content, linkedData: ldWithHash.ld },
+          { content, linkedData: ldWithHash },
         ],
       },
       loaded: {
@@ -120,7 +120,7 @@ const newArticleViewStateMachine = ({
       loadingContent: {
         loadedContent: (content, { newArticleLdWithHash }) => [
           "loaded",
-          { content, linkedData: newArticleLdWithHash.ld },
+          { content, linkedData: newArticleLdWithHash },
         ],
         loading: (url, { existingArticle }) => [
           "loading",
@@ -139,7 +139,7 @@ const newArticleViewStateMachine = ({
         );
       },
       initializingContent: (article) => {
-        return contentFetcher(article.ld).then<ArticleViewAction>((content) => [
+        return contentFetcher(article).then<ArticleViewAction>((content) => [
           "loadedContent",
           content,
         ]);
@@ -150,7 +150,7 @@ const newArticleViewStateMachine = ({
         );
       },
       loadingContent({ newArticleLdWithHash }) {
-        return contentFetcher(newArticleLdWithHash.ld).then<ArticleViewAction>(
+        return contentFetcher(newArticleLdWithHash).then<ArticleViewAction>(
           (content) => ["loadedContent", content]
         );
       },
@@ -191,6 +191,9 @@ const articleContentView: Component<{
       const [editBarStateProvider, editBarStateConsumer] = dataPortal<
         EditBarState
       >();
+
+      // todo detect if it's fresh article
+      // if it is display save
       changesProvider(
         fork(
           changesConsumerForBar,
@@ -276,7 +279,7 @@ const articleView: ViewSetup<
 export const articleComponent: Component<{
   articleLdFetcher: ArticleLdFetcher;
   contentFetcher: ArticleContentFetcher;
-  onArticleLoaded?: (article: LinkedDataWithItsHash<Article>) => void;
+  onArticleLoaded?: (article: LinkedDataWithHashId) => void;
 }> = ({ articleLdFetcher, onArticleLoaded, contentFetcher }) => (
   render,
   onClose
@@ -290,6 +293,8 @@ export const articleComponent: Component<{
     articleContentView({
       provider: articleContentProvider,
       onEdit: (document) => {
+        // todo we have the document back,
+        // we need to get linked data
         console.log("new document", document);
       },
     })

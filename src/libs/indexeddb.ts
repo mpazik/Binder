@@ -1,3 +1,5 @@
+import { LocalStoreDb } from "../functions/store/local-store";
+
 import { Opaque } from "./types";
 
 export const openDb = (
@@ -82,9 +84,7 @@ export const storeIterate = <T>(
 ): Promise<void> =>
   new Promise((resolve, reject) => {
     const request = getStore(db, storeName).openCursor();
-    request.onerror = (event: Event) => {
-      reject("error fetching data: " + event);
-    };
+    request.onerror = reject;
     request.onsuccess = function (event) {
       const cursor = (event.target as IDBRequest<IDBCursorWithValue | null>)
         .result;
@@ -111,9 +111,7 @@ export const storeGetAllWithKeys = <T>(
   new Promise((resolve, reject) => {
     const request = getStore(db, storeName).openCursor();
     const data: { key: IDBValidKey; value: T }[] = [];
-    request.onerror = (event: Event) => {
-      reject("error fetching data: " + event);
-    };
+    request.onerror = reject;
     request.onsuccess = function (event) {
       const cursor = (event.target as IDBRequest<IDBCursorWithValue | null>)
         .result;
@@ -132,8 +130,31 @@ export const storeGetFirst = <T>(
   db: IDBDatabase,
   storeName: string
 ): Promise<{ key: IDBValidKey; value: T } | undefined> =>
-  new Promise((resolve) => {
-    getStore(db, storeName).openCursor().onsuccess = (event) => {
+  new Promise((resolve, reject) => {
+    const request = getStore(db, storeName).openCursor();
+    request.onerror = reject;
+    request.onsuccess = (event) => {
+      const cursor = (event.target as IDBRequest<IDBCursorWithValue | null>)
+        .result;
+      if (cursor) {
+        resolve({ key: cursor.key, value: cursor.value });
+      } else {
+        resolve(undefined);
+      }
+    };
+  });
+
+export const storeGetNext = <T>(
+  db: LocalStoreDb,
+  storeName: string,
+  previous?: IDBValidKey
+): Promise<{ key: IDBValidKey; value: T } | undefined> =>
+  new Promise((resolve, reject) => {
+    const request = getStore(db, storeName).openCursor(
+      previous ? IDBKeyRange.lowerBound(previous, true) : undefined
+    );
+    request.onerror = reject;
+    request.onsuccess = async (event) => {
       const cursor = (event.target as IDBRequest<IDBCursorWithValue | null>)
         .result;
       if (cursor) {

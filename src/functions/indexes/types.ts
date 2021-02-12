@@ -1,10 +1,10 @@
-import { CreativeWork } from "schema-dts";
+import { HashUri } from "../../libs/hash";
+import { LinkedDataWithHashId } from "../../libs/linked-data";
 
-import { HashName } from "../../libs/hash";
-import { LinkedDataWithItsHash } from "../../libs/linked-data";
-
-export type IndexRecord<T> = { props: T; hash: HashName };
-export type IndexingStrategy<T> = (linkedData: CreativeWork) => Promise<T>;
+export type IndexRecord<T> = { props: T; hash: HashUri };
+export type IndexingStrategy<T> = (
+  linkedData: LinkedDataWithHashId
+) => Promise<T>;
 export type Index<Q, T> = (q: Q) => Promise<IndexRecord<T>[]>;
 
-export type Indexer = (ld: LinkedDataWithItsHash) => Promise<void>;
+export type Indexer = (ld: LinkedDataWithHashId) => Promise<void>;

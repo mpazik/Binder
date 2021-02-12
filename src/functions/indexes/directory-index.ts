@@ -6,10 +6,11 @@ import {
   storeGetAllWithKeys,
   storePut,
 } from "../../libs/indexeddb";
+import { LinkedData } from "../../libs/linked-data";
 import { Opaque } from "../../libs/types";
+
 // import { createLinkedDataProvider } from "../linked-data-provider";
 // import { LocalStoreDb } from "../local-store";
-
 import { Indexer, IndexingStrategy, IndexRecord } from "./types";
 
 export type DirectoryProps = { type: string; name: string };
@@ -44,19 +45,24 @@ export const createDirectoryIndex = (
   };
 };
 
+const getFirst = <T>(prop: LinkedData["any"]): T => {
+  const value = (prop as unknown) as T | T[] | undefined;
+  return throwIfNull(([value ?? []].flat() as T[])[0]);
+};
+
 const indexer: IndexingStrategy<DirectoryProps> = (data) =>
   Promise.resolve({
     // index only first type
-    type: throwIfNull(data["@type"][0]),
-    name: throwIfNull([(data.name as string) || []].flat()[0]),
+    type: getFirst(data["@type"]),
+    name: getFirst(data["name"]),
   });
 
 export const createDirectoryIndexer = (
   directoryIndexDb: DirectoryIndexDb
 ): Indexer => {
-  return async ({ ld, hash }) => {
+  return async (ld) => {
     return indexer(ld)
-      .then((props) => storePut(directoryIndexDb, props, hash))
+      .then((props) => storePut(directoryIndexDb, props, ld["@id"]))
       .then(); // ignore storePut result
   };
 };

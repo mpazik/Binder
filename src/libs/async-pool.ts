@@ -22,3 +22,13 @@ export const asyncPool = async <T, S>(
   }
   return Promise.all(returned);
 };
+
+export const asyncLoop = async (
+  step: () => Promise<boolean | undefined>
+): Promise<void> => {
+  let continueLoop = true;
+  while (continueLoop) {
+    continueLoop = !(await step());
+  }
+  return;
+};

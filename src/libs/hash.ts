@@ -1,10 +1,11 @@
+import { LinkedData, normalizeLinkedData } from "./linked-data";
 import { Opaque } from "./types";
 
 type Hash = ArrayBuffer;
 type HashingAlgorithm = "sha-1" | "sha-256" | "sha-384" | "sha-512";
 type HashReference = [Hash, HashingAlgorithm];
 
-const hashUriScheme = "nih"; // named information hex format https://tools.ietf.org/html/rfc6920
+export const hashUriScheme = "nih"; // named information hex format https://tools.ietf.org/html/rfc6920
 
 export type HashUri = Opaque<string>;
 export type HashName = Opaque<string>;
@@ -32,14 +33,27 @@ const bufferToHex = (arrayBuffer: ArrayBuffer) => {
   return hexOctets.join("");
 };
 
-const referenceToHashName = async (ref: HashReference): Promise<HashUri> =>
-  `${ref[1]}_${bufferToHex(ref[0])}` as HashUri;
+const referenceToHashUri = (ref: HashReference): HashUri =>
+  `${hashUriScheme}:${ref[1]};${bufferToHex(ref[0])}` as HashUri;
+
+export const computeHash = (
+  buffer: ArrayBuffer,
+  algorithm: HashingAlgorithm = "sha-256"
+): Promise<HashReference> =>
+  crypto.subtle.digest(algorithm, buffer).then((hash) => [hash, algorithm]);
 
 export const hashBlob = async (
   data: Blob,
   algorithm: HashingAlgorithm = "sha-256"
-): Promise<HashName> => {
+): Promise<HashUri> => {
   const buffer = await data.arrayBuffer();
-  const hash: Hash = await crypto.subtle.digest(algorithm, buffer);
-  return referenceToHashName([hash, algorithm]);
+  return referenceToHashUri(await computeHash(buffer, algorithm));
+};
+
+export const hashLinkedData = async (
+  data: LinkedData,
+  algorithm: HashingAlgorithm = "sha-256"
+): Promise<HashUri> => {
+  const normalized = await normalizeLinkedData(data);
+  return referenceToHashUri(await computeHash(normalized, algorithm));
 };

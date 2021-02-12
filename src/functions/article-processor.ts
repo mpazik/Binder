@@ -1,8 +1,8 @@
 import { Readability } from "@mozilla/readability";
-import { Article } from "schema-dts";
 
 import { throwIfNull } from "../libs/errors";
 import { createArticle } from "../libs/ld-schemas";
+import { LinkedData } from "../libs/linked-data";
 import { measureTime } from "../libs/performance";
 
 export const articleMediaType = "text/html";
@@ -38,7 +38,9 @@ const removeWrappers = (element: Element, parent: Element): Element => {
 
 export const documentContentRoodId = "content";
 
-export const getDocumentContentRoot = (contentDocument: Document): HTMLElement =>
+export const getDocumentContentRoot = (
+  contentDocument: Document
+): HTMLElement =>
   throwIfNull(
     contentDocument.getElementById("content"),
     () =>
@@ -59,7 +61,7 @@ const removeRootAndContentWrappers = (contentDocument: Document) => {
 
 export type ArticleContent = {
   content: Document;
-  linkedData: Article;
+  linkedData: LinkedData;
 };
 
 export const processToArticle: (
@@ -78,7 +80,9 @@ export const processToArticle: (
     measureTime("readability", () => new Readability(dom).parse())
   );
 
-  const articleLd = createArticle(baseUrl, article.title, articleMediaType, [baseUrl]);
+  const articleLd = createArticle(baseUrl, article.title, articleMediaType, [
+    baseUrl,
+  ]);
 
   const contentDocument = domParser.parseFromString(
     article.content,

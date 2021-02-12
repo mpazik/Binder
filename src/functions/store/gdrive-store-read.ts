@@ -5,9 +5,9 @@ import { GDriveConfig } from "../gdrive/app-files";
 import { GDriveState } from "../gdrive/controller";
 import { findByHash, getFileContent } from "../gdrive/file";
 
-import { StoreRead } from "./local-store";
+import { ResourceStoreRead } from "./local-store";
 
-export type GDriveStoreRead = StoreRead;
+export type GDriveStoreRead = ResourceStoreRead;
 
 export const createGDriveStoreRead = (
   config: GDriveConfig

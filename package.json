@@ -17,11 +17,13 @@
     "@primer/css": "^15.2.0",
     "@primer/octicons": "^11.0.0",
     "diff": "^5.0.0",
+    "jsonld": "^3.3.0",
     "schema-dts": "^0.7.1",
     "styled-components": "^5.2.0"
   },
   "devDependencies": {
     "@types/diff": "^5.0.0",
+    "@types/jsonld": "^1.5.2",
     "@types/mozilla-readability": "^0.2.0",
     "@typescript-eslint/eslint-plugin": "^4.3.0",
     "@typescript-eslint/parser": "^4.3.0",

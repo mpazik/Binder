@@ -58,7 +58,7 @@ const initDb = async (): Promise<{
   const store = await createStore(indexLinkedData);
   gdriveStateProvider((state) => store.updateGdriveState(state));
 
-  const articleContentFetcher = createArticleContentFetcher(store.read);
+  const articleContentFetcher = createArticleContentFetcher(store.readResource);
 
   const getHash = async (uri: string): Promise<HashName | undefined> => {
     const result = await urlIndex({ url: uri });
@@ -68,9 +68,9 @@ const initDb = async (): Promise<{
   };
   const articleLdFetcher = createArticleLdFetcher(
     getHash,
-    store.read,
-    store.write,
-    store.writeLinkedData
+    store.readLinkedData,
+    store.writeLinkedData,
+    store.writeResource
   );
 
   return {

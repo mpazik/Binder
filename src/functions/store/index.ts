@@ -20,25 +20,29 @@ import { Indexer } from "../indexes/types";
 import { createStatefulGDriveStoreRead } from "./gdrive-store-read";
 import {
   createLocalStoreDb,
-  createLocalStoreIterate,
-  createLocalStoreRead,
-  createLocalStoreWrite,
-  StoreRead,
-  StoreWrite,
-  StoreWriteLinkedData,
+  createLocalLinkedDataStoreIterate,
+  createLocalResourceStoreRead,
+  createLocalResourceStoreWrite,
+  ResourceStoreRead,
+  ResourceStoreWrite,
+  LinkedDataStoreWrite,
+  createLocalLinkedDataStoreWrite,
+  createLocalLinkedDataStoreRead,
+  LinkedDataStoreRead,
 } from "./local-store";
 import { newMissingLinkedDataDownloader } from "./missing-linked-data-downloader";
 
 export type {
-  StoreWrite,
-  StoreWriteLinkedData,
-  StoreRead,
+  ResourceStoreWrite,
+  LinkedDataStoreWrite,
+  ResourceStoreRead,
 } from "./local-store";
 
 type Index = {
-  read: StoreRead;
-  write: StoreWrite;
-  writeLinkedData: StoreWriteLinkedData;
+  readResource: ResourceStoreRead;
+  writeResource: ResourceStoreWrite;
+  readLinkedData: LinkedDataStoreRead;
+  writeLinkedData: LinkedDataStoreWrite;
   updateGdriveState: (gdrive: GDriveState) => void;
   storeStateProvider: Provider<StoreState>;
 };
@@ -48,7 +52,7 @@ export type BlobHashRecord = {
   hash: HashUri;
 };
 
-const blobSyncRequiredStore = "sync-required-blobs" as StoreName;
+const syncRequiredStore = "sync-required" as StoreName;
 const syncPropsStore = "sync-props" as StoreName;
 
 const createSyncDb = () =>
@@ -56,7 +60,9 @@ const createSyncDb = () =>
     "sync-db",
     (event) => {
       const db = (throwIfNull(event.target) as IDBRequest<IDBDatabase>).result;
-      db.createObjectStore(blobSyncRequiredStore, { autoIncrement: true });
+      db.createObjectStore(syncRequiredStore, {
+        autoIncrement: true,
+      });
       db.createObjectStore(syncPropsStore);
     },
     1
@@ -78,8 +84,12 @@ export type StoreState =
 
 export const createStore = async (indexLinkedData: Indexer): Promise<Index> => {
   const localStoreDb = await createLocalStoreDb();
-  const localStoreRead = createLocalStoreRead(localStoreDb);
-  const localStoreWrite = createLocalStoreWrite(localStoreDb);
+  const localResourceStoreRead = createLocalResourceStoreRead(localStoreDb);
+  const localResourceStoreWrite = createLocalResourceStoreWrite(localStoreDb);
+  const localLinkedDataStoreRead = createLocalLinkedDataStoreRead(localStoreDb);
+  const localLinkedDataStoreWrite = createLocalLinkedDataStoreWrite(
+    localStoreDb
+  );
   const syncDb = await createSyncDb();
   const [remoteStoreRead, updateGdriveState] = createStatefulGDriveStoreRead();
   let state: StoreState = ["idle"];
@@ -92,8 +102,8 @@ export const createStore = async (indexLinkedData: Indexer): Promise<Index> => {
       downloading: async (config) => {
         const since = await storeGet<Date>(syncDb, "last-sync", syncPropsStore);
         const downloader = newMissingLinkedDataDownloader(
-          createLocalStoreIterate(localStoreDb),
-          localStoreWrite,
+          createLocalLinkedDataStoreIterate(localStoreDb),
+          localLinkedDataStoreWrite,
           indexLinkedData,
           config
         );
@@ -115,14 +125,14 @@ export const createStore = async (indexLinkedData: Indexer): Promise<Index> => {
 
     const record = await storeGetFirst<BlobHashRecord>(
       syncDb,
-      blobSyncRequiredStore
+      syncRequiredStore
     );
     if (record) {
       const {
         key,
         value: { hash, name },
       } = record;
-      const localBlob = await localStoreRead(hash);
+      const localBlob = await localResourceStoreRead(hash);
       if (localBlob) {
         uploadToDrive(config, key, hash, localBlob, name);
       } else {
@@ -156,7 +166,7 @@ export const createStore = async (indexLinkedData: Indexer): Promise<Index> => {
     })(config, hash, blob, name)
       .then(() => {
         // check: unbound promise
-        storeDelete(syncDb, recordKey, blobSyncRequiredStore);
+        storeDelete(syncDb, recordKey, syncRequiredStore);
         // call outside as we don't want to catch here uploadNext errors
         setImmediate(() => uploadNext());
       })
@@ -178,7 +188,11 @@ export const createStore = async (indexLinkedData: Indexer): Promise<Index> => {
       });
   };
 
-  const markForSync = async (hash: HashUri, blob: Blob, name?: string) => {
+  const markResourceForSync = async (
+    hash: HashUri,
+    blob: Blob,
+    name?: string
+  ) => {
     const dbKey = await storePut<BlobHashRecord>(
       syncDb,
       {
@@ -186,40 +200,67 @@ export const createStore = async (indexLinkedData: Indexer): Promise<Index> => {
         name,
       },
       undefined,
-      blobSyncRequiredStore
+      syncRequiredStore
+    );
+    if (state[0] !== "ready") return;
+    uploadToDrive(state[1], dbKey, hash, blob, name);
+  };
+
+  const markLinkedDataForSync = async (
+    hash: HashUri,
+    blob: Blob,
+    name?: string
+  ) => {
+    const dbKey = await storePut<BlobHashRecord>(
+      syncDb,
+      {
+        hash,
+        name,
+      },
+      undefined,
+      syncRequiredStore
     );
     if (state[0] !== "ready") return;
     uploadToDrive(state[1], dbKey, hash, blob, name);
   };
 
   return {
-    read: async (hash) => {
+    readResource: async (hash) => {
       return (
-        (await measureAsyncTime("read local store", () =>
-          localStoreRead(hash)
+        (await measureAsyncTime("read local resource store", () =>
+          localResourceStoreRead(hash)
         )) ??
-        (await measureAsyncTime("read remote store", async () => {
+        (await measureAsyncTime("read remote resource store", async () => {
           const result = await remoteStoreRead(hash);
-          if (result) await localStoreWrite(result);
+          if (result) await localResourceStoreWrite(result);
           return result;
         }))
       );
     },
-    write: async (blob, name): Promise<HashName> => {
-      const hash = await localStoreWrite(blob);
-      await markForSync(hash, blob, name);
+    writeResource: async (blob, name): Promise<HashName> => {
+      const hash = await localResourceStoreWrite(blob);
+      await markResourceForSync(hash, blob, name);
       return hash;
     },
+    readLinkedData: async (hash) => {
+      return await measureAsyncTime("read local linked data store", () =>
+        localLinkedDataStoreRead(hash)
+      );
+    },
     writeLinkedData: async (linkedData) => {
-      const articleLdBlob = new Blob([JSON.stringify(linkedData)], {
+      if (Array.isArray(linkedData)) {
+        throw new Error("Array linked data are not supported");
+      }
+
+      const linkedDataWithHashId = await localLinkedDataStoreWrite(linkedData);
+      const articleLdBlob = new Blob([JSON.stringify(linkedDataWithHashId)], {
         type: jsonLdMimeType,
       });
-      const articleHash = await localStoreWrite(articleLdBlob);
-      await markForSync(articleHash, articleLdBlob);
+      await markLinkedDataForSync(linkedDataWithHashId["@id"], articleLdBlob);
 
-      await indexLinkedData({ hash: articleHash, ld: linkedData });
+      await indexLinkedData(linkedDataWithHashId);
 
-      return articleHash;
+      return linkedDataWithHashId;
     },
     updateGdriveState: (gdrive: GDriveState) => {
       updateGdriveState(gdrive);
