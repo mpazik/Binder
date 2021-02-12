@@ -1,5 +1,6 @@
 import { queryParamProvider } from "../libs/browser-providers";
-import { ClosableProvider, map, ProviderSetup } from "../libs/connections";
+import { ClosableProvider, fork, ProviderSetup } from "../libs/connections";
+import { map } from "../libs/connections/processors2";
 
 const linkHijack: ProviderSetup<{ element?: Node }, string> = ({
   element = document,
@@ -20,18 +21,18 @@ const linkHijack: ProviderSetup<{ element?: Node }, string> = ({
   onClose(() => element.removeEventListener("click", hijackLink));
 };
 
-export const linkHijackToQueryParams: ClosableProvider<URLSearchParams> = (
-  onClose,
-  push
-) => {
-  linkHijack({})(
+function updateBrowserHistory(uri: string) {
+  const queryParams = new URLSearchParams(window.location.search);
+  queryParams.set("uri", uri);
+  window.history.pushState({}, "", "?" + queryParams.toString());
+}
+
+export const currentDocumentUriProvider: ClosableProvider<
+  string | undefined | null
+> = (onClose, push) => {
+  linkHijack({})(onClose, fork(updateBrowserHistory, push));
+  queryParamProvider(
     onClose,
-    map((uri: string) => {
-      const queryParams = new URLSearchParams(window.location.search);
-      queryParams.set("uri", uri);
-      window.history.pushState({}, "", "?" + queryParams.toString());
-      return queryParams;
-    })(push)
+    map((it) => it.get("uri"), push)
   );
-  queryParamProvider(onClose, push);
 };

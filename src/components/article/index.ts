@@ -6,16 +6,16 @@ import {
   ArticleContent,
   getDocumentContentRoot,
 } from "../../functions/article-processor";
-import { linkHijackToQueryParams } from "../../functions/url-hijack";
+import { currentDocumentUriProvider } from "../../functions/url-hijack";
 import {
   Action,
   Consumer,
   dataPortal,
   fork,
-  map,
   passOnlyChanged,
   Provider,
 } from "../../libs/connections";
+import { map, withDefaultValue } from "../../libs/connections/processors2";
 import { findUri, LinkedDataWithHashId } from "../../libs/linked-data";
 import {
   newStateHandler,
@@ -28,7 +28,6 @@ import {
   button,
   Component,
   div,
-  JsonHtml,
   slot,
   span,
   ViewSetup,
@@ -157,11 +156,6 @@ const newArticleViewStateMachine = ({
     }
   );
 
-const getUri = map(
-  (queryParams: URLSearchParams) =>
-    queryParams.get("uri") || "https://pl.wikipedia.org/wiki/Dedal_z_Sykionu"
-);
-
 const changesToEditorBarState = (changes: DocumentChange[]): EditBarState =>
   changes.length === 0
     ? ["hidden"]
@@ -186,7 +180,7 @@ const articleContentView: Component<{
       const [changesProviderForBar, changesConsumerForBar] = dataPortal<
         DocumentChange[]
       >();
-      onInputProvider(map(newDocumentComparator(contentRoot))(changesConsumer));
+      onInputProvider(map(newDocumentComparator(contentRoot), changesConsumer));
 
       const [editBarStateProvider, editBarStateConsumer] = dataPortal<
         EditBarState
@@ -197,7 +191,7 @@ const articleContentView: Component<{
       changesProvider(
         fork(
           changesConsumerForBar,
-          map(changesToEditorBarState)(passOnlyChanged(editBarStateConsumer))
+          map(changesToEditorBarState, passOnlyChanged(editBarStateConsumer))
         )
       );
 
@@ -257,37 +251,16 @@ const articleContentView: Component<{
           )
         )
       );
-    })(render)
+    }, render)
   );
 };
 
-const articleView: ViewSetup<
-  { retry: Action; articleContentSlot: JsonHtml },
-  ArticleViewState
-> = ({ retry, articleContentSlot }) =>
-  newStateMapper({
-    idle: () => div(centerLoadingSlot()),
-    initializing: () => div(centerLoadingSlot()),
-    initializingContent: () => div(centerLoadingSlot()),
-    loading: () => div(centerLoadingSlot(), articleContentSlot),
-    loadingContent: () => div(centerLoadingSlot(), articleContentSlot),
-    loaded: () => div(articleContentSlot),
-    error: ({ reason }) =>
-      div(span("Error: ", reason), button({ onClose: () => retry() }, "Retry")),
-  });
-
-export const articleComponent: Component<{
-  articleLdFetcher: ArticleLdFetcher;
-  contentFetcher: ArticleContentFetcher;
-  onArticleLoaded?: (article: LinkedDataWithHashId) => void;
-}> = ({ articleLdFetcher, onArticleLoaded, contentFetcher }) => (
-  render,
-  onClose
-) => {
+const articleView: ViewSetup<{ retry: Action }, ArticleViewState> = ({
+  retry,
+}) => {
   const [articleContentProvider, updateArticleContent] = dataPortal<
     ArticleContent
   >();
-
   const articleContentSlot = slot(
     "content",
     articleContentView({
@@ -300,38 +273,54 @@ export const articleComponent: Component<{
     })
   );
 
+  return newStateMapper({
+    idle: () => div(centerLoadingSlot()),
+    initializing: () => div(centerLoadingSlot()),
+    initializingContent: () => div(centerLoadingSlot()),
+    loading: () => div(centerLoadingSlot(), articleContentSlot),
+    loadingContent: () => div(centerLoadingSlot(), articleContentSlot),
+    loaded: (state) => {
+      updateArticleContent(state);
+      return div(articleContentSlot);
+    },
+    error: ({ reason }) =>
+      div(span("Error: ", reason), button({ onClose: () => retry() }, "Retry")),
+  });
+};
+
+export const articleComponent: Component<{
+  articleLdFetcher: ArticleLdFetcher;
+  contentFetcher: ArticleContentFetcher;
+  onArticleLoaded?: (article: LinkedDataWithHashId) => void;
+}> = ({ articleLdFetcher, onArticleLoaded, contentFetcher }) => (
+  render,
+  onClose
+) => {
+  const renderState = map(
+    articleView({
+      retry: () => {
+        articleViewStateMachine(["retry"]);
+      },
+    }),
+    render
+  );
+
+  const onLoadedParentHandler = newStateHandler<ArticleViewState>({
+    initializingContent: (state) => onArticleLoaded?.(state),
+    loadingContent: (state) => onArticleLoaded?.(state.newArticleLdWithHash),
+  });
+
   const articleViewStateMachine = newArticleViewStateMachine({
     articleLdFetcher,
     contentFetcher,
-  })(
-    fork(
-      map(
-        articleView({
-          retry: () => {
-            articleViewStateMachine(["retry"]);
-          },
-          articleContentSlot,
-        })
-      )(render),
-      newStateHandler<ArticleViewState>({
-        loaded: (state) => {
-          updateArticleContent(state);
-        },
-      }),
-      onArticleLoaded
-        ? newStateHandler<ArticleViewState>({
-            initializingContent: (state) => onArticleLoaded(state),
-            loadingContent: (state) =>
-              onArticleLoaded(state.newArticleLdWithHash),
-          })
-        : () => {}
-    )
-  );
+  })(fork(renderState, onLoadedParentHandler));
 
-  linkHijackToQueryParams(
+  currentDocumentUriProvider(
     onClose,
-    getUri(
-      map((uri) => ["loading", uri] as ArticleViewAction)(
+    withDefaultValue(
+      "https://pl.wikipedia.org/wiki/Dedal_z_Sykionu" as string,
+      map(
+        (uri) => ["loading", uri] as ArticleViewAction,
         articleViewStateMachine
       )
     )

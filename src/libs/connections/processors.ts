@@ -14,7 +14,9 @@ export const map = <T, S>(transform: (v: T) => S): Processor<T, S> => (
 
 export const filter = <T>(predicate: (v: T) => boolean): Processor<T, T> => (
   push
-) => (v: T) => (predicate(v) ? push(v) : undefined);
+) => (v: T) => {
+  if (predicate(v)) push(v);
+};
 
 export const flatten = <T>(array: T[]): Processor<T, T> => (push) => (v: T) =>
   array.forEach(push);
@@ -118,7 +120,15 @@ export function combineLatest(
 
 export const filterType = <T, S extends T>(
   predicate: (v: T) => v is S
-): Processor<T, S> => (push) => (v: T) => (predicate(v) ? push(v) : undefined);
+): Processor<T, S> => (push) => (v: T) => {
+  if (predicate(v)) push(v);
+};
+
+export const filterNonNull = <T>(): Processor<T | undefined | null, T> => (
+  push
+) => (v: T | undefined | null) => {
+  if (v) push(v);
+};
 
 export const mapTo = <T>(value: T): Processor<any, T> => (push) => (v: T) =>
   push(value);
