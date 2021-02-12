@@ -1,12 +1,12 @@
 import { URL } from "schema-dts";
 
-import { ArticleContentFetcher } from "../functions/article-content-fetcher";
-import { ArticleLdFetcher } from "../functions/article-ld-fetcher";
+import { ArticleContentFetcher } from "../../functions/article-content-fetcher";
+import { ArticleLdFetcher } from "../../functions/article-ld-fetcher";
 import {
   ArticleContent,
   getDocumentContentRoot,
-} from "../functions/article-processor";
-import { linkHijackToQueryParams } from "../functions/url-hijack";
+} from "../../functions/article-processor";
+import { linkHijackToQueryParams } from "../../functions/url-hijack";
 import {
   Action,
   Consumer,
@@ -15,13 +15,13 @@ import {
   map,
   passOnlyChanged,
   Provider,
-} from "../libs/connections";
-import { findUri, LinkedDataWithHashId } from "../libs/linked-data";
+} from "../../libs/connections";
+import { findUri, LinkedDataWithHashId } from "../../libs/linked-data";
 import {
   newStateHandler,
   newStateMachineWithFeedback,
   newStateMapper,
-} from "../libs/named-state";
+} from "../../libs/named-state";
 import {
   a,
   article,
@@ -32,22 +32,22 @@ import {
   slot,
   span,
   ViewSetup,
-} from "../libs/simple-ui/render";
-import { throttleArg } from "../libs/throttle";
+} from "../../libs/simple-ui/render";
+import { throttleArg } from "../../libs/throttle";
+import { centerLoadingSlot } from "../common/center-loading-component";
+import { modal, ModalState } from "../common/modal";
 
 import {
   changesIndicatorBar,
   documentChangeTopRelativePosition,
-} from "./article/change-indicator-bar";
+} from "./change-indicator-bar";
 import {
   DocumentChange,
   newDocumentComparator,
   revertDocumentChange,
-} from "./article/document-change";
-import { renderDocumentChangeModal } from "./article/document-change-modal";
-import { editBar, EditBarState } from "./article/edit-bar";
-import { centerLoadingSlot } from "./common/center-loading-component";
-import { modal, ModalState } from "./common/modal";
+} from "./document-change";
+import { renderDocumentChangeModal } from "./document-change-modal";
+import { editBar, EditBarState } from "./edit-bar";
 
 type RetryAction = ["retry"];
 type ArticleViewAction =
