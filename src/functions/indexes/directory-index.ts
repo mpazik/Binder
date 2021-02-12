@@ -1,4 +1,3 @@
-import { throwIfNull } from "../../libs/errors";
 import { HashName } from "../../libs/hash";
 import {
   openSingleStoreDb,
@@ -6,7 +5,7 @@ import {
   storeGetAllWithKeys,
   storePut,
 } from "../../libs/indexeddb";
-import { LinkedData } from "../../libs/linked-data";
+import { getPropertyValue } from "../../libs/linked-data";
 import { Opaque } from "../../libs/types";
 
 // import { createLinkedDataProvider } from "../linked-data-provider";
@@ -45,16 +44,11 @@ export const createDirectoryIndex = (
   };
 };
 
-const getFirst = <T>(prop: LinkedData["any"]): T => {
-  const value = (prop as unknown) as T | T[] | undefined;
-  return throwIfNull(([value ?? []].flat() as T[])[0]);
-};
-
 const indexer: IndexingStrategy<DirectoryProps> = (data) =>
   Promise.resolve({
     // index only first type
-    type: getFirst(data["@type"]),
-    name: getFirst(data["name"]),
+    type: getPropertyValue(data, "@type"),
+    name: getPropertyValue(data, "name"),
   });
 
 export const createDirectoryIndexer = (

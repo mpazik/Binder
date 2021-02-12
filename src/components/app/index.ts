@@ -2,13 +2,9 @@ import "./styles.css";
 import "./loading.css";
 
 import {
-  ArticleContentFetcher,
-  createArticleContentFetcher,
-} from "../../functions/article-content-fetcher";
-import {
-  ArticleLdFetcher,
-  createArticleLdFetcher,
-} from "../../functions/article-ld-fetcher";
+  ArticleSaver,
+  createArticleSaver,
+} from "../../functions/article-saver";
 import { GDriveState } from "../../functions/gdrive/controller";
 import { createCompositeIndexer } from "../../functions/indexes/composite-indexer";
 import {
@@ -22,10 +18,14 @@ import {
   createUrlIndexDb,
   createUrlIndexer,
 } from "../../functions/indexes/url-index";
+import {
+  createLinkedDataWithDocumentFetcher,
+  LinkedDataWithDocumentFetcher,
+} from "../../functions/linked-data-fetcher";
 import { createStore, StoreState } from "../../functions/store";
-import { Consumer, dataPortal, map, Provider } from "../../libs/connections";
-import { HashName } from "../../libs/hash";
-import { getHash } from "../../libs/linked-data";
+import { Consumer, dataPortal, Provider } from "../../libs/connections";
+import { HashName, HashUri } from "../../libs/hash";
+import { findHashUri } from "../../libs/linked-data";
 import { measureAsyncTime } from "../../libs/performance";
 import { div, slot } from "../../libs/simple-ui/render";
 import { articleComponent } from "../article";
@@ -33,12 +33,12 @@ import { asyncLoader } from "../common/async-loader";
 import { fileNavigation } from "../navigation";
 import { profilePanel } from "../profile";
 
-const initDb = async (): Promise<{
-  articleLdFetcher: ArticleLdFetcher;
-  articleContentFetcher: ArticleContentFetcher;
+const initServices = async (): Promise<{
+  contentFetcher: LinkedDataWithDocumentFetcher;
   directoryIndex: DirectoryIndex;
   gdriveStateConsumer: Consumer<GDriveState>;
   storeStateProvider: Provider<StoreState>;
+  articleSaver: ArticleSaver;
 }> => {
   const [gdriveStateProvider, gdriveStateConsumer] = dataPortal<GDriveState>();
   const [urlIndexDb, directoryIndexDb] = await Promise.all([
@@ -58,7 +58,10 @@ const initDb = async (): Promise<{
   const store = await createStore(indexLinkedData);
   gdriveStateProvider((state) => store.updateGdriveState(state));
 
-  const articleContentFetcher = createArticleContentFetcher(store.readResource);
+  const articleSaver = createArticleSaver(
+    store.writeResource,
+    store.writeLinkedData
+  );
 
   const getHash = async (uri: string): Promise<HashName | undefined> => {
     const result = await urlIndex({ url: uri });
@@ -66,45 +69,46 @@ const initDb = async (): Promise<{
       return result[0].hash;
     }
   };
-  const articleLdFetcher = createArticleLdFetcher(
+  const contentFetcher = createLinkedDataWithDocumentFetcher(
     getHash,
     store.readLinkedData,
-    store.writeLinkedData,
-    store.writeResource
+    store.readResource
   );
 
   return {
-    articleLdFetcher,
-    articleContentFetcher,
+    contentFetcher,
     directoryIndex,
     gdriveStateConsumer,
     storeStateProvider: store.storeStateProvider,
+    articleSaver,
   };
 };
 
 export const App = asyncLoader(
-  measureAsyncTime("init", initDb),
+  measureAsyncTime("init", initServices),
   ({
-    articleContentFetcher,
-    articleLdFetcher,
+    contentFetcher,
     directoryIndex,
     gdriveStateConsumer,
     storeStateProvider,
+    articleSaver,
   }) => (render) => {
-    const [articleHashProvider, articleHash] = dataPortal<HashName>();
+    const [selectedItemProvider, selectItem] = dataPortal<
+      HashUri | undefined
+    >();
     render(
       div(
         div(
           { id: "navigation" },
-          slot(
-            "profile",
-            profilePanel({ gdriveStateConsumer, storeStateProvider })
-          ),
+          // slot(
+          //   "profile",
+          //   profilePanel({ gdriveStateConsumer, storeStateProvider })
+          // ),
           slot(
             "content-nav",
             fileNavigation({
               directoryIndex,
-              hashProvider: articleHashProvider,
+              selectedItemProvider,
             })
           )
         ),
@@ -115,9 +119,10 @@ export const App = asyncLoader(
             slot(
               "content",
               articleComponent({
-                articleLdFetcher,
-                onArticleLoaded: map(getHash)(articleHash),
-                contentFetcher: articleContentFetcher,
+                contentFetcher,
+                articleSaver,
+                onArticleLoaded: (linkedData) =>
+                  selectItem(findHashUri(linkedData)),
               })
             )
           )

@@ -59,14 +59,14 @@ const removeRootAndContentWrappers = (contentDocument: Document) => {
   );
 };
 
-export type ArticleContent = {
-  content: Document;
+export type LinkedDataWithDocument = {
+  contentDocument: Document;
   linkedData: LinkedData;
 };
 
-export const processToArticle: (
-  r: Response
-) => Promise<ArticleContent> = async (response) => {
+export const processToArticle = async (
+  response: Response
+): Promise<LinkedDataWithDocument> => {
   const domParser = new DOMParser();
   const text = await response.text();
   const dom = measureTime("parse", () =>
@@ -93,7 +93,7 @@ export const processToArticle: (
   removeBaseUrlFromFragments(contentDocument, baseUrl);
 
   return {
-    content: contentDocument,
+    contentDocument,
     linkedData: articleLd,
   };
 };

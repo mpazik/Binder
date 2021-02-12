@@ -3,7 +3,7 @@ export type Callback<T> = (value: T) => void;
 export const map = <T, S>(
   transform: (v: T) => S,
   callback: Callback<S>
-): Callback<T> => () => (v: T) => callback(transform(v));
+): Callback<T> => (v: T) => callback(transform(v));
 
 export const filter = <T>(
   predicate: (v: T) => boolean,

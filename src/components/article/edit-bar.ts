@@ -1,111 +1,88 @@
-import {
-  documentContentRoodId,
-  getDocumentContentRoot,
-} from "../../functions/article-processor";
-import { dataPortal, join, map, Provider } from "../../libs/connections";
+import { Provider } from "../../libs/connections";
+import { map } from "../../libs/connections/processors2";
 import { newStateMapper } from "../../libs/named-state";
 import {
   button,
   Component,
   div,
   JsonHtml,
-  OptionalViewSetup,
+  OptionalView,
   span,
 } from "../../libs/simple-ui/render";
 
-import { revertDocument } from "./document-change";
-
 export type EditBarState =
   | ["hidden"]
-  | ["visible", { editor: Element }]
-  | ["publishing"];
+  | ["visible", { onSave: () => void; onDiscard?: () => void }]
+  | ["saving"]
+  | ["error", { onTryAgain: () => void; reason: string }];
 
-const createNewDocument = (
-  initialContent: Document,
-  editor: Element
-): Document => {
-  const newDocument = document.implementation.createHTMLDocument(
-    initialContent.title
-  );
-  newDocument.head.innerHTML = initialContent.head.innerHTML;
-  const newContentRoot = newDocument.createElement("div");
-  newContentRoot.id = documentContentRoodId;
-  newContentRoot.innerHTML = editor.innerHTML;
-  newDocument.body.appendChild(newContentRoot);
-  return newDocument;
-};
-
-function bar(...controls: JsonHtml[]) {
+function bar(message: string, ...controls: JsonHtml[]) {
   return div(
     {
       class:
-        "position-sticky Box p-3 bottom-0 box-shadow-medium anim-fade-up d-flex flex-row-reverse bg-gray",
+        "position-sticky Box p-2 mt-4 bottom-2 box-shadow-medium anim-fade-up d-flex flex-row-reverse bg-gray",
       style: { "animation-delay": "0s" },
     },
     ...controls,
-    span({ class: "flex-1 f4" }, "Document has been modified")
+    span({ class: "flex-1 f4" }, message)
   );
 }
 
-const editBarView: OptionalViewSetup<
-  { initialContent: Document; onPublish: (d: Document) => void },
-  EditBarState
-> = ({ initialContent, onPublish }) =>
-  newStateMapper({
-    hidden: () => undefined,
-    visible: ({ editor }) =>
-      bar(
-        button(
-          {
-            class: "btn btn-primary mr-2",
-            type: "button",
-            onClick: () => {
-              onPublish(createNewDocument(initialContent, editor));
-            },
-          },
-          "Publish"
-        ),
-        button(
-          {
-            class: "btn btn-danger mr-2",
-            type: "button",
-            onClick: () => {
-              revertDocument(getDocumentContentRoot(initialContent), editor);
-            },
-          },
-          "Discard"
-        )
+const editBarView: OptionalView<EditBarState> = newStateMapper({
+  hidden: () => undefined,
+  visible: ({ onSave, onDiscard }) =>
+    bar(
+      onDiscard
+        ? "Document has been modified"
+        : "External document, not yet saved",
+      button(
+        {
+          class: "btn btn-primary mr-2",
+          type: "button",
+          onClick: onSave,
+        },
+        "Save"
       ),
-    publishing: () =>
-      bar(
-        button(
-          {
-            class: "btn btn-primary mr-2",
-            type: "button",
-          },
-          "saving"
-        )
-      ),
-  });
+      ...(onDiscard
+        ? [
+            button(
+              {
+                class: "btn btn-danger mr-2",
+                type: "button",
+                onClick: onDiscard,
+              },
+              "Discard"
+            ),
+          ]
+        : [])
+    ),
+  error: ({ reason, onTryAgain }) =>
+    bar(
+      `Error saving document ${reason}`,
+      button(
+        {
+          class: "btn btn-primary mr-2",
+          type: "button",
+          onClick: onTryAgain,
+        },
+        "try again"
+      )
+    ),
+  saving: () =>
+    bar(
+      "",
+      button(
+        {
+          class: "btn btn-primary mr-2",
+          type: "button",
+        },
+        "saving"
+      )
+    ),
+});
 
 export const editBar: Component<{
-  initialContent: Document;
   provider: Provider<EditBarState>;
-  onPublish: (document: Document) => void;
-}> = ({ provider, onPublish, initialContent }) => (render) => {
-  const [editStateProvider, editStateConsumer] = dataPortal<EditBarState>();
-  join(
-    provider,
-    editStateProvider
-  )(
-    map(
-      editBarView({
-        initialContent,
-        onPublish: (newDocument) => {
-          onPublish(newDocument);
-          editStateConsumer(["publishing"]);
-        },
-      })
-    )(render)
-  );
+}> = ({ provider }) => (render) => {
+  provider(map(editBarView, render));
 };

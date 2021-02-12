@@ -7,7 +7,7 @@ import {
   hashUriScheme,
 } from "../../libs/hash";
 import {
-  openSingleStoreDb,
+  openStoreDb,
   SingleStoreDb,
   storeGet,
   storeGetNext,
@@ -18,22 +18,28 @@ import {
 import { LinkedData, LinkedDataWithHashId } from "../../libs/linked-data";
 import { Opaque } from "../../libs/types";
 
+const resourcesStore = "resources" as StoreName;
+const linkedDateStore = "linked-data" as StoreName;
+
 export type LocalStoreDb = Opaque<SingleStoreDb<Blob>>;
 export const createLocalStoreDb = (): Promise<LocalStoreDb> =>
-  openSingleStoreDb("storage") as Promise<LocalStoreDb>;
+  openStoreDb("storage", [
+    { name: resourcesStore },
+    { name: linkedDateStore },
+  ]) as Promise<LocalStoreDb>;
 
-export type ResourceStoreRead = (hash: HashName) => Promise<Blob | undefined>;
+export type ResourceStoreRead = (hash: HashUri) => Promise<Blob | undefined>;
 export type ResourceStoreWrite = (
   data: Blob,
   name?: string
 ) => Promise<HashUri>;
 
-const resourcesStore = "resources" as StoreName;
-
 export const createLocalResourceStoreRead = (
   storageDb: LocalStoreDb
 ): ResourceStoreRead => {
-  return async (hash: HashName) => storeGet(storageDb, hash, resourcesStore);
+  return async (hash: HashUri) => {
+    return storeGet(storageDb, hash, resourcesStore);
+  };
 };
 
 export const createLocalResourceStoreWrite = (
@@ -53,8 +59,6 @@ export type LinkedDataStoreWrite = (
 export type LinkedDataStoreIterate = (
   handler: (hashUri: HashUri) => void
 ) => Promise<void>;
-
-const linkedDateStore = "linked-data" as StoreName;
 
 export const createLocalLinkedDataStoreRead = (
   storageDb: LocalStoreDb

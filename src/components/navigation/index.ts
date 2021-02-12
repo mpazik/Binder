@@ -2,12 +2,13 @@ import {
   DirectoryIndex,
   DirectoryRecord,
 } from "../../functions/indexes/directory-index";
-import { HashName, hashNameToHashUri } from "../../libs/hash";
+import { Provider } from "../../libs/connections";
+import { HashUri } from "../../libs/hash";
 import { a, Component, View } from "../../libs/simple-ui/render";
 
 const fileNavigationList: View<{
   list: DirectoryRecord[];
-  current?: HashName;
+  current?: HashUri;
 }> = ({ list, current }) => [
   "nav",
   { class: "menu" },
@@ -15,7 +16,7 @@ const fileNavigationList: View<{
     a(
       {
         class: "menu-item",
-        href: hashNameToHashUri(hash),
+        href: hash,
         ...(hash === current ? { "aria-current": "page" } : {}),
       },
       name
@@ -24,14 +25,14 @@ const fileNavigationList: View<{
 ];
 
 export const fileNavigation: Component<{
-  hashProvider: (handler: (hash: HashName) => void) => void;
+  selectedItemProvider: Provider<HashUri | undefined>;
   directoryIndex: DirectoryIndex;
-}> = ({ directoryIndex, hashProvider }) => (render, onClose) => {
-  const handlerHash = (hash?: HashName) => {
+}> = ({ directoryIndex, selectedItemProvider }) => (render) => {
+  const renderNavigation = (current?: HashUri) => {
     directoryIndex({}).then((list) =>
-      render(fileNavigationList({ list, current: hash }))
+      render(fileNavigationList({ list, current }))
     );
   };
-  hashProvider(handlerHash);
-  handlerHash();
+  selectedItemProvider(renderNavigation);
+  renderNavigation();
 };

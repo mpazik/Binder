@@ -1,6 +1,7 @@
 import { NodeObject, normalize } from "jsonld";
 import { URL } from "schema-dts";
 
+import { throwIfNull } from "./errors";
 import { HashName, HashUri, isHashUri } from "./hash";
 
 export const jsonldFileExtension = "jsonld";
@@ -10,15 +11,25 @@ export type LinkedDataWithHashId = LinkedData & { "@id": HashUri };
 
 export const getHash = (ld: LinkedDataWithHashId): HashName => ld["@id"];
 
-export const findUri = (ld: LinkedData): URL | undefined => {
-  const urls = [(ld["url"] as URL | URL[]) || []].flat();
-  return urls.find((it) => !isHashUri(it));
+export const getPropertyValue = <T = string>(
+  ld: LinkedData,
+  property: string
+): T => {
+  const propertyValues = getPropertyValues<T>(ld, property);
+  return throwIfNull(propertyValues.length === 0 ? null : propertyValues[0]);
 };
 
-export const findHashUri = (ld: LinkedData): HashUri | undefined => {
-  const urls = [ld.url || []].flat() as string[];
-  return urls.find((it) => isHashUri(it)) as HashUri;
+export const getPropertyValues = <T>(ld: LinkedData, property: string): T[] => {
+  const value = (ld[property] as unknown) as T | T[] | undefined;
+  return [value ?? []].flat() as T[];
 };
+export const getUrls = (ld: LinkedData): URL[] => getPropertyValues(ld, "url");
+
+export const findUrl = (ld: LinkedData): URL | undefined =>
+  getUrls(ld).find((it) => !isHashUri(it));
+
+export const findHashUri = (ld: LinkedData): HashUri | undefined =>
+  getUrls(ld).find((it) => isHashUri(it)) as HashUri;
 
 export const jsonLdMimeType = "application/ld+json";
 

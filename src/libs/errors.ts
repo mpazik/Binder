@@ -4,5 +4,5 @@ export const throwIfNull = <T>(
 ): T => {
   if (value) return value;
   if (messageSupplier) throw new Error(messageSupplier());
-  throw new Error("Unexpected not set value");
+  throw new Error("Expected value to be defined");
 };

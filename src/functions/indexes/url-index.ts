@@ -6,7 +6,7 @@ import {
   storeGet,
   storePut,
 } from "../../libs/indexeddb";
-import { findUri } from "../../libs/linked-data";
+import { findUrl } from "../../libs/linked-data";
 import { Opaque } from "../../libs/types";
 // import { createLinkedDataProvider } from "../linked-data-provider";
 // import { LocalStoreDb } from "../local-store";
@@ -37,7 +37,7 @@ export const createUrlIndex = (urlIndexDb: UrlIndexDb): UrlIndex => async ({
   );
 
 const indexer: IndexingStrategy<Url> = (data) =>
-  Promise.resolve(throwIfNull(findUri(data)));
+  Promise.resolve(throwIfNull(findUrl(data)));
 
 export const createUrlIndexer = (urlIndexDb: UrlIndexDb): Indexer => {
   return async (ld) => {

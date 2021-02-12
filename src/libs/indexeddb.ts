@@ -1,5 +1,3 @@
-import { LocalStoreDb } from "../functions/store/local-store";
-
 import { Opaque } from "./types";
 
 export const openDb = (
@@ -18,22 +16,34 @@ export type StoreName = Opaque<string>;
 export const defaultStoreName = "store" as StoreName;
 
 export type SingleStoreDb<T> = IDBDatabase;
+export type StoreDb = IDBDatabase;
 
 export const openSingleStoreDb = async <T>(
   dbName: string,
   params?: IDBObjectStoreParameters,
   onCreation?: (db: SingleStoreDb<T>) => Promise<void>
-): Promise<SingleStoreDb<T>> => {
+): Promise<SingleStoreDb<T>> =>
+  openStoreDb(dbName, [{ name: defaultStoreName, params }], onCreation);
+
+export const openStoreDb = async (
+  dbName: string,
+  stores: { name: string; params?: IDBObjectStoreParameters }[],
+  onCreation?: (db: StoreDb) => Promise<void>
+): Promise<StoreDb> => {
   let promise: Promise<void> | undefined = undefined;
   const db = await openDb(
     dbName,
     (event) => {
       const db = (event.target as IDBRequest<IDBDatabase>)?.result;
-      db.createObjectStore(defaultStoreName, params);
+      stores.forEach(({ name, params }) => {
+        db.createObjectStore(name, params);
+      });
       promise = onCreation?.(db);
     },
     1
   );
+  // block till on creation handler is finished.
+  // Can not wait within the db transaction
   promise ? await promise : undefined;
   return db;
 };
@@ -64,7 +74,7 @@ export const reqToPromise = <T>(request: IDBRequest<T>): Promise<T> =>
   });
 
 export const storePut = <T>(
-  db: SingleStoreDb<T>,
+  db: StoreDb,
   value: T,
   key?: IDBValidKey,
   storeName: StoreName = defaultStoreName
@@ -72,13 +82,13 @@ export const storePut = <T>(
   reqToPromise(getStore(db, storeName, true).put(value, key));
 
 export const storeGet = <T>(
-  db: SingleStoreDb<T>,
+  db: StoreDb,
   query: IDBValidKey | IDBKeyRange,
   storeName: StoreName = defaultStoreName
 ): Promise<T | undefined> => reqToPromise(getStore(db, storeName).get(query));
 
 export const storeIterate = <T>(
-  db: SingleStoreDb<T>,
+  db: StoreDb,
   handler: (key: IDBValidKey) => void,
   storeName: StoreName = defaultStoreName
 ): Promise<void> =>
@@ -98,13 +108,13 @@ export const storeIterate = <T>(
   });
 
 export const storeGetAll = <T>(
-  db: SingleStoreDb<T>,
+  db: StoreDb,
   query?: IDBValidKey | IDBKeyRange,
   storeName: StoreName = defaultStoreName
 ): Promise<T[]> => reqToPromise(getStore(db, storeName).getAll(query));
 
 export const storeGetAllWithKeys = <T>(
-  db: SingleStoreDb<T>,
+  db: StoreDb,
   query?: IDBValidKey | IDBKeyRange,
   storeName: StoreName = defaultStoreName
 ): Promise<{ key: IDBValidKey; value: T }[]> =>
@@ -127,7 +137,7 @@ export const storeGetAllWithKeys = <T>(
   });
 
 export const storeGetFirst = <T>(
-  db: IDBDatabase,
+  db: StoreDb,
   storeName: string
 ): Promise<{ key: IDBValidKey; value: T } | undefined> =>
   new Promise((resolve, reject) => {
@@ -145,7 +155,7 @@ export const storeGetFirst = <T>(
   });
 
 export const storeGetNext = <T>(
-  db: LocalStoreDb,
+  db: StoreDb,
   storeName: string,
   previous?: IDBValidKey
 ): Promise<{ key: IDBValidKey; value: T } | undefined> =>
@@ -166,13 +176,13 @@ export const storeGetNext = <T>(
   });
 
 export const storeDelete = (
-  db: SingleStoreDb<unknown>,
+  db: StoreDb,
   query: IDBValidKey | IDBKeyRange,
   storeName: StoreName = defaultStoreName
 ): Promise<undefined> =>
   reqToPromise(getStore(db, storeName, true).delete(query));
 
 export const storeClear = (
-  db: SingleStoreDb<unknown>,
+  db: StoreDb,
   storeName: StoreName = defaultStoreName
 ): Promise<undefined> => reqToPromise(getStore(db, storeName, true).clear());

@@ -90,6 +90,9 @@ export const createStore = async (indexLinkedData: Indexer): Promise<Index> => {
   const localLinkedDataStoreWrite = createLocalLinkedDataStoreWrite(
     localStoreDb
   );
+  const localLinkedDataStoreIterate = createLocalLinkedDataStoreIterate(
+    localStoreDb
+  );
   const syncDb = await createSyncDb();
   const [remoteStoreRead, updateGdriveState] = createStatefulGDriveStoreRead();
   let state: StoreState = ["idle"];
@@ -102,7 +105,7 @@ export const createStore = async (indexLinkedData: Indexer): Promise<Index> => {
       downloading: async (config) => {
         const since = await storeGet<Date>(syncDb, "last-sync", syncPropsStore);
         const downloader = newMissingLinkedDataDownloader(
-          createLocalLinkedDataStoreIterate(localStoreDb),
+          localLinkedDataStoreIterate,
           localLinkedDataStoreWrite,
           indexLinkedData,
           config
