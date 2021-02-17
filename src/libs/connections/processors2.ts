@@ -5,6 +5,20 @@ export const map = <T, S>(
   callback: Callback<S>
 ): Callback<T> => (v: T) => callback(transform(v));
 
+export const forEach = <T>(
+  handler: (v: T, signal: AbortSignal) => void,
+  callback: Callback<T>
+): Callback<T> => {
+  let abortController = new AbortController();
+
+  return (v: T) => {
+    abortController.abort();
+    abortController = new AbortController();
+    handler(v, abortController.signal);
+    callback(v);
+  };
+};
+
 export const filter = <T>(
   predicate: (v: T) => boolean,
   callback: Callback<T>

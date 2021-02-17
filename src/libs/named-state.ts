@@ -1,4 +1,4 @@
-import { Processor, reducer } from "./connections";
+import { Consumer, Processor, reducer } from "./connections";
 
 export type NamedAction<N, T = void> = T extends void
   ? [name: N]
@@ -107,6 +107,32 @@ export const newStateMachineWithFeedback = <
       );
     }
     push(state);
+  };
+  const handleAction = newStateMachine(initState, behaviours)(handleState);
+  handleState(initState);
+  return handleAction;
+};
+
+export type StateWithFeedback<S, A> = {
+  state: S;
+  feedback: Consumer<A>;
+};
+export const newStateMachineWithFeedback2 = <
+  S extends SomeState,
+  A extends SomeAction
+>(
+  initState: S,
+  behaviours: Behaviours<S, A>,
+  push: Consumer<StateWithFeedback<S, A>>
+): Consumer<A> => {
+  const handleState = (state: S) => {
+    // const feedback = feedbacks[state[0] as S[0]];
+    // if (feedback) {
+    //   feedback(state[1], abortController.signal).then((action) =>
+    //     handleAction(action)
+    //   );
+    // }
+    push({ state, feedback: handleAction });
   };
   const handleAction = newStateMachine(initState, behaviours)(handleState);
   handleState(initState);
