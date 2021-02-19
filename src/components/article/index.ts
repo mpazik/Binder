@@ -4,13 +4,13 @@ import { LinkedDataWithDocument } from "../../functions/article-processor";
 import { ArticleSaver } from "../../functions/article-saver";
 import { LinkedDataWithDocumentFetcher } from "../../functions/linked-data-fetcher";
 import { currentDocumentUriProvider } from "../../functions/url-hijack";
-import { Consumer, fork } from "../../libs/connections";
+import { Consumer, dataPortal, fork } from "../../libs/connections";
 import {
   forEach,
   map,
   withDefaultValue,
 } from "../../libs/connections/processors2";
-import { findUrl, LinkedData } from "../../libs/linked-data";
+import { LinkedData } from "../../libs/linked-data";
 import {
   handleState,
   mapState,
@@ -20,44 +20,28 @@ import {
 import {
   Component,
   div,
-  slotForEntity,
+  JsonHtml,
+  slot,
   span,
-  View,
+  ViewSetup,
 } from "../../libs/simple-ui/render";
 import { centerLoadingSlot } from "../common/center-loading-component";
 
-import { contentView } from "./content-view";
+import { editableContentComponent } from "./content-view";
 
 type RetryAction = ["retry"];
 type ArticleViewAction =
   | ["load", URL]
   | ["display", LinkedDataWithDocument]
   | ["fail", string]
-  | ["save", LinkedDataWithDocument]
-  | RetryAction
-  | ["retrySave"];
+  | RetryAction;
 
 export type ArticleViewState =
   | ["idle"]
   | ["initializing", URL]
   | ["ready", LinkedDataWithDocument]
   | ["loading", { existingArticle: LinkedDataWithDocument; newUrl: URL }]
-  | ["error", { reason: string; url: URL }]
-  | [
-      "saving",
-      {
-        existingArticle: LinkedDataWithDocument;
-        articleToSave: LinkedDataWithDocument;
-      }
-    ]
-  | [
-      "savingError",
-      {
-        reason: string;
-        existingArticle: LinkedDataWithDocument;
-        articleToSave: LinkedDataWithDocument;
-      }
-    ];
+  | ["error", { reason: string; url: URL }];
 
 const articleViewInitState: ArticleViewState = ["idle"];
 
@@ -67,7 +51,6 @@ type ArtileStateWithFeedback = StateWithFeedback<
 >;
 const newArticleViewStateMachine = ({
   contentFetcher,
-  articleSaver,
 }: {
   contentFetcher: LinkedDataWithDocumentFetcher;
   articleSaver: ArticleSaver;
@@ -96,10 +79,6 @@ const newArticleViewStateMachine = ({
             "loading",
             { existingArticle, newUrl: url },
           ],
-          save: (articleToSave, existingArticle) => [
-            "saving",
-            { existingArticle, articleToSave },
-          ],
         },
         loading: {
           display: (articleContent) => ["ready", articleContent],
@@ -113,13 +92,6 @@ const newArticleViewStateMachine = ({
           load: (url) => ["initializing", url],
           retry: (_, { url }) => ["initializing", url],
         },
-        saving: {
-          display: (articleContent) => ["ready", articleContent],
-          fail: (reason, state) => ["savingError", { reason, ...state }],
-        },
-        savingError: {
-          save: (articleToSave, state) => ["saving", state],
-        },
       },
       forEach(({ state, feedback }, signal) => {
         handleState<ArticleViewState>(state, {
@@ -129,58 +101,20 @@ const newArticleViewStateMachine = ({
           loading: ({ newUrl }) => {
             fetchContent(newUrl, signal).then(feedback);
           },
-          saving: ({ articleToSave }) =>
-            articleSaver(articleToSave)
-              .then((newLinkedData) =>
-                feedback([
-                  "display",
-                  { ...articleToSave, linkedData: newLinkedData },
-                ] as ArticleViewAction)
-              )
-              .catch((error) => feedback(["fail", error.toString()])),
         });
       }, push)
     );
 };
 
-const createOnSave = (feedback: Consumer<ArticleViewAction>) => (
-  article: LinkedDataWithDocument
-) => {
-  feedback(["save", article]);
-};
-
-const articleView: View<ArtileStateWithFeedback> = ({ state, feedback }) => {
+const createArticleView: ViewSetup<
+  { contentSlot: JsonHtml },
+  ArtileStateWithFeedback
+> = ({ contentSlot }) => ({ state }) => {
   return mapState(state, {
     idle: () => div(centerLoadingSlot()),
     initializing: () => div(centerLoadingSlot()),
-    loading: ({ existingArticle }) =>
-      div(centerLoadingSlot(), contentView({ data: existingArticle })),
-    ready: (state) => {
-      return div(
-        contentView({
-          data: state,
-          onSave: createOnSave(feedback),
-        })
-      );
-    },
-    saving: ({ existingArticle }) => {
-      return div(
-        contentView({
-          data: existingArticle,
-          editState: ["saving"],
-          onSave: createOnSave(feedback),
-        })
-      );
-    },
-    savingError: ({ existingArticle, reason }) => {
-      return div(
-        contentView({
-          data: existingArticle,
-          editState: ["error", reason],
-          onSave: createOnSave(feedback),
-        })
-      );
-    },
+    loading: () => div(centerLoadingSlot(), contentSlot),
+    ready: () => div(contentSlot),
     error: ({ reason }) => {
       console.error(reason);
       return div({ class: "flash mt-3 flash-error" }, span(reason));
@@ -196,11 +130,23 @@ export const articleComponent: Component<{
   render,
   onClose
 ) => {
-  const renderState = map(articleView, render);
+  const [dataProvider, onLoaded] = dataPortal<LinkedDataWithDocument>();
+  const contentSlot = slot(
+    "content-blah",
+    editableContentComponent({
+      articleSaver,
+      provider: dataProvider,
+    })
+  );
+
+  const renderState = map(createArticleView({ contentSlot }), render);
 
   const onLoadedParentHandler = ({ state }: ArtileStateWithFeedback) =>
     handleState<ArticleViewState>(state, {
-      ready: (state) => onArticleLoaded?.(state.linkedData),
+      ready: (state) => {
+        onLoaded(state);
+        onArticleLoaded?.(state.linkedData);
+      },
     });
 
   const articleViewStateMachine = newArticleViewStateMachine({

@@ -44,6 +44,19 @@ export const fork = <T>(...consumers: Consumer<T>[]): Consumer<T> => (data) => {
   consumers.forEach((push) => push(data));
 };
 
+export const multiProvider = <T>(provider: Provider<T>): Provider<T> => {
+  const consumers: Consumer<T>[] = [];
+
+  return (consumer) => {
+    consumers.push(consumer);
+    if (consumers.length === 1) {
+      provider((data) => {
+        consumers.forEach((push) => push(data));
+      });
+    }
+  };
+};
+
 export const forkMapJoin = <T, S>(
   map1: (v: T) => Partial<S>,
   map2: (v: T) => Partial<S>
@@ -99,16 +112,16 @@ export const merge = <T, S, W>(
 export const objectMerge = <T, S>(initA?: T, initB?: S): Merge<T, S, T & S> =>
   merge((stateA, stateB) => Object.assign({}, stateA, stateB), initA, initB);
 
-export function combineLatest<T1, T2, S extends T1 & T2>(
+export function combineLatest<T1, T2>(
   init1: T1,
   init2: T2
-): Processor<T1 | T2, S>;
+): Processor<T1 | T2, T1 & T2>;
 
-export function combineLatest<T1, T2, T3, S extends T1 & T2 & T3>(
+export function combineLatest<T1, T2, T3>(
   init1: T1,
   init2: T2,
   init3: T3
-): Processor<T1 | T2 | T3, S>;
+): Processor<T1 | T2 | T3, T1 & T2 & T3>;
 
 export function combineLatest(
   ...init: Record<string, unknown>[]

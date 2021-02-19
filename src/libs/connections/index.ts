@@ -28,13 +28,21 @@ export const dataPortal = <T>(): [
   let consumer: ((value: T) => void) | undefined;
   return [
     (c) => {
-      consumer = c;
+      if (consumer) {
+        throw new Error(
+          "Data portal provider can not be subscribed multiple times"
+        );
+      } else {
+        consumer = c;
+      }
     },
     (value) => {
       if (consumer) {
         consumer(value);
       } else {
-        throw new Error("invoked data portal before it is set up");
+        throw new Error(
+          "Data portal consumer was invoked before provider was set up"
+        );
       }
     },
   ];

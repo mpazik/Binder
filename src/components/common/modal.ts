@@ -35,11 +35,11 @@ const modalView = (
     })
   );
 
-export const modal: Component<{ stateProvider: Provider<ModalState> }> = ({
-  stateProvider,
+export const modal: Component<{ provider: Provider<ModalState> }> = ({
+  provider,
 }) => (render) => {
   const renderModal = (state: ModalState) => {
     render(state ? modalView(state, () => renderModal(undefined)) : undefined);
   };
-  stateProvider(renderModal);
+  provider(renderModal);
 };

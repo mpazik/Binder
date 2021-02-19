@@ -45,7 +45,7 @@ const changeIndicator: View<{
 };
 
 export const changesIndicatorBar: Component<{
-  changesProvider: Provider<DocumentChange[]>;
+  changesProvider: Provider<DocumentChange[] | undefined>;
   onDiffBarClick: Consumer<DocumentChange>;
 }> = ({ changesProvider, onDiffBarClick }) => (render) => {
   const renderGutter = (changes: DocumentChange[]) =>
@@ -54,13 +54,14 @@ export const changesIndicatorBar: Component<{
         {
           id: "editor-gutter",
           class: "bg-gray position-absolute",
-          style: { height: "100%", width: "8px" },
+          style: { height: "100%", width: "8px", left: "-20px" },
         },
         ...changes.map((docDiff) =>
           changeIndicator({ docDiff, onClick: onDiffBarClick })
         )
       )
     );
-  renderGutter([]);
-  changesProvider(renderGutter);
+  changesProvider((changes) =>
+    changes ? renderGutter(changes) : render(undefined)
+  );
 };

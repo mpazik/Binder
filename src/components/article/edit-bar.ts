@@ -1,6 +1,6 @@
 import { Provider } from "../../libs/connections";
 import { map } from "../../libs/connections/processors2";
-import { newStateMapper } from "../../libs/named-state";
+import { newStateOptionalMapper } from "../../libs/named-state";
 import {
   button,
   Component,
@@ -16,69 +16,51 @@ export type EditBarState =
   | ["saving"]
   | ["error", { onTryAgain: () => void; reason: string }];
 
-function bar(message: string, ...controls: JsonHtml[]) {
-  return div(
+const barMessage = (message: string) => span({ class: "flex-1 f4" }, message);
+
+const barProps = {
+  class: `position-sticky Box p-2 mt-4 bottom-2 box-shadow-medium d-flex flex-row-reverse bg-gray`,
+};
+
+const bar = (...controls: JsonHtml[]) => div(barProps, ...controls);
+
+const popUpBar = (...controls: JsonHtml[]) =>
+  div(
     {
-      class:
-        "position-sticky Box p-2 mt-4 bottom-2 box-shadow-medium anim-fade-up d-flex flex-row-reverse bg-gray",
+      ...barProps,
+      class: `${barProps.class} anim-fade-up`,
       style: { "animation-delay": "0s" },
     },
-    ...controls,
-    span({ class: "flex-1 f4" }, message)
+    ...controls
   );
-}
 
-const editBarView: OptionalView<EditBarState> = newStateMapper({
-  hidden: () => undefined,
+const styledButton = (label: string, onClick?: () => void, extraClass = "") =>
+  button(
+    {
+      class: `btn mr-2 ${extraClass}`,
+      type: "button",
+      onClick: onClick,
+    },
+    label
+  );
+
+const editBarView: OptionalView<EditBarState> = newStateOptionalMapper({
   visible: ({ onSave, onDiscard }) =>
-    bar(
-      onDiscard
-        ? "Document has been modified"
-        : "External document, not yet saved",
-      button(
-        {
-          class: "btn btn-primary mr-2",
-          type: "button",
-          onClick: onSave,
-        },
-        "Save"
-      ),
-      ...(onDiscard
-        ? [
-            button(
-              {
-                class: "btn btn-danger mr-2",
-                type: "button",
-                onClick: onDiscard,
-              },
-              "Discard"
-            ),
-          ]
-        : [])
+    popUpBar(
+      styledButton("Save", onSave, "btn-primary"),
+      ...(onDiscard ? [styledButton("Discard", onDiscard, "btn-danger")] : []),
+      barMessage(
+        onDiscard
+          ? "Document has been modified"
+          : "External document, not yet saved"
+      )
     ),
   error: ({ reason, onTryAgain }) =>
     bar(
-      `Error saving document ${reason}`,
-      button(
-        {
-          class: "btn btn-primary mr-2",
-          type: "button",
-          onClick: onTryAgain,
-        },
-        "try again"
-      )
+      styledButton("Try again", onTryAgain, "btn-primary"),
+      barMessage(`Error saving document ${reason}`)
     ),
-  saving: () =>
-    bar(
-      "",
-      button(
-        {
-          class: "btn btn-primary mr-2",
-          type: "button",
-        },
-        "saving"
-      )
-    ),
+  saving: () => bar(styledButton("Saving", undefined, "btn-primary")),
 });
 
 export const editBar: Component<{

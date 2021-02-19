@@ -43,6 +43,12 @@ export const newStateMapper = <S extends SomeState, T>(
   }
 ) => ([key, data]: S): T => mappers[key as S[0]](data);
 
+export const newStateOptionalMapper = <S extends SomeState, T>(
+  mappers: {
+    [SK in S[0]]?: (state: StateByName<S, SK>[1]) => T;
+  }
+) => ([key, data]: S): T | undefined => mappers[key as S[0]]?.(data);
+
 export const mapState = <S extends SomeState, T>(
   [key, data]: S,
   mappers: {
