@@ -37,6 +37,9 @@ const prodConfig = {
   ),
 };
 
+const iconFileName =
+  process.env.NODE_ENV === "production" ? "notebook-icon" : "notebook-icon-dev";
+
 module.exports = {
   entry: {
     main: "./src/index.tsx",
@@ -67,6 +70,8 @@ module.exports = {
       <head>
         <title>binder</title>
         <link href="primer.css" rel="stylesheet" />
+        <link rel="icon" href="${iconFileName}.svg" type="image/svg+xml"/>
+        <link rel="mask-icon" href="${iconFileName}.svg" color="#24292e">
         ${htmlWebpackPlugin.tags.headTags}
       <body>
       </head>
