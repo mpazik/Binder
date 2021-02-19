@@ -76,7 +76,14 @@ const contentHeaderView: View<LinkedData> = (linkedData: LinkedData) => {
     div({ class: "Subhead-heading" }, String(linkedData.name)),
     div(
       { class: "Subhead-description" },
-      ...(uri ? [span("From: ", a({ href: uri }, new URL(uri).hostname))] : [])
+      ...(uri
+        ? [
+            span(
+              "From: ",
+              a({ href: uri, target: "_blank" }, new URL(uri).hostname)
+            ),
+          ]
+        : [])
     )
   );
 };

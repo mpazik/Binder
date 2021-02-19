@@ -6,9 +6,12 @@ const linkHijack: ProviderSetup<{ element?: Node }, string> = ({
   element = document,
 }) => (onClose, push) => {
   const hijackLink = (event: Event) => {
-    const target = event.target as HTMLElement;
-    if (!target || target.nodeName !== "A") return;
-    const uri = target.getAttribute("href");
+    const element = event.target as HTMLElement;
+    if (!element || element.nodeName !== "A") return;
+    if (element.getAttribute("target")) {
+      return; // ignore anchor with explicitly set target attribute
+    }
+    const uri = element.getAttribute("href");
     if (!uri || (uri && uri.startsWith("#"))) {
       return;
     }
