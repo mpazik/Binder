@@ -1,19 +1,21 @@
 import { GDriveProfile } from "../../functions/gdrive/app-files";
 import { gdrive, GDriveState } from "../../functions/gdrive/controller";
 import { StoreState } from "../../functions/store";
-import { Consumer, fork, map, merge, Provider } from "../../libs/connections";
+import { Consumer, fork, merge, Provider } from "../../libs/connections";
 import { newStateMapper } from "../../libs/named-state";
 import {
   a,
   Component,
   details,
   div,
+  JsonHtml,
   li,
   summary,
   ul,
   ViewSetup,
 } from "../../libs/simple-ui/render";
 import { loading } from "../common/async-loader";
+import { map } from "../../libs/connections/processors2";
 
 const gdriveLogoIcon = `
 <svg xmlns="http://www.w3.org/2000/svg" width="25" height="22" viewBox="0 0 1443.061 1249.993" role="img">
@@ -107,14 +109,21 @@ export const profileView: ViewSetup<
       ),
   });
 
+const profileContainer = (viewDom: JsonHtml) =>
+  div(
+    {
+      class: "d-flex flex-wrap flex-content-around",
+      style: { height: "84px" },
+    },
+    viewDom
+  );
+
 export const profilePanel: Component<{
   gdriveStateConsumer: Consumer<GDriveState>;
   storeStateProvider: Provider<StoreState>;
 }> = ({ gdriveStateConsumer, storeStateProvider }) => (render) => {
-  const renderView = profileView({
-    logout: () => setAction(["logout"]),
-    login: () => setAction(["login"]),
-  });
+  const renderInContainer = (view: JsonHtml) => render(profileContainer(view));
+
   const [gdriveStateForProfile, storeStateForProfile] = merge<
     GDriveState,
     StoreState,
@@ -130,18 +139,16 @@ export const profilePanel: Component<{
     }
     return gdriveState;
   })(
-    map(renderView)((viewDom) => {
-      render(
-        div(
-          {
-            class: "d-flex flex-wrap flex-content-around",
-            style: { height: "84px" },
-          },
-          viewDom
-        )
-      );
-    })
+    map(
+      profileView({
+        logout: () => setAction(["logout"]),
+        login: () => setAction(["login"]),
+      }),
+      renderInContainer
+    )
   );
+
   const setAction = gdrive(fork(gdriveStateForProfile, gdriveStateConsumer));
   storeStateProvider(storeStateForProfile);
+  renderInContainer(div());
 };

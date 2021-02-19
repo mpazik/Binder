@@ -136,6 +136,9 @@ export const articleComponent: Component<{
     editableContentComponent({
       articleSaver,
       provider: dataProvider,
+      onSave: (linkedData) => {
+        onArticleLoaded?.(linkedData);
+      },
     })
   );
 

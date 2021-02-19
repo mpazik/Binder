@@ -14,7 +14,12 @@ import {
   Provider,
 } from "../../libs/connections";
 import { map } from "../../libs/connections/processors2";
-import { findHashUri, findUrl, LinkedData } from "../../libs/linked-data";
+import {
+  findHashUri,
+  findUrl,
+  LinkedData,
+  LinkedDataWithHashId,
+} from "../../libs/linked-data";
 import {
   a,
   article,
@@ -110,7 +115,8 @@ const isEditable = (linkedData: LinkedData) => false;
 export const editableContentComponent: Component<{
   provider: Provider<LinkedDataWithDocument>;
   articleSaver: ArticleSaver;
-}> = ({ provider, articleSaver }) => (render) => {
+  onSave: Consumer<LinkedDataWithHashId>;
+}> = ({ provider, articleSaver, onSave }) => (render) => {
   const [modalStateProvider, modalStateConsumer] = dataPortal<ModalState>();
 
   const [editBarStateOut, editBarStateIn] = dataPortal<EditBarState>();
@@ -133,8 +139,9 @@ export const editableContentComponent: Component<{
           contentDocument: createNewDocument(contentDocument, element),
           linkedData,
         })
-          .then(() => {
+          .then((data) => {
             editBarStateIn(["hidden"]);
+            onSave(data);
           })
           .catch((reason) => {
             editBarStateIn([

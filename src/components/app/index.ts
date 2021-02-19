@@ -25,7 +25,6 @@ import {
 import { createStore, StoreState } from "../../functions/store";
 import { Consumer, dataPortal, Provider } from "../../libs/connections";
 import { HashName, HashUri } from "../../libs/hash";
-import { findHashUri } from "../../libs/linked-data";
 import { measureAsyncTime } from "../../libs/performance";
 import { div, slot } from "../../libs/simple-ui/render";
 import { articleComponent } from "../article";
@@ -100,10 +99,10 @@ export const App = asyncLoader(
       div(
         div(
           { id: "navigation" },
-          // slot(
-          //   "profile",
-          //   profilePanel({ gdriveStateConsumer, storeStateProvider })
-          // ),
+          slot(
+            "profile",
+            profilePanel({ gdriveStateConsumer, storeStateProvider })
+          ),
           slot(
             "content-nav",
             fileNavigation({
@@ -122,7 +121,7 @@ export const App = asyncLoader(
                 contentFetcher,
                 articleSaver,
                 onArticleLoaded: (linkedData) =>
-                  selectItem(findHashUri(linkedData)),
+                  selectItem(linkedData["@id"] as HashUri),
               })
             )
           )

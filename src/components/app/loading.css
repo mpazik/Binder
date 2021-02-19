@@ -2,6 +2,7 @@
     display: inline-block;
     width: 80px;
     height: 80px;
+    z-index: 1;
 }
 .loading:after {
     content: " ";
