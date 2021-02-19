@@ -24,7 +24,9 @@ const devConfig = {
 };
 
 const prodConfig = {
-  PROXY_SERVER: JSON.stringify("https://cors-anywhere.herokuapp.com/"),
+  PROXY_SERVER: JSON.stringify(
+    "https://purple-sun-fdbf.friendly-apps.workers.dev/"
+  ),
   GDRIVE_APP_DIR_NAME: JSON.stringify("binder"),
   // these keys are public as they get to the end code anyway. They are obfuscated to make difficult to scrap them from the repo
   GDRIVE_CLIENT_ID: JSON.stringify(
@@ -64,7 +66,7 @@ module.exports = {
     <html lang="en">
       <head>
         <title>binder</title>
-        <link href="/primer.css" rel="stylesheet" />
+        <link href="primer.css" rel="stylesheet" />
         ${htmlWebpackPlugin.tags.headTags}
       <body>
       </head>
