@@ -5,6 +5,7 @@ import {
   ArticleSaver,
   createArticleSaver,
 } from "../../functions/article-saver";
+import { createProxyFetch } from "../../functions/fetch-trough-proxy";
 import { GDriveState } from "../../functions/gdrive/controller";
 import { createCompositeIndexer } from "../../functions/indexes/composite-indexer";
 import {
@@ -40,6 +41,7 @@ const initServices = async (): Promise<{
   articleSaver: ArticleSaver;
 }> => {
   const [gdriveStateProvider, gdriveStateConsumer] = dataPortal<GDriveState>();
+  const fetchTroughProxy = createProxyFetch();
   const [urlIndexDb, directoryIndexDb] = await Promise.all([
     createUrlIndexDb(),
     createDirectoryIndexDb(),
@@ -70,6 +72,7 @@ const initServices = async (): Promise<{
   };
   const contentFetcher = createLinkedDataWithDocumentFetcher(
     getHash,
+    await fetchTroughProxy,
     store.readLinkedData,
     store.readResource
   );
