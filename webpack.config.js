@@ -43,7 +43,6 @@ const iconFileName =
 module.exports = {
   entry: {
     main: "./src/index.tsx",
-    worker: "./service-worker/index.ts",
   },
   output: {
     filename: "[name].js",

@@ -1,5 +1,5 @@
 import { throwIfNull } from "../libs/errors";
-import { HashName, hashUriToHashName, isHashUri } from "../libs/hash";
+import { HashName, isHashUri } from "../libs/hash";
 import { findHashUri, LinkedData } from "../libs/linked-data";
 import { measureAsyncTime } from "../libs/performance";
 
@@ -8,7 +8,7 @@ import {
   parseArticleContent,
   processToArticle,
 } from "./article-processor";
-import { fetchTroughProxy } from "./fetch-trough-proxy";
+import { Fetch } from "./fetch-trough-proxy";
 import { LinkedDataStoreRead, ResourceStoreRead } from "./store/local-store";
 
 export type LinkedDataWithDocumentFetcher = (
@@ -38,6 +38,7 @@ const createLinkedDataDocumentFetcher = (
 
 export const createLinkedDataWithDocumentFetcher = (
   getHash: (uri: string) => Promise<HashName | undefined>,
+  fetchTroughProxy: Fetch,
   linkedDataStoreRead: LinkedDataStoreRead,
   resourceStoreRead: ResourceStoreRead
 ): LinkedDataWithDocumentFetcher => {
@@ -45,8 +46,8 @@ export const createLinkedDataWithDocumentFetcher = (
     resourceStoreRead
   );
 
-  return async (uri: string, signal?: AbortSignal) => {
-    const hash = isHashUri(uri) ? uri : await getHash(uri);
+  return async (url: string, signal?: AbortSignal) => {
+    const hash = isHashUri(url) ? url : await getHash(url);
     if (hash) {
       const linkedData = throwIfNull(await linkedDataStoreRead(hash));
       const contentDocument = await linkedDataDocumentFetcher(
@@ -60,9 +61,9 @@ export const createLinkedDataWithDocumentFetcher = (
       };
     }
 
-    const response = await fetchTroughProxy(uri, {
+    const response = await fetchTroughProxy(url, {
       signal,
     });
-    return processToArticle(response);
+    return processToArticle(response, url);
   };
 };

@@ -65,7 +65,8 @@ export type LinkedDataWithDocument = {
 };
 
 export const processToArticle = async (
-  response: Response
+  response: Response,
+  url: string
 ): Promise<LinkedDataWithDocument> => {
   const domParser = new DOMParser();
   const text = await response.text();
@@ -73,16 +74,13 @@ export const processToArticle = async (
     domParser.parseFromString(text, articleMediaType)
   );
   const base = dom.createElement("base");
-  const baseUrl = response.url;
-  base.href = baseUrl;
+  base.href = url;
   dom.head.appendChild(base);
   const article = throwIfNull(
     measureTime("readability", () => new Readability(dom).parse())
   );
 
-  const articleLd = createArticle(baseUrl, article.title, articleMediaType, [
-    baseUrl,
-  ]);
+  const articleLd = createArticle(url, article.title, articleMediaType, [url]);
 
   const contentDocument = domParser.parseFromString(
     article.content,
@@ -90,7 +88,7 @@ export const processToArticle = async (
   );
 
   removeRootAndContentWrappers(contentDocument);
-  removeBaseUrlFromFragments(contentDocument, baseUrl);
+  removeBaseUrlFromFragments(contentDocument, url);
 
   return {
     contentDocument,
