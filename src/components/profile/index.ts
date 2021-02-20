@@ -113,7 +113,7 @@ const profileContainer = (viewDom: JsonHtml) =>
   div(
     {
       class: "d-flex flex-wrap flex-content-around",
-      style: { height: "84px" },
+      style: { height: "64px" },
     },
     viewDom
   );

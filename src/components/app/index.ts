@@ -32,6 +32,9 @@ import { articleComponent } from "../article";
 import { asyncLoader } from "../common/async-loader";
 import { fileNavigation } from "../navigation";
 import { profilePanel } from "../profile";
+import { searchBox } from "../navigation/search-box";
+import { currentDocumentUriProvider } from "../../functions/url-hijack";
+import { withDefaultValue } from "../../libs/connections/processors2";
 
 const initServices = async (): Promise<{
   contentFetcher: LinkedDataWithDocumentFetcher;
@@ -94,10 +97,13 @@ export const App = asyncLoader(
     gdriveStateConsumer,
     storeStateProvider,
     articleSaver,
-  }) => (render) => {
+  }) => (render, onClose) => {
     const [selectedItemProvider, selectItem] = dataPortal<
       HashUri | undefined
     >();
+
+    const [uriProvider, updateUri] = dataPortal<string>();
+
     render(
       div(
         div(
@@ -106,6 +112,7 @@ export const App = asyncLoader(
             "profile",
             profilePanel({ gdriveStateConsumer, storeStateProvider })
           ),
+          searchBox((url) => updateUri(url.toString())),
           slot(
             "content-nav",
             fileNavigation({
@@ -123,12 +130,21 @@ export const App = asyncLoader(
               articleComponent({
                 contentFetcher,
                 articleSaver,
+                uriProvider,
                 onArticleLoaded: (linkedData) =>
                   selectItem(linkedData["@id"] as HashUri),
               })
             )
           )
         )
+      )
+    );
+
+    currentDocumentUriProvider(
+      onClose,
+      withDefaultValue(
+        "https://pl.wikipedia.org/wiki/Dedal_z_Sykionu" as string,
+        updateUri
       )
     );
   }

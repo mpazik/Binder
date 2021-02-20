@@ -3,13 +3,8 @@ import { URL } from "schema-dts";
 import { LinkedDataWithDocument } from "../../functions/article-processor";
 import { ArticleSaver } from "../../functions/article-saver";
 import { LinkedDataWithDocumentFetcher } from "../../functions/linked-data-fetcher";
-import { currentDocumentUriProvider } from "../../functions/url-hijack";
-import { Consumer, dataPortal, fork } from "../../libs/connections";
-import {
-  forEach,
-  map,
-  withDefaultValue,
-} from "../../libs/connections/processors2";
+import { Consumer, dataPortal, fork, Provider } from "../../libs/connections";
+import { forEach, map } from "../../libs/connections/processors2";
 import { LinkedData } from "../../libs/linked-data";
 import {
   handleState,
@@ -126,7 +121,8 @@ export const articleComponent: Component<{
   contentFetcher: LinkedDataWithDocumentFetcher;
   onArticleLoaded?: (article: LinkedData) => void;
   articleSaver: ArticleSaver;
-}> = ({ onArticleLoaded, contentFetcher, articleSaver }) => (
+  uriProvider: Provider<string | undefined | null>;
+}> = ({ onArticleLoaded, contentFetcher, articleSaver, uriProvider }) => (
   render,
   onClose
 ) => {
@@ -157,11 +153,7 @@ export const articleComponent: Component<{
     articleSaver,
   })(fork(renderState, onLoadedParentHandler));
 
-  currentDocumentUriProvider(
-    onClose,
-    withDefaultValue(
-      "https://pl.wikipedia.org/wiki/Dedal_z_Sykionu" as string,
-      map((uri) => ["load", uri] as ArticleViewAction, articleViewStateMachine)
-    )
+  uriProvider(
+    map((uri) => ["load", uri] as ArticleViewAction, articleViewStateMachine)
   );
 };
