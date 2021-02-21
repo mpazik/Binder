@@ -19,10 +19,11 @@ export const currentSelection = (): Selection | undefined => {
   return { text, x: x + width / 2, y };
 };
 
-export const selectionToolbarView: View<{ left: number; top: number }> = ({
-  left,
-  top,
-}) =>
+export const selectionToolbarView: View<{
+  left: number;
+  top: number;
+  onAddComment: () => void;
+}> = ({ left, top, onAddComment }) =>
   div(
     {
       class: "Popover",
@@ -37,7 +38,7 @@ export const selectionToolbarView: View<{ left: number; top: number }> = ({
         {
           class: `BtnGroup-item btn btn-sm`,
           type: "button",
-          onClick: () => {},
+          onClick: onAddComment,
         },
         "add comment"
       )
@@ -47,7 +48,10 @@ export const selectionToolbarView: View<{ left: number; top: number }> = ({
 export const selectionToolbar: Component<{
   selectionProvider: Provider<Selection | undefined>;
   contentElementProvider: Provider<HTMLElement>;
-}> = ({ selectionProvider, contentElementProvider }) => (render) => {
+  onAddComment: (arg: { top: number }) => void;
+}> = ({ selectionProvider, contentElementProvider, onAddComment }) => (
+  render
+) => {
   const combine = combineLatest(
     { selection: undefined as undefined | Selection },
     { contentElement: undefined as undefined | HTMLElement }
@@ -59,7 +63,14 @@ export const selectionToolbar: Component<{
       const { x, y } = contentElement.getBoundingClientRect();
       const left = selection.x - x;
       const top = selection.y - y;
-      return selectionToolbarView({ left, top });
+      return selectionToolbarView({
+        left,
+        top,
+        onAddComment: () => {
+          onAddComment({ top });
+          combine({ selection: undefined });
+        },
+      });
     }, render)
   );
 

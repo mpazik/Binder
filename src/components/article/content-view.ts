@@ -23,6 +23,7 @@ import {
 import {
   a,
   article,
+  button,
   Component,
   div,
   slot,
@@ -123,6 +124,36 @@ export const contentDisplayComponent: Component<{
   });
 };
 
+const commentFormView: View<{ top: number }> = ({ top }) =>
+  div(
+    { class: "Box position-absolute", style: { top } },
+    div(
+      { class: "Box-body p-1" },
+      div({
+        class: "form-control p-1",
+        style: { "min-height": "80px", width: "200px" },
+        contenteditable: true,
+        onDisplay: (event) => (event.target as HTMLInputElement).focus(),
+      })
+    ),
+    div(
+      { class: "Box-footer text-right p-1" },
+      button(
+        { type: "button", class: "btn btn-sm btn-secondary mr-1" },
+        "Cancel"
+      ),
+      button({ type: "button", class: "btn btn-sm btn-primary" }, "Save")
+    )
+  );
+
+const commentForm: Component<{
+  commentFormProvider: Provider<{ top: number }>;
+}> = ({ commentFormProvider }) => (render) => {
+  commentFormProvider(({ top }) => {
+    render(commentFormView({ top }));
+  });
+};
+
 const isNew = (linkedData: LinkedData) => !findHashUri(linkedData);
 const isEditable = (linkedData: LinkedData) => false;
 
@@ -190,6 +221,7 @@ export const editableContentComponent: Component<{
     HTMLElement
   >();
   const [selectionProvider, onSelect] = dataPortal<Selection | undefined>();
+  const [commentFormProvider, onAddComment] = dataPortal<{ top: number }>();
   const [contentProvider, documentToDisplay] = dataPortal<{
     content: Document;
     editable: boolean;
@@ -244,11 +276,13 @@ export const editableContentComponent: Component<{
           })
         ),
         slot("modal-diff", modal({ provider: modalStateProvider })),
+        slot("comment-form", commentForm({ commentFormProvider })),
         slot(
           "selection-toolbar",
           selectionToolbar({
             selectionProvider,
             contentElementProvider,
+            onAddComment,
           })
         ),
         slot(
