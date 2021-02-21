@@ -44,6 +44,11 @@ import {
 } from "./document-change";
 import { renderDocumentChangeModal } from "./document-change-modal";
 import { editBar, EditBarState } from "./edit-bar";
+import {
+  currentSelection,
+  Selection,
+  selectionToolbar,
+} from "./selection-toolbar";
 
 const createNewDocument = (
   initialContent: Document,
@@ -92,7 +97,8 @@ export const contentDisplayComponent: Component<{
   provider: Provider<{ content: Document; editable: boolean }>;
   onDisplay: Consumer<HTMLElement>;
   onChange: Consumer<DocumentChange[]>;
-}> = ({ provider, onDisplay, onChange }) => (render) => {
+  onSelect: Consumer<Selection | undefined>;
+}> = ({ provider, onDisplay, onChange, onSelect }) => (render) => {
   provider(({ content, editable }) => {
     const contentRoot = getDocumentContentRoot(content);
     render(
@@ -105,6 +111,7 @@ export const contentDisplayComponent: Component<{
           ? detectDocumentChange(contentRoot, onChange) // ideally should be triggered on resize too
           : undefined,
         dangerouslySetInnerHTML: contentRoot?.innerHTML,
+        onMouseup: () => onSelect(currentSelection()),
         onDisplay: onDisplay
           ? (e) => {
               const editorElement = e.target as HTMLElement;
@@ -179,6 +186,10 @@ export const editableContentComponent: Component<{
   >();
 
   const [fieldsProvider, linkedDataForFields] = dataPortal<LinkedData>();
+  const [contentElementProvider, onDisplayForSelection] = dataPortal<
+    HTMLElement
+  >();
+  const [selectionProvider, onSelect] = dataPortal<Selection | undefined>();
   const [contentProvider, documentToDisplay] = dataPortal<{
     content: Document;
     editable: boolean;
@@ -234,6 +245,13 @@ export const editableContentComponent: Component<{
         ),
         slot("modal-diff", modal({ provider: modalStateProvider })),
         slot(
+          "selection-toolbar",
+          selectionToolbar({
+            selectionProvider,
+            contentElementProvider,
+          })
+        ),
+        slot(
           "content",
           contentDisplayComponent({
             provider: contentProvider,
@@ -242,7 +260,11 @@ export const editableContentComponent: Component<{
                 visible: (changes && changes.length > 0) ?? false,
               })
             ),
-            onDisplay: (element) => setEditState({ element }),
+            onDisplay: (element) => {
+              setEditState({ element });
+              onDisplayForSelection(element);
+            },
+            onSelect,
           })
         ),
         slot(
