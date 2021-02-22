@@ -6,14 +6,8 @@ import {
   LinkedDataWithDocument,
 } from "../../functions/article-processor";
 import { ArticleSaver } from "../../functions/article-saver";
-import {
-  combineLatest,
-  Consumer,
-  dataPortal,
-  fork,
-  Provider,
-} from "../../libs/connections";
-import { map } from "../../libs/connections/processors2";
+import { Consumer, dataPortal, fork, Provider } from "../../libs/connections";
+import { map, statefulMap } from "../../libs/connections/processors2";
 import {
   findHashUri,
   findUrl,
@@ -47,6 +41,7 @@ import { renderDocumentChangeModal } from "./document-change-modal";
 import { editBar, EditBarState } from "./edit-bar";
 import {
   currentSelection,
+  offsetSelection,
   Selection,
   selectionToolbar,
 } from "./selection-toolbar";
@@ -157,6 +152,56 @@ const commentForm: Component<{
 const isNew = (linkedData: LinkedData) => !findHashUri(linkedData);
 const isEditable = (linkedData: LinkedData) => false;
 
+const createEditBarStateUpdater = (
+  editBarStateIn: (value: EditBarState) => void,
+  articleSaver: ArticleSaver,
+  onSave: (value: LinkedDataWithHashId) => void
+) => ({
+  visible,
+  content,
+  editor,
+}: {
+  visible: boolean;
+  editor?: HTMLElement;
+  content?: LinkedDataWithDocument;
+}) => {
+  if (!visible) {
+    editBarStateIn(["hidden"]);
+  } else if (editor && content) {
+    const { contentDocument, linkedData } = content;
+    const saveDocument = () => {
+      articleSaver({
+        contentDocument: createNewDocument(contentDocument, editor),
+        linkedData,
+      })
+        .then((data) => {
+          editBarStateIn(["hidden"]);
+          onSave(data);
+        })
+        .catch((reason) => {
+          editBarStateIn([
+            "error",
+            {
+              reason,
+              onTryAgain: saveDocument,
+            },
+          ]);
+        });
+      editBarStateIn(["saving"]);
+    };
+    const discard = () =>
+      revertDocument(getDocumentContentRoot(contentDocument), editor);
+
+    editBarStateIn([
+      "visible",
+      {
+        onSave: saveDocument,
+        onDiscard: isNew(linkedData) ? undefined : discard,
+      },
+    ]);
+  }
+};
+
 export const editableContentComponent: Component<{
   provider: Provider<LinkedDataWithDocument>;
   articleSaver: ArticleSaver;
@@ -165,61 +210,33 @@ export const editableContentComponent: Component<{
   const [modalStateProvider, modalStateConsumer] = dataPortal<ModalState>();
 
   const [editBarStateOut, editBarStateIn] = dataPortal<EditBarState>();
+  const [mapWithEditor, setEditor] = statefulMap<HTMLElement | undefined>();
+  const [mapWithContent, setContent] = statefulMap<LinkedDataWithDocument>();
+  const [editBarVisible, setEditBarVisible] = dataPortal<boolean>();
+  const editBarStateUpdater = createEditBarStateUpdater(
+    editBarStateIn,
+    articleSaver,
+    onSave
+  );
 
-  const setEditState = combineLatest<
-    { element: HTMLElement | undefined },
-    { content: LinkedDataWithDocument | undefined },
-    { visible: boolean }
-  >(
-    { element: undefined },
-    { content: undefined },
-    { visible: false }
-  )(({ element, content, visible }) => {
-    if (!visible) {
-      editBarStateIn(["hidden"]);
-    } else if (element && content) {
-      const { contentDocument, linkedData } = content;
-      const saveDocument = () => {
-        articleSaver({
-          contentDocument: createNewDocument(contentDocument, element),
-          linkedData,
-        })
-          .then((data) => {
-            editBarStateIn(["hidden"]);
-            onSave(data);
-          })
-          .catch((reason) => {
-            editBarStateIn([
-              "error",
-              {
-                reason,
-                onTryAgain: saveDocument,
-              },
-            ]);
-          });
-        editBarStateIn(["saving"]);
-      };
-      const discard = () =>
-        revertDocument(getDocumentContentRoot(contentDocument), element);
-
-      editBarStateIn([
-        "visible",
-        {
-          onSave: saveDocument,
-          onDiscard: isNew(linkedData) ? undefined : discard,
-        },
-      ]);
-    }
-  });
+  editBarVisible(
+    mapWithContent(
+      (visible, content) => ({
+        content,
+        visible,
+      }),
+      mapWithEditor(
+        (props, editor) => ({ ...props, editor }),
+        editBarStateUpdater
+      )
+    )
+  );
 
   const [changesProvider, onChange] = dataPortal<
     DocumentChange[] | undefined
   >();
 
   const [fieldsProvider, linkedDataForFields] = dataPortal<LinkedData>();
-  const [contentElementProvider, onDisplayForSelection] = dataPortal<
-    HTMLElement
-  >();
   const [selectionProvider, onSelect] = dataPortal<Selection | undefined>();
   const [commentFormProvider, onAddComment] = dataPortal<{ top: number }>();
   const [contentProvider, documentToDisplay] = dataPortal<{
@@ -238,13 +255,9 @@ export const editableContentComponent: Component<{
         documentToDisplay
       ),
       () => modalStateConsumer(undefined), // reset modal
-      (content) =>
-        setEditState({
-          visible: isNew(content.linkedData),
-          content,
-          element: undefined,
-        }), // reset edit bar
-      ({ linkedData }) => onChange(isEditable(linkedData) ? [] : undefined) // reset change bar
+      () => setEditor(undefined),
+      ({ linkedData }) => onChange(isEditable(linkedData) ? [] : undefined), // reset change bar
+      setContent
     )
   );
 
@@ -281,7 +294,6 @@ export const editableContentComponent: Component<{
           "selection-toolbar",
           selectionToolbar({
             selectionProvider,
-            contentElementProvider,
             onAddComment,
           })
         ),
@@ -290,15 +302,19 @@ export const editableContentComponent: Component<{
           contentDisplayComponent({
             provider: contentProvider,
             onChange: fork(onChange, (changes) =>
-              setEditState({
-                visible: (changes && changes.length > 0) ?? false,
-              })
+              setEditBarVisible((changes && changes.length > 0) ?? false)
             ),
-            onDisplay: (element) => {
-              setEditState({ element });
-              onDisplayForSelection(element);
-            },
-            onSelect,
+            onDisplay: fork(
+              setEditor,
+              mapWithContent(
+                (_, content) => (content ? isNew(content.linkedData) : false),
+                setEditBarVisible
+              )
+            ),
+            onSelect: mapWithEditor((selection, element) => {
+              if (!selection || !element) return undefined;
+              return offsetSelection(element, selection);
+            }, onSelect),
           })
         ),
         slot(

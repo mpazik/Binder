@@ -5,6 +5,21 @@ export const map = <T, S>(
   callback: Callback<S>
 ): Callback<T> => (v: T) => callback(transform(v));
 
+type Mapper<V> = <T, S>(
+  transform: (v: T, state: V | undefined) => S,
+  callback: Callback<S>
+) => Callback<T>;
+
+export const statefulMap = <V>(): [Mapper<V>, Callback<V>] => {
+  let state: V;
+  return [
+    (transform, callback) => (v) => callback(transform(v, state)),
+    (newState: V) => {
+      state = newState;
+    },
+  ];
+};
+
 export const forEach = <T>(
   handler: (v: T, signal: AbortSignal) => void,
   callback: Callback<T>

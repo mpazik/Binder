@@ -1,11 +1,12 @@
-import { combineLatest, Provider, wrap } from "../../libs/connections";
+import { Provider } from "../../libs/connections";
 import { map } from "../../libs/connections/processors2";
 import { button, Component, div, View } from "../../libs/simple-ui/render";
 
 export type Selection = {
   text: string;
-  x: number;
-  y: number;
+  left: number;
+  top: number;
+  range: Range;
 };
 
 export const currentSelection = (): Selection | undefined => {
@@ -16,7 +17,19 @@ export const currentSelection = (): Selection | undefined => {
 
   const { x, y, width } = range.getBoundingClientRect();
   const text = range.toString().trim();
-  return { text, x: x + width / 2, y };
+  return { text, left: x + width / 2, top: y, range };
+};
+
+export const offsetSelection = (
+  element: HTMLElement,
+  selection: Selection
+): Selection => {
+  const { x, y } = element.getBoundingClientRect();
+  return {
+    ...selection,
+    left: selection.left - x,
+    top: selection.top - y,
+  };
 };
 
 export const selectionToolbarView: View<{
@@ -47,33 +60,19 @@ export const selectionToolbarView: View<{
 
 export const selectionToolbar: Component<{
   selectionProvider: Provider<Selection | undefined>;
-  contentElementProvider: Provider<HTMLElement>;
   onAddComment: (arg: { top: number }) => void;
-}> = ({ selectionProvider, contentElementProvider, onAddComment }) => (
-  render
-) => {
-  const combine = combineLatest(
-    { selection: undefined as undefined | Selection },
-    { contentElement: undefined as undefined | HTMLElement }
-  )(
-    map(({ selection, contentElement }) => {
-      if (!selection || !contentElement) {
-        return undefined;
-      }
-      const { x, y } = contentElement.getBoundingClientRect();
-      const left = selection.x - x;
-      const top = selection.y - y;
-      return selectionToolbarView({
-        left,
-        top,
-        onAddComment: () => {
-          onAddComment({ top });
-          combine({ selection: undefined });
-        },
-      });
-    }, render)
-  );
+}> = ({ selectionProvider, onAddComment }) => (render) => {
+  const renderSelection = (selection: Selection | undefined) => {
+    if (!selection) return undefined;
+    return selectionToolbarView({
+      left: selection.left,
+      top: selection.top,
+      onAddComment: () => {
+        onAddComment({ top: selection.top });
+        renderSelection(undefined);
+      },
+    });
+  };
 
-  selectionProvider(map(wrap("selection")(), combine));
-  contentElementProvider(map(wrap("contentElement")(), combine));
+  selectionProvider(map(renderSelection, render));
 };
