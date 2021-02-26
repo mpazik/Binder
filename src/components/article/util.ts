@@ -67,98 +67,62 @@ export const createInPartsFinder2 = <T>(
   const exactLength = exact.length;
   const prefixLength = prefix?.length || 0;
   const suffixLength = suffix?.length || 0;
+  const startSearching = prefix ? prefix : exact;
+  const startSearchingLength = startSearching.length;
 
   let start = -1;
   let end = -1;
   let parts: T[] = [];
   let matched = 0;
-
-  let matching: "prefix" | "exact" | "suffix" | "exactStart" | "found" = prefix
-    ? "prefix"
-    : "exactStart";
-
-  const findSuffix: Searcher<T> = (part, obj, length, i) => {
-    for (; i < length && matched < suffixLength; i++) {
-      if (part[i] === suffix![matched]) {
-        matched++;
-      } else {
-        return startSetup(part, obj, length, i);
-      }
-    }
-    if (matched === exactLength) {
-      matching = "found";
-      return [parts, start, end];
-    }
-  };
-
-  const findSuffixSetup: Searcher<T> = (part, obj, length, i) => {
-    if (!suffix) {
-      return [parts, start, end];
-    }
-    matched = 0;
-    matching = "suffix";
-    return findSuffix(part, obj, length, i);
-  };
-
-  const findExact: Searcher<T> = (part, obj, length, i) => {
-    for (; i < length && matched < exactLength; i++) {
-      if (part[i] === exact[matched]) {
-        matched++;
-      } else {
-        return startSetup(part, obj, length, i);
-      }
-    }
-    start = i - matched;
-    parts = [obj];
-    if (matched === exactLength) {
-      end = i;
-      return findSuffixSetup(part, obj, length, i);
-    }
-  };
-
-  const findExactStart: Searcher<T> = (part, obj, length, i) => {
-    for (; i < length && matched < prefixLength; i++) {
-      matched = part[i] === prefix![matched] ? matched + 1 : 0;
-    }
-    start = i - matched;
-    parts = [obj];
-    if (matched === exactLength) {
-      end = i;
-      return findSuffixSetup(part, obj, length, i);
-    }
-  };
-
-  const findPrefix: Searcher<T> = (part, obj, length, i) => {
-    for (; i < length && matched < prefixLength; i++) {
-      matched = part[i] === prefix![matched] ? matched + 1 : 0;
-    }
-    if (matched !== exactLength) return;
-    matching = "exact";
-    matched = 0;
-    return findExact(part, obj, length, i);
-  };
-
-  const startSetup: Searcher<T> = (part, obj, length, i) => {
-    matched = 0;
-    matching = prefix ? "prefix" : "exactStart";
-    if (prefix) {
-      return findPrefix(part, obj, length, i);
-    } else {
-      return findExactStart(part, obj, length, i);
-    }
-  };
+  let searching: string = startSearching;
+  let searchingLength = startSearchingLength;
 
   return (obj, part) => {
-    if (matching === "prefix") {
-      findPrefix(part, obj, part.length, 0);
-    } else if (matching === "exactStart") {
-      findExactStart(part, obj, part.length, 0);
-    } else if (matching === "exact") {
-      findExact(part, obj, part.length, 0);
-    } else if (matching === "suffix") {
-      findSuffix(part, obj, part.length, 0);
+    const length = part.length;
+    let i = 0;
+    while (matched !== searchingLength) {
+      for (; i < length && matched < searchingLength; i++) {
+        if (part[i] === searching[matched]) {
+          matched++;
+        } else {
+          matched = 0;
+          // variant for start and non start?
+          searching = startSearching;
+          searchingLength = startSearchingLength;
+          start = -1;
+          break; // while
+        }
+      }
+      if (searchingLength === 0) {
+        return [parts, start, end];
+      }
+      if (searching === exact) {
+        if (start === -1) {
+          start = i - matched;
+          parts = [obj];
+        } else {
+          parts.push(obj);
+        }
+      }
+      if (matched !== searchingLength) {
+        return; // finish the loop
+      }
+      matched = 0;
+      if (searching === prefix) {
+        searching = exact;
+        searchingLength = exact.length;
+      } else if (searching === exact) {
+        end = i;
+        if (suffix) {
+          searching = suffix;
+          searchingLength = suffix.length;
+        } else {
+          searchingLength = 0;
+        }
+      } else if (searching === suffix) {
+        searchingLength = 0;
+      }
     }
-    return undefined;
   };
 };
 
