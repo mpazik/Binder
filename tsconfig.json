@@ -15,7 +15,7 @@
     "sourceMap": false,
     "types": [
       "node",
-      "styled-components"
+      "jest"
     ]
   },
   "include": ["src"]
