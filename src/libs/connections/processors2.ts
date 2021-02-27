@@ -1,3 +1,5 @@
+import { Processor } from "./types";
+
 export type Callback<T> = (value: T) => void;
 
 export const map = <T, S>(
@@ -20,6 +22,11 @@ export const statefulMap = <V>(): [Mapper<V>, Callback<V>] => {
   ];
 };
 
+export const mapTo = <T>(
+  value: T,
+  callback: Callback<T>
+): Callback<unknown> => (v: unknown) => callback(value);
+
 export const forEach = <T>(
   handler: (v: T, signal: AbortSignal) => void,
   callback: Callback<T>
@@ -40,6 +47,9 @@ export const filter = <T>(
 ): Callback<T> => (v: T) => {
   if (predicate(v)) callback(v);
 };
+
+export const not = <T>(predicate: (v: T) => boolean) => (v: T): boolean =>
+  !predicate(v);
 
 export const flatten = <T>(push: Callback<T>): Callback<T[]> => (array) =>
   array.forEach(push);

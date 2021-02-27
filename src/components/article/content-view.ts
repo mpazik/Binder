@@ -6,7 +6,13 @@ import {
   LinkedDataWithDocument,
 } from "../../functions/article-processor";
 import { ArticleSaver } from "../../functions/article-saver";
-import { Consumer, dataPortal, fork, Provider } from "../../libs/connections";
+import {
+  Consumer,
+  dataPortal,
+  fork,
+  passOnlyChanged,
+  Provider,
+} from "../../libs/connections";
 import { map, statefulMap } from "../../libs/connections/processors2";
 import {
   findHashUri,
@@ -109,6 +115,10 @@ export const contentDisplayComponent: Component<{
           : undefined,
         dangerouslySetInnerHTML: contentRoot?.innerHTML,
         onMouseup: () => onSelect(currentSelection()),
+        onFocusout: () => {
+          console.log("focus out");
+          onSelect(undefined);
+        },
         onDisplay: onDisplay
           ? (e) => {
               const editorElement = e.target as HTMLElement;

@@ -1,5 +1,5 @@
-import { Provider } from "../../libs/connections";
-import { map } from "../../libs/connections/processors2";
+import { passOnlyChanged, Provider } from "../../libs/connections";
+import { filter, map, mapTo, not } from "../../libs/connections/processors2";
 import { button, Component, div, View } from "../../libs/simple-ui/render";
 
 export type Selection = {
@@ -14,10 +14,23 @@ export const currentSelection = (): Selection | undefined => {
   if (!selection || selection.type !== "Range") return;
   const range = selection.getRangeAt(0);
   if (!range) return;
+  if (range.collapsed) return;
 
   const { x, y, width } = range.getBoundingClientRect();
   const text = range.toString().trim();
   return { text, left: x + width / 2, top: y, range };
+};
+
+const selectionExists = (): boolean => {
+  const selection = window.getSelection();
+  return Boolean(
+    selection &&
+      selection.rangeCount > 0 &&
+      selection.getRangeAt(0) &&
+      !selection.getRangeAt(0).collapsed &&
+      selection.getRangeAt(0).getBoundingClientRect().width > 0 &&
+      selection.getRangeAt(0).getBoundingClientRect().height > 0
+  );
 };
 
 export const offsetSelection = (
@@ -74,5 +87,10 @@ export const selectionToolbar: Component<{
     });
   };
 
-  selectionProvider(map(renderSelection, render));
+  const selectionHandler = passOnlyChanged(map(renderSelection, render));
+  document.addEventListener(
+    "mouseup",
+    filter(not(selectionExists), mapTo(undefined, selectionHandler))
+  );
+  selectionProvider(selectionHandler);
 };
