@@ -6,13 +6,7 @@ import {
   LinkedDataWithDocument,
 } from "../../functions/article-processor";
 import { ArticleSaver } from "../../functions/article-saver";
-import {
-  Consumer,
-  dataPortal,
-  fork,
-  passOnlyChanged,
-  Provider,
-} from "../../libs/connections";
+import { Consumer, dataPortal, fork, Provider } from "../../libs/connections";
 import { map, statefulMap } from "../../libs/connections/processors2";
 import {
   findHashUri,
@@ -45,7 +39,7 @@ import {
 } from "./document-change";
 import { renderDocumentChangeModal } from "./document-change-modal";
 import { editBar, EditBarState } from "./edit-bar";
-import { addComment, annotation } from "./highlights";
+import { addComment, annotation, createAnnotation } from "./highlights";
 import {
   currentSelection,
   offsetSelection,
@@ -153,7 +147,7 @@ const commentFormView: View<{ top: number }> = ({ top }) =>
   );
 
 const commentForm: Component<{
-  commentFormProvider: Provider<{ top: number }>;
+  commentFormProvider: Provider<Selection>;
 }> = ({ commentFormProvider }) => (render) => {
   commentFormProvider(({ top }) => {
     render(commentFormView({ top }));
@@ -224,6 +218,7 @@ export const editableContentComponent: Component<{
   const [editBarStateOut, editBarStateIn] = dataPortal<EditBarState>();
   const [mapWithEditor, setEditor] = statefulMap<HTMLElement | undefined>();
   const [mapWithContent, setContent] = statefulMap<LinkedDataWithDocument>();
+  const [mapWithContentText, setContentText] = statefulMap<string>();
   const [editBarVisible, setEditBarVisible] = dataPortal<boolean>();
   const editBarStateUpdater = createEditBarStateUpdater(
     editBarStateIn,
@@ -250,7 +245,7 @@ export const editableContentComponent: Component<{
 
   const [fieldsProvider, linkedDataForFields] = dataPortal<LinkedData>();
   const [selectionProvider, onSelect] = dataPortal<Selection | undefined>();
-  const [commentFormProvider, onAddComment] = dataPortal<{ top: number }>();
+  const [commentFormProvider, onNewComment] = dataPortal<Selection>();
   const [contentProvider, documentToDisplay] = dataPortal<{
     content: Document;
     editable: boolean;
@@ -306,7 +301,45 @@ export const editableContentComponent: Component<{
           "selection-toolbar",
           selectionToolbar({
             selectionProvider,
-            onAddComment,
+            buttons: [
+              { handler: onNewComment, label: "comment" },
+              {
+                handler: mapWithContentText(
+                  (selection, contentText) => ({ selection, contentText }),
+                  mapWithEditor(
+                    (state, editor) => ({ editor, ...state }),
+                    ({ editor, selection, contentText }) => {
+                      if (!editor) return;
+                      const exact = selection.text;
+                      const matchPos = contentText.indexOf(exact, 0);
+                      if (matchPos < 0) {
+                        throw new Error("Could not find highlighted text");
+                      }
+                      const nextMatchPos = contentText.indexOf(
+                        exact,
+                        matchPos + exact.length
+                      );
+                      if (nextMatchPos < 0) {
+                        addComment(
+                          editor,
+                          contentText,
+                          createAnnotation(
+                            "nih:sha-256;0ea13c00e7c872d446332715f7bc71bcf8ed9c864ac0be09814788667cbf1f1f",
+                            {
+                              type: "TextQuoteSelector",
+                              exact,
+                            }
+                          )
+                        );
+                      } else {
+                        console.error("multiple matches");
+                      }
+                    }
+                  )
+                ),
+                label: "highlight",
+              },
+            ],
           })
         ),
         slot(
@@ -318,14 +351,20 @@ export const editableContentComponent: Component<{
             ),
             onDisplay: fork(
               setEditor,
+              (editor) => {
+                setContentText(editor?.textContent || "");
+              },
               mapWithContent(
-                (_, content) => (content ? isNew(content.linkedData) : false),
+                (_, { linkedData }) => isNew(linkedData),
                 setEditBarVisible
               ),
-              (editor) => {
-                if (!editor) return;
-                addComment(editor, annotation);
-              }
+              mapWithContentText(
+                (editor, contentText) => ({ editor, contentText }),
+                ({ editor, contentText }) => {
+                  if (!editor) return;
+                  addComment(editor, contentText, annotation);
+                }
+              )
             ),
             onSelect: mapWithEditor((selection, element) => {
               if (!selection || !element) return undefined;

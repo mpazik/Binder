@@ -1,4 +1,5 @@
 export type QuoteSelector = {
+  type: "TextQuoteSelector";
   exact: string;
   prefix?: string;
   suffix?: string;
@@ -10,27 +11,32 @@ export type Annotation = {
   type: "Annotation";
   target: {
     source: string;
-    selector: {
-      type: "TextQuoteSelector";
-    } & QuoteSelector;
+    selector: QuoteSelector;
   };
 };
 
-export const annotation: Annotation = {
+export const createAnnotation = (
+  source: string,
+  selector: QuoteSelector
+): Annotation => ({
   "@context": "http://www.w3.org/ns/anno.jsonld",
   id: "http://example.org/anno23",
   type: "Annotation",
   target: {
-    source:
-      "nih:sha-256;0ea13c00e7c872d446332715f7bc71bcf8ed9c864ac0be09814788667cbf1f1f",
-    selector: {
-      type: "TextQuoteSelector",
-      exact: "synem i uczniem rzeźbiarza Patroklesa[1], wymienionego",
-      prefix: "Był ",
-      suffix: " przez",
-    },
+    source,
+    selector,
   },
-};
+});
+
+export const annotation: Annotation = createAnnotation(
+  "nih:sha-256;0ea13c00e7c872d446332715f7bc71bcf8ed9c864ac0be09814788667cbf1f1f",
+  {
+    type: "TextQuoteSelector",
+    exact: "synem i uczniem rzeźbiarza Patroklesa[1], wymienionego",
+    prefix: "Był ",
+    suffix: " przez",
+  }
+);
 
 const renderHighlights = (parts: Text[]) => {
   parts.forEach((part) => {
@@ -60,12 +66,12 @@ const findParts = (root: HTMLElement, start: number, length: number) => {
     const text = node.data;
     if (!text) continue;
     pos += text.length;
-    if (pos < start) continue;
+    if (pos <= start) continue;
     parts.push(node);
     if (parts.length === 1) {
       partStart = start - pos + text.length;
     }
-    if (pos > end) {
+    if (pos >= end) {
       partEnd = end - pos + text.length;
       break;
     }
@@ -76,17 +82,23 @@ const findParts = (root: HTMLElement, start: number, length: number) => {
 
   // cleanup offset from first and last part
   parts[0] = parts[0].splitText(partStart);
-  parts[parts.length - 1].splitText(partEnd);
+  if (parts.length === 1) {
+    parts[parts.length - 1].splitText(partEnd - partStart);
+  } else {
+    parts[parts.length - 1].splitText(partEnd);
+  }
   return parts;
 };
 
-export const addComment = (root: HTMLElement, annotation: Annotation): void => {
-  const fullText = root.textContent || "";
-
+export const addComment = (
+  root: HTMLElement,
+  contentText: string,
+  annotation: Annotation
+): void => {
   const selector = annotation.target.selector;
   const exact = selector.exact;
   const phrase = (selector.prefix || "") + exact + (selector.suffix || "");
-  const start = fullText.indexOf(phrase) + (selector.prefix?.length || 0);
+  const start = contentText.indexOf(phrase) + (selector.prefix?.length || 0);
 
   if (start < 0) {
     console.error("Could not select text for: " + JSON.stringify(annotation));

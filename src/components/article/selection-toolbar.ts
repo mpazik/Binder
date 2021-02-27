@@ -33,6 +33,10 @@ const selectionExists = (): boolean => {
   );
 };
 
+export const clearSelection = (): void => {
+  window.getSelection()?.removeAllRanges();
+};
+
 export const offsetSelection = (
   element: HTMLElement,
   selection: Selection
@@ -45,11 +49,16 @@ export const offsetSelection = (
   };
 };
 
+export type Button = {
+  handler: (s: Selection) => void;
+  label: string;
+};
+
 export const selectionToolbarView: View<{
   left: number;
   top: number;
-  onAddComment: () => void;
-}> = ({ left, top, onAddComment }) =>
+  buttons: Button[];
+}> = ({ left, top, buttons }) =>
   div(
     {
       class: "Popover",
@@ -60,34 +69,39 @@ export const selectionToolbarView: View<{
         class:
           "Popover-message Popover-message--bottom width-auto BtnGroup box-shadow-large",
       },
-      button(
-        {
-          class: `BtnGroup-item btn btn-sm`,
-          type: "button",
-          onClick: onAddComment,
-        },
-        "add comment"
+      ...buttons.map(({ handler, label }) =>
+        button(
+          {
+            class: `BtnGroup-item btn btn-sm`,
+            type: "button",
+            onClick: handler,
+          },
+          label
+        )
       )
     )
   );
 
 export const selectionToolbar: Component<{
   selectionProvider: Provider<Selection | undefined>;
-  onAddComment: (arg: { top: number }) => void;
-}> = ({ selectionProvider, onAddComment }) => (render) => {
-  const renderSelection = (selection: Selection | undefined) => {
-    if (!selection) return undefined;
+  buttons: Button[];
+}> = ({ selectionProvider, buttons }) => (render) => {
+  const renderState = map((selection: Selection | undefined) => {
+    if (!selection) return;
     return selectionToolbarView({
       left: selection.left,
       top: selection.top,
-      onAddComment: () => {
-        onAddComment({ top: selection.top });
-        renderSelection(undefined);
-      },
+      buttons: buttons.map(({ handler, ...rest }) => ({
+        handler: () => {
+          handler(selection);
+          selectionHandler(undefined);
+        },
+        ...rest,
+      })),
     });
-  };
+  }, render);
 
-  const selectionHandler = passOnlyChanged(map(renderSelection, render));
+  const selectionHandler = passOnlyChanged(renderState);
   document.addEventListener(
     "mouseup",
     filter(not(selectionExists), mapTo(undefined, selectionHandler))

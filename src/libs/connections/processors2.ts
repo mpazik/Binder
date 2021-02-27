@@ -1,4 +1,4 @@
-import { Processor } from "./types";
+import { throwIfUndefined } from "../errors";
 
 export type Callback<T> = (value: T) => void;
 
@@ -7,16 +7,19 @@ export const map = <T, S>(
   callback: Callback<S>
 ): Callback<T> => (v: T) => callback(transform(v));
 
-type Mapper<V> = <T, S>(
-  transform: (v: T, state: V | undefined) => S,
+type StatefulMapper<V> = <T, S>(
+  transform: (v: T, state: V) => S,
   callback: Callback<S>
 ) => Callback<T>;
 
-export const statefulMap = <V>(): [Mapper<V>, Callback<V>] => {
-  let state: V;
+export const statefulMap = <T>(
+  initialState?: T
+): [StatefulMapper<T>, Callback<T>] => {
+  let state = initialState;
   return [
-    (transform, callback) => (v) => callback(transform(v, state)),
-    (newState: V) => {
+    (transform, callback) => (v) =>
+      callback(transform(v, throwIfUndefined(state))),
+    (newState: T) => {
       state = newState;
     },
   ];
@@ -25,7 +28,7 @@ export const statefulMap = <V>(): [Mapper<V>, Callback<V>] => {
 export const mapTo = <T>(
   value: T,
   callback: Callback<T>
-): Callback<unknown> => (v: unknown) => callback(value);
+): Callback<unknown> => () => callback(value);
 
 export const forEach = <T>(
   handler: (v: T, signal: AbortSignal) => void,
