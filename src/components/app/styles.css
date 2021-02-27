@@ -54,3 +54,7 @@ article {
 .local-diff-del {
     background: #fdaeb7;
 }
+
+.highlight {
+    background: yellow;
+}

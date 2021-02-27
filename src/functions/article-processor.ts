@@ -80,7 +80,9 @@ export const processToArticle = async (
     measureTime("readability", () => new Readability(dom).parse())
   );
 
-  const articleLd = createArticle(url, article.title, articleMediaType, [url]);
+  const articleLd = createArticle(url, article.title, articleMediaType, [
+    url,
+  ]) as LinkedData;
 
   const contentDocument = domParser.parseFromString(
     article.content,

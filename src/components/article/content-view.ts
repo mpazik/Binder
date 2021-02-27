@@ -39,6 +39,7 @@ import {
 } from "./document-change";
 import { renderDocumentChangeModal } from "./document-change-modal";
 import { editBar, EditBarState } from "./edit-bar";
+import { addComment, annotation } from "./highlights";
 import {
   currentSelection,
   offsetSelection,
@@ -150,6 +151,7 @@ const commentForm: Component<{
 };
 
 const isNew = (linkedData: LinkedData) => !findHashUri(linkedData);
+// eslint-disable-next-line unused-imports/no-unused-vars-ts,@typescript-eslint/no-unused-vars
 const isEditable = (linkedData: LinkedData) => false;
 
 const createEditBarStateUpdater = (
@@ -309,7 +311,11 @@ export const editableContentComponent: Component<{
               mapWithContent(
                 (_, content) => (content ? isNew(content.linkedData) : false),
                 setEditBarVisible
-              )
+              ),
+              (editor) => {
+                if (!editor) return;
+                addComment(editor, annotation);
+              }
             ),
             onSelect: mapWithEditor((selection, element) => {
               if (!selection || !element) return undefined;
