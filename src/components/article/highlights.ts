@@ -1,3 +1,5 @@
+import { expandText } from "./utils/string-expant";
+
 export type QuoteSelector = {
   type: "TextQuoteSelector";
   exact: string;
@@ -37,6 +39,62 @@ export const annotation: Annotation = createAnnotation(
     suffix: " przez",
   }
 );
+
+const undefinedForEmptyString = (string: string): string | undefined =>
+  string.length === 0 ? undefined : string;
+
+const nodeTextLength = (node: Node): number => {
+  switch (node.nodeType) {
+    case Node.ELEMENT_NODE:
+    case Node.TEXT_NODE:
+      return (node.textContent || "").length;
+    default:
+      return 0;
+  }
+};
+
+const positionFromBegging = (
+  container: Node,
+  node: Node,
+  offset = 0
+): number => {
+  let sibling = node.previousSibling;
+  let length = offset;
+  while (sibling) {
+    length += nodeTextLength(sibling);
+    sibling = sibling.previousSibling;
+  }
+  if (!node.parentElement) {
+    throw new Error("Something");
+  }
+  if (node.parentElement === container) return length;
+  return positionFromBegging(container, node.parentElement, length);
+};
+
+export const quoteSelectorForSelection = (
+  container: HTMLElement,
+  containerText: string,
+  range: Range
+): QuoteSelector => {
+  const positionStart = positionFromBegging(
+    container,
+    range.startContainer,
+    range.startOffset
+  );
+  const exact = range.toString().trim();
+  const [prefix, suffix] = expandText(
+    containerText,
+    positionStart,
+    positionStart + exact.length
+  );
+
+  return {
+    type: "TextQuoteSelector",
+    exact,
+    prefix: undefinedForEmptyString(prefix),
+    suffix: undefinedForEmptyString(suffix),
+  };
+};
 
 const renderHighlights = (parts: Text[]) => {
   parts.forEach((part) => {
@@ -100,6 +158,7 @@ export const addComment = (
   const phrase = (selector.prefix || "") + exact + (selector.suffix || "");
   const start = contentText.indexOf(phrase) + (selector.prefix?.length || 0);
 
+  console.log(start);
   if (start < 0) {
     console.error("Could not select text for: " + JSON.stringify(annotation));
   }

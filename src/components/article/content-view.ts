@@ -39,13 +39,19 @@ import {
 } from "./document-change";
 import { renderDocumentChangeModal } from "./document-change-modal";
 import { editBar, EditBarState } from "./edit-bar";
-import { addComment, annotation, createAnnotation } from "./highlights";
+import {
+  addComment,
+  annotation,
+  createAnnotation,
+  quoteSelectorForSelection,
+} from "./highlights";
 import {
   currentSelection,
   offsetSelection,
   Selection,
   selectionToolbar,
 } from "./selection-toolbar";
+import { expandText } from "./utils/string-expant";
 
 const createNewDocument = (
   initialContent: Document,
@@ -308,32 +314,16 @@ export const editableContentComponent: Component<{
                   (selection, contentText) => ({ selection, contentText }),
                   mapWithEditor(
                     (state, editor) => ({ editor, ...state }),
-                    ({ editor, selection, contentText }) => {
+                    ({ editor, selection: { range }, contentText }) => {
                       if (!editor) return;
-                      const exact = selection.text;
-                      const matchPos = contentText.indexOf(exact, 0);
-                      if (matchPos < 0) {
-                        throw new Error("Could not find highlighted text");
-                      }
-                      const nextMatchPos = contentText.indexOf(
-                        exact,
-                        matchPos + exact.length
+                      addComment(
+                        editor,
+                        contentText,
+                        createAnnotation(
+                          "nih:sha-256;0ea13c00e7c872d446332715f7bc71bcf8ed9c864ac0be09814788667cbf1f1f",
+                          quoteSelectorForSelection(editor, contentText, range)
+                        )
                       );
-                      if (nextMatchPos < 0) {
-                        addComment(
-                          editor,
-                          contentText,
-                          createAnnotation(
-                            "nih:sha-256;0ea13c00e7c872d446332715f7bc71bcf8ed9c864ac0be09814788667cbf1f1f",
-                            {
-                              type: "TextQuoteSelector",
-                              exact,
-                            }
-                          )
-                        );
-                      } else {
-                        console.error("multiple matches");
-                      }
                     }
                   )
                 ),
