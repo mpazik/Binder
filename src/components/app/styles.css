@@ -58,3 +58,7 @@ article {
 .highlight {
     background: yellow;
 }
+
+.highlight-temp {
+    background: deepskyblue;
+}

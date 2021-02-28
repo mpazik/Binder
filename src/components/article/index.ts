@@ -4,7 +4,7 @@ import { LinkedDataWithDocument } from "../../functions/article-processor";
 import { ArticleSaver } from "../../functions/article-saver";
 import { LinkedDataWithDocumentFetcher } from "../../functions/linked-data-fetcher";
 import { Consumer, dataPortal, fork, Provider } from "../../libs/connections";
-import { forEach, map } from "../../libs/connections/processors2";
+import { closableForEach, map } from "../../libs/connections/processors2";
 import { LinkedData } from "../../libs/linked-data";
 import {
   handleState,
@@ -88,7 +88,7 @@ const newArticleViewStateMachine = ({
           retry: (_, { url }) => ["initializing", url],
         },
       },
-      forEach(({ state, feedback }, signal) => {
+      closableForEach(({ state, feedback }, signal) => {
         handleState<ArticleViewState>(state, {
           initializing: (url) => {
             fetchContent(url, signal).then(feedback);
@@ -123,8 +123,7 @@ export const articleComponent: Component<{
   articleSaver: ArticleSaver;
   uriProvider: Provider<string | undefined | null>;
 }> = ({ onArticleLoaded, contentFetcher, articleSaver, uriProvider }) => (
-  render,
-  onClose
+  render
 ) => {
   const [dataProvider, onLoaded] = dataPortal<LinkedDataWithDocument>();
   const contentSlot = slot(

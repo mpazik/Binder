@@ -2,23 +2,16 @@ import { passOnlyChanged, Provider } from "../../libs/connections";
 import { filter, map, mapTo, not } from "../../libs/connections/processors2";
 import { button, Component, div, View } from "../../libs/simple-ui/render";
 
-export type Selection = {
-  text: string;
-  left: number;
-  top: number;
-  range: Range;
-};
+import { WithContainerContext } from "./comment";
 
-export const currentSelection = (): Selection | undefined => {
+export const currentSelection = (): Range | undefined => {
   const selection = window.getSelection();
   if (!selection || selection.type !== "Range") return;
   const range = selection.getRangeAt(0);
   if (!range) return;
   if (range.collapsed) return;
 
-  const { x, y, width } = range.getBoundingClientRect();
-  const text = range.toString().trim();
-  return { text, left: x + width / 2, top: y, range };
+  return range;
 };
 
 const selectionExists = (): boolean => {
@@ -37,20 +30,22 @@ export const clearSelection = (): void => {
   window.getSelection()?.removeAllRanges();
 };
 
-export const offsetSelection = (
-  element: HTMLElement,
-  selection: Selection
-): Selection => {
+export const rangeText = (range: Range): string => range.toString().trim();
+export const rangePosition = (range: Range): [left: number, top: number] => {
+  const { x, y, width } = range.getBoundingClientRect();
+  return [x + width / 2, y];
+};
+export const rangePositionRelative = (
+  range: Range,
+  element: HTMLElement
+): [left: number, top: number] => {
   const { x, y } = element.getBoundingClientRect();
-  return {
-    ...selection,
-    left: selection.left - x,
-    top: selection.top - y,
-  };
+  const [left, top] = rangePosition(range);
+  return [left - x, top - y];
 };
 
 export type Button = {
-  handler: (s: Selection) => void;
+  handler: (range: Range) => void;
   label: string;
 };
 
@@ -83,17 +78,19 @@ export const selectionToolbarView: View<{
   );
 
 export const selectionToolbar: Component<{
-  selectionProvider: Provider<Selection | undefined>;
+  rangeProvider: Provider<WithContainerContext<Range> | undefined>;
   buttons: Button[];
-}> = ({ selectionProvider, buttons }) => (render) => {
-  const renderState = map((selection: Selection | undefined) => {
-    if (!selection) return;
+}> = ({ rangeProvider, buttons }) => (render) => {
+  const renderState = map((data: WithContainerContext<Range> | undefined) => {
+    if (!data) return;
+    const { data: range, container } = data;
+    const [left, top] = rangePositionRelative(range, container);
     return selectionToolbarView({
-      left: selection.left,
-      top: selection.top,
+      left,
+      top,
       buttons: buttons.map(({ handler, ...rest }) => ({
         handler: () => {
-          handler(selection);
+          handler(range);
           selectionHandler(undefined);
         },
         ...rest,
@@ -106,5 +103,5 @@ export const selectionToolbar: Component<{
     "mouseup",
     filter(not(selectionExists), mapTo(undefined, selectionHandler))
   );
-  selectionProvider(selectionHandler);
+  rangeProvider(selectionHandler);
 };

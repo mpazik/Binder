@@ -73,7 +73,7 @@ const positionFromBegging = (
 
 export const quoteSelectorForSelection = (
   container: HTMLElement,
-  containerText: string,
+  text: string,
   range: Range
 ): QuoteSelector => {
   const positionStart = positionFromBegging(
@@ -83,7 +83,7 @@ export const quoteSelectorForSelection = (
   );
   const exact = range.toString().trim();
   const [prefix, suffix] = expandText(
-    containerText,
+    text,
     positionStart,
     positionStart + exact.length
   );
@@ -96,18 +96,49 @@ export const quoteSelectorForSelection = (
   };
 };
 
-const renderHighlights = (parts: Text[]) => {
-  parts.forEach((part) => {
-    const highlightEl = document.createElement("span");
-    highlightEl.classList.add("highlight");
-    const parent = part.parentNode!;
+const highlightClass = "highlight";
+const highlightTemporaryClass = "highlight-temp";
 
-    parent.replaceChild(highlightEl, part);
-    highlightEl.appendChild(part);
-  });
+const renderHighlight = (
+  part: Text,
+  onHover?: () => void,
+  onHoverOut?: () => void
+) => {
+  const highlightEl = document.createElement("span");
+  highlightEl.classList.add(highlightClass);
+  if (onHover) highlightEl.addEventListener("mouseenter", onHover);
+  if (onHoverOut) highlightEl.addEventListener("mouseleave", onHoverOut);
+  const parent = part.parentNode!;
+
+  parent.replaceChild(highlightEl, part);
+  highlightEl.appendChild(part);
 };
 
-const findParts = (root: HTMLElement, start: number, length: number) => {
+const renderHighlights = (
+  parts: Text[],
+  onHover?: () => void,
+  onHoverOut?: () => void
+) => parts.forEach((it) => renderHighlight(it, onHover, onHoverOut));
+
+const removeHighlight = (element: HTMLElement) => {
+  if (!element.classList.contains(highlightClass)) {
+    throw new Error(
+      `Can not remove highlight on element "${element}" which does not have "${highlightClass}" class`
+    );
+  }
+  if (element.childNodes.length !== 1) {
+    throw new Error(
+      `Expected highlight element "${element}" to have a single child but had ${element.children.length}`
+    );
+  }
+  element.parentElement!.replaceChild(element.childNodes.item(0)!, element);
+};
+
+const findParts = (
+  root: HTMLElement,
+  start: number,
+  length: number
+): Text[] => {
   const end = start + length;
   const iterator = root.ownerDocument.createNodeIterator(
     root,
@@ -148,20 +179,87 @@ const findParts = (root: HTMLElement, start: number, length: number) => {
   return parts;
 };
 
-export const addComment = (
-  root: HTMLElement,
-  contentText: string,
-  annotation: Annotation
-): void => {
-  const selector = annotation.target.selector;
+const findPartsBySelector = (
+  container: HTMLElement,
+  text: string,
+  selector: QuoteSelector
+): Text[] => {
   const exact = selector.exact;
   const phrase = (selector.prefix || "") + exact + (selector.suffix || "");
-  const start = contentText.indexOf(phrase) + (selector.prefix?.length || 0);
+  const start = text.indexOf(phrase) + (selector.prefix?.length || 0);
 
-  console.log(start);
   if (start < 0) {
     console.error("Could not select text for: " + JSON.stringify(annotation));
   }
+  return findParts(container, start, exact.length);
+};
 
-  renderHighlights(findParts(root, start, exact.length));
+export const addComment = (
+  root: HTMLElement,
+  text: string,
+  annotation: Annotation,
+  onHover?: () => void,
+  onHoverOut?: () => void
+): void => {
+  renderSelector(root, text, annotation.target.selector, onHover, onHoverOut);
+};
+
+export const renderSelector = (
+  container: HTMLElement,
+  text: string,
+  selector: QuoteSelector,
+  onHover?: () => void,
+  onHoverOut?: () => void
+): void => {
+  renderHighlights(
+    findPartsBySelector(container, text, selector),
+    onHover,
+    onHoverOut
+  );
+};
+
+type Rect = {
+  top: number;
+  left: number;
+  bottom: number;
+  right: number;
+};
+
+const getBoundingClientRect = (collection: HTMLElement[]): Rect =>
+  collection
+    .map((n) => n.getBoundingClientRect() as Rect)
+    .reduce((acc, r) => ({
+      top: Math.min(acc.top, r.top),
+      left: Math.min(acc.left, r.left),
+      bottom: Math.max(acc.bottom, r.bottom),
+      right: Math.max(acc.right, r.right),
+    }));
+
+const getHighlightsFromParts = (parts: Text[]) =>
+  parts.map((it) => it.parentElement!);
+
+export const getSelectorPosition = (
+  container: HTMLElement,
+  text: string,
+  selector: QuoteSelector
+): Rect => {
+  const parts = findPartsBySelector(container, text, selector);
+  return getBoundingClientRect(getHighlightsFromParts(parts));
+};
+
+export const renderTemporarySelector = (
+  container: HTMLElement,
+  text: string,
+  selector: QuoteSelector
+): [cancel: () => void] => {
+  const parts = findPartsBySelector(container, text, selector);
+  renderHighlights(parts);
+  const highlights = getHighlightsFromParts(parts);
+  highlights.forEach((it) => it.classList.add(highlightTemporaryClass));
+
+  return [
+    () => {
+      highlights.forEach(removeHighlight);
+    },
+  ];
 };

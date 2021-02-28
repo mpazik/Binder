@@ -1,11 +1,31 @@
 import { throwIfUndefined } from "../errors";
 
+import { OnCloseRegister } from "./types";
+import { equal } from "./utils/equal";
+
 export type Callback<T> = (value: T) => void;
 
 export const map = <T, S>(
   transform: (v: T) => S,
   callback: Callback<S>
 ): Callback<T> => (v: T) => callback(transform(v));
+
+export const closableMap = <T, S>(
+  transform: (v: T, onClose: OnCloseRegister) => S,
+  callback: Callback<S>
+): Callback<T> => {
+  let abortController = new AbortController();
+
+  return (v: T) => {
+    abortController.abort();
+    abortController = new AbortController();
+    callback(
+      transform(v, (handler) => {
+        abortController.signal.addEventListener("abort", handler);
+      })
+    );
+  };
+};
 
 type StatefulMapper<V> = <T, S>(
   transform: (v: T, state: V) => S,
@@ -14,13 +34,16 @@ type StatefulMapper<V> = <T, S>(
 
 export const statefulMap = <T>(
   initialState?: T
-): [StatefulMapper<T>, Callback<T>] => {
+): [mapper: StatefulMapper<T>, set: Callback<T>, reset: () => void] => {
   let state = initialState;
   return [
     (transform, callback) => (v) =>
       callback(transform(v, throwIfUndefined(state))),
-    (newState: T) => {
+    (newState) => {
       state = newState;
+    },
+    () => {
+      state = undefined;
     },
   ];
 };
@@ -30,7 +53,46 @@ export const mapTo = <T>(
   callback: Callback<T>
 ): Callback<unknown> => () => callback(value);
 
-export const forEach = <T>(
+export const mapToUndefined = (
+  callback: Callback<undefined>
+): (() => void) => () => callback(undefined);
+
+/**
+ * Passes only changed element, with one state being delayed.
+ * It is use full for delayed hide operation
+ */
+export const delayedState = <S, T extends S>(
+  stateToDelay: T,
+  delay: number,
+  callback: Callback<S>
+): Callback<S> => {
+  let lastValue: S;
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+
+  return (value: S) => {
+    if (value === stateToDelay) {
+      if (!timeout) {
+        timeout = setTimeout(() => {
+          timeout = null;
+          lastValue = stateToDelay;
+          callback(stateToDelay);
+        }, delay);
+      }
+    } else {
+      if (equal(value, lastValue)) {
+        if (timeout) {
+          clearTimeout(timeout);
+          timeout = null;
+        }
+        return;
+      }
+      lastValue = value;
+      callback(value);
+    }
+  };
+};
+
+export const closableForEach = <T>(
   handler: (v: T, signal: AbortSignal) => void,
   callback: Callback<T>
 ): Callback<T> => {
