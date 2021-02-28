@@ -9,10 +9,10 @@ import { ArticleSaver } from "../../functions/article-saver";
 import { Consumer, dataPortal, fork, Provider } from "../../libs/connections";
 import {
   Callback,
-  filterNonNull,
   map,
   withValue,
   statefulMap,
+  splitOnUndefined,
 } from "../../libs/connections/processors2";
 import {
   findHashUri,
@@ -32,6 +32,7 @@ import {
 import { throttleArg } from "../../libs/throttle";
 import { modal, ModalState } from "../common/modal";
 
+import { Annotation, annotation, createAnnotation } from "./annotation";
 import {
   changesIndicatorBar,
   documentChangeTopRelativePosition,
@@ -50,12 +51,7 @@ import {
 } from "./document-change";
 import { renderDocumentChangeModal } from "./document-change-modal";
 import { editBar, EditBarState } from "./edit-bar";
-import {
-  addComment,
-  annotation,
-  quoteSelectorForSelection,
-  renderSelector,
-} from "./highlights";
+import { quoteSelectorForSelection, renderSelector } from "./highlights";
 import { currentSelection, selectionToolbar } from "./selection-toolbar";
 
 const createNewDocument = (
@@ -222,6 +218,37 @@ export const editableContentComponent: Component<{
     )
   );
 
+  const saveAnnotation = (
+    container: HTMLElement,
+    text: string,
+    annotation: Annotation
+  ) => {
+    console.log("Saving...", annotation);
+    displayAnnotation(container, text, annotation);
+  };
+
+  const displayAnnotation = (
+    container: HTMLElement,
+    text: string,
+    annotation: Annotation
+  ) =>
+    renderSelector(
+      container,
+      text,
+      annotation.target.selector,
+      annotation.body
+        ? map(
+            (position) =>
+              [
+                "visible",
+                { content: annotation.body?.value, position },
+              ] as CommentDisplayState,
+            displayComment
+          )
+        : undefined,
+      annotation.body ? withValue(["hidden"], displayComment) : undefined
+    );
+
   const [changesProvider, onChange] = dataPortal<
     DocumentChange[] | undefined
   >();
@@ -241,12 +268,11 @@ export const editableContentComponent: Component<{
     editable: boolean;
   }>();
 
-  const addEditorContext = <T>(
-    handler: Callback<WithContainerContext<T> | undefined>
-  ): Callback<T | undefined> =>
+  const withEditorContext = <T>(
+    handler: Callback<WithContainerContext<T>>
+  ): Callback<T> =>
     mapWithContentText(
-      (data, { container, text }) =>
-        data ? { data, text, container } : undefined,
+      (data, { container, text }) => ({ data, text, container }),
       handler
     );
 
@@ -295,7 +321,15 @@ export const editableContentComponent: Component<{
           })
         ),
         slot("modal-diff", modal({ provider: modalStateProvider })),
-        slot("comment-form", commentForm({ commentFormProvider })),
+        slot(
+          "comment-form",
+          commentForm({
+            commentFormProvider,
+            onCreatedComment: withEditorContext(({ data, container, text }) =>
+              saveAnnotation(container, text, data)
+            ),
+          })
+        ),
         slot(
           "comment-display",
           commentDisplay({ commentProvider: commentToDisplayProvider })
@@ -306,15 +340,16 @@ export const editableContentComponent: Component<{
             rangeProvider,
             buttons: [
               {
-                handler: addEditorContext(filterNonNull(displayCommentForm)),
+                handler: withEditorContext(displayCommentForm),
                 label: "comment",
               },
               {
-                handler: addEditorContext(
-                  filterNonNull(({ container, data, text }) =>
-                    renderSelector(
-                      container,
-                      text,
+                handler: withEditorContext(({ container, data, text }) =>
+                  saveAnnotation(
+                    container,
+                    text,
+                    createAnnotation(
+                      "something",
                       quoteSelectorForSelection(container, text, data)
                     )
                   )
@@ -334,32 +369,20 @@ export const editableContentComponent: Component<{
             onDisplay: fork(
               setEditor,
               (editor) => {
-                const text = editor?.textContent || "";
+                const container = editor;
+                const text = container?.textContent || "";
                 setContentText({
-                  container: editor,
+                  container,
                   text,
                 });
-                addComment(
-                  editor,
-                  text,
-                  annotation,
-                  map(
-                    (position) =>
-                      [
-                        "visible",
-                        { annotation, position },
-                      ] as CommentDisplayState,
-                    displayComment
-                  ),
-                  withValue(["hidden"], displayComment)
-                );
+                displayAnnotation(container, text, annotation);
               },
               mapWithContent(
                 (_, { linkedData }) => isNew(linkedData),
                 setEditBarVisible
               )
             ),
-            onSelect: addEditorContext(onSelect),
+            onSelect: splitOnUndefined(onSelect, withEditorContext(onSelect)),
           })
         ),
         slot(

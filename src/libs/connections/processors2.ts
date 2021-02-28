@@ -112,6 +112,13 @@ export const closableForEach = <T>(
   };
 };
 
+export const splitOnUndefined = <T>(
+  onUndefined: Callback<undefined>,
+  onValue: Callback<T>
+): Callback<T | undefined> => (value) => {
+  value ? onValue(value) : onUndefined(undefined);
+};
+
 export const filter = <T>(
   predicate: (v: T) => boolean,
   callback: Callback<T>

@@ -15,17 +15,12 @@ import {
 } from "../../libs/simple-ui/render";
 
 import {
-  Annotation,
   Position,
   quoteSelectorForSelection,
   renderTemporarySelector,
 } from "./highlights";
 import { rangePositionRelative } from "./selection-toolbar";
-
-export type ContainerContext = {
-  container: HTMLElement;
-  text: string;
-};
+import { Annotation, createAnnotation } from "./annotation";
 
 export type WithContainerContext<T> = {
   container: HTMLElement;
@@ -59,7 +54,7 @@ const commentView: View<{
 
 export type CommentDisplayState =
   | ["hidden"]
-  | ["visible", { position: Position; annotation: Annotation }];
+  | ["visible", { position: Position; content: string }];
 
 export const commentDisplay: Component<{
   commentProvider: Provider<CommentDisplayState>;
@@ -67,10 +62,10 @@ export const commentDisplay: Component<{
   const renderPopup = map(
     newStateMapper<CommentDisplayState, JsonHtml | undefined>({
       visible: (state) => {
-        const { position, annotation } = state;
+        const { position, content } = state;
         return commentView({
           position,
-          content: "test",
+          content,
           onHover: () => {
             handleData(["visible", state]);
           },
@@ -85,7 +80,7 @@ export const commentDisplay: Component<{
     }),
     render
   );
-  const handleData = delayedState(["hidden"], 300, renderPopup);
+  const handleData = delayedState(["hidden"], 200, renderPopup);
   commentProvider(handleData);
 };
 
@@ -145,7 +140,8 @@ const commentFormView: View<{
 
 export const commentForm: Component<{
   commentFormProvider: Provider<WithContainerContext<Range>>;
-}> = ({ commentFormProvider }) => (render) => {
+  onCreatedComment: (c: Annotation) => void;
+}> = ({ commentFormProvider, onCreatedComment }) => (render) => {
   const [mapWithEditor, setEditor, resetEditor] = statefulMap<HTMLElement>();
 
   const renderForm = closableMap(
@@ -156,11 +152,8 @@ export const commentForm: Component<{
       }
       const { container, text, data: range } = data;
       const [left, top] = rangePositionRelative(range, container);
-      const [remove] = renderTemporarySelector(
-        container,
-        text,
-        quoteSelectorForSelection(container, text, range)
-      );
+      const quoteSelector = quoteSelectorForSelection(container, text, range);
+      const [remove] = renderTemporarySelector(container, text, quoteSelector);
       onClose(remove);
 
       return commentFormView({
@@ -173,7 +166,10 @@ export const commentForm: Component<{
         onSave: mapWithEditor<void, HTMLElement>(
           (_, editor) => editor,
           (editor) => {
-            console.log(editor.innerHTML);
+            onCreatedComment(
+              createAnnotation("something", quoteSelector, editor.innerHTML)
+            );
+            renderForm(undefined);
           }
         ),
       });

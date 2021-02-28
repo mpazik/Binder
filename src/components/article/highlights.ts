@@ -1,44 +1,5 @@
 import { expandText } from "./utils/string-expant";
-
-export type QuoteSelector = {
-  type: "TextQuoteSelector";
-  exact: string;
-  prefix?: string;
-  suffix?: string;
-};
-
-export type Annotation = {
-  "@context": "http://www.w3.org/ns/anno.jsonld";
-  id: string;
-  type: "Annotation";
-  target: {
-    source: string;
-    selector: QuoteSelector;
-  };
-};
-
-export const createAnnotation = (
-  source: string,
-  selector: QuoteSelector
-): Annotation => ({
-  "@context": "http://www.w3.org/ns/anno.jsonld",
-  id: "http://example.org/anno23",
-  type: "Annotation",
-  target: {
-    source,
-    selector,
-  },
-});
-
-export const annotation: Annotation = createAnnotation(
-  "nih:sha-256;0ea13c00e7c872d446332715f7bc71bcf8ed9c864ac0be09814788667cbf1f1f",
-  {
-    type: "TextQuoteSelector",
-    exact: "synem i uczniem rzeźbiarza Patroklesa[1], wymienionego",
-    prefix: "Był ",
-    suffix: " przez",
-  }
-);
+import { Annotation, annotation, QuoteSelector } from "./annotation";
 
 const undefinedForEmptyString = (string: string): string | undefined =>
   string.length === 0 ? undefined : string;
@@ -231,16 +192,6 @@ const findPartsBySelector = (
 };
 
 export type Position = [left: number, right: number];
-
-export const addComment = (
-  root: HTMLElement,
-  text: string,
-  annotation: Annotation,
-  onHover?: (p: Position) => void,
-  onHoverOut?: () => void
-): void => {
-  renderSelector(root, text, annotation.target.selector, onHover, onHoverOut);
-};
 
 export const renderSelector = (
   container: HTMLElement,
