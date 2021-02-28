@@ -71,6 +71,38 @@ const positionFromBegging = (
   return positionFromBegging(container, node.parentElement, length);
 };
 
+type Rect = {
+  top: number;
+  left: number;
+  bottom: number;
+  right: number;
+};
+
+const getBoundingClientRect = (collection: HTMLElement[]): Rect =>
+  collection
+    .map((n) => n.getBoundingClientRect() as Rect)
+    .reduce((acc, r) => ({
+      top: Math.min(acc.top, r.top),
+      left: Math.min(acc.left, r.left),
+      bottom: Math.max(acc.bottom, r.bottom),
+      right: Math.max(acc.right, r.right),
+    }));
+
+const getPositionFromHighlights = (highlights: HTMLElement[]): Position => {
+  const { left, top, right } = getBoundingClientRect(highlights);
+  return [left + (right - left) / 2, top];
+};
+
+const positionRelative = (
+  position: Position,
+  element: HTMLElement
+): [left: number, top: number] => {
+  const { x, y } = element.getBoundingClientRect();
+  const [left, top] = position;
+  console.log([left - x, top - y]);
+  return [left - x, top - y];
+};
+
 export const quoteSelectorForSelection = (
   container: HTMLElement,
   text: string,
@@ -99,39 +131,43 @@ export const quoteSelectorForSelection = (
 const highlightClass = "highlight";
 const highlightTemporaryClass = "highlight-temp";
 
-const renderHighlight = (
+const wrapWithHighlight = (
   part: Text,
   onHover?: () => void,
   onHoverOut?: () => void
 ) => {
-  const highlightEl = document.createElement("span");
-  highlightEl.classList.add(highlightClass);
-  if (onHover) highlightEl.addEventListener("mouseenter", onHover);
-  if (onHoverOut) highlightEl.addEventListener("mouseleave", onHoverOut);
-  const parent = part.parentNode!;
+  const highlight = document.createElement("span");
+  highlight.classList.add(highlightClass);
+  if (onHover) highlight.addEventListener("mouseenter", onHover);
+  if (onHoverOut) highlight.addEventListener("mouseleave", onHoverOut);
 
-  parent.replaceChild(highlightEl, part);
-  highlightEl.appendChild(part);
+  const tempRange = document.createRange();
+  tempRange.selectNode(part);
+  tempRange.surroundContents(highlight);
+  return highlight;
 };
 
-const renderHighlights = (
+const wrapWithHighlights = (
   parts: Text[],
   onHover?: () => void,
   onHoverOut?: () => void
-) => parts.forEach((it) => renderHighlight(it, onHover, onHoverOut));
+): HTMLElement[] =>
+  parts.map((it) => wrapWithHighlight(it, onHover, onHoverOut));
 
-const removeHighlight = (element: HTMLElement) => {
-  if (!element.classList.contains(highlightClass)) {
+const removeHighlight = (highlight: HTMLElement) => {
+  if (!highlight.classList.contains(highlightClass)) {
     throw new Error(
-      `Can not remove highlight on element "${element}" which does not have "${highlightClass}" class`
+      `Can not remove highlight on element "${highlight}" which does not have "${highlightClass}" class`
     );
   }
-  if (element.childNodes.length !== 1) {
-    throw new Error(
-      `Expected highlight element "${element}" to have a single child but had ${element.children.length}`
-    );
+  if (highlight.childNodes.length === 1) {
+    highlight.parentNode!.replaceChild(highlight.firstChild!, highlight);
+  } else {
+    while (highlight.firstChild) {
+      highlight.parentNode!.insertBefore(highlight.firstChild, highlight);
+    }
+    highlight.remove();
   }
-  element.parentElement!.replaceChild(element.childNodes.item(0)!, element);
 };
 
 const findParts = (
@@ -194,11 +230,13 @@ const findPartsBySelector = (
   return findParts(container, start, exact.length);
 };
 
+export type Position = [left: number, right: number];
+
 export const addComment = (
   root: HTMLElement,
   text: string,
   annotation: Annotation,
-  onHover?: () => void,
+  onHover?: (p: Position) => void,
   onHoverOut?: () => void
 ): void => {
   renderSelector(root, text, annotation.target.selector, onHover, onHoverOut);
@@ -208,43 +246,21 @@ export const renderSelector = (
   container: HTMLElement,
   text: string,
   selector: QuoteSelector,
-  onHover?: () => void,
+  onHover?: (p: Position) => void,
   onHoverOut?: () => void
 ): void => {
-  renderHighlights(
-    findPartsBySelector(container, text, selector),
-    onHover,
+  const parts = findPartsBySelector(container, text, selector);
+  const highlights = wrapWithHighlights(
+    parts,
+    onHover
+      ? () => {
+          onHover(
+            positionRelative(getPositionFromHighlights(highlights), container)
+          );
+        }
+      : undefined,
     onHoverOut
   );
-};
-
-type Rect = {
-  top: number;
-  left: number;
-  bottom: number;
-  right: number;
-};
-
-const getBoundingClientRect = (collection: HTMLElement[]): Rect =>
-  collection
-    .map((n) => n.getBoundingClientRect() as Rect)
-    .reduce((acc, r) => ({
-      top: Math.min(acc.top, r.top),
-      left: Math.min(acc.left, r.left),
-      bottom: Math.max(acc.bottom, r.bottom),
-      right: Math.max(acc.right, r.right),
-    }));
-
-const getHighlightsFromParts = (parts: Text[]) =>
-  parts.map((it) => it.parentElement!);
-
-export const getSelectorPosition = (
-  container: HTMLElement,
-  text: string,
-  selector: QuoteSelector
-): Rect => {
-  const parts = findPartsBySelector(container, text, selector);
-  return getBoundingClientRect(getHighlightsFromParts(parts));
 };
 
 export const renderTemporarySelector = (
@@ -253,8 +269,7 @@ export const renderTemporarySelector = (
   selector: QuoteSelector
 ): [cancel: () => void] => {
   const parts = findPartsBySelector(container, text, selector);
-  renderHighlights(parts);
-  const highlights = getHighlightsFromParts(parts);
+  const highlights = wrapWithHighlights(parts);
   highlights.forEach((it) => it.classList.add(highlightTemporaryClass));
 
   return [

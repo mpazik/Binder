@@ -11,7 +11,7 @@ import {
   Callback,
   filterNonNull,
   map,
-  mapToUndefined,
+  withValue,
   statefulMap,
 } from "../../libs/connections/processors2";
 import {
@@ -36,7 +36,12 @@ import {
   changesIndicatorBar,
   documentChangeTopRelativePosition,
 } from "./change-indicator-bar";
-import { commentDisplay, commentForm, WithContainerContext } from "./comment";
+import {
+  commentDisplay,
+  CommentDisplayState,
+  commentForm,
+  WithContainerContext,
+} from "./comment";
 import {
   DocumentChange,
   newDocumentComparator,
@@ -47,7 +52,6 @@ import { renderDocumentChangeModal } from "./document-change-modal";
 import { editBar, EditBarState } from "./edit-bar";
 import {
   addComment,
-  Annotation,
   annotation,
   quoteSelectorForSelection,
   renderSelector,
@@ -230,7 +234,7 @@ export const editableContentComponent: Component<{
     WithContainerContext<Range>
   >();
   const [commentToDisplayProvider, displayComment] = dataPortal<
-    WithContainerContext<Annotation> | undefined
+    CommentDisplayState
   >();
   const [contentProvider, documentToDisplay] = dataPortal<{
     content: Document;
@@ -339,14 +343,15 @@ export const editableContentComponent: Component<{
                   editor,
                   text,
                   annotation,
-                  addEditorContext<void>((context) => {
-                    if (!context) return;
-                    displayComment({
-                      ...context,
-                      data: annotation,
-                    });
-                  }),
-                  mapToUndefined(displayComment)
+                  map(
+                    (position) =>
+                      [
+                        "visible",
+                        { annotation, position },
+                      ] as CommentDisplayState,
+                    displayComment
+                  ),
+                  withValue(["hidden"], displayComment)
                 );
               },
               mapWithContent(

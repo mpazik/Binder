@@ -2,13 +2,21 @@ import { Provider } from "../../libs/connections";
 import {
   closableMap,
   delayedState,
+  map,
   statefulMap,
 } from "../../libs/connections/processors2";
-import { button, Component, div, View } from "../../libs/simple-ui/render";
+import { newStateMapper } from "../../libs/named-state";
+import {
+  button,
+  Component,
+  div,
+  JsonHtml,
+  View,
+} from "../../libs/simple-ui/render";
 
 import {
   Annotation,
-  getSelectorPosition,
+  Position,
   quoteSelectorForSelection,
   renderTemporarySelector,
 } from "./highlights";
@@ -26,61 +34,58 @@ export type WithContainerContext<T> = {
 };
 
 const commentView: View<{
-  top: number;
-  left: number;
+  position: Position;
   content: string;
   onHover: () => void;
   onHoverOut: () => void;
-}> = ({ top, left, content, onHover, onHoverOut }) =>
+}> = ({ position: [left, top], content, onHover, onHoverOut }) =>
   div(
     {
       class: "Box Popover",
       style: {
         left,
         top,
-        transform: "translate(-50%, 0)",
-        "min-height": "80px",
-        width: "200px",
+        transform: "translate(-50%, 30px)",
       },
       onMouseleave: onHoverOut,
       onMouseenter: onHover,
     },
     div({
-      class: "Box-body p-1",
+      class: "Popover-message Popover-message--top box-shadow-large p-2",
       style: {},
       dangerouslySetInnerHTML: content,
     })
   );
 
+export type CommentDisplayState =
+  | ["hidden"]
+  | ["visible", { position: Position; annotation: Annotation }];
+
 export const commentDisplay: Component<{
-  commentProvider: Provider<WithContainerContext<Annotation> | undefined>;
+  commentProvider: Provider<CommentDisplayState>;
 }> = ({ commentProvider }) => (render) => {
-  const renderPopup = closableMap(
-    (data: WithContainerContext<Annotation> | undefined) => {
-      if (!data) {
-        return;
-      }
-      const { container, text, data: annotation } = data;
-      const { left, top } = getSelectorPosition(
-        container,
-        text,
-        annotation.target.selector
-      );
-      return commentView({
-        top,
-        left,
-        content: "test",
-        onHover: () => {
-          handleData(data);
-        },
-        onHoverOut: () => {
-          handleData(undefined);
-        },
-      });
-    },
+  const renderPopup = map(
+    newStateMapper<CommentDisplayState, JsonHtml | undefined>({
+      visible: (state) => {
+        const { position, annotation } = state;
+        return commentView({
+          position,
+          content: "test",
+          onHover: () => {
+            handleData(["visible", state]);
+          },
+          onHoverOut: () => {
+            handleData(["hidden"]);
+          },
+        });
+      },
+      hidden: () => {
+        return undefined;
+      },
+    }),
     render
   );
-  const handleData = delayedState(undefined, 300, renderPopup);
+  const handleData = delayedState(["hidden"], 300, renderPopup);
   commentProvider(handleData);
 };
 
@@ -94,34 +99,46 @@ const commentFormView: View<{
   div(
     {
       class: "Box Popover",
-      style: { left, top, transform: "translate(-50%, 20px)" },
+      style: {
+        left,
+        top,
+        transform: "translate(-50%, 30px)",
+      },
     },
     div(
-      { class: "Box-body p-1" },
-      div({
-        class: "form-control p-1",
-        style: { "min-height": "80px", width: "200px" },
-        contenteditable: true,
-        onDisplay: (event) => {
-          const target = event.target as HTMLElement;
-          target.focus();
-          onDisplay(target);
-        },
-      })
-    ),
-    div(
-      { class: "Box-footer text-right p-1" },
-      button(
+      {
+        class:
+          "Popover-message Popover-message--top box-shadow-large width-auto",
+      },
+      div(
         {
-          type: "button",
-          class: "btn btn-sm btn-secondary mr-1",
-          onClick: onCancel,
+          class: "Box-body p-2",
         },
-        "Cancel"
+        div({
+          class: "form-control p-1",
+          style: { "min-height": "80px", width: "200px" },
+          contenteditable: true,
+          onDisplay: (event) => {
+            const target = event.target as HTMLElement;
+            target.focus();
+            onDisplay(target);
+          },
+        })
       ),
-      button(
-        { type: "button", class: "btn btn-sm btn-primary", onClick: onSave },
-        "Save"
+      div(
+        { class: "Box-footer text-right p-1" },
+        button(
+          {
+            type: "button",
+            class: "btn btn-sm btn-secondary mr-1",
+            onClick: onCancel,
+          },
+          "Cancel"
+        ),
+        button(
+          { type: "button", class: "btn btn-sm btn-primary", onClick: onSave },
+          "Save"
+        )
       )
     )
   );
@@ -138,6 +155,7 @@ export const commentForm: Component<{
         return;
       }
       const { container, text, data: range } = data;
+      const [left, top] = rangePositionRelative(range, container);
       const [remove] = renderTemporarySelector(
         container,
         text,
@@ -145,7 +163,6 @@ export const commentForm: Component<{
       );
       onClose(remove);
 
-      const [left, top] = rangePositionRelative(range, container);
       return commentFormView({
         top,
         left,

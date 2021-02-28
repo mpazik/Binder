@@ -53,6 +53,11 @@ export const mapTo = <T>(
   callback: Callback<T>
 ): Callback<unknown> => () => callback(value);
 
+export const withValue = <T>(
+  value: T,
+  callback: Callback<T>
+): (() => void) => () => callback(value);
+
 export const mapToUndefined = (
   callback: Callback<undefined>
 ): (() => void) => () => callback(undefined);
@@ -64,13 +69,14 @@ export const mapToUndefined = (
 export const delayedState = <S, T extends S>(
   stateToDelay: T,
   delay: number,
-  callback: Callback<S>
+  callback: Callback<S>,
+  comparator: (a: S, b: S) => boolean = equal
 ): Callback<S> => {
   let lastValue: S;
   let timeout: ReturnType<typeof setTimeout> | null = null;
 
   return (value: S) => {
-    if (value === stateToDelay) {
+    if (comparator(value, stateToDelay)) {
       if (!timeout) {
         timeout = setTimeout(() => {
           timeout = null;
@@ -79,7 +85,7 @@ export const delayedState = <S, T extends S>(
         }, delay);
       }
     } else {
-      if (equal(value, lastValue)) {
+      if (comparator(value, lastValue)) {
         if (timeout) {
           clearTimeout(timeout);
           timeout = null;

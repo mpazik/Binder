@@ -62,7 +62,7 @@ export const selectionToolbarView: View<{
     div(
       {
         class:
-          "Popover-message Popover-message--bottom width-auto BtnGroup box-shadow-large",
+          "Popover-message Popover-message--bottom BtnGroup box-shadow-large width-auto d-flex",
       },
       ...buttons.map(({ handler, label }) =>
         button(
