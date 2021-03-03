@@ -5,7 +5,7 @@ import {
   storeGetAllWithKeys,
   storePut,
 } from "../../libs/indexeddb";
-import { getPropertyValue } from "../../libs/linked-data";
+import { getPropertyValue, isTypeEqualTo } from "../../libs/linked-data";
 import { Opaque } from "../../libs/types";
 
 // import { createLinkedDataProvider } from "../linked-data-provider";
@@ -55,6 +55,7 @@ export const createDirectoryIndexer = (
   directoryIndexDb: DirectoryIndexDb
 ): Indexer => {
   return async (ld) => {
+    if (!isTypeEqualTo(ld, "article")) return;
     return indexer(ld)
       .then((props) => storePut(directoryIndexDb, props, ld["@id"]))
       .then(); // ignore storePut result

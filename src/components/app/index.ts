@@ -11,6 +11,12 @@ import {
   DirectoryIndex,
 } from "../../functions/indexes/directory-index";
 import {
+  createDocumentAnnotationsIndex,
+  createDocumentAnnotationsIndexDb,
+  createDocumentAnnotationsIndexer,
+  DocumentAnnotationsIndex,
+} from "../../functions/indexes/document-annotations-index";
+import {
   createUrlIndex,
   createUrlIndexDb,
   createUrlIndexer,
@@ -36,29 +42,46 @@ import { asyncLoader } from "../common/async-loader";
 import { fileNavigation } from "../navigation";
 import { searchBox } from "../navigation/search-box";
 import { profilePanel } from "../profile";
+import { LinkedDataStoreRead } from "../../functions/store/local-store";
 
 const initServices = async (): Promise<{
   contentFetcher: LinkedDataWithDocumentFetcher;
   directoryIndex: DirectoryIndex;
+  documentAnnotationsIndex: DocumentAnnotationsIndex;
   gdriveStateConsumer: Consumer<GDriveState>;
   storeStateProvider: Provider<StoreState>;
   storeWrite: ResourceStoreWrite;
   ldStoreWrite: LinkedDataStoreWrite;
+  ldStoreRead: LinkedDataStoreRead;
 }> => {
   const [gdriveStateProvider, gdriveStateConsumer] = dataPortal<GDriveState>();
   const fetchTroughProxy = createProxyFetch();
-  const [urlIndexDb, directoryIndexDb] = await Promise.all([
+  const [
+    urlIndexDb,
+    directoryIndexDb,
+    documentAnnotationsDb,
+  ] = await Promise.all([
     createUrlIndexDb(),
     createDirectoryIndexDb(),
+    createDocumentAnnotationsIndexDb(),
   ]);
   const urlIndex = createUrlIndex(urlIndexDb);
   const urlIndexer = createUrlIndexer(urlIndexDb);
 
   const directoryIndex = createDirectoryIndex(directoryIndexDb);
   const directoryIndexer = createDirectoryIndexer(directoryIndexDb);
+
+  const documentAnnotationsIndex = createDocumentAnnotationsIndex(
+    documentAnnotationsDb
+  );
+  const documentAnnotationsIndexer = createDocumentAnnotationsIndexer(
+    documentAnnotationsDb
+  );
+
   const indexLinkedData = createCompositeIndexer([
     urlIndexer,
     directoryIndexer,
+    documentAnnotationsIndexer,
   ]);
 
   const store = await createStore(indexLinkedData);
@@ -81,9 +104,11 @@ const initServices = async (): Promise<{
     contentFetcher,
     directoryIndex,
     gdriveStateConsumer,
+    documentAnnotationsIndex,
     storeStateProvider: store.storeStateProvider,
     storeWrite: store.writeResource,
     ldStoreWrite: store.writeLinkedData,
+    ldStoreRead: store.readLinkedData,
   };
 };
 
@@ -92,10 +117,12 @@ export const App = asyncLoader(
   ({
     contentFetcher,
     directoryIndex,
+    documentAnnotationsIndex,
     gdriveStateConsumer,
     storeStateProvider,
     storeWrite,
     ldStoreWrite,
+    ldStoreRead,
   }) => (render, onClose) => {
     const [selectedItemProvider, selectItem] = dataPortal<
       HashUri | undefined
@@ -127,9 +154,11 @@ export const App = asyncLoader(
             slot(
               "content",
               articleComponent({
+                documentAnnotationsIndex,
                 contentFetcher,
                 storeWrite,
                 ldStoreWrite,
+                ldStoreRead,
                 uriProvider,
                 onArticleLoaded: (linkedData) =>
                   selectItem(linkedData["@id"] as HashUri),

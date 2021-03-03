@@ -6,7 +6,7 @@ import {
   storeGet,
   storePut,
 } from "../../libs/indexeddb";
-import { findUrl } from "../../libs/linked-data";
+import { findUrl, isTypeEqualTo } from "../../libs/linked-data";
 import { Opaque } from "../../libs/types";
 // import { createLinkedDataProvider } from "../linked-data-provider";
 // import { LocalStoreDb } from "../local-store";
@@ -41,6 +41,7 @@ const indexer: IndexingStrategy<Url> = (data) =>
 
 export const createUrlIndexer = (urlIndexDb: UrlIndexDb): Indexer => {
   return async (ld) => {
+    if (!isTypeEqualTo(ld, "article")) return;
     return indexer(ld)
       .then((url) => storePut(urlIndexDb, ld["@id"], url))
       .then(); // ignore storePut result

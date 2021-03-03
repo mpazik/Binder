@@ -16,6 +16,7 @@ import {
 import { Consumer, dataPortal, fork, Provider } from "../../libs/connections";
 import {
   Callback,
+  filterNonNull,
   map,
   splitOnUndefined,
   statefulMap,
@@ -62,6 +63,8 @@ import { editBar, EditBarState } from "./edit-bar";
 import { quoteSelectorForSelection, renderSelector } from "./highlights";
 import { currentSelection, selectionToolbar } from "./selection-toolbar";
 import { throwIfNull } from "../../libs/errors";
+import { DocumentAnnotationsIndex } from "../../functions/indexes/document-annotations-index";
+import { LinkedDataStoreRead } from "../../functions/store/local-store";
 
 const createNewDocument = (
   initialContent: Document,
@@ -170,8 +173,17 @@ export const editableContentComponent: Component<{
   provider: Provider<LinkedDataWithDocument>;
   storeWrite: ResourceStoreWrite;
   ldStoreWrite: LinkedDataStoreWrite;
+  ldStoreRead: LinkedDataStoreRead;
   onSave: Consumer<LinkedDataWithHashId>;
-}> = ({ provider, storeWrite, ldStoreWrite, onSave }) => (render) => {
+  documentAnnotationsIndex: DocumentAnnotationsIndex;
+}> = ({
+  provider,
+  storeWrite,
+  ldStoreWrite,
+  ldStoreRead,
+  onSave,
+  documentAnnotationsIndex,
+}) => (render) => {
   const [modalStateProvider, modalStateConsumer] = dataPortal<ModalState>();
 
   const [editBarStateOut, editBarStateIn] = dataPortal<EditBarState>();
@@ -251,7 +263,7 @@ export const editableContentComponent: Component<{
   ) => {
     try {
       annotation.target.source = await getContentReference(content);
-      // await ldStoreWrite(annotation);
+      await ldStoreWrite(annotation);
       console.log("annotation", annotation);
       displayAnnotation(container, text, annotation);
     } catch (e) {
@@ -410,8 +422,24 @@ export const editableContentComponent: Component<{
                 }),
                 fork(
                   setContext,
-                  ({ container, text }) => {
-                    displayAnnotation(container, text, annotation);
+                  async ({ container, text, linkedData }) => {
+                    const documentHashUri = findHashUri(linkedData);
+                    if (!documentHashUri) return;
+                    const annotationsHashUris = await documentAnnotationsIndex({
+                      documentHashUri,
+                    });
+                    const annotations = await Promise.all(
+                      annotationsHashUris.map(ldStoreRead)
+                    );
+                    annotations.forEach(
+                      filterNonNull((annotation) => {
+                        displayAnnotation(
+                          container,
+                          text,
+                          (annotation as unknown) as Annotation
+                        );
+                      })
+                    );
                   },
                   map(
                     ({ linkedData }) => isNew(linkedData),

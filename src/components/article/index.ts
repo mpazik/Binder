@@ -26,6 +26,8 @@ import {
 import { centerLoadingSlot } from "../common/center-loading-component";
 
 import { editableContentComponent } from "./content-view";
+import { DocumentAnnotationsIndex } from "../../functions/indexes/document-annotations-index";
+import { LinkedDataStoreRead } from "../../functions/store/local-store";
 
 type RetryAction = ["retry"];
 type ArticleViewAction =
@@ -120,16 +122,20 @@ const createArticleView: ViewSetup<
 };
 
 export const articleComponent: Component<{
+  documentAnnotationsIndex: DocumentAnnotationsIndex;
   contentFetcher: LinkedDataWithDocumentFetcher;
   onArticleLoaded?: (article: LinkedData) => void;
   storeWrite: ResourceStoreWrite;
   ldStoreWrite: LinkedDataStoreWrite;
+  ldStoreRead: LinkedDataStoreRead;
   uriProvider: Provider<string | undefined | null>;
 }> = ({
+  documentAnnotationsIndex,
   onArticleLoaded,
   contentFetcher,
   storeWrite,
   ldStoreWrite,
+  ldStoreRead,
   uriProvider,
 }) => (render) => {
   const [dataProvider, onLoaded] = dataPortal<LinkedDataWithDocument>();
@@ -138,6 +144,8 @@ export const articleComponent: Component<{
     editableContentComponent({
       storeWrite,
       ldStoreWrite,
+      ldStoreRead,
+      documentAnnotationsIndex,
       provider: dataProvider,
       onSave: (linkedData) => {
         onArticleLoaded?.(linkedData);
