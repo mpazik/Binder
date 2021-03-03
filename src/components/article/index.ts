@@ -1,8 +1,11 @@
 import { URL } from "schema-dts";
 
 import { LinkedDataWithDocument } from "../../functions/article-processor";
-import { ArticleSaver } from "../../functions/article-saver";
 import { LinkedDataWithDocumentFetcher } from "../../functions/linked-data-fetcher";
+import {
+  LinkedDataStoreWrite,
+  ResourceStoreWrite,
+} from "../../functions/store";
 import { Consumer, dataPortal, fork, Provider } from "../../libs/connections";
 import { closableForEach, map } from "../../libs/connections/processors2";
 import { LinkedData } from "../../libs/linked-data";
@@ -40,7 +43,7 @@ export type ArticleViewState =
 
 const articleViewInitState: ArticleViewState = ["idle"];
 
-type ArtileStateWithFeedback = StateWithFeedback<
+type ArticleStateWithFeedback = StateWithFeedback<
   ArticleViewState,
   ArticleViewAction
 >;
@@ -48,7 +51,6 @@ const newArticleViewStateMachine = ({
   contentFetcher,
 }: {
   contentFetcher: LinkedDataWithDocumentFetcher;
-  articleSaver: ArticleSaver;
 }) => {
   const fetchContent = (
     newUrl: string,
@@ -58,7 +60,7 @@ const newArticleViewStateMachine = ({
       .then((article) => ["display", article] as ArticleViewAction)
       .catch((error) => ["fail", error.toString()] as ArticleViewAction);
 
-  return (push: Consumer<ArtileStateWithFeedback>) =>
+  return (push: Consumer<ArticleStateWithFeedback>) =>
     newStateMachineWithFeedback2<ArticleViewState, ArticleViewAction>(
       articleViewInitState,
       {
@@ -103,7 +105,7 @@ const newArticleViewStateMachine = ({
 
 const createArticleView: ViewSetup<
   { contentSlot: JsonHtml },
-  ArtileStateWithFeedback
+  ArticleStateWithFeedback
 > = ({ contentSlot }) => ({ state }) => {
   return mapState(state, {
     idle: () => div(centerLoadingSlot()),
@@ -120,16 +122,22 @@ const createArticleView: ViewSetup<
 export const articleComponent: Component<{
   contentFetcher: LinkedDataWithDocumentFetcher;
   onArticleLoaded?: (article: LinkedData) => void;
-  articleSaver: ArticleSaver;
+  storeWrite: ResourceStoreWrite;
+  ldStoreWrite: LinkedDataStoreWrite;
   uriProvider: Provider<string | undefined | null>;
-}> = ({ onArticleLoaded, contentFetcher, articleSaver, uriProvider }) => (
-  render
-) => {
+}> = ({
+  onArticleLoaded,
+  contentFetcher,
+  storeWrite,
+  ldStoreWrite,
+  uriProvider,
+}) => (render) => {
   const [dataProvider, onLoaded] = dataPortal<LinkedDataWithDocument>();
   const contentSlot = slot(
     "content-blah",
     editableContentComponent({
-      articleSaver,
+      storeWrite,
+      ldStoreWrite,
       provider: dataProvider,
       onSave: (linkedData) => {
         onArticleLoaded?.(linkedData);
@@ -139,7 +147,7 @@ export const articleComponent: Component<{
 
   const renderState = map(createArticleView({ contentSlot }), render);
 
-  const onLoadedParentHandler = ({ state }: ArtileStateWithFeedback) =>
+  const onLoadedParentHandler = ({ state }: ArticleStateWithFeedback) =>
     handleState<ArticleViewState>(state, {
       ready: (state) => {
         onLoaded(state);
@@ -149,7 +157,6 @@ export const articleComponent: Component<{
 
   const articleViewStateMachine = newArticleViewStateMachine({
     contentFetcher,
-    articleSaver,
   })(fork(renderState, onLoadedParentHandler));
 
   uriProvider(

@@ -48,6 +48,25 @@ export const statefulMap = <T>(
   ];
 };
 
+export const setupContext = <T>(
+  initialState?: T
+): [
+  mapper: (consumer: (v: T) => void) => void,
+  set: Callback<T>,
+  reset: () => void
+] => {
+  let state = initialState;
+  return [
+    (callback) => callback(throwIfUndefined(state)),
+    (newState) => {
+      state = newState;
+    },
+    () => {
+      state = undefined;
+    },
+  ];
+};
+
 export const mapTo = <T>(
   value: T,
   callback: Callback<T>

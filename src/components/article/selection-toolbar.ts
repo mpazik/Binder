@@ -1,9 +1,8 @@
-import { passOnlyChanged, Provider } from "../../libs/connections";
+import { passOnlyChanged, Provider, wrap } from "../../libs/connections";
 import { filter, map, mapTo, not } from "../../libs/connections/processors2";
 import { button, Component, div, View } from "../../libs/simple-ui/render";
 
 import { WithContainerContext } from "./comment";
-
 export const currentSelection = (): Range | undefined => {
   const selection = window.getSelection();
   if (!selection || selection.type !== "Range") return;

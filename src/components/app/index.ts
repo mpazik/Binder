@@ -1,10 +1,6 @@
 import "./styles.css";
 import "./loading.css";
 
-import {
-  ArticleSaver,
-  createArticleSaver,
-} from "../../functions/article-saver";
 import { createProxyFetch } from "../../functions/fetch-trough-proxy";
 import { GDriveState } from "../../functions/gdrive/controller";
 import { createCompositeIndexer } from "../../functions/indexes/composite-indexer";
@@ -23,25 +19,31 @@ import {
   createLinkedDataWithDocumentFetcher,
   LinkedDataWithDocumentFetcher,
 } from "../../functions/linked-data-fetcher";
-import { createStore, StoreState } from "../../functions/store";
+import {
+  createStore,
+  LinkedDataStoreWrite,
+  ResourceStoreWrite,
+  StoreState,
+} from "../../functions/store";
+import { currentDocumentUriProvider } from "../../functions/url-hijack";
 import { Consumer, dataPortal, Provider } from "../../libs/connections";
+import { withDefaultValue } from "../../libs/connections/processors2";
 import { HashName, HashUri } from "../../libs/hash";
 import { measureAsyncTime } from "../../libs/performance";
 import { div, slot } from "../../libs/simple-ui/render";
 import { articleComponent } from "../article";
 import { asyncLoader } from "../common/async-loader";
 import { fileNavigation } from "../navigation";
-import { profilePanel } from "../profile";
 import { searchBox } from "../navigation/search-box";
-import { currentDocumentUriProvider } from "../../functions/url-hijack";
-import { withDefaultValue } from "../../libs/connections/processors2";
+import { profilePanel } from "../profile";
 
 const initServices = async (): Promise<{
   contentFetcher: LinkedDataWithDocumentFetcher;
   directoryIndex: DirectoryIndex;
   gdriveStateConsumer: Consumer<GDriveState>;
   storeStateProvider: Provider<StoreState>;
-  articleSaver: ArticleSaver;
+  storeWrite: ResourceStoreWrite;
+  ldStoreWrite: LinkedDataStoreWrite;
 }> => {
   const [gdriveStateProvider, gdriveStateConsumer] = dataPortal<GDriveState>();
   const fetchTroughProxy = createProxyFetch();
@@ -62,11 +64,6 @@ const initServices = async (): Promise<{
   const store = await createStore(indexLinkedData);
   gdriveStateProvider((state) => store.updateGdriveState(state));
 
-  const articleSaver = createArticleSaver(
-    store.writeResource,
-    store.writeLinkedData
-  );
-
   const getHash = async (uri: string): Promise<HashName | undefined> => {
     const result = await urlIndex({ url: uri });
     if (result.length > 0) {
@@ -85,7 +82,8 @@ const initServices = async (): Promise<{
     directoryIndex,
     gdriveStateConsumer,
     storeStateProvider: store.storeStateProvider,
-    articleSaver,
+    storeWrite: store.writeResource,
+    ldStoreWrite: store.writeLinkedData,
   };
 };
 
@@ -96,7 +94,8 @@ export const App = asyncLoader(
     directoryIndex,
     gdriveStateConsumer,
     storeStateProvider,
-    articleSaver,
+    storeWrite,
+    ldStoreWrite,
   }) => (render, onClose) => {
     const [selectedItemProvider, selectItem] = dataPortal<
       HashUri | undefined
@@ -129,7 +128,8 @@ export const App = asyncLoader(
               "content",
               articleComponent({
                 contentFetcher,
-                articleSaver,
+                storeWrite,
+                ldStoreWrite,
                 uriProvider,
                 onArticleLoaded: (linkedData) =>
                   selectItem(linkedData["@id"] as HashUri),
