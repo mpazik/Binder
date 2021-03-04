@@ -148,6 +148,14 @@ export const filter = <T>(
 export const not = <T>(predicate: (v: T) => boolean) => (v: T): boolean =>
   !predicate(v);
 
+export const and = <T>(...predicates: ((v: T) => boolean)[]) => (
+  v: T
+): boolean => predicates.every((p) => p(v));
+
+export const or = <T>(...predicates: ((v: T) => boolean)[]) => (
+  v: T
+): boolean => predicates.some((p) => p(v));
+
 export const flatten = <T>(push: Callback<T>): Callback<T[]> => (array) =>
   array.forEach(push);
 

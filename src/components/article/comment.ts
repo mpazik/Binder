@@ -1,9 +1,11 @@
 import { fork, Provider } from "../../libs/connections";
 import {
+  and,
   closableMap,
   delayedState,
   filter,
   map,
+  or,
   setupContext,
   statefulMap,
 } from "../../libs/connections/processors2";
@@ -15,7 +17,13 @@ import {
   JsonHtml,
   View,
 } from "../../libs/simple-ui/render";
-import { focusElement, getTarget } from "../../libs/simple-ui/utils/funtions";
+import {
+  focusElement,
+  getTarget,
+  hasCtrlKey,
+  hasMetaKey,
+  isKey,
+} from "../../libs/simple-ui/utils/funtions";
 
 import { Annotation, createAnnotation } from "./annotation";
 import {
@@ -115,6 +123,10 @@ const commentFormView: View<{
           class: "form-control p-1",
           style: { "min-height": "80px", width: "200px" },
           contenteditable: true,
+          onKeydown: filter(
+            and(isKey("Enter"), or(hasMetaKey, hasCtrlKey)),
+            onSave
+          ),
           onDisplay: map(getTarget, fork(focusElement, onDisplay)),
         })
       ),
