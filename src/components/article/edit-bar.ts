@@ -34,12 +34,18 @@ const popUpBar = (...controls: JsonHtml[]) =>
     ...controls
   );
 
-const styledButton = (label: string, onClick?: () => void, extraClass = "") =>
+const styledButton = (
+  label: string,
+  onClick?: () => void,
+  extraClass = "",
+  disabled = false
+) =>
   button(
     {
       class: `btn mr-2 ${extraClass}`,
       type: "button",
       onClick: onClick,
+      disabled,
     },
     label
   );
@@ -60,7 +66,8 @@ const editBarView: OptionalView<EditBarState> = newStateOptionalMapper({
       barMessage(`Error saving document ${reason}`),
       styledButton("Try again", onTryAgain, "btn-primary")
     ),
-  saving: () => bar(styledButton("Saving", undefined, "btn-primary")),
+  saving: () =>
+    bar(barMessage(""), styledButton("Saving", undefined, "btn-primary", true)),
 });
 
 export const editBar: Component<{
