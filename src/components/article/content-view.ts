@@ -5,14 +5,13 @@ import {
   getDocumentContentRoot,
   LinkedDataWithDocument,
 } from "../../functions/article-processor";
-import {
-  ArticleSaver,
-  createArticleSaver,
-} from "../../functions/article-saver";
+import { createArticleSaver } from "../../functions/article-saver";
+import { DocumentAnnotationsIndex } from "../../functions/indexes/document-annotations-index";
 import {
   LinkedDataStoreWrite,
   ResourceStoreWrite,
 } from "../../functions/store";
+import { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { Consumer, dataPortal, fork, Provider } from "../../libs/connections";
 import {
   Callback,
@@ -22,6 +21,7 @@ import {
   statefulMap,
   withValue,
 } from "../../libs/connections/processors2";
+import { throwIfNull } from "../../libs/errors";
 import { HashUri } from "../../libs/hash";
 import {
   findHashUri,
@@ -41,7 +41,7 @@ import {
 import { throttleArg } from "../../libs/throttle";
 import { modal, ModalState } from "../common/modal";
 
-import { Annotation, annotation, createAnnotation } from "./annotation";
+import { Annotation, createAnnotation } from "./annotation";
 import {
   changesIndicatorBar,
   documentChangeTopRelativePosition,
@@ -62,9 +62,6 @@ import { renderDocumentChangeModal } from "./document-change-modal";
 import { editBar, EditBarState } from "./edit-bar";
 import { quoteSelectorForSelection, renderSelector } from "./highlights";
 import { currentSelection, selectionToolbar } from "./selection-toolbar";
-import { throwIfNull } from "../../libs/errors";
-import { DocumentAnnotationsIndex } from "../../functions/indexes/document-annotations-index";
-import { LinkedDataStoreRead } from "../../functions/store/local-store";
 
 const createNewDocument = (
   initialContent: Document,
@@ -186,6 +183,8 @@ export const editableContentComponent: Component<{
 }) => (render) => {
   const [modalStateProvider, modalStateConsumer] = dataPortal<ModalState>();
 
+  const articleSaver = createArticleSaver(storeWrite, ldStoreWrite);
+
   const [editBarStateOut, editBarStateIn] = dataPortal<EditBarState>();
   const [mapWithContent, setContent] = statefulMap<LinkedDataWithDocument>();
   const [mapWithContext, setContext, resetEditor] = statefulMap<
@@ -200,69 +199,73 @@ export const editableContentComponent: Component<{
   ): Callback<T> =>
     mapWithContext((data, context) => ({ data, ...context }), handler);
 
-  const articleSaverLinkedWithEditBar: ArticleSaver = (articleContent) => {
+  const saveArticle = (): Promise<LinkedDataWithHashId> => {
     editBarStateIn(["saving"]);
-    return createArticleSaver(
-      storeWrite,
-      ldStoreWrite
-    )(articleContent)
-      .then((data) => {
-        onSave(data);
-        editBarStateIn(["hidden"]);
-        return data;
-      })
-      .catch((error) => {
-        editBarStateIn([
-          "error",
-          {
-            reason: error,
-            onTryAgain: () => articleSaverLinkedWithEditBar(articleContent),
-          },
-        ]);
-        throw error;
-      });
+    return new Promise((resolve) => {
+      withEditorContext<void>(
+        async ({ contentDocument, container, linkedData }) => {
+          try {
+            const newContentDocument = isNew(linkedData)
+              ? contentDocument
+              : createNewDocument(contentDocument, container);
+            const newLinkedData = await articleSaver({
+              contentDocument: newContentDocument,
+              linkedData,
+            });
+            const newDocument = {
+              linkedData: newLinkedData,
+              contentDocument: newContentDocument,
+            };
+            setContent(newDocument);
+            setContext({
+              ...newDocument,
+              container,
+              text: container?.textContent || "",
+            });
+            editBarStateIn(["hidden"]);
+            onSave(newLinkedData);
+            resolve(newLinkedData);
+          } catch (error) {
+            editBarStateIn([
+              "error",
+              {
+                reason: error,
+                onTryAgain: () => saveArticle().then(resolve),
+              },
+            ]);
+          }
+        }
+      )();
+    });
   };
 
   const editBarStateUpdater = createEditBarStateUpdater(
     editBarStateIn,
-    () => {
-      withEditorContext<void>(({ linkedData, contentDocument, container }) => {
-        articleSaverLinkedWithEditBar({
-          contentDocument: createNewDocument(contentDocument, container),
-          linkedData,
-        });
-      })();
-    },
-    () => {
-      withEditorContext<void>(({ contentDocument, container }) => {
-        revertDocument(getDocumentContentRoot(contentDocument), container);
-      });
-    }
+    saveArticle,
+    withEditorContext<void>(({ contentDocument, container }) => {
+      revertDocument(getDocumentContentRoot(contentDocument), container);
+    })
   );
 
-  const getContentReference = ({
-    linkedData,
-    contentDocument,
-  }: LinkedDataWithDocument): Promise<HashUri> => {
+  const getContentReference = (linkedData: LinkedData): Promise<HashUri> => {
     const hashUri = findHashUri(linkedData);
     if (hashUri) {
       return Promise.resolve(hashUri);
     } else {
-      return articleSaverLinkedWithEditBar({
-        contentDocument,
-        linkedData,
-      }).then((newLinkedData) => throwIfNull(findHashUri(newLinkedData)));
+      return saveArticle().then((newLinkedData) =>
+        throwIfNull(findHashUri(newLinkedData))
+      );
     }
   };
 
   const saveAnnotation = async (
     container: HTMLElement,
-    content: LinkedDataWithDocument,
+    { linkedData }: LinkedDataWithDocument,
     text: string,
     annotation: Annotation
   ) => {
     try {
-      annotation.target.source = await getContentReference(content);
+      annotation.target.source = await getContentReference(linkedData);
       await ldStoreWrite(annotation);
       console.log("annotation", annotation);
       displayAnnotation(container, text, annotation);
