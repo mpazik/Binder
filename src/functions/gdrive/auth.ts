@@ -72,7 +72,6 @@ export const initializeGoogleDrive = async (): Promise<GApi> => {
     },
     () => {}
   );
-
   return gapi;
 };
 

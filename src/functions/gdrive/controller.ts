@@ -10,6 +10,7 @@ type GDriveAction =
   | ["logout"]
   | ["loggedOut", GApi]
   | ["loggedIn", GDriveProfile]
+  | ["fail", string]
   | ["push"];
 
 export type GDriveState =
@@ -18,6 +19,7 @@ export type GDriveState =
   | ["loggingIn", GApi]
   | ["profileRetrieving", GApi]
   | ["logged", GDriveProfile]
+  | ["error", string]
   | ["loggingOut", GApi];
 
 export const initGdriveState: GDriveState = ["idle"];
@@ -31,12 +33,14 @@ export const gdrive = newStateMachineWithFeedback<GDriveState, GDriveAction>(
           ? ["profileRetrieving", gapi]
           : ["ready", gapi];
       },
+      fail: (reason) => ["error", reason],
     },
     loggingIn: {
       retrieveProfile: (profile) => ["profileRetrieving", profile],
     },
     profileRetrieving: {
       loggedIn: (profile) => ["logged", profile],
+      fail: (reason) => ["error", reason],
     },
     logged: {
       logout: (_, profile) => ["loggingOut", profile.gapi],
@@ -49,21 +53,24 @@ export const gdrive = newStateMachineWithFeedback<GDriveState, GDriveAction>(
         return ["loggingIn", gapi];
       },
     },
+    error: {},
   },
   {
     idle: () =>
-      initializeGoogleDrive().then<GDriveAction>((gapi) => [
-        "initialize",
-        gapi,
-      ]),
+      initializeGoogleDrive()
+        .then<GDriveAction>((gapi) => ["initialize", gapi])
+        .catch((e) => ["fail", e.details]),
     loggingIn: (gapi) =>
-      signIn(gapi).then<GDriveAction>(() => ["retrieveProfile", gapi]),
+      signIn(gapi)
+        .then<GDriveAction>(() => ["retrieveProfile", gapi])
+        .catch((e) => ["fail", e.details]),
     profileRetrieving: (gapi) =>
-      createProfile(gapi).then<GDriveAction>((profile) => [
-        "loggedIn",
-        profile,
-      ]),
+      createProfile(gapi)
+        .then<GDriveAction>((profile) => ["loggedIn", profile])
+        .catch((e) => ["fail", e.details]),
     loggingOut: (gapi) =>
-      signOut(gapi).then<GDriveAction>(() => ["loggedOut", gapi]),
+      signOut(gapi)
+        .then<GDriveAction>(() => ["loggedOut", gapi])
+        .catch((e) => ["fail", e.details]),
   }
 );

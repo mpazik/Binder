@@ -5,10 +5,16 @@ import { equal } from "./utils/equal";
 
 export type Callback<T> = (value: T) => void;
 
+type Mapper<T, S> = (v: T) => S;
+
 export const map = <T, S>(
-  transform: (v: T) => S,
+  transform: Mapper<T, S>,
   callback: Callback<S>
 ): Callback<T> => (v: T) => callback(transform(v));
+
+export const passUndefined = <T, S>(
+  map: Mapper<T, S>
+): Mapper<T | undefined, S | undefined> => (v) => (v ? map(v) : undefined);
 
 export const closableMap = <T, S>(
   transform: (v: T, onClose: OnCloseRegister) => S,

@@ -45,6 +45,7 @@ export const createStatefulGDriveStoreRead = (): [
     (gdrive) => {
       state = mapState(gdrive, {
         idle: () => ["idle"],
+        error: () => ["idle"],
         ready: () => ["idle"],
         loggingIn: () => (state[0] === "loading" ? state : ["loading", []]),
         profileRetrieving: () =>

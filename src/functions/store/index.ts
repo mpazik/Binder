@@ -1,4 +1,5 @@
 import { Consumer, Provider } from "../../libs/connections";
+import { passUndefined } from "../../libs/connections/processors2";
 import { throwIfNull } from "../../libs/errors";
 import { HashName, HashUri } from "../../libs/hash";
 import {
@@ -9,7 +10,7 @@ import {
   StoreName,
   storePut,
 } from "../../libs/indexeddb";
-import { jsonLdMimeType } from "../../libs/linked-data";
+import { jsonLdMimeType, LinkedDataWithHashId } from "../../libs/linked-data";
 import { handleState, mapState } from "../../libs/named-state";
 import { measureAsyncTime } from "../../libs/performance";
 import { GDriveConfig } from "../gdrive/app-files";
@@ -19,16 +20,16 @@ import { Indexer } from "../indexes/types";
 
 import { createStatefulGDriveStoreRead } from "./gdrive-store-read";
 import {
-  createLocalStoreDb,
   createLocalLinkedDataStoreIterate,
+  createLocalLinkedDataStoreRead,
+  createLocalLinkedDataStoreWrite,
   createLocalResourceStoreRead,
   createLocalResourceStoreWrite,
+  createLocalStoreDb,
+  LinkedDataStoreRead,
+  LinkedDataStoreWrite,
   ResourceStoreRead,
   ResourceStoreWrite,
-  LinkedDataStoreWrite,
-  createLocalLinkedDataStoreWrite,
-  createLocalLinkedDataStoreRead,
-  LinkedDataStoreRead,
 } from "./local-store";
 import { newMissingLinkedDataDownloader } from "./missing-linked-data-downloader";
 
@@ -82,6 +83,11 @@ export type StoreState =
     ]
   | ["ready", GDriveConfig];
 
+const linkedDataToBlob = (ld: LinkedDataWithHashId): Blob =>
+  new Blob([JSON.stringify(ld)], {
+    type: jsonLdMimeType,
+  });
+
 export const createStore = async (indexLinkedData: Indexer): Promise<Index> => {
   const localStoreDb = await createLocalStoreDb();
   const localResourceStoreRead = createLocalResourceStoreRead(localStoreDb);
@@ -119,84 +125,75 @@ export const createStore = async (indexLinkedData: Indexer): Promise<Index> => {
     });
   };
 
-  const uploadNext = async () => {
+  const uploadNext = () => {
+    // call outside as we don't want to catch here uploadNext errors
+    setImmediate(() => uploadNextInt());
+  };
+  const uploadNextInt = async () => {
     const config: GDriveConfig | undefined =
       state[0] === "uploading" || state[0] === "ready" ? state[1] : undefined;
-    if (config === undefined) {
-      return;
-    }
+    if (config === undefined) return;
 
     const record = await storeGetFirst<BlobHashRecord>(
       syncDb,
       syncRequiredStore
     );
-    if (record) {
-      const {
-        key,
-        value: { hash, name },
-      } = record;
-      const localBlob = await localResourceStoreRead(hash);
-      if (localBlob) {
-        uploadToDrive(config, key, hash, localBlob, name);
-      } else {
-        updateState([
-          "error",
-          {
-            config,
-            recordKey: key,
-            error: {
-              code: "sync-error-read",
-              message: "Error reading file from local store for upload",
-            },
-          },
-        ]);
-      }
-    } else {
+    if (!record) {
       updateState(["ready", config]);
+      return;
+    }
+
+    const {
+      key,
+      value: { hash, name },
+    } = record;
+
+    const blob: Blob | undefined =
+      (await localResourceStoreRead(hash)) ||
+      passUndefined(linkedDataToBlob)(await localLinkedDataStoreRead(hash));
+
+    if (!blob) {
+      updateState([
+        "error",
+        {
+          config,
+          recordKey: key,
+          error: {
+            code: "sync-error-read",
+            message: `Error reading file from local store for upload 
+  File hash:${key}`,
+          },
+        },
+      ]);
+      return;
+    }
+
+    updateState(["uploading", config]);
+    try {
+      await findOrCreateFileByHash(config, hash, blob, name);
+      // check: unbound promise
+      await storeDelete(syncDb, key, syncRequiredStore);
+      uploadNext();
+    } catch (e) {
+      if (state[0] !== "uploading") {
+        console.error("unexpected store state change");
+      }
+      updateState([
+        "error",
+        {
+          config,
+          recordKey: key,
+          error: {
+            code: "sync-error-upload",
+            message: "Error saving file to google drive",
+          },
+        },
+      ]);
     }
   };
 
-  const uploadToDrive = (
-    config: GDriveConfig,
-    recordKey: IDBValidKey,
-    hash: HashUri,
-    blob: Blob,
-    name?: string
-  ) => {
-    updateState(["uploading", config]);
-    (async (config: GDriveConfig, hash: HashUri, blob: Blob, name?: string) => {
-      await findOrCreateFileByHash(config, hash, blob, name);
-    })(config, hash, blob, name)
-      .then(() => {
-        // check: unbound promise
-        storeDelete(syncDb, recordKey, syncRequiredStore);
-        // call outside as we don't want to catch here uploadNext errors
-        setImmediate(() => uploadNext());
-      })
-      .catch(() => {
-        if (state[0] !== "uploading") {
-          console.error("unexpected store state change");
-        }
-        updateState([
-          "error",
-          {
-            config,
-            recordKey,
-            error: {
-              code: "sync-error-upload",
-              message: "Error saving file to google drive",
-            },
-          },
-        ]);
-      });
-  };
-
-  const markResourceForSync = async (
-    hash: HashUri,
-    blob: Blob,
-    name?: string
-  ) => {
-    const dbKey = await storePut<BlobHashRecord>(
+  const markForSync = async (hash: HashUri, name?: string) => {
+    await storePut<BlobHashRecord>(
       syncDb,
       {
         hash,
@@ -206,25 +203,7 @@ export const createStore = async (indexLinkedData: Indexer): Promise<Index> => {
       syncRequiredStore
     );
     if (state[0] !== "ready") return;
-    uploadToDrive(state[1], dbKey, hash, blob, name);
-  };
-
-  const markLinkedDataForSync = async (
-    hash: HashUri,
-    blob: Blob,
-    name?: string
-  ) => {
-    const dbKey = await storePut<BlobHashRecord>(
-      syncDb,
-      {
-        hash,
-        name,
-      },
-      undefined,
-      syncRequiredStore
-    );
-    if (state[0] !== "ready") return;
-    uploadToDrive(state[1], dbKey, hash, blob, name);
+    uploadNext();
   };
 
   return {
@@ -242,7 +221,7 @@ export const createStore = async (indexLinkedData: Indexer): Promise<Index> => {
     },
     writeResource: async (blob, name): Promise<HashName> => {
       const hash = await localResourceStoreWrite(blob);
-      await markResourceForSync(hash, blob, name);
+      await markForSync(hash, name);
       return hash;
     },
     readLinkedData: async (hash) => {
@@ -256,13 +235,8 @@ export const createStore = async (indexLinkedData: Indexer): Promise<Index> => {
       }
 
       const linkedDataWithHashId = await localLinkedDataStoreWrite(linkedData);
-      const articleLdBlob = new Blob([JSON.stringify(linkedDataWithHashId)], {
-        type: jsonLdMimeType,
-      });
-      await markLinkedDataForSync(linkedDataWithHashId["@id"], articleLdBlob);
-
+      await markForSync(linkedDataWithHashId["@id"]);
       await indexLinkedData(linkedDataWithHashId);
-
       return linkedDataWithHashId;
     },
     updateGdriveState: (gdrive: GDriveState) => {
@@ -277,6 +251,7 @@ export const createStore = async (indexLinkedData: Indexer): Promise<Index> => {
             return ["downloading", config];
           },
           loggingOut: () => ["idle"],
+          error: () => ["idle"],
         })
       );
     },

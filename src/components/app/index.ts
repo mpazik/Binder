@@ -31,6 +31,7 @@ import {
   ResourceStoreWrite,
   StoreState,
 } from "../../functions/store";
+import { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { currentDocumentUriProvider } from "../../functions/url-hijack";
 import { Consumer, dataPortal, Provider } from "../../libs/connections";
 import { withDefaultValue } from "../../libs/connections/processors2";
@@ -42,7 +43,6 @@ import { asyncLoader } from "../common/async-loader";
 import { fileNavigation } from "../navigation";
 import { searchBox } from "../navigation/search-box";
 import { profilePanel } from "../profile";
-import { LinkedDataStoreRead } from "../../functions/store/local-store";
 
 const initServices = async (): Promise<{
   contentFetcher: LinkedDataWithDocumentFetcher;
