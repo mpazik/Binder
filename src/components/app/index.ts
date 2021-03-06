@@ -134,7 +134,8 @@ export const App = asyncLoader(
       HashUri | undefined
     >();
 
-    const [uriProvider, updateUri] = dataPortal<string>();
+    const [uriProvider, setUri] = dataPortal<string>();
+    const [navigationUriProvider, setNavigationUri] = dataPortal<string>();
     const [userEmailProvider, setUserEmail] = dataPortal<string>();
     const [displayProvider, displayFileDrop] = dataPortal<boolean>();
     const [fileProvider, fileConsumer] = dataPortal<Blob>();
@@ -160,7 +161,7 @@ export const App = asyncLoader(
               storeStateProvider,
             })
           ),
-          searchBox((url) => updateUri(url.toString())),
+          searchBox((url) => setNavigationUri(url.toString())),
           slot(
             "content-nav",
             fileNavigation({
@@ -193,12 +194,9 @@ export const App = asyncLoader(
       )
     );
 
-    currentDocumentUriProvider(
-      onClose,
-      withDefaultValue(
-        "https://pl.wikipedia.org/wiki/Dedal_z_Sykionu" as string,
-        updateUri
-      )
-    );
+    currentDocumentUriProvider({
+      extraProvider: navigationUriProvider,
+      defaultUri: "https://pl.wikipedia.org/wiki/Dedal_z_Sykionu",
+    })(onClose, setUri);
   }
 );
