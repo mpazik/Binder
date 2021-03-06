@@ -20,6 +20,7 @@ import {
   splitOnUndefined,
   statefulMap,
   withValue,
+  merge,
 } from "../../libs/connections/processors2";
 import { throwIfNull } from "../../libs/errors";
 import { HashUri } from "../../libs/hash";
@@ -41,7 +42,12 @@ import {
 import { throttleArg } from "../../libs/throttle";
 import { modal, ModalState } from "../common/modal";
 
-import { Annotation, createAnnotation } from "./annotation";
+import {
+  Annotation,
+  AnnotationCore,
+  createAnnotation,
+  QuoteSelector,
+} from "./annotation";
 import {
   changesIndicatorBar,
   documentChangeTopRelativePosition,
@@ -173,6 +179,7 @@ export const editableContentComponent: Component<{
   ldStoreRead: LinkedDataStoreRead;
   onSave: Consumer<LinkedDataWithHashId>;
   documentAnnotationsIndex: DocumentAnnotationsIndex;
+  userEmailProvider: Provider<string>;
 }> = ({
   provider,
   storeWrite,
@@ -180,6 +187,7 @@ export const editableContentComponent: Component<{
   ldStoreRead,
   onSave,
   documentAnnotationsIndex,
+  userEmailProvider,
 }) => (render) => {
   const [modalStateProvider, modalStateConsumer] = dataPortal<ModalState>();
 
@@ -260,12 +268,19 @@ export const editableContentComponent: Component<{
 
   const saveAnnotation = async (
     container: HTMLElement,
-    { linkedData }: LinkedDataWithDocument,
     text: string,
-    annotation: Annotation
+    linkedData: LinkedData,
+    selector: QuoteSelector,
+    content?: string,
+    creator?: string
   ) => {
     try {
-      annotation.target.source = await getContentReference(linkedData);
+      const annotation = createAnnotation(
+        await getContentReference(linkedData),
+        selector,
+        content,
+        creator
+      );
       await ldStoreWrite(annotation);
       console.log("annotation", annotation);
       displayAnnotation(container, text, annotation);
@@ -332,6 +347,23 @@ export const editableContentComponent: Component<{
     )
   );
 
+  const [sendComment, setCreator] = merge<AnnotationCore, string>(
+    ({ selector, content }, creator) =>
+      withEditorContext<void>(({ linkedData, container, text }) =>
+        saveAnnotation(
+          container,
+          text,
+          linkedData,
+          selector,
+          content,
+          creator === "" ? undefined : creator
+        )
+      )(),
+    undefined,
+    "" // hack to not block if user is not logged in
+  );
+  userEmailProvider(setCreator);
+
   render(
     div(
       { id: "content", class: "ml-4" },
@@ -364,15 +396,7 @@ export const editableContentComponent: Component<{
           "comment-form",
           commentForm({
             commentFormProvider,
-            onCreatedComment: withEditorContext(
-              ({ data, contentDocument, linkedData, container, text }) =>
-                saveAnnotation(
-                  container,
-                  { linkedData, contentDocument },
-                  text,
-                  data
-                )
-            ),
+            onCreatedComment: sendComment,
           })
         ),
         slot(
@@ -389,17 +413,10 @@ export const editableContentComponent: Component<{
                 label: "comment",
               },
               {
-                handler: withEditorContext(
-                  ({ container, contentDocument, linkedData, data, text }) =>
-                    saveAnnotation(
-                      container,
-                      { contentDocument, linkedData },
-                      text,
-                      createAnnotation(
-                        "something",
-                        quoteSelectorForSelection(container, text, data)
-                      )
-                    )
+                handler: withEditorContext(({ container, data, text }) =>
+                  sendComment({
+                    selector: quoteSelectorForSelection(container, text, data),
+                  })
                 ),
                 label: "highlight",
               },

@@ -1,6 +1,6 @@
 import { throwIfUndefined } from "../errors";
 
-import { OnCloseRegister } from "./types";
+import { Merge, OnCloseRegister, Processor } from "./types";
 import { equal } from "./utils/equal";
 
 export type Callback<T> = (value: T) => void;
@@ -38,6 +38,11 @@ export const closableMap = <T, S>(
     );
   };
 };
+
+export const pluck = <T extends object, K extends keyof T>(
+  key: K,
+  callback: Callback<T[K]>
+): Callback<T> => (v) => callback(v[key]);
 
 type StatefulMapper<V> = <T, S>(
   transform: (v: T, state: V) => S,
@@ -190,9 +195,38 @@ export const filterNonNull = <T>(
   if (v) callback(v);
 };
 
+export const filterNonNullProp = <T extends object, K extends keyof T>(
+  key: K,
+  callback: Callback<T & Required<Pick<T, K>>>
+): Callback<T> => (v) => {
+  if (v[key]) callback(v as T & Required<Pick<T, K>>);
+};
+
 export const withDefaultValue = <T>(
   defaultValue: T,
   callback: Callback<T>
 ): Callback<T | undefined | null> => (value) => {
   callback(value ?? defaultValue);
+};
+
+export const merge = <T, S>(
+  callback: (...args: [T, S]) => void,
+  initA?: T,
+  initB?: S
+): [Callback<T>, Callback<S>] => {
+  let stateA: T | undefined = initA;
+  let stateB: S | undefined = initB;
+  const tryPush = () =>
+    stateA && stateB ? callback(stateA, stateB) : undefined;
+  tryPush();
+  return [
+    (newStateA) => {
+      stateA = newStateA;
+      tryPush();
+    },
+    (newStateB) => {
+      stateB = newStateB;
+      tryPush();
+    },
+  ];
 };

@@ -33,8 +33,12 @@ import {
 } from "../../functions/store";
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { currentDocumentUriProvider } from "../../functions/url-hijack";
-import { Consumer, dataPortal, Provider } from "../../libs/connections";
-import { mapTo, withDefaultValue } from "../../libs/connections/processors2";
+import { Consumer, dataPortal, fork, Provider } from "../../libs/connections";
+import {
+  mapTo,
+  pluck,
+  withDefaultValue,
+} from "../../libs/connections/processors2";
 import { HashName, HashUri } from "../../libs/hash";
 import { measureAsyncTime } from "../../libs/performance";
 import { div, slot } from "../../libs/simple-ui/render";
@@ -44,6 +48,7 @@ import { fileDrop } from "../file-drop";
 import { fileNavigation } from "../navigation";
 import { searchBox } from "../navigation/search-box";
 import { profilePanel } from "../profile";
+import { filterState } from "../../libs/named-state";
 
 const initServices = async (): Promise<{
   contentFetcher: LinkedDataWithDocumentFetcher;
@@ -130,6 +135,7 @@ export const App = asyncLoader(
     >();
 
     const [uriProvider, updateUri] = dataPortal<string>();
+    const [userEmailProvider, setUserEmail] = dataPortal<string>();
     const [displayProvider, displayFileDrop] = dataPortal<boolean>();
     const [fileProvider, fileConsumer] = dataPortal<Blob>();
 
@@ -143,7 +149,16 @@ export const App = asyncLoader(
           { id: "navigation" },
           slot(
             "profile",
-            profilePanel({ gdriveStateConsumer, storeStateProvider })
+            profilePanel({
+              gdriveStateConsumer: fork(
+                gdriveStateConsumer,
+                filterState(
+                  "logged",
+                  pluck("user", pluck("emailAddress", setUserEmail))
+                )
+              ),
+              storeStateProvider,
+            })
           ),
           searchBox((url) => updateUri(url.toString())),
           slot(
@@ -161,6 +176,7 @@ export const App = asyncLoader(
             slot(
               "content",
               articleComponent({
+                userEmailProvider,
                 documentAnnotationsIndex,
                 contentFetcher,
                 storeWrite,

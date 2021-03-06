@@ -127,6 +127,7 @@ const createArticleView: ViewSetup<
   });
 
 export const articleComponent: Component<{
+  userEmailProvider: Provider<string>;
   documentAnnotationsIndex: DocumentAnnotationsIndex;
   contentFetcher: LinkedDataWithDocumentFetcher;
   onArticleLoaded?: (article: LinkedData) => void;
@@ -144,6 +145,7 @@ export const articleComponent: Component<{
   ldStoreRead,
   uriProvider,
   fileProvider,
+  userEmailProvider,
 }) => (render) => {
   const [dataProvider, onLoaded] = dataPortal<LinkedDataWithDocument>();
   const contentSlot = slot(
@@ -153,6 +155,7 @@ export const articleComponent: Component<{
       ldStoreWrite,
       ldStoreRead,
       documentAnnotationsIndex,
+      userEmailProvider,
       provider: dataProvider,
       onSave: (linkedData) => {
         onArticleLoaded?.(linkedData);

@@ -7,7 +7,6 @@ import {
   map,
   or,
   setupContext,
-  statefulMap,
 } from "../../libs/connections/processors2";
 import { newStateMapper } from "../../libs/named-state";
 import {
@@ -25,7 +24,7 @@ import {
   isKey,
 } from "../../libs/simple-ui/utils/funtions";
 
-import { Annotation, createAnnotation } from "./annotation";
+import { AnnotationCore } from "./annotation";
 import {
   Position,
   quoteSelectorForSelection,
@@ -187,7 +186,7 @@ export const commentForm2: Component<{
 
 export const commentForm: Component<{
   commentFormProvider: Provider<WithContainerContext<Range>>;
-  onCreatedComment: (c: Annotation) => void;
+  onCreatedComment: (c: AnnotationCore) => void;
 }> = ({ commentFormProvider, onCreatedComment }) => (render) => {
   const [withEditorContext, setEditor, resetEditor] = setupContext<
     HTMLElement
@@ -201,8 +200,8 @@ export const commentForm: Component<{
       }
       const { container, text, data: range } = data;
       const position = rangePositionRelative(range, container);
-      const quoteSelector = quoteSelectorForSelection(container, text, range);
-      const [remove] = renderTemporarySelector(container, text, quoteSelector);
+      const selector = quoteSelectorForSelection(container, text, range);
+      const [remove] = renderTemporarySelector(container, text, selector);
       onClose(remove);
 
       return commentFormView({
@@ -213,9 +212,10 @@ export const commentForm: Component<{
         },
         onSave: () => {
           withEditorContext((editor) => {
-            onCreatedComment(
-              createAnnotation("something", quoteSelector, editor.innerHTML)
-            );
+            onCreatedComment({
+              selector,
+              content: editor.innerHTML,
+            });
           });
           renderForm(undefined);
         },

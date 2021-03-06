@@ -1,4 +1,5 @@
 import { Consumer, Processor, reducer } from "./connections";
+import { Callback } from "./connections/processors2";
 
 export type NamedAction<N, T = void> = T extends void
   ? [name: N]
@@ -117,6 +118,15 @@ export const newStateMachineWithFeedback = <
   const handleAction = newStateMachine(initState, behaviours)(handleState);
   handleState(initState);
   return handleAction;
+};
+
+export const filterState = <S extends SomeState, K extends S[0]>(
+  stateName: K,
+  callback: Callback<StateByName<S, K>[1]>
+): Callback<S> => (state: S) => {
+  if (state[0] === stateName) {
+    callback(state[1]);
+  }
 };
 
 export type StateWithFeedback<S, A> = {
