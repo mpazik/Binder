@@ -42,7 +42,7 @@ const iconFileName =
 
 module.exports = {
   entry: {
-    main: "./src/index.tsx",
+    main: "./src/index.ts",
   },
   output: {
     filename: "[name].js",
@@ -55,7 +55,7 @@ module.exports = {
         use: ["style-loader", "css-loader"],
       },
       {
-        test: /\.ts(x?)$/,
+        test: /\.ts$/i,
         use: "ts-loader",
         exclude: /node_modules/,
       },
@@ -86,10 +86,15 @@ module.exports = {
     ),
   ],
   resolve: {
-    extensions: [".js", ".jsx", ".ts", ".tsx"],
+    extensions: [".js", ".ts", ".jsonld"],
   },
   target: "web",
   ...(process.env.NODE_ENV === "production" ? prodOverride : devOverride),
+  optimization: {
+    splitChunks: {
+      chunks: "all",
+    },
+  },
   devServer: {
     proxy: {
       "/proxy": {
