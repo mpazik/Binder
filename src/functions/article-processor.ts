@@ -36,6 +36,22 @@ const removeWrappers = (element: Element, parent: Element): Element => {
   return element;
 };
 
+const cleanElement = (node: Node) => {
+  for (let n = 0; n < node.childNodes.length; n++) {
+    const child = node.childNodes[n];
+    if (
+      child.nodeType === Node.COMMENT_NODE ||
+      (child.nodeType === Node.TEXT_NODE &&
+        !(child.nodeValue && /\S/.test(child.nodeValue)))
+    ) {
+      node.removeChild(child);
+      n--;
+    } else if (child.nodeType === Node.ELEMENT_NODE) {
+      cleanElement(child);
+    }
+  }
+};
+
 export const documentContentRoodId = "content";
 
 export const getDocumentContentRoot = (
@@ -89,8 +105,21 @@ export const processToArticle = async (
     articleMediaType
   );
 
+  const titleEl = contentDocument.createElement("title");
+  titleEl.appendChild(contentDocument.createTextNode(article.title));
+  contentDocument.head.appendChild(titleEl);
+
+  const metaEl = contentDocument.createElement("meta");
+  metaEl.setAttribute("charset", "UTF-8");
+  contentDocument.head.appendChild(metaEl);
+
+  const baseEl = contentDocument.createElement("base");
+  baseEl.setAttribute("href", url);
+  contentDocument.head.appendChild(baseEl);
+
   removeRootAndContentWrappers(contentDocument);
   removeBaseUrlFromFragments(contentDocument, url);
+  cleanElement(contentDocument.body);
 
   return {
     contentDocument,

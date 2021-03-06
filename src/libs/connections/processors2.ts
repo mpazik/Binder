@@ -57,7 +57,7 @@ export const statefulMap = <T>(
 export const setupContext = <T>(
   initialState?: T
 ): [
-  mapper: (consumer: (v: T) => void) => void,
+  setupHandler: (consumer: (v: T) => void) => void,
   set: Callback<T>,
   reset: () => void
 ] => {
