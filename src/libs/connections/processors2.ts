@@ -12,6 +12,12 @@ export const map = <T, S>(
   callback: Callback<S>
 ): Callback<T> => (v: T) => callback(transform(v));
 
+export const mapAwait = <T, S>(
+  transform: Mapper<T, Promise<S>>,
+  callback: Callback<S>,
+  onError: Callback<unknown>
+): Callback<T> => (v: T) => transform(v).then(callback).catch(onError);
+
 export const passUndefined = <T, S>(
   map: Mapper<T, S>
 ): Mapper<T | undefined, S | undefined> => (v) => (v ? map(v) : undefined);

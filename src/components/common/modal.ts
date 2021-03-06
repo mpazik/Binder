@@ -1,5 +1,6 @@
 import { Provider } from "../../libs/connections";
 import { Component, div, JsonHtml } from "../../libs/simple-ui/render";
+import { blanket } from "./blanket";
 
 type ModalViewState = {
   top: number;
@@ -23,16 +24,7 @@ const modalView = (
       },
       content ?? ""
     ),
-    div({
-      style: {
-        top: 0,
-        bottom: 0,
-        left: 0,
-        right: 0,
-        position: "fixed",
-      },
-      onClick: closeModal,
-    })
+    blanket({ onClick: closeModal })
   );
 
 export const modal: Component<{ provider: Provider<ModalState> }> = ({

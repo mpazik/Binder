@@ -34,12 +34,13 @@ import {
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { currentDocumentUriProvider } from "../../functions/url-hijack";
 import { Consumer, dataPortal, Provider } from "../../libs/connections";
-import { withDefaultValue } from "../../libs/connections/processors2";
+import { mapTo, withDefaultValue } from "../../libs/connections/processors2";
 import { HashName, HashUri } from "../../libs/hash";
 import { measureAsyncTime } from "../../libs/performance";
 import { div, slot } from "../../libs/simple-ui/render";
 import { articleComponent } from "../article";
 import { asyncLoader } from "../common/async-loader";
+import { fileDrop } from "../file-drop";
 import { fileNavigation } from "../navigation";
 import { searchBox } from "../navigation/search-box";
 import { profilePanel } from "../profile";
@@ -129,9 +130,15 @@ export const App = asyncLoader(
     >();
 
     const [uriProvider, updateUri] = dataPortal<string>();
+    const [displayProvider, displayFileDrop] = dataPortal<boolean>();
+    const [fileProvider, fileConsumer] = dataPortal<Blob>();
 
     render(
       div(
+        {
+          onDragenter: mapTo(true, displayFileDrop),
+        },
+        slot("file-drop", fileDrop({ fileConsumer, displayProvider })),
         div(
           { id: "navigation" },
           slot(
@@ -160,6 +167,7 @@ export const App = asyncLoader(
                 ldStoreWrite,
                 ldStoreRead,
                 uriProvider,
+                fileProvider,
                 onArticleLoaded: (linkedData) =>
                   selectItem(linkedData["@id"] as HashUri),
               })

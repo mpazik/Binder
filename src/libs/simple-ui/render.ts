@@ -1,7 +1,7 @@
 import { OnCloseRegister, Provider } from "../connections";
 
 import { SimplifiedElementsMap, SimplifiedEvent, SimplifiedEventMap } from "./dom";
-import { Attributes, JsonMl, mapJsonMl, newTagFactory } from "./jsonml";
+import { Attributes, JsonMl, mapJsonMl, newTagFactory, TagName, TagProps } from "./jsonml";
 
 // todo render should be independent from JsonML and accpet only raw dom
 // there could be another jsonMl (jsonHtml) render that act as a glue code
@@ -25,6 +25,8 @@ type CustomElements = {
 type Nodes = { [P in keyof SimplifiedElementsMap]: (SimplifiedElementsMap[P] & EventHandlers) } & CustomElements;
 
 export type JsonHtml = JsonMl<Nodes>;
+export type JsonHtmlProps = TagProps<Nodes>;
+export type JsonHtmlAttrs<T extends TagName<Nodes>> = Attributes<Nodes, T>;
 
 export type Renderer = (jsonml?: JsonHtml) => void;
 

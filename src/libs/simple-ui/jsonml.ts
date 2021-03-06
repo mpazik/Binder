@@ -11,11 +11,13 @@ export type JsonMl<N extends Nodes> =
   | [TagName<N>, ...JsonMl<N>[]]
   | string;
 
+export type TagProps<N extends Nodes> =
+  | [Attributes<N, TagName<N>>, ...JsonMl<N>[]]
+  | [...JsonMl<N>[]];
+
 export type JsonMlTagFactory = <N extends Nodes>(
   tag: TagName<N>
-) => (
-  ...props: [Attributes<N, TagName<N>>, ...JsonMl<N>[]] | [...JsonMl<N>[]]
-) => JsonMl<N>;
+) => (...props: TagProps<N>) => JsonMl<N>;
 
 export const newTagFactory: JsonMlTagFactory = <N extends Nodes>(
   tag: TagName<N>
@@ -30,10 +32,7 @@ export const mapJsonMl = <N extends Nodes, T>(
     return onString(jsonMl);
   }
 
-  const [tag, ...rest]: [
-    TagName<N>,
-    ...([Attributes<N, TagName<N>>, ...JsonMl<N>[]] | JsonMl<N>[])
-  ] = jsonMl;
+  const [tag, ...rest]: [TagName<N>, ...TagProps<N>] = jsonMl;
 
   let attrs: Attributes<N, typeof tag> = {};
 

@@ -80,30 +80,38 @@ export type LinkedDataWithDocument = {
   linkedData: LinkedData;
 };
 
-export const processToArticle = async (
-  response: Response,
-  url: string
+const processStringToArticle = async (
+  text: string,
+  url?: string
 ): Promise<LinkedDataWithDocument> => {
   const domParser = new DOMParser();
-  const text = await response.text();
   const dom = measureTime("parse", () =>
     domParser.parseFromString(text, articleMediaType)
   );
-  const base = dom.createElement("base");
-  base.href = url;
-  dom.head.appendChild(base);
+
+  if (url) {
+    const base = dom.createElement("base");
+    base.href = url;
+    dom.head.appendChild(base);
+  }
+
   const article = throwIfNull(
     measureTime("readability", () => new Readability(dom).parse())
   );
 
-  const articleLd = createArticle(url, article.title, articleMediaType, [
+  const articleLd = createArticle(
     url,
-  ]) as LinkedData;
+    article.title,
+    articleMediaType,
+    url ? [url] : []
+  ) as LinkedData;
 
   const contentDocument = domParser.parseFromString(
     article.content,
     articleMediaType
   );
+  removeRootAndContentWrappers(contentDocument);
+  cleanElement(contentDocument.body);
 
   const titleEl = contentDocument.createElement("title");
   titleEl.appendChild(contentDocument.createTextNode(article.title));
@@ -113,16 +121,38 @@ export const processToArticle = async (
   metaEl.setAttribute("charset", "UTF-8");
   contentDocument.head.appendChild(metaEl);
 
-  const baseEl = contentDocument.createElement("base");
-  baseEl.setAttribute("href", url);
-  contentDocument.head.appendChild(baseEl);
-
-  removeRootAndContentWrappers(contentDocument);
-  removeBaseUrlFromFragments(contentDocument, url);
-  cleanElement(contentDocument.body);
+  if (url) {
+    const baseEl = contentDocument.createElement("base");
+    baseEl.setAttribute("href", url);
+    contentDocument.head.appendChild(baseEl);
+    removeBaseUrlFromFragments(contentDocument, url);
+  }
 
   return {
     contentDocument,
     linkedData: articleLd,
   };
 };
+
+export const processFileToArticle = async (
+  file: Blob
+): Promise<LinkedDataWithDocument> => {
+  const reader = new FileReader();
+  const text = await new Promise<string>((resolve, reject) => {
+    reader.addEventListener("load", (event) => {
+      if (event.target && event.target.result) {
+        resolve(event.target.result as string);
+      } else {
+        reject("File was empty");
+      }
+    });
+    reader.readAsText(file);
+  });
+  return processStringToArticle(text);
+};
+
+export const processResponseToArticle = async (
+  response: Response,
+  url: string
+): Promise<LinkedDataWithDocument> =>
+  processStringToArticle(await response.text(), url);

@@ -1,13 +1,22 @@
 import { URL } from "schema-dts";
 
-import { LinkedDataWithDocument } from "../../functions/article-processor";
+import {
+  LinkedDataWithDocument,
+  processFileToArticle,
+} from "../../functions/article-processor";
+import { DocumentAnnotationsIndex } from "../../functions/indexes/document-annotations-index";
 import { LinkedDataWithDocumentFetcher } from "../../functions/linked-data-fetcher";
 import {
   LinkedDataStoreWrite,
   ResourceStoreWrite,
 } from "../../functions/store";
+import { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { Consumer, dataPortal, fork, Provider } from "../../libs/connections";
-import { closableForEach, map } from "../../libs/connections/processors2";
+import {
+  closableForEach,
+  map,
+  mapAwait,
+} from "../../libs/connections/processors2";
 import { LinkedData } from "../../libs/linked-data";
 import {
   handleState,
@@ -26,8 +35,6 @@ import {
 import { centerLoadingSlot } from "../common/center-loading-component";
 
 import { editableContentComponent } from "./content-view";
-import { DocumentAnnotationsIndex } from "../../functions/indexes/document-annotations-index";
-import { LinkedDataStoreRead } from "../../functions/store/local-store";
 
 type RetryAction = ["retry"];
 type ArticleViewAction =
@@ -78,6 +85,7 @@ const newArticleViewStateMachine = ({
             "loading",
             { existingArticle, newUrl: url },
           ],
+          display: (articleContent) => ["ready", articleContent],
         },
         loading: {
           display: (articleContent) => ["ready", articleContent],
@@ -108,18 +116,15 @@ const newArticleViewStateMachine = ({
 const createArticleView: ViewSetup<
   { contentSlot: JsonHtml },
   ArticleStateWithFeedback
-> = ({ contentSlot }) => ({ state }) => {
-  return mapState(state, {
+> = ({ contentSlot }) => ({ state }) =>
+  mapState(state, {
     idle: () => div(centerLoadingSlot()),
     initializing: () => div(centerLoadingSlot()),
     loading: () => div(centerLoadingSlot(), contentSlot),
     ready: () => div(contentSlot),
-    error: ({ reason }) => {
-      console.error(reason);
-      return div({ class: "flash mt-3 flash-error" }, span(reason));
-    },
+    error: ({ reason }) =>
+      div({ class: "flash mt-3 flash-error" }, span(reason)),
   });
-};
 
 export const articleComponent: Component<{
   documentAnnotationsIndex: DocumentAnnotationsIndex;
@@ -129,6 +134,7 @@ export const articleComponent: Component<{
   ldStoreWrite: LinkedDataStoreWrite;
   ldStoreRead: LinkedDataStoreRead;
   uriProvider: Provider<string | undefined | null>;
+  fileProvider: Provider<Blob>;
 }> = ({
   documentAnnotationsIndex,
   onArticleLoaded,
@@ -137,6 +143,7 @@ export const articleComponent: Component<{
   ldStoreWrite,
   ldStoreRead,
   uriProvider,
+  fileProvider,
 }) => (render) => {
   const [dataProvider, onLoaded] = dataPortal<LinkedDataWithDocument>();
   const contentSlot = slot(
@@ -169,5 +176,17 @@ export const articleComponent: Component<{
 
   uriProvider(
     map((uri) => ["load", uri] as ArticleViewAction, articleViewStateMachine)
+  );
+  fileProvider(
+    mapAwait(
+      processFileToArticle,
+      map(
+        (article) => ["display", article] as ArticleViewAction,
+        articleViewStateMachine
+      ),
+      (error) => {
+        console.error(error);
+      }
+    )
   );
 };

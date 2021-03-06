@@ -1,4 +1,3 @@
-import { throwIfNull } from "../../libs/errors";
 import { HashName } from "../../libs/hash";
 import {
   openSingleStoreDb,
@@ -8,10 +7,8 @@ import {
 } from "../../libs/indexeddb";
 import { findUrl, isTypeEqualTo } from "../../libs/linked-data";
 import { Opaque } from "../../libs/types";
-// import { createLinkedDataProvider } from "../linked-data-provider";
-// import { LocalStoreDb } from "../local-store";
 
-import { Index, Indexer, IndexingStrategy } from "./types";
+import { Index, Indexer } from "./types";
 
 export type Url = string;
 export type UrlQuery = { url: string };
@@ -36,14 +33,11 @@ export const createUrlIndex = (urlIndexDb: UrlIndexDb): UrlIndex => async ({
     hash ? [{ props: url, hash }] : []
   );
 
-const indexer: IndexingStrategy<Url> = (data) =>
-  Promise.resolve(throwIfNull(findUrl(data)));
-
 export const createUrlIndexer = (urlIndexDb: UrlIndexDb): Indexer => {
   return async (ld) => {
     if (!isTypeEqualTo(ld, "article")) return;
-    return indexer(ld)
-      .then((url) => storePut(urlIndexDb, ld["@id"], url))
-      .then(); // ignore storePut result
+    const url = findUrl(ld);
+    if (!url) return;
+    return storePut(urlIndexDb, ld["@id"], url).then(); // ignore storePut result
   };
 };

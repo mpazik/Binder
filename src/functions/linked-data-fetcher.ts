@@ -6,7 +6,7 @@ import { measureAsyncTime } from "../libs/performance";
 import {
   LinkedDataWithDocument,
   parseArticleContent,
-  processToArticle,
+  processResponseToArticle,
 } from "./article-processor";
 import { Fetch } from "./fetch-trough-proxy";
 import { LinkedDataStoreRead, ResourceStoreRead } from "./store/local-store";
@@ -64,6 +64,6 @@ export const createLinkedDataWithDocumentFetcher = (
     const response = await fetchTroughProxy(url, {
       signal,
     });
-    return processToArticle(response, url);
+    return processResponseToArticle(response, url);
   };
 };
