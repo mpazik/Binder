@@ -34,12 +34,9 @@ import {
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { currentDocumentUriProvider } from "../../functions/url-hijack";
 import { Consumer, dataPortal, fork, Provider } from "../../libs/connections";
-import {
-  mapTo,
-  pluck,
-  withDefaultValue,
-} from "../../libs/connections/processors2";
+import { mapTo, pluck } from "../../libs/connections/processors2";
 import { HashName, HashUri } from "../../libs/hash";
+import { filterState } from "../../libs/named-state";
 import { measureAsyncTime } from "../../libs/performance";
 import { div, slot } from "../../libs/simple-ui/render";
 import { articleComponent } from "../article";
@@ -48,7 +45,6 @@ import { fileDrop } from "../file-drop";
 import { fileNavigation } from "../navigation";
 import { searchBox } from "../navigation/search-box";
 import { profilePanel } from "../profile";
-import { filterState } from "../../libs/named-state";
 
 const initServices = async (): Promise<{
   contentFetcher: LinkedDataWithDocumentFetcher;

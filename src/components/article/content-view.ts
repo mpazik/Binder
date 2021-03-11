@@ -179,7 +179,7 @@ export const editableContentComponent: Component<{
   ldStoreRead: LinkedDataStoreRead;
   onSave: Consumer<LinkedDataWithHashId>;
   documentAnnotationsIndex: DocumentAnnotationsIndex;
-  userEmailProvider: Provider<string>;
+  creatorProvider: Provider<string>;
 }> = ({
   provider,
   storeWrite,
@@ -187,7 +187,7 @@ export const editableContentComponent: Component<{
   ldStoreRead,
   onSave,
   documentAnnotationsIndex,
-  userEmailProvider,
+  creatorProvider,
 }) => (render) => {
   const [modalStateProvider, modalStateConsumer] = dataPortal<ModalState>();
 
@@ -362,7 +362,7 @@ export const editableContentComponent: Component<{
     undefined,
     "" // hack to not block if user is not logged in
   );
-  userEmailProvider(setCreator);
+  creatorProvider(setCreator);
 
   render(
     div(

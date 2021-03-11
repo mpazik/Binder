@@ -16,6 +16,7 @@ import {
   closableForEach,
   map,
   mapAwait,
+  merge,
 } from "../../libs/connections/processors2";
 import { LinkedData } from "../../libs/linked-data";
 import {
@@ -148,6 +149,17 @@ export const articleComponent: Component<{
   userEmailProvider,
 }) => (render) => {
   const [dataProvider, onLoaded] = dataPortal<LinkedDataWithDocument>();
+
+  const [creatorProvider, setCreator] = dataPortal<string>();
+  const [setUser, setState] = merge(
+    (user: string, { state }: ArticleStateWithFeedback) => {
+      if (state[0] in ["loading", "ready"]) {
+        setCreator(user);
+      }
+    }
+  );
+  userEmailProvider(setUser);
+
   const contentSlot = slot(
     "content-blah",
     editableContentComponent({
@@ -155,7 +167,7 @@ export const articleComponent: Component<{
       ldStoreWrite,
       ldStoreRead,
       documentAnnotationsIndex,
-      userEmailProvider,
+      creatorProvider,
       provider: dataProvider,
       onSave: (linkedData) => {
         onArticleLoaded?.(linkedData);
@@ -175,7 +187,7 @@ export const articleComponent: Component<{
 
   const articleViewStateMachine = newArticleViewStateMachine({
     contentFetcher,
-  })(fork(renderState, onLoadedParentHandler));
+  })(fork(renderState, onLoadedParentHandler, setState));
 
   uriProvider(
     map((uri) => ["load", uri] as ArticleViewAction, articleViewStateMachine)
