@@ -117,8 +117,8 @@ export const contentDisplayComponent: Component<{
   onDisplay: Consumer<HTMLElement>;
   onChange: Consumer<DocumentChange[]>;
   onSelect: Consumer<Range | undefined>;
-}> = ({ provider, onDisplay, onChange, onSelect }) => (render) => {
-  provider(({ content, editable }) => {
+}> = ({ provider, onDisplay, onChange, onSelect }) => (render, onClose) => {
+  provider(onClose, ({ content, editable }) => {
     const contentRoot = getDocumentContentRoot(content);
     render(
       article({
@@ -188,7 +188,7 @@ export const editableContentComponent: Component<{
   onSave,
   documentAnnotationsIndex,
   creatorProvider,
-}) => (render) => {
+}) => (render, onClose) => {
   const [modalStateProvider, modalStateConsumer] = dataPortal<ModalState>();
 
   const articleSaver = createArticleSaver(storeWrite, ldStoreWrite);
@@ -331,6 +331,7 @@ export const editableContentComponent: Component<{
   }>();
 
   provider(
+    onClose,
     fork(
       map(({ linkedData }) => linkedData, linkedDataForFields),
       map(
@@ -362,13 +363,15 @@ export const editableContentComponent: Component<{
     undefined,
     "" // hack to not block if user is not logged in
   );
-  creatorProvider(setCreator);
+  creatorProvider(onClose, setCreator);
 
   render(
     div(
       { id: "content", class: "ml-4" },
       slot("content-fields", (render) => {
-        fieldsProvider((linkedData) => render(contentHeaderView(linkedData)));
+        fieldsProvider(onClose, (linkedData) =>
+          render(contentHeaderView(linkedData))
+        );
       }),
       div(
         { id: "editor", class: "mb-3 position-relative" },

@@ -45,18 +45,18 @@ import { fileDrop } from "../file-drop";
 import { fileNavigation } from "../navigation";
 import { searchBox } from "../navigation/search-box";
 import { profilePanel } from "../profile";
+import { CloseHandler } from "../../libs/connections/types";
 
 const initServices = async (): Promise<{
   contentFetcher: LinkedDataWithDocumentFetcher;
   directoryIndex: DirectoryIndex;
   documentAnnotationsIndex: DocumentAnnotationsIndex;
-  gdriveStateConsumer: Consumer<GDriveState>;
+  onGDriveState: Consumer<GDriveState>;
   storeStateProvider: Provider<StoreState>;
   storeWrite: ResourceStoreWrite;
   ldStoreWrite: LinkedDataStoreWrite;
   ldStoreRead: LinkedDataStoreRead;
 }> => {
-  const [gdriveStateProvider, gdriveStateConsumer] = dataPortal<GDriveState>();
   const fetchTroughProxy = createProxyFetch();
   const [
     urlIndexDb,
@@ -87,7 +87,6 @@ const initServices = async (): Promise<{
   ]);
 
   const store = await createStore(indexLinkedData);
-  gdriveStateProvider((state) => store.updateGdriveState(state));
 
   const getHash = async (uri: string): Promise<HashName | undefined> => {
     const result = await urlIndex({ url: uri });
@@ -105,7 +104,7 @@ const initServices = async (): Promise<{
   return {
     contentFetcher,
     directoryIndex,
-    gdriveStateConsumer,
+    onGDriveState: (state) => store.updateGdriveState(state),
     documentAnnotationsIndex,
     storeStateProvider: store.storeStateProvider,
     storeWrite: store.writeResource,
@@ -115,12 +114,12 @@ const initServices = async (): Promise<{
 };
 
 export const App = asyncLoader(
-  measureAsyncTime("init", initServices),
+  measureAsyncTime("init", () => initServices()),
   ({
     contentFetcher,
     directoryIndex,
     documentAnnotationsIndex,
-    gdriveStateConsumer,
+    onGDriveState,
     storeStateProvider,
     storeWrite,
     ldStoreWrite,
@@ -148,7 +147,7 @@ export const App = asyncLoader(
             "profile",
             profilePanel({
               gdriveStateConsumer: fork(
-                gdriveStateConsumer,
+                onGDriveState,
                 filterState(
                   "logged",
                   pluck("user", pluck("emailAddress", setUserEmail))

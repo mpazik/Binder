@@ -1,6 +1,6 @@
-import { ClosableProvider } from "./connections";
+import { Provider } from "./connections";
 
-export const urlHashProvider: ClosableProvider<string> = (onClose, push) => {
+export const urlHashProvider: Provider<string> = (onClose, push) => {
   const update = () => {
     const hash = location.hash;
     push(hash);
@@ -12,7 +12,7 @@ export const urlHashProvider: ClosableProvider<string> = (onClose, push) => {
   });
 };
 
-export const queryParamProvider: ClosableProvider<URLSearchParams> = (
+export const queryParamProvider: Provider<URLSearchParams> = (
   onClose,
   push
 ) => {

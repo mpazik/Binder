@@ -25,7 +25,10 @@ const item: Component<{
   removed: Consumer<ItemId>;
   clicked: Consumer<ItemId>;
   itemProvider: ItemProvider<Item, ItemId>;
-}> = ({ itemProvider: { id, provider }, removed, clicked }) => (render) => {
+}> = ({ itemProvider: { id, provider }, removed, clicked }) => (
+  render,
+  onClose
+) => {
   const renderView = (item?: Item) =>
     render(
       div(
@@ -48,7 +51,7 @@ const item: Component<{
     );
 
   renderView();
-  provider(renderView);
+  provider(onClose, renderView);
 };
 
 const mainView: ViewSetup<
@@ -87,7 +90,7 @@ const newIdGenerator = (): (() => ItemId) => {
   };
 };
 
-const main: Component = () => (render) => {
+const main: Component = () => (render, onClose) => {
   const [listUpdatesProvider, updateList] = dataPortal<
     EntityListChange<ItemProvider<Item, ItemId>, ItemId>
   >();
@@ -117,6 +120,7 @@ const main: Component = () => (render) => {
   });
 
   listUpdatesProvider(
+    onClose,
     reducer(
       [],
       entityListChanger<ItemProvider<Item, ItemId>, ItemId>(

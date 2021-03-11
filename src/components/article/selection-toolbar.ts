@@ -79,7 +79,7 @@ export const selectionToolbarView: View<{
 export const selectionToolbar: Component<{
   rangeProvider: Provider<WithContainerContext<Range> | undefined>;
   buttons: Button[];
-}> = ({ rangeProvider, buttons }) => (render) => {
+}> = ({ rangeProvider, buttons }) => (render, onClose) => {
   const renderState = map((data: WithContainerContext<Range> | undefined) => {
     if (!data) return;
     const { data: range, container } = data;
@@ -102,5 +102,5 @@ export const selectionToolbar: Component<{
     "mouseup",
     filter(not(selectionExists), mapTo(undefined, selectionHandler))
   );
-  rangeProvider(selectionHandler);
+  rangeProvider(onClose, selectionHandler);
 };

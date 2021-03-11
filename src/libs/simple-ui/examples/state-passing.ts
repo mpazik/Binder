@@ -22,12 +22,12 @@ const createIncreaseState = (consume: (state: number) => void) => {
 
 const subComponent: Component<{ numberProvider: Provider<number> }> = ({
   numberProvider,
-}) => (render) => {
+}) => (render, onClose) => {
   const renderView = (num: number) => {
     render(div(h3("sub-component"), span(`Value: ${num}`)));
   };
   renderView(42);
-  numberProvider(renderView);
+  numberProvider(onClose, renderView);
 };
 
 const MainView: ViewSetup<

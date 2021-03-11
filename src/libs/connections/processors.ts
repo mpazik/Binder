@@ -44,40 +44,11 @@ export const fork = <T>(...consumers: Consumer<T>[]): Consumer<T> => (data) => {
   consumers.forEach((push) => push(data));
 };
 
-export const multiProvider = <T>(provider: Provider<T>): Provider<T> => {
-  const consumers: Consumer<T>[] = [];
-
-  return (consumer) => {
-    consumers.push(consumer);
-    if (consumers.length === 1) {
-      provider((data) => {
-        consumers.forEach((push) => push(data));
-      });
-    }
-  };
-};
-
 export const forkMapJoin = <T, S>(
   map1: (v: T) => Partial<S>,
   map2: (v: T) => Partial<S>
 ): Processor<T, S> =>
   map<T, S>((v) => Object.assign({}, map1(v), map2(v)) as S);
-
-export const join = <T>(
-  providerA: Provider<T>,
-  providerB: Provider<T>
-): Provider<T> => (push: Consumer<T>) => {
-  providerA(push);
-  providerB(push);
-};
-
-export const withInitValue = <T>(
-  provider: Provider<T>,
-  init: T
-): Provider<T> => (push: Consumer<T>) => {
-  push(init);
-  provider(push);
-};
 
 export const split = <T>(
   predicate: (v: T) => boolean,
@@ -173,8 +144,6 @@ export const wrapMerge = <K1 extends keyof any, K2 extends keyof any>(
       initB !== undefined ? wrap(key2)<T2>()(initB) : undefined
     )(push)
   );
-
-export const kicker = <T>(value: T): Provider<T> => (push) => push(value);
 
 export const pipe = <T, S, U>(map1: (v: T) => S, map2: (v: S) => U) => (
   v: T

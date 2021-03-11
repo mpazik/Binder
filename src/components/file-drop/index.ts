@@ -6,7 +6,7 @@ import { blanket } from "../common/blanket";
 export const fileDrop: Component<{
   fileConsumer: Consumer<Blob>;
   displayProvider: Provider<boolean>;
-}> = ({ fileConsumer, displayProvider }) => (render) => {
+}> = ({ fileConsumer, displayProvider }) => (render, onClose) => {
   const handleFile = (e: DragEvent) => {
     if (!e.dataTransfer || e.dataTransfer.items.length === 0) {
       console.warn("There was no file attached");
@@ -73,5 +73,5 @@ export const fileDrop: Component<{
       })
     );
   }, render);
-  displayProvider(handleDisplay);
+  displayProvider(onClose, handleDisplay);
 };

@@ -27,12 +27,12 @@ const fileNavigationList: View<{
 export const fileNavigation: Component<{
   selectedItemProvider: Provider<HashUri | undefined>;
   directoryIndex: DirectoryIndex;
-}> = ({ directoryIndex, selectedItemProvider }) => (render) => {
+}> = ({ directoryIndex, selectedItemProvider }) => (render, onClose) => {
   const renderNavigation = (current?: HashUri) => {
     directoryIndex({}).then((list) =>
       render(fileNavigationList({ list, current }))
     );
   };
-  selectedItemProvider(renderNavigation);
+  selectedItemProvider(onClose, renderNavigation);
   renderNavigation();
 };

@@ -139,7 +139,7 @@ const profileContainer = (viewDom: JsonHtml) =>
 export const profilePanel: Component<{
   gdriveStateConsumer: Consumer<GDriveState>;
   storeStateProvider: Provider<StoreState>;
-}> = ({ gdriveStateConsumer, storeStateProvider }) => (render) => {
+}> = ({ gdriveStateConsumer, storeStateProvider }) => (render, onClose) => {
   const renderInContainer = (view: JsonHtml) => render(profileContainer(view));
 
   const [gdriveStateForProfile, storeStateForProfile] = merge<
@@ -171,6 +171,6 @@ export const profilePanel: Component<{
   );
 
   const setAction = gdrive(fork(gdriveStateForProfile, gdriveStateConsumer));
-  storeStateProvider(storeStateForProfile);
+  storeStateProvider(onClose, storeStateForProfile);
   renderInContainer(div());
 };

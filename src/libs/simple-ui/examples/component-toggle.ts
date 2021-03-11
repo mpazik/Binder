@@ -73,7 +73,7 @@ const timer: Component<{ start: Provider<number>; init: number }> = ({
       consumer: (n) => render(timerView({ n })),
     });
   };
-  start(startTimer);
+  start(onClose, startTimer);
   startTimer(init);
 };
 

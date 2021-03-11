@@ -1,6 +1,6 @@
-import { ClosableProvider } from "../libs/connections";
+import { Provider } from "../libs/connections";
 
-export const urlHashProvider: ClosableProvider<string> = (onClose, push) => {
+export const urlHashProvider: Provider<string> = (onClose, push) => {
   const update = () => {
     const hash = location.hash;
     push(hash);

@@ -47,7 +47,7 @@ const changeIndicator: View<{
 export const changesIndicatorBar: Component<{
   changesProvider: Provider<DocumentChange[] | undefined>;
   onDiffBarClick: Consumer<DocumentChange>;
-}> = ({ changesProvider, onDiffBarClick }) => (render) => {
+}> = ({ changesProvider, onDiffBarClick }) => (render, onClose) => {
   const renderGutter = (changes: DocumentChange[]) =>
     render(
       div(
@@ -61,7 +61,7 @@ export const changesIndicatorBar: Component<{
         )
       )
     );
-  changesProvider((changes) =>
+  changesProvider(onClose, (changes) =>
     changes ? renderGutter(changes) : render(undefined)
   );
 };

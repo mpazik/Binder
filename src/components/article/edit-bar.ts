@@ -72,6 +72,6 @@ const editBarView: OptionalView<EditBarState> = newStateOptionalMapper({
 
 export const editBar: Component<{
   provider: Provider<EditBarState>;
-}> = ({ provider }) => (render) => {
-  provider(map(editBarView, render));
+}> = ({ provider }) => (render, onClose) => {
+  provider(onClose, map(editBarView, render));
 };

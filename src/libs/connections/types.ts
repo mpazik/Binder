@@ -1,14 +1,9 @@
 export type Consumer<T> = (value: T) => void;
 export type CloseHandler = () => void;
 export type OnCloseRegister = (handler: CloseHandler) => void;
-export type Provider<T> = (push: Consumer<T>) => void;
+export type Provider<T> = (onClose: OnCloseRegister, push: Consumer<T>) => void;
 
-export type ClosableProvider<T> = (
-  onClose: OnCloseRegister,
-  push: Consumer<T>
-) => void;
-
-export type ProviderSetup<C, T> = (config: C) => ClosableProvider<T>;
+export type ProviderSetup<C, T> = (config: C) => Provider<T>;
 
 export type Processor<T, S> = (push: Consumer<S>) => Consumer<T>;
 export type Merge<T, S, W> = (push: Consumer<W>) => [Consumer<T>, Consumer<S>];

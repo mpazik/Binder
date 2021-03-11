@@ -147,7 +147,7 @@ export const articleComponent: Component<{
   uriProvider,
   fileProvider,
   userEmailProvider,
-}) => (render) => {
+}) => (render, onClose) => {
   const [dataProvider, onLoaded] = dataPortal<LinkedDataWithDocument>();
 
   const [creatorProvider, setCreator] = dataPortal<string>();
@@ -158,7 +158,7 @@ export const articleComponent: Component<{
       }
     }
   );
-  userEmailProvider(setUser);
+  userEmailProvider(onClose, setUser);
 
   const contentSlot = slot(
     "content-blah",
@@ -190,9 +190,11 @@ export const articleComponent: Component<{
   })(fork(renderState, onLoadedParentHandler, setState));
 
   uriProvider(
+    onClose,
     map((uri) => ["load", uri] as ArticleViewAction, articleViewStateMachine)
   );
   fileProvider(
+    onClose,
     mapAwait(
       processFileToArticle,
       map(

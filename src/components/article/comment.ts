@@ -68,7 +68,7 @@ export type CommentDisplayState =
 
 export const commentDisplay: Component<{
   commentProvider: Provider<CommentDisplayState>;
-}> = ({ commentProvider }) => (render) => {
+}> = ({ commentProvider }) => (render, onClose) => {
   const renderPopup = map(
     newStateMapper<CommentDisplayState, JsonHtml | undefined>({
       visible: (state) => {
@@ -91,7 +91,7 @@ export const commentDisplay: Component<{
     render
   );
   const handleData = delayedState(["hidden"], 200, renderPopup);
-  commentProvider(handleData);
+  commentProvider(onClose, handleData);
 };
 
 const commentFormView: View<{
@@ -152,7 +152,7 @@ export type CommentFormState = ["hidden"] | ["visible", { position: Position }];
 export const commentForm2: Component<{
   commentFormProvider: Provider<CommentFormState>;
   onCreatedComment: (comment: string) => void;
-}> = ({ commentFormProvider, onCreatedComment }) => (render) => {
+}> = ({ commentFormProvider, onCreatedComment }) => (render, onClose) => {
   const [withEditorContext, setEditor, resetEditor] = setupContext<
     HTMLElement
   >();
@@ -177,6 +177,7 @@ export const commentForm2: Component<{
   );
 
   commentFormProvider(
+    onClose,
     fork(
       renderForm,
       filter<CommentFormState>(([name]) => name === "hidden", resetEditor)
@@ -187,7 +188,7 @@ export const commentForm2: Component<{
 export const commentForm: Component<{
   commentFormProvider: Provider<WithContainerContext<Range>>;
   onCreatedComment: (c: AnnotationCore) => void;
-}> = ({ commentFormProvider, onCreatedComment }) => (render) => {
+}> = ({ commentFormProvider, onCreatedComment }) => (render, onClose) => {
   const [withEditorContext, setEditor, resetEditor] = setupContext<
     HTMLElement
   >();
@@ -224,5 +225,5 @@ export const commentForm: Component<{
     render
   );
 
-  commentFormProvider(renderForm);
+  commentFormProvider(onClose, renderForm);
 };

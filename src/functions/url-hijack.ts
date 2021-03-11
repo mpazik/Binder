@@ -1,10 +1,5 @@
 import { queryParamProvider } from "../libs/browser-providers";
-import {
-  ClosableProvider,
-  fork,
-  Provider,
-  ProviderSetup,
-} from "../libs/connections";
+import { fork, Provider, ProviderSetup } from "../libs/connections";
 import { map } from "../libs/connections/processors2";
 
 const linkHijack: ProviderSetup<{ element?: Node }, string> = ({
@@ -41,9 +36,9 @@ export const currentDocumentUriProvider = ({
 }: {
   extraProvider: Provider<string>;
   defaultUri: string;
-}): ClosableProvider<string> => (onClose, push) => {
+}): Provider<string> => (onClose, push) => {
   const pushUrl = fork(updateBrowserHistory, push);
-  extraProvider(pushUrl);
+  extraProvider(onClose, pushUrl);
   linkHijack({})(onClose, pushUrl);
   queryParamProvider(
     onClose,

@@ -255,7 +255,10 @@ export const createStore = async (indexLinkedData: Indexer): Promise<Index> => {
         })
       );
     },
-    storeStateProvider: (consumer) => {
+    storeStateProvider: (onClose, consumer) => {
+      onClose(() => {
+        stateConsumer = undefined;
+      });
       stateConsumer = consumer;
     },
   };

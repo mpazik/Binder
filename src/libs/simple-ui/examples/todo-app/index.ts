@@ -126,7 +126,7 @@ const TodoItemComponent: ComponentItem<
   const startEditing = mapTo(true)(editing);
 
   const newTodoNameOut = fork(stopEditing, map(newTodoName(id))(edited));
-  itemProvider(todo);
+  itemProvider(onClose, todo);
 
   const renderView = TodoItemView({
     onToggle: mapTo(id)(toggled),
@@ -169,7 +169,7 @@ const TodoListView: ViewSetup<
 const TodoList: Component<{
   showingTodos: Provider<Todo[]>;
   changeTodo: Consumer<TodoChange>;
-}> = ({ showingTodos, changeTodo }) => (render) => {
+}> = ({ showingTodos, changeTodo }) => (render, onClose) => {
   const renderList = TodoListView({
     destroyed: map((it: TodoId): TodoChange => ["del", it])(changeTodo),
     toggled: map(
@@ -179,6 +179,7 @@ const TodoList: Component<{
   });
 
   showingTodos(
+    onClose,
     itemsReconciliation<Todo, TodoId>(getTodoId)(
       map(pipe(wrap("list")(), renderList))(render)
     )
@@ -219,7 +220,7 @@ const FooterView: View<{
 const Footer: Component<{
   activeItemsCount: Provider<number>;
   todoFilter: Provider<TodoFilter>;
-}> = ({ activeItemsCount, todoFilter }) => (render) => {
+}> = ({ activeItemsCount, todoFilter }) => (render, onClose) => {
   const combine = combineLatest(
     {
       todoFilter: "all" as TodoFilter,
@@ -229,12 +230,13 @@ const Footer: Component<{
   )(map(FooterView)(render));
 
   activeItemsCount(
+    onClose,
     forkMapJoin<number, { count: number; activeTodoWord: string }>(
       pipe(pluralize("item"), wrap("activeTodoWord")()),
       wrap("count")()
     )(combine)
   );
-  todoFilter(map(wrap("todoFilter")<TodoFilter>())(combine));
+  todoFilter(onClose, map(wrap("todoFilter")<TodoFilter>())(combine));
 };
 
 const AppView: ViewSetup<{

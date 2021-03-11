@@ -3,7 +3,6 @@ export type {
   Consumer,
   Provider,
   Processor,
-  ClosableProvider,
   ProviderSetup,
   OnCloseRegister,
 } from "./types";
@@ -27,7 +26,10 @@ export const dataPortal = <T>(): [
 ] => {
   let consumer: ((value: T) => void) | undefined;
   return [
-    (c) => {
+    (onClose, c) => {
+      onClose(() => {
+        consumer = undefined;
+      });
       if (consumer) {
         throw new Error(
           "Data portal provider can not be subscribed multiple times"
