@@ -19,7 +19,7 @@ export const createFile = async (
   authToken: GoogleAuthToken,
   metadata: Metadata,
   file?: Blob
-): Promise<GDriveFile> => {
+): Promise<GDriveFileId> => {
   const form = new FormData();
   form.append(
     "metadata",
@@ -52,7 +52,7 @@ export const createDir = (
     name,
     mimeType: DIR_MIME_TYPE,
     ...(parent ? { parents: [parent] } : {}),
-  }).then((it) => it.fileId);
+  });
 
 export const getFileContent = (
   authToken: string,
@@ -84,12 +84,14 @@ export const findFiles = async (
       headers: new Headers({ Authorization: "Bearer " + authToken }),
     }
   ).then((it) => it.json())) as {
-    files: { id: GDriveFileId; appProperties: { hashLink: HashUri } }[];
+    files: { id: GDriveFileId; appProperties?: { hashLink: HashUri } }[];
   };
-  return data.files.map((it) => ({
-    fileId: it.id,
-    hashUri: it.appProperties.hashLink,
-  }));
+  return data.files
+    .filter((it) => Boolean(it.appProperties?.hashLink))
+    .map((it) => ({
+      fileId: it.id,
+      hashUri: it.appProperties!.hashLink,
+    }));
 };
 
 export const findFileIds = async (
@@ -218,33 +220,19 @@ export const findOrCreateFileByHash = async (
   if (file) {
     return file;
   }
-  return createFile(
-    token,
-    {
-      name: getFileName(hash, blob.type, name),
-      mimeType: blob.type,
-      parents: [parent],
-      appProperties: { hashLink: hash },
-    },
-    blob
-  );
-};
-
-export const findOrCreateFileByName = async (
-  authToken: GoogleAuthToken,
-  name: string,
-  mimeType: string,
-  parent?: GDriveFileId
-): Promise<GDriveFile> => {
-  const files = await findByName(authToken, name, parent);
-  if (files.length > 0) {
-    return files[0];
-  }
-  return createFile(authToken, {
-    name: name,
-    mimeType: mimeType,
-    parents: parent ? [parent] : [],
-  });
+  return {
+    fileId: await createFile(
+      token,
+      {
+        name: getFileName(hash, blob.type, name),
+        mimeType: blob.type,
+        parents: [parent],
+        appProperties: { hashLink: hash },
+      },
+      blob
+    ),
+    hashUri: hash,
+  };
 };
 
 export const updateFile = async (
