@@ -1,8 +1,10 @@
-import { passOnlyChanged, Provider, wrap } from "../../libs/connections";
+import { fork, passOnlyChanged, Provider } from "../../libs/connections";
 import { filter, map, mapTo, not } from "../../libs/connections/processors2";
-import { button, Component, div, View } from "../../libs/simple-ui/render";
+import { b, button, Component, div, View } from "../../libs/simple-ui/render";
+import { isKey } from "../../libs/simple-ui/utils/funtions";
 
 import { WithContainerContext } from "./comment";
+
 export const currentSelection = (): Range | undefined => {
   const selection = window.getSelection();
   if (!selection || selection.type !== "Range") return;
@@ -46,6 +48,14 @@ export const rangePositionRelative = (
 export type Button = {
   handler: (range: Range) => void;
   label: string;
+  shortCutKey?: string;
+};
+
+const keyCodeToKeyName = (keyCode: string) => {
+  if (keyCode.startsWith("Key")) {
+    return keyCode.substring(3);
+  }
+  return keyCode;
 };
 
 export const selectionToolbarView: View<{
@@ -63,13 +73,14 @@ export const selectionToolbarView: View<{
         class:
           "Popover-message Popover-message--bottom BtnGroup box-shadow-large width-auto d-flex",
       },
-      ...buttons.map(({ handler, label }) =>
+      ...buttons.map(({ handler, label, shortCutKey }) =>
         button(
           {
             class: `BtnGroup-item btn btn-sm`,
             type: "button",
             onClick: handler,
           },
+          ...(shortCutKey ? ["[", b(keyCodeToKeyName(shortCutKey)), "] "] : []),
           label
         )
       )
@@ -97,10 +108,42 @@ export const selectionToolbar: Component<{
     });
   }, render);
 
-  const selectionHandler = passOnlyChanged(renderState);
-  document.addEventListener(
-    "mouseup",
-    filter(not(selectionExists), mapTo(undefined, selectionHandler))
+  let lastButtonHandlers: ((e: KeyboardEvent) => void)[] = [];
+
+  const registerButtonHandler = (
+    data: WithContainerContext<Range> | undefined
+  ) => {
+    lastButtonHandlers.forEach((handler) =>
+      document.removeEventListener("keydown", handler)
+    );
+    lastButtonHandlers = [];
+
+    if (data) {
+      const { data: range } = data;
+      lastButtonHandlers = buttons
+        .filter((it) => Boolean(it.shortCutKey))
+        .map(({ shortCutKey, handler }) =>
+          filter(
+            isKey(shortCutKey!),
+            fork(() => handler(range), mapTo(undefined, selectionHandler))
+          )
+        );
+      lastButtonHandlers.forEach((handler) =>
+        document.addEventListener("keydown", handler)
+      );
+    }
+  };
+
+  const selectionHandler = passOnlyChanged(
+    fork(renderState, registerButtonHandler)
   );
+  const mouseUpHandler = filter(
+    not(selectionExists),
+    mapTo(undefined, selectionHandler)
+  );
+  document.addEventListener("mouseup", mouseUpHandler);
+  onClose(() => {
+    document.removeEventListener("mouseup", mouseUpHandler);
+  });
   rangeProvider(onClose, selectionHandler);
 };

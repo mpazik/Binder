@@ -217,7 +217,9 @@ export const merge = <T, S>(
   let stateA: T | undefined = initA;
   let stateB: S | undefined = initB;
   const tryPush = () =>
-    stateA && stateB ? callback(stateA, stateB) : undefined;
+    stateA !== undefined && stateB !== undefined
+      ? callback(stateA, stateB)
+      : undefined;
   tryPush();
   return [
     (newStateA) => {

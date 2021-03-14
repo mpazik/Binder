@@ -153,7 +153,7 @@ export const articleComponent: Component<{
   const [creatorProvider, setCreator] = dataPortal<string>();
   const [setUser, setState] = merge(
     (user: string, { state }: ArticleStateWithFeedback) => {
-      if (state[0] in ["loading", "ready"]) {
+      if (["loading", "ready"].includes(state[0])) {
         setCreator(user);
       }
     }

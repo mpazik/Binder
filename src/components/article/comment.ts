@@ -122,9 +122,9 @@ const commentFormView: View<{
           class: "form-control p-1",
           style: { "min-height": "80px", width: "200px" },
           contenteditable: true,
-          onKeydown: filter(
-            and(isKey("Enter"), or(hasMetaKey, hasCtrlKey)),
-            onSave
+          onKeydown: fork(
+            filter(and(isKey("Enter"), or(hasMetaKey, hasCtrlKey)), onSave),
+            filter(isKey("Escape"), onCancel)
           ),
           onDisplay: map(getTarget, fork(focusElement, onDisplay)),
         })

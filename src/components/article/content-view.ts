@@ -414,6 +414,7 @@ export const editableContentComponent: Component<{
               {
                 handler: withEditorContext(displayCommentForm),
                 label: "comment",
+                shortCutKey: "KeyC",
               },
               {
                 handler: withEditorContext(({ container, data, text }) =>
@@ -422,6 +423,7 @@ export const editableContentComponent: Component<{
                   })
                 ),
                 label: "highlight",
+                shortCutKey: "KeyG",
               },
             ],
           })
