@@ -1,6 +1,6 @@
 import { throwIfUndefined } from "../errors";
 
-import { Merge, OnCloseRegister, Processor } from "./types";
+import { OnCloseRegister } from "./types";
 import { equal } from "./utils/equal";
 
 export type Callback<T> = (value: T) => void;
@@ -18,7 +18,7 @@ export const mapAwait = <T, S>(
   onError: Callback<unknown>
 ): Callback<T> => (v: T) => transform(v).then(callback).catch(onError);
 
-export const passUndefined = <T, S>(
+export const toUndefined = <T, S>(
   map: Mapper<T, S>
 ): Mapper<T | undefined, S | undefined> => (v) => (v ? map(v) : undefined);
 

@@ -24,6 +24,12 @@ export type GDriveState =
 
 export const initGdriveState: GDriveState = ["idle"];
 
+const handleError = (e: Error | unknown): GDriveAction => [
+  "fail",
+  (e instanceof Error ? e.message : undefined) ||
+    "Unknown Error: " + JSON.stringify(e),
+];
+
 export const gdrive = newStateMachineWithFeedback<GDriveState, GDriveAction>(
   initGdriveState,
   {
@@ -59,18 +65,18 @@ export const gdrive = newStateMachineWithFeedback<GDriveState, GDriveAction>(
     idle: () =>
       initializeGoogleDrive()
         .then<GDriveAction>((gapi) => ["initialize", gapi])
-        .catch((e) => ["fail", e.details]),
+        .catch(handleError),
     loggingIn: (gapi) =>
       signIn(gapi)
         .then<GDriveAction>(() => ["retrieveProfile", gapi])
-        .catch((e) => ["fail", e.details]),
+        .catch(handleError),
     profileRetrieving: (gapi) =>
       createProfile(gapi)
         .then<GDriveAction>((profile) => ["loggedIn", profile])
-        .catch((e) => ["fail", e.details]),
+        .catch(handleError),
     loggingOut: (gapi) =>
       signOut(gapi)
         .then<GDriveAction>(() => ["loggedOut", gapi])
-        .catch((e) => ["fail", e.details]),
+        .catch(handleError),
   }
 );

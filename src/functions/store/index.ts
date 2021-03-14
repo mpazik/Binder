@@ -1,5 +1,5 @@
 import { Consumer, Provider } from "../../libs/connections";
-import { passUndefined } from "../../libs/connections/processors2";
+import { toUndefined } from "../../libs/connections/processors2";
 import { throwIfNull } from "../../libs/errors";
 import { HashName, HashUri } from "../../libs/hash";
 import {
@@ -150,7 +150,7 @@ export const createStore = async (indexLinkedData: Indexer): Promise<Index> => {
 
     const blob: Blob | undefined =
       (await localResourceStoreRead(hash)) ||
-      passUndefined(linkedDataToBlob)(await localLinkedDataStoreRead(hash));
+      toUndefined(linkedDataToBlob)(await localLinkedDataStoreRead(hash));
 
     if (!blob) {
       updateState([
