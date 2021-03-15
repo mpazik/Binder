@@ -28,7 +28,8 @@ import { AnnotationCore } from "./annotation";
 import {
   Position,
   quoteSelectorForSelection,
-  renderTemporarySelector,
+  removeSelector,
+  renderSelector,
 } from "./highlights";
 import { rangePositionRelative } from "./selection-toolbar";
 
@@ -202,8 +203,8 @@ export const commentForm: Component<{
       const { container, text, data: range } = data;
       const position = rangePositionRelative(range, container);
       const selector = quoteSelectorForSelection(container, text, range);
-      const [remove] = renderTemporarySelector(container, text, selector);
-      onClose(remove);
+      renderSelector(container, text, selector, "purple");
+      onClose(() => removeSelector(container, text, selector));
 
       return commentFormView({
         position,

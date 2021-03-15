@@ -1,5 +1,7 @@
+import { throwIfNull } from "../../libs/errors";
+
+import { annotation, QuoteSelector } from "./annotation";
 import { expandText } from "./utils/string-expant";
-import { Annotation, annotation, QuoteSelector } from "./annotation";
 
 const undefinedForEmptyString = (string: string): string | undefined =>
   string.length === 0 ? undefined : string;
@@ -89,16 +91,19 @@ export const quoteSelectorForSelection = (
   };
 };
 
+type HighlightColor = "purple" | "green" | "yellow";
 const highlightClass = "highlight";
-const highlightTemporaryClass = "highlight-temp";
+const highlightColorClass = (color: HighlightColor) => "highlight-" + color;
 
 const wrapWithHighlight = (
   part: Text,
+  color: HighlightColor,
   onHover?: () => void,
   onHoverOut?: () => void
 ) => {
   const highlight = document.createElement("span");
   highlight.classList.add(highlightClass);
+  highlight.classList.add(highlightColorClass(color));
   if (onHover) highlight.addEventListener("mouseenter", onHover);
   if (onHoverOut) highlight.addEventListener("mouseleave", onHoverOut);
 
@@ -108,14 +113,8 @@ const wrapWithHighlight = (
   return highlight;
 };
 
-const wrapWithHighlights = (
-  parts: Text[],
-  onHover?: () => void,
-  onHoverOut?: () => void
-): HTMLElement[] =>
-  parts.map((it) => wrapWithHighlight(it, onHover, onHoverOut));
-
-const removeHighlight = (highlight: HTMLElement) => {
+const removeHighlight = (part: Text): void => {
+  const highlight = throwIfNull(part.parentElement);
   if (!highlight.classList.contains(highlightClass)) {
     throw new Error(
       `Can not remove highlight on element "${highlight}" which does not have "${highlightClass}" class`
@@ -197,35 +196,32 @@ export const renderSelector = (
   container: HTMLElement,
   text: string,
   selector: QuoteSelector,
+  color: HighlightColor,
   onHover?: (p: Position) => void,
   onHoverOut?: () => void
 ): void => {
   const parts = findPartsBySelector(container, text, selector);
-  const highlights = wrapWithHighlights(
-    parts,
-    onHover
-      ? () => {
-          onHover(
-            positionRelative(getPositionFromHighlights(highlights), container)
-          );
-        }
-      : undefined,
-    onHoverOut
+  const highlights = parts.map((it) =>
+    wrapWithHighlight(
+      it,
+      color,
+      onHover
+        ? () => {
+            onHover(
+              positionRelative(getPositionFromHighlights(highlights), container)
+            );
+          }
+        : undefined,
+      onHoverOut
+    )
   );
 };
 
-export const renderTemporarySelector = (
+export const removeSelector = (
   container: HTMLElement,
   text: string,
   selector: QuoteSelector
-): [cancel: () => void] => {
+): void => {
   const parts = findPartsBySelector(container, text, selector);
-  const highlights = wrapWithHighlights(parts);
-  highlights.forEach((it) => it.classList.add(highlightTemporaryClass));
-
-  return [
-    () => {
-      highlights.forEach(removeHighlight);
-    },
-  ];
+  parts.forEach(removeHighlight);
 };

@@ -55,10 +55,14 @@ article {
     background: #fdaeb7;
 }
 
-.highlight {
-    background: yellow;
+.highlight-green {
+    background: #dcffe4;
 }
 
-.highlight-temp {
-    background: deepskyblue;
+.highlight-yellow {
+    background: #fff5b1;
+}
+
+.highlight-purple {
+    background: #f5f0ff;
 }

@@ -298,6 +298,7 @@ export const editableContentComponent: Component<{
       container,
       text,
       annotation.target.selector,
+      annotation.body ? "yellow" : "green",
       annotation.body
         ? map(
             (position) =>
