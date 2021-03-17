@@ -210,7 +210,7 @@ export const withDefaultValue = <T>(
 };
 
 export const merge = <T, S>(
-  callback: (...args: [T, S]) => void,
+  callback: (args: [T, S]) => void,
   initA?: T,
   initB?: S
 ): [Callback<T>, Callback<S>] => {
@@ -218,7 +218,7 @@ export const merge = <T, S>(
   let stateB: S | undefined = initB;
   const tryPush = () =>
     stateA !== undefined && stateB !== undefined
-      ? callback(stateA, stateB)
+      ? callback([stateA, stateB])
       : undefined;
   tryPush();
   return [

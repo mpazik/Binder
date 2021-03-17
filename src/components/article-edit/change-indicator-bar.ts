@@ -54,7 +54,7 @@ export const changesIndicatorBar: Component<{
         {
           id: "editor-gutter",
           class: "bg-gray position-absolute",
-          style: { height: "100%", width: "8px", left: "-20px" },
+          style: { height: "100%", width: 8, left: -20, top: 0 },
         },
         ...changes.map((docDiff) =>
           changeIndicator({ docDiff, onClick: onDiffBarClick })

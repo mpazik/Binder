@@ -6,13 +6,13 @@ import {
   Component,
   div,
   JsonHtml,
-  OptionalView,
+  OptionalViewSetup,
   span,
 } from "../../libs/simple-ui/render";
 
 export type EditBarState =
   | ["hidden"]
-  | ["visible", { onSave: () => void; onDiscard?: () => void }]
+  | ["visible", { showDiscard: boolean }]
   | ["saving"]
   | ["error", { onTryAgain: () => void; reason: string }];
 
@@ -50,28 +50,39 @@ const styledButton = (
     label
   );
 
-const editBarView: OptionalView<EditBarState> = newStateOptionalMapper({
-  visible: ({ onSave, onDiscard }) =>
-    popUpBar(
-      barMessage(
-        onDiscard
-          ? "Document has been modified"
-          : "External document, not yet saved"
+const createEditBarView: OptionalViewSetup<
+  { onSave: () => void; onDiscard: () => void },
+  EditBarState
+> = ({ onDiscard, onSave }) =>
+  newStateOptionalMapper({
+    visible: ({ showDiscard }) =>
+      popUpBar(
+        barMessage(
+          showDiscard
+            ? "Document has been modified"
+            : "External document, not yet saved"
+        ),
+        ...(showDiscard
+          ? [styledButton("Discard", onDiscard, "btn-danger")]
+          : []),
+        styledButton("Save", onSave, "btn-primary")
       ),
-      ...(onDiscard ? [styledButton("Discard", onDiscard, "btn-danger")] : []),
-      styledButton("Save", onSave, "btn-primary")
-    ),
-  error: ({ reason, onTryAgain }) =>
-    bar(
-      barMessage(`Error saving document ${reason}`),
-      styledButton("Try again", onTryAgain, "btn-primary")
-    ),
-  saving: () =>
-    bar(barMessage(""), styledButton("Saving", undefined, "btn-primary", true)),
-});
+    error: ({ reason, onTryAgain }) =>
+      bar(
+        barMessage(`Error saving document ${reason}`),
+        styledButton("Try again", onTryAgain, "btn-primary")
+      ),
+    saving: () =>
+      bar(
+        barMessage(""),
+        styledButton("Saving", undefined, "btn-primary", true)
+      ),
+  });
 
 export const editBar: Component<{
+  onSave: () => void;
+  onDiscard: () => void;
   provider: Provider<EditBarState>;
-}> = ({ provider }) => (render, onClose) => {
-  provider(onClose, map(editBarView, render));
+}> = ({ provider, onSave, onDiscard }) => (render, onClose) => {
+  provider(onClose, map(createEditBarView({ onSave, onDiscard }), render));
 };

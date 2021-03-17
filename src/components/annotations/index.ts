@@ -23,13 +23,19 @@ import { quoteSelectorForRange } from "./quote-selector";
 import { OptSelection } from "./selection";
 import { selectionToolbar } from "./selection-toolbar";
 
+type AnnotationSaveArgs = {
+  container: HTMLElement;
+  selector: QuoteSelector;
+  content?: string;
+};
 export const annotationsSupport: Component<{
   ldStoreWrite: LinkedDataStoreWrite;
   ldStoreRead: LinkedDataStoreRead;
   creatorProvider: Provider<string>;
   selectionProvider: Provider<OptSelection>;
   documentAnnotationsIndex: DocumentAnnotationsIndex;
-  getContentReference: () => Promise<HashUri>;
+  referenceProvider: Provider<HashUri>;
+  requestDocumentSave: () => void;
   documentProvider: Provider<{
     container: HTMLElement;
     linkedData: LinkedData;
@@ -38,13 +44,23 @@ export const annotationsSupport: Component<{
   ldStoreWrite,
   ldStoreRead,
   creatorProvider,
-  getContentReference,
+  referenceProvider,
+  requestDocumentSave,
   selectionProvider,
   documentAnnotationsIndex,
   documentProvider,
 }) => (render, onClose) => {
   let creator: string;
   creatorProvider(onClose, (c) => (creator = c));
+  let annotationToSave: AnnotationSaveArgs | undefined;
+  let reference: HashUri;
+  referenceProvider(onClose, (r) => {
+    reference = r;
+    if (annotationToSave) {
+      saveAnnotation(annotationToSave);
+      annotationToSave = undefined;
+    }
+  });
 
   const [commentToDisplayProvider, displayComment] = dataPortal<
     CommentDisplayState
@@ -53,18 +69,18 @@ export const annotationsSupport: Component<{
     CommentFormState
   >();
 
-  const saveAnnotation = async (
-    selector: QuoteSelector,
-    content?: string
-  ): Promise<Annotation> => {
-    const annotation = createAnnotation(
-      await getContentReference(),
-      selector,
-      content,
-      creator
-    );
+  const saveAnnotation = async ({
+    container,
+    selector,
+    content,
+  }: AnnotationSaveArgs) => {
+    if (!reference) {
+      requestDocumentSave();
+      return;
+    }
+    const annotation = createAnnotation(reference, selector, content, creator);
     await ldStoreWrite(annotation);
-    return annotation;
+    displayAnnotation(container, containerText(container), annotation);
   };
 
   const displayAnnotation = (
@@ -128,9 +144,7 @@ export const annotationsSupport: Component<{
             const text = containerText(container);
             const selector = quoteSelectorForRange(container, text, range);
             removeSelector(container, text, selector);
-            saveAnnotation(selector, comment).then((annotation) => {
-              displayAnnotation(container, text, annotation);
-            });
+            saveAnnotation({ container, selector, content: comment });
           },
         })
       ),
@@ -165,9 +179,7 @@ export const annotationsSupport: Component<{
               handler: ({ container, range }) => {
                 const text = containerText(container);
                 const selector = quoteSelectorForRange(container, text, range);
-                saveAnnotation(selector).then((annotation) => {
-                  displayAnnotation(container, text, annotation);
-                });
+                saveAnnotation({ container, selector });
               },
               label: "highlight",
               shortCutKey: "KeyG",

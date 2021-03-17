@@ -49,20 +49,3 @@ export const dataPortal = <T>(): [
     },
   ];
 };
-
-export type Action = () => void;
-export type HandlerRegister = (action: () => void) => void;
-
-export const actionPortal = (): [register: HandlerRegister, action: Action] => {
-  let handler: Action | undefined;
-  return [
-    (h) => (handler = h),
-    () => {
-      if (handler) {
-        handler();
-      } else {
-        throw new Error("invoked action portal before it is set up");
-      }
-    },
-  ];
-};

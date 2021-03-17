@@ -151,8 +151,8 @@ export const articleComponent: Component<{
   const [dataProvider, onLoaded] = dataPortal<LinkedDataWithDocument>();
 
   const [creatorProvider, setCreator] = dataPortal<string>();
-  const [setUser, setState] = merge(
-    (user: string, { state }: ArticleStateWithFeedback) => {
+  const [setUser, setState] = merge<string, ArticleStateWithFeedback>(
+    ([user, { state }]) => {
       if (["loading", "ready"].includes(state[0])) {
         setCreator(user);
       }
