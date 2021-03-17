@@ -13,15 +13,7 @@ import {
 } from "../../functions/store";
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { Consumer, dataPortal, fork, Provider } from "../../libs/connections";
-import {
-  Callback,
-  filterNonNull,
-  map,
-  splitOnUndefined,
-  statefulMap,
-  withValue,
-  merge,
-} from "../../libs/connections/processors2";
+import { Callback, map, statefulMap } from "../../libs/connections/processors2";
 import { throwIfNull } from "../../libs/errors";
 import { HashUri } from "../../libs/hash";
 import {
@@ -42,22 +34,11 @@ import {
 import { throttleArg } from "../../libs/throttle";
 import { modal, ModalState } from "../common/modal";
 
-import {
-  Annotation,
-  AnnotationCore,
-  createAnnotation,
-  QuoteSelector,
-} from "./annotation";
+import { annotationSupport } from "./annotation-support";
 import {
   changesIndicatorBar,
   documentChangeTopRelativePosition,
 } from "./change-indicator-bar";
-import {
-  commentDisplay,
-  CommentDisplayState,
-  commentForm,
-  WithContainerContext,
-} from "./comment";
 import {
   DocumentChange,
   newDocumentComparator,
@@ -66,8 +47,7 @@ import {
 } from "./document-change";
 import { renderDocumentChangeModal } from "./document-change-modal";
 import { editBar, EditBarState } from "./edit-bar";
-import { quoteSelectorForSelection, renderSelector } from "./highlights";
-import { currentSelection, selectionToolbar } from "./selection-toolbar";
+import { currentSelection, OptSelection } from "./selection";
 
 const createNewDocument = (
   initialContent: Document,
@@ -116,10 +96,11 @@ export const contentDisplayComponent: Component<{
   provider: Provider<{ content: Document; editable: boolean }>;
   onDisplay: Consumer<HTMLElement>;
   onChange: Consumer<DocumentChange[]>;
-  onSelect: Consumer<Range | undefined>;
+  onSelect: Consumer<OptSelection>;
 }> = ({ provider, onDisplay, onChange, onSelect }) => (render, onClose) => {
   provider(onClose, ({ content, editable }) => {
     const contentRoot = getDocumentContentRoot(content);
+    let editorElement: HTMLElement | undefined;
     render(
       article({
         id: "editor-body",
@@ -130,17 +111,19 @@ export const contentDisplayComponent: Component<{
           ? detectDocumentChange(contentRoot, onChange) // ideally should be triggered on resize too
           : undefined,
         dangerouslySetInnerHTML: contentRoot?.innerHTML,
-        onMouseup: () => onSelect(currentSelection()),
+        onMouseup: () => {
+          if (editorElement) onSelect(currentSelection(editorElement));
+        },
         onFocusout: () => {
           console.log("focus out");
           onSelect(undefined);
         },
-        onDisplay: onDisplay
-          ? (e) => {
-              const editorElement = e.target as HTMLElement;
-              onDisplay(editorElement);
-            }
-          : undefined,
+        onDisplay: (e) => {
+          editorElement = e.target as HTMLElement;
+          if (onDisplay) {
+            onDisplay(editorElement);
+          }
+        },
       })
     );
   });
@@ -169,7 +152,6 @@ const createEditBarStateUpdater = (
 
 type EditorContext = LinkedDataWithDocument & {
   container: HTMLElement;
-  text: string;
 };
 
 export const editableContentComponent: Component<{
@@ -192,8 +174,11 @@ export const editableContentComponent: Component<{
   const [modalStateProvider, modalStateConsumer] = dataPortal<ModalState>();
 
   const articleSaver = createArticleSaver(storeWrite, ldStoreWrite);
-
   const [editBarStateOut, editBarStateIn] = dataPortal<EditBarState>();
+  const [documentProvider, displayAnnotations] = dataPortal<{
+    container: HTMLElement;
+    linkedData: LinkedData;
+  }>();
   const [mapWithContent, setContent] = statefulMap<LinkedDataWithDocument>();
   const [mapWithContext, setContext, resetEditor] = statefulMap<
     EditorContext
@@ -207,43 +192,65 @@ export const editableContentComponent: Component<{
   ): Callback<T> =>
     mapWithContext((data, context) => ({ data, ...context }), handler);
 
-  const saveArticle = (): Promise<LinkedDataWithHashId> => {
+  const saveArticleInner = async (
+    context: EditorContext
+  ): Promise<LinkedDataWithHashId> => {
     editBarStateIn(["saving"]);
+    const { linkedData, container, contentDocument } = context;
+    try {
+      const newContentDocument = isNew(linkedData)
+        ? contentDocument
+        : createNewDocument(contentDocument, container);
+      const newLinkedData = await articleSaver({
+        contentDocument: newContentDocument,
+        linkedData,
+      });
+      const newDocument = {
+        linkedData: newLinkedData,
+        contentDocument: newContentDocument,
+      };
+      setContent(newDocument);
+      setContext({
+        ...newDocument,
+        container,
+      });
+      editBarStateIn(["hidden"]);
+      onSave(newLinkedData);
+      return newLinkedData;
+    } catch (error) {
+      return new Promise((resolve) => {
+        editBarStateIn([
+          "error",
+          {
+            reason: error,
+            onTryAgain: () => saveArticleInner(context).then(resolve),
+          },
+        ]);
+      });
+    }
+  };
+
+  const saveArticle = (): Promise<LinkedDataWithHashId> => {
     return new Promise((resolve) => {
-      withEditorContext<void>(
-        async ({ contentDocument, container, linkedData }) => {
-          try {
-            const newContentDocument = isNew(linkedData)
-              ? contentDocument
-              : createNewDocument(contentDocument, container);
-            const newLinkedData = await articleSaver({
-              contentDocument: newContentDocument,
-              linkedData,
-            });
-            const newDocument = {
-              linkedData: newLinkedData,
-              contentDocument: newContentDocument,
-            };
-            setContent(newDocument);
-            setContext({
-              ...newDocument,
-              container,
-              text: container?.textContent || "",
-            });
-            editBarStateIn(["hidden"]);
-            onSave(newLinkedData);
-            resolve(newLinkedData);
-          } catch (error) {
-            editBarStateIn([
-              "error",
-              {
-                reason: error,
-                onTryAgain: () => saveArticle().then(resolve),
-              },
-            ]);
-          }
+      withEditorContext<void>((context) => {
+        saveArticleInner(context).then(resolve);
+      })();
+    });
+  };
+
+  const getContentReference = (): Promise<HashUri> => {
+    return new Promise((resolve) => {
+      withEditorContext<void>((context) => {
+        const { linkedData } = context;
+        const hashUri = findHashUri(linkedData);
+        if (hashUri) {
+          resolve(hashUri);
+        } else {
+          saveArticleInner(context).then((newLinkedData) =>
+            resolve(throwIfNull(findHashUri(newLinkedData)))
+          );
         }
-      )();
+      })();
     });
   };
 
@@ -255,77 +262,13 @@ export const editableContentComponent: Component<{
     })
   );
 
-  const getContentReference = (linkedData: LinkedData): Promise<HashUri> => {
-    const hashUri = findHashUri(linkedData);
-    if (hashUri) {
-      return Promise.resolve(hashUri);
-    } else {
-      return saveArticle().then((newLinkedData) =>
-        throwIfNull(findHashUri(newLinkedData))
-      );
-    }
-  };
-
-  const saveAnnotation = async (
-    container: HTMLElement,
-    text: string,
-    linkedData: LinkedData,
-    selector: QuoteSelector,
-    content?: string,
-    creator?: string
-  ) => {
-    try {
-      const annotation = createAnnotation(
-        await getContentReference(linkedData),
-        selector,
-        content,
-        creator
-      );
-      await ldStoreWrite(annotation);
-      console.log("annotation", annotation);
-      displayAnnotation(container, text, annotation);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const displayAnnotation = (
-    container: HTMLElement,
-    text: string,
-    annotation: Annotation
-  ) =>
-    renderSelector(
-      container,
-      text,
-      annotation.target.selector,
-      annotation.body ? "yellow" : "green",
-      annotation.body
-        ? map(
-            (position) =>
-              [
-                "visible",
-                { content: annotation.body?.value, position },
-              ] as CommentDisplayState,
-            displayComment
-          )
-        : undefined,
-      annotation.body ? withValue(["hidden"], displayComment) : undefined
-    );
-
   const [changesProvider, onChange] = dataPortal<
     DocumentChange[] | undefined
   >();
 
   const [fieldsProvider, linkedDataForFields] = dataPortal<LinkedData>();
-  const [rangeProvider, onSelect] = dataPortal<
-    WithContainerContext<Range> | undefined
-  >();
-  const [commentFormProvider, displayCommentForm] = dataPortal<
-    WithContainerContext<Range>
-  >();
-  const [commentToDisplayProvider, displayComment] = dataPortal<
-    CommentDisplayState
-  >();
+  const [selectionProvider, onSelect] = dataPortal<OptSelection>();
+
   const [contentProvider, documentToDisplay] = dataPortal<{
     content: Document;
     editable: boolean;
@@ -348,23 +291,6 @@ export const editableContentComponent: Component<{
       setContent
     )
   );
-
-  const [sendComment, setCreator] = merge<AnnotationCore, string>(
-    ({ selector, content }, creator) =>
-      withEditorContext<void>(({ linkedData, container, text }) =>
-        saveAnnotation(
-          container,
-          text,
-          linkedData,
-          selector,
-          content,
-          creator === "" ? undefined : creator
-        )
-      )(),
-    undefined,
-    "" // hack to not block if user is not logged in
-  );
-  creatorProvider(onClose, setCreator);
 
   render(
     div(
@@ -395,40 +321,19 @@ export const editableContentComponent: Component<{
             },
           })
         ),
+        slot(
+          "annotation-support",
+          annotationSupport({
+            selectionProvider,
+            creatorProvider,
+            ldStoreWrite,
+            ldStoreRead,
+            documentProvider,
+            getContentReference,
+            documentAnnotationsIndex,
+          })
+        ),
         slot("modal-diff", modal({ provider: modalStateProvider })),
-        slot(
-          "comment-form",
-          commentForm({
-            commentFormProvider,
-            onCreatedComment: sendComment,
-          })
-        ),
-        slot(
-          "comment-display",
-          commentDisplay({ commentProvider: commentToDisplayProvider })
-        ),
-        slot(
-          "selection-toolbar",
-          selectionToolbar({
-            rangeProvider,
-            buttons: [
-              {
-                handler: withEditorContext(displayCommentForm),
-                label: "comment",
-                shortCutKey: "KeyC",
-              },
-              {
-                handler: withEditorContext(({ container, data, text }) =>
-                  sendComment({
-                    selector: quoteSelectorForSelection(container, text, data),
-                  })
-                ),
-                label: "highlight",
-                shortCutKey: "KeyG",
-              },
-            ],
-          })
-        ),
         slot(
           "content",
           contentDisplayComponent({
@@ -443,29 +348,12 @@ export const editableContentComponent: Component<{
               mapWithContent(
                 (editor, content) => ({
                   container: editor,
-                  text: editor?.textContent || "",
                   ...content,
                 }),
                 fork(
                   setContext,
-                  async ({ container, text, linkedData }) => {
-                    const documentHashUri = findHashUri(linkedData);
-                    if (!documentHashUri) return;
-                    const annotationsHashUris = await documentAnnotationsIndex({
-                      documentHashUri,
-                    });
-                    const annotations = await Promise.all(
-                      annotationsHashUris.map(ldStoreRead)
-                    );
-                    annotations.forEach(
-                      filterNonNull((annotation) => {
-                        displayAnnotation(
-                          container,
-                          text,
-                          (annotation as unknown) as Annotation
-                        );
-                      })
-                    );
+                  async ({ container, linkedData }) => {
+                    displayAnnotations({ container, linkedData });
                   },
                   map(
                     ({ linkedData }) => isNew(linkedData),
@@ -479,7 +367,7 @@ export const editableContentComponent: Component<{
                 )
               )
             ),
-            onSelect: splitOnUndefined(onSelect, withEditorContext(onSelect)),
+            onSelect,
           })
         ),
         slot(

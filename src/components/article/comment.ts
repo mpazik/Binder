@@ -1,14 +1,13 @@
 import { fork, Provider } from "../../libs/connections";
 import {
   and,
-  closableMap,
   delayedState,
   filter,
   map,
   or,
-  setupContext,
 } from "../../libs/connections/processors2";
-import { newStateMapper } from "../../libs/named-state";
+import { throwIfNull } from "../../libs/errors";
+import { newStateHandler, newStateMapper } from "../../libs/named-state";
 import {
   button,
   Component,
@@ -24,20 +23,7 @@ import {
   isKey,
 } from "../../libs/simple-ui/utils/funtions";
 
-import { AnnotationCore } from "./annotation";
-import {
-  Position,
-  quoteSelectorForSelection,
-  removeSelector,
-  renderSelector,
-} from "./highlights";
-import { rangePositionRelative } from "./selection-toolbar";
-
-export type WithContainerContext<T> = {
-  container: HTMLElement;
-  text: string;
-  data: T;
-};
+import { Position, Selection, selectionPosition } from "./selection";
 
 const commentView: View<{
   position: Position;
@@ -148,27 +134,41 @@ const commentFormView: View<{
     )
   );
 
-export type CommentFormState = ["hidden"] | ["visible", { position: Position }];
+export type CommentFormState =
+  | ["hidden"]
+  | ["visible", { selection: Selection }];
 
-export const commentForm2: Component<{
+export const commentForm: Component<{
   commentFormProvider: Provider<CommentFormState>;
-  onCreatedComment: (comment: string) => void;
-}> = ({ commentFormProvider, onCreatedComment }) => (render, onClose) => {
-  const [withEditorContext, setEditor, resetEditor] = setupContext<
-    HTMLElement
-  >();
+  onCreatedComment: ({
+    selection,
+    comment,
+  }: {
+    selection: Selection;
+    comment: string;
+  }) => void;
+  onHide: ({ selection }: { selection: Selection }) => void;
+}> = ({ commentFormProvider, onCreatedComment, onHide }) => (
+  render,
+  onClose
+) => {
+  let editor: HTMLElement | undefined;
+  let selection: Selection | undefined;
 
   const renderForm = map(
     newStateMapper<CommentFormState, JsonHtml | undefined>({
-      visible: ({ position }) =>
+      visible: ({ selection }) =>
         commentFormView({
-          position,
-          onDisplay: setEditor,
+          position: selectionPosition(selection),
+          onDisplay: (e) => (editor = e),
           onCancel: () => {
             renderForm(["hidden"]);
           },
           onSave: () => {
-            withEditorContext(map((it) => it.innerHTML, onCreatedComment));
+            onCreatedComment({
+              comment: throwIfNull(editor).innerHTML,
+              selection,
+            });
             renderForm(["hidden"]);
           },
         }),
@@ -181,50 +181,17 @@ export const commentForm2: Component<{
     onClose,
     fork(
       renderForm,
-      filter<CommentFormState>(([name]) => name === "hidden", resetEditor)
+      filter<CommentFormState>(
+        ([name]) => name === "hidden",
+        fork(
+          () => (editor = undefined),
+          () => onHide({ selection: throwIfNull(selection) })
+        )
+      ),
+      newStateHandler({
+        visible: ({ selection: s }) => (selection = s),
+        hidden: () => (selection = undefined),
+      })
     )
   );
-};
-
-export const commentForm: Component<{
-  commentFormProvider: Provider<WithContainerContext<Range>>;
-  onCreatedComment: (c: AnnotationCore) => void;
-}> = ({ commentFormProvider, onCreatedComment }) => (render, onClose) => {
-  const [withEditorContext, setEditor, resetEditor] = setupContext<
-    HTMLElement
-  >();
-
-  const renderForm = closableMap(
-    (data: WithContainerContext<Range> | undefined, onClose) => {
-      if (!data) {
-        resetEditor();
-        return;
-      }
-      const { container, text, data: range } = data;
-      const position = rangePositionRelative(range, container);
-      const selector = quoteSelectorForSelection(container, text, range);
-      renderSelector(container, text, selector, "purple");
-      onClose(() => removeSelector(container, text, selector));
-
-      return commentFormView({
-        position,
-        onDisplay: setEditor,
-        onCancel: () => {
-          renderForm(undefined);
-        },
-        onSave: () => {
-          withEditorContext((editor) => {
-            onCreatedComment({
-              selector,
-              content: editor.innerHTML,
-            });
-          });
-          renderForm(undefined);
-        },
-      });
-    },
-    render
-  );
-
-  commentFormProvider(onClose, renderForm);
 };

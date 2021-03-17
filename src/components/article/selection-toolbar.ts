@@ -3,50 +3,16 @@ import { filter, map, mapTo, not } from "../../libs/connections/processors2";
 import { b, button, Component, div, View } from "../../libs/simple-ui/render";
 import { isKey } from "../../libs/simple-ui/utils/funtions";
 
-import { WithContainerContext } from "./comment";
-
-export const currentSelection = (): Range | undefined => {
-  const selection = window.getSelection();
-  if (!selection || selection.type !== "Range") return;
-  const range = selection.getRangeAt(0);
-  if (!range) return;
-  if (range.collapsed) return;
-
-  return range;
-};
-
-const selectionExists = (): boolean => {
-  const selection = window.getSelection();
-  return Boolean(
-    selection &&
-      selection.rangeCount > 0 &&
-      selection.getRangeAt(0) &&
-      !selection.getRangeAt(0).collapsed &&
-      selection.getRangeAt(0).getBoundingClientRect().width > 0 &&
-      selection.getRangeAt(0).getBoundingClientRect().height > 0
-  );
-};
-
-export const clearSelection = (): void => {
-  window.getSelection()?.removeAllRanges();
-};
-
-export const rangeText = (range: Range): string => range.toString().trim();
-export const rangePosition = (range: Range): [left: number, top: number] => {
-  const { x, y, width } = range.getBoundingClientRect();
-  return [x + width / 2, y];
-};
-export const rangePositionRelative = (
-  range: Range,
-  element: HTMLElement
-): [left: number, top: number] => {
-  const { x, y } = element.getBoundingClientRect();
-  const [left, top] = rangePosition(range);
-  return [left - x, top - y];
-};
+import {
+  OptSelection,
+  Position,
+  Selection,
+  selectionExists,
+  selectionPosition,
+} from "./selection";
 
 export type Button = {
-  handler: (range: Range) => void;
+  handler: (selection: Selection) => void;
   label: string;
   shortCutKey?: string;
 };
@@ -59,10 +25,9 @@ const keyCodeToKeyName = (keyCode: string) => {
 };
 
 export const selectionToolbarView: View<{
-  left: number;
-  top: number;
+  position: Position;
   buttons: Button[];
-}> = ({ left, top, buttons }) =>
+}> = ({ position: [left, top], buttons }) =>
   div(
     {
       class: "Popover",
@@ -88,19 +53,16 @@ export const selectionToolbarView: View<{
   );
 
 export const selectionToolbar: Component<{
-  rangeProvider: Provider<WithContainerContext<Range> | undefined>;
+  selectionProvider: Provider<OptSelection>;
   buttons: Button[];
-}> = ({ rangeProvider, buttons }) => (render, onClose) => {
-  const renderState = map((data: WithContainerContext<Range> | undefined) => {
-    if (!data) return;
-    const { data: range, container } = data;
-    const [left, top] = rangePositionRelative(range, container);
+}> = ({ selectionProvider, buttons }) => (render, onClose) => {
+  const renderState = map((selection: OptSelection) => {
+    if (!selection) return;
     return selectionToolbarView({
-      left,
-      top,
+      position: selectionPosition(selection),
       buttons: buttons.map(({ handler, ...rest }) => ({
         handler: () => {
-          handler(range);
+          handler(selection);
           selectionHandler(undefined);
         },
         ...rest,
@@ -110,22 +72,19 @@ export const selectionToolbar: Component<{
 
   let lastButtonHandlers: ((e: KeyboardEvent) => void)[] = [];
 
-  const registerButtonHandler = (
-    data: WithContainerContext<Range> | undefined
-  ) => {
+  const registerButtonHandler = (selection: OptSelection) => {
     lastButtonHandlers.forEach((handler) =>
       document.removeEventListener("keydown", handler)
     );
     lastButtonHandlers = [];
 
-    if (data) {
-      const { data: range } = data;
+    if (selection) {
       lastButtonHandlers = buttons
         .filter((it) => Boolean(it.shortCutKey))
         .map(({ shortCutKey, handler }) =>
           filter(
             isKey(shortCutKey!),
-            fork(() => handler(range), mapTo(undefined, selectionHandler))
+            fork(() => handler(selection), mapTo(undefined, selectionHandler))
           )
         );
       lastButtonHandlers.forEach((handler) =>
@@ -145,5 +104,5 @@ export const selectionToolbar: Component<{
   onClose(() => {
     document.removeEventListener("mouseup", mouseUpHandler);
   });
-  rangeProvider(onClose, selectionHandler);
+  selectionProvider(onClose, selectionHandler);
 };

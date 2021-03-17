@@ -1,4 +1,4 @@
-import { expandText, indexOfWordEnd, indexOfWordStart } from "./string-expant";
+import { expandText, indexOfWordEnd, indexOfWordStart } from "./string-expand";
 
 const expand = (
   text: string,
