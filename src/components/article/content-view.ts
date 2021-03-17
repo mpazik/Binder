@@ -32,9 +32,10 @@ import {
   View,
 } from "../../libs/simple-ui/render";
 import { throttleArg } from "../../libs/throttle";
+import { annotationsSupport } from "../annotations";
+import { currentSelection, OptSelection } from "../annotations/selection";
 import { modal, ModalState } from "../common/modal";
 
-import { annotationSupport } from "./annotation-support";
 import {
   changesIndicatorBar,
   documentChangeTopRelativePosition,
@@ -47,7 +48,6 @@ import {
 } from "./document-change";
 import { renderDocumentChangeModal } from "./document-change-modal";
 import { editBar, EditBarState } from "./edit-bar";
-import { currentSelection, OptSelection } from "./selection";
 
 const createNewDocument = (
   initialContent: Document,
@@ -323,7 +323,7 @@ export const editableContentComponent: Component<{
         ),
         slot(
           "annotation-support",
-          annotationSupport({
+          annotationsSupport({
             selectionProvider,
             creatorProvider,
             ldStoreWrite,

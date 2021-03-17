@@ -5,7 +5,6 @@ import { dataPortal, Provider } from "../../libs/connections";
 import {
   filterNonNull,
   map,
-  setupContext,
   withValue,
 } from "../../libs/connections/processors2";
 import { HashUri } from "../../libs/hash";
@@ -24,13 +23,13 @@ import { quoteSelectorForRange } from "./quote-selector";
 import { OptSelection } from "./selection";
 import { selectionToolbar } from "./selection-toolbar";
 
-export const annotationSupport: Component<{
+export const annotationsSupport: Component<{
   ldStoreWrite: LinkedDataStoreWrite;
   ldStoreRead: LinkedDataStoreRead;
   creatorProvider: Provider<string>;
   selectionProvider: Provider<OptSelection>;
-  getContentReference: () => Promise<HashUri>;
   documentAnnotationsIndex: DocumentAnnotationsIndex;
+  getContentReference: () => Promise<HashUri>;
   documentProvider: Provider<{
     container: HTMLElement;
     linkedData: LinkedData;

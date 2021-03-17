@@ -45,7 +45,6 @@ import { fileDrop } from "../file-drop";
 import { fileNavigation } from "../navigation";
 import { searchBox } from "../navigation/search-box";
 import { profilePanel } from "../profile";
-import { CloseHandler } from "../../libs/connections/types";
 
 const initServices = async (): Promise<{
   contentFetcher: LinkedDataWithDocumentFetcher;
