@@ -1,11 +1,14 @@
 import { DocumentAnnotationsIndex } from "../../functions/indexes/document-annotations-index";
 import { LinkedDataStoreWrite } from "../../functions/store";
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
-import { dataPortal, Provider } from "../../libs/connections";
+import { dataPortal, fork, Provider } from "../../libs/connections";
 import {
+  combine,
   filterNonNull,
   map,
+  ignoreParam,
   withValue,
+  withState,
 } from "../../libs/connections/processors2";
 import { HashUri } from "../../libs/hash";
 import { findHashUri, LinkedData } from "../../libs/linked-data";
@@ -50,18 +53,6 @@ export const annotationsSupport: Component<{
   documentAnnotationsIndex,
   documentProvider,
 }) => (render, onClose) => {
-  let creator: string;
-  creatorProvider(onClose, (c) => (creator = c));
-  let annotationToSave: AnnotationSaveArgs | undefined;
-  let reference: HashUri;
-  referenceProvider(onClose, (r) => {
-    reference = r;
-    if (annotationToSave) {
-      saveAnnotation(annotationToSave);
-      annotationToSave = undefined;
-    }
-  });
-
   const [commentToDisplayProvider, displayComment] = dataPortal<
     CommentDisplayState
   >();
@@ -69,19 +60,47 @@ export const annotationsSupport: Component<{
     CommentFormState
   >();
 
-  const saveAnnotation = async ({
-    container,
-    selector,
-    content,
-  }: AnnotationSaveArgs) => {
-    if (!reference) {
-      requestDocumentSave();
-      return;
-    }
-    const annotation = createAnnotation(reference, selector, content, creator);
-    await ldStoreWrite(annotation);
-    displayAnnotation(container, containerText(container), annotation);
-  };
+  const [setCreator, setReference, saveAnnotation] = combine<
+    [string | null, HashUri, AnnotationSaveArgs]
+  >(
+    ([creator, reference, annotationSaveArgs]) => {
+      if (!reference) {
+        keepAnnotationForSave(annotationSaveArgs);
+        requestDocumentSave();
+        return;
+      }
+      const { container, selector, content } = annotationSaveArgs;
+      const annotation = createAnnotation(
+        reference,
+        selector,
+        content,
+        creator ?? undefined
+      );
+      ldStoreWrite(annotation).then(() => {
+        displayAnnotation(container, containerText(container), annotation);
+      });
+    },
+    null,
+    undefined,
+    undefined
+  );
+
+  const [
+    saveKeptAnnotation,
+    keepAnnotationForSave,
+  ] = withState<AnnotationSaveArgs | null>(
+    filterNonNull((annotationToSave) => {
+      saveAnnotation(annotationToSave);
+      keepAnnotationForSave(null);
+    }),
+    null
+  );
+
+  creatorProvider(onClose, setCreator);
+  referenceProvider(
+    onClose,
+    fork(setReference, ignoreParam(saveKeptAnnotation))
+  );
 
   const displayAnnotation = (
     container: HTMLElement,

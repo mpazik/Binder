@@ -14,9 +14,9 @@ import { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { Consumer, dataPortal, fork, Provider } from "../../libs/connections";
 import {
   closableForEach,
+  combine,
   map,
   mapAwait,
-  merge,
 } from "../../libs/connections/processors2";
 import { LinkedData } from "../../libs/linked-data";
 import {
@@ -151,12 +151,14 @@ export const articleComponent: Component<{
   const [dataProvider, onLoaded] = dataPortal<LinkedDataWithDocument>();
 
   const [creatorProvider, setCreator] = dataPortal<string>();
-  const [setUser, setState] = merge<string, ArticleStateWithFeedback>(
+  const [setUser, setState] = combine<[string, ArticleStateWithFeedback]>(
     ([user, { state }]) => {
       if (["loading", "ready"].includes(state[0])) {
         setCreator(user);
       }
-    }
+    },
+    undefined,
+    undefined
   );
   userEmailProvider(onClose, setUser);
 

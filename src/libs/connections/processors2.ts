@@ -1,6 +1,5 @@
 import { throwIfUndefined } from "../errors";
 
-import { OnCloseRegister } from "./types";
 import { equal } from "./utils/equal";
 
 export type Callback<T> = (value: T) => void;
@@ -22,21 +21,15 @@ export const toUndefined = <T, S>(
   map: Mapper<T, S>
 ): Mapper<T | undefined, S | undefined> => (v) => (v ? map(v) : undefined);
 
-export const closableMap = <T, S>(
-  transform: (v: T, onClose: OnCloseRegister) => S,
-  callback: Callback<S>
-): Callback<T> => {
-  let abortController = new AbortController();
+export const head = <H, T extends unknown[]>(array: readonly [H, ...T]): H =>
+  array[0];
 
-  return (v: T) => {
-    abortController.abort();
-    abortController = new AbortController();
-    callback(
-      transform(v, (handler) => {
-        abortController.signal.addEventListener("abort", handler);
-      })
-    );
-  };
+export const tail = <T extends unknown[]>(
+  array: readonly [unknown, ...T]
+): T => {
+  // eslint-disable-next-line unused-imports/no-unused-vars-ts,@typescript-eslint/no-unused-vars
+  const [head, ...tail] = array;
+  return tail;
 };
 
 export const pluck = <T extends object, K extends keyof T>(
@@ -65,25 +58,6 @@ export const statefulMap = <T>(
   ];
 };
 
-export const setupContext = <T>(
-  initialState?: T
-): [
-  setupHandler: (consumer: (v: T) => void) => void,
-  set: Callback<T>,
-  reset: () => void
-] => {
-  let state = initialState;
-  return [
-    (callback) => callback(throwIfUndefined(state)),
-    (newState) => {
-      state = newState;
-    },
-    () => {
-      state = undefined;
-    },
-  ];
-};
-
 export const mapTo = <T>(
   value: T,
   callback: Callback<T>
@@ -96,7 +70,11 @@ export const withValue = <T>(
 
 export const mapToUndefined = (
   callback: Callback<undefined>
-): (() => void) => () => callback(undefined);
+): Callback<unknown> => () => callback(undefined);
+
+export const ignoreParam = (
+  callback: Callback<void>
+): Callback<unknown> => () => callback();
 
 /**
  * Passes only changed element, with one state being delayed.
@@ -189,6 +167,13 @@ export const reducer = <S, C>(
   };
 };
 
+export const withDefaultValue = <T>(
+  defaultValue: T,
+  callback: Callback<T>
+): Callback<T | undefined | null> => (value) => {
+  callback(value ?? defaultValue);
+};
+
 export const filterNonNull = <T>(
   callback: Callback<T>
 ): Callback<T | undefined | null> => (v) => {
@@ -202,33 +187,59 @@ export const filterNonNullProp = <T extends object, K extends keyof T>(
   if (v[key]) callback(v as T & Required<Pick<T, K>>);
 };
 
-export const withDefaultValue = <T>(
-  defaultValue: T,
-  callback: Callback<T>
-): Callback<T | undefined | null> => (value) => {
-  callback(value ?? defaultValue);
+type PartialTuple<T> = {
+  [K in keyof T]: T[K] | undefined;
 };
 
-export const merge = <T, S>(
-  callback: (args: [T, S]) => void,
-  initA?: T,
-  initB?: S
-): [Callback<T>, Callback<S>] => {
-  let stateA: T | undefined = initA;
-  let stateB: S | undefined = initB;
-  const tryPush = () =>
-    stateA !== undefined && stateB !== undefined
-      ? callback([stateA, stateB])
-      : undefined;
-  tryPush();
+export const filterNonNullTuple = <T extends readonly unknown[]>(
+  callback: Callback<T>
+): Callback<PartialTuple<T>> => (tuple) => {
+  if (tuple.every((it) => it !== undefined)) {
+    callback((tuple as unknown) as T);
+  }
+};
+
+export const combine = <T extends readonly unknown[]>(
+  callback: (args: T) => void,
+  ...init: PartialTuple<T>
+): {
+  [K in keyof T]: Callback<T[K]>;
+} => combineAlways(filterNonNullTuple(callback), ...init);
+
+export const combineAlways = <T extends readonly unknown[]>(
+  callback: (args: PartialTuple<T>) => void,
+  ...init: PartialTuple<T>
+): {
+  [K in keyof T]: Callback<T[K]>;
+} => {
+  const state = init.slice(0);
+
+  return (init.map((s, n) => {
+    return (newStateN: unknown) => {
+      state[n] = newStateN;
+      callback((state as unknown) as T);
+    };
+  }) as unknown) as {
+    [K in keyof T]: Callback<T[K]>;
+  };
+};
+
+export const withState = <S, V = void>(
+  callback: (state: S, value: V) => void,
+  init?: S
+): [(v: V) => void, (s: S) => void, () => void] => {
+  let state: S | undefined = init;
   return [
-    (newStateA) => {
-      stateA = newStateA;
-      tryPush();
+    (v) => {
+      if (state) {
+        callback(state, v);
+      }
     },
-    (newStateB) => {
-      stateB = newStateB;
-      tryPush();
+    (s) => {
+      state = s;
+    },
+    () => {
+      state = undefined;
     },
   ];
 };

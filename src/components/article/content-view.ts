@@ -11,7 +11,7 @@ import {
 } from "../../functions/store";
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { Consumer, dataPortal, fork, Provider } from "../../libs/connections";
-import { map, merge } from "../../libs/connections/processors2";
+import { combine, map } from "../../libs/connections/processors2";
 import { throwIfNull } from "../../libs/errors";
 import { HashUri } from "../../libs/hash";
 import {
@@ -132,7 +132,9 @@ export const editableContentComponent: Component<{
   const [editorContextProvider, setContext] = dataPortal<EditorContext>();
   const [referenceProvider, setReference] = dataPortal<HashUri>();
   const [saveRequestProvider, requestDocumentSave] = dataPortal<void>();
-  const [setDisplay, setContent] = merge<HTMLElement, LinkedDataWithDocument>(
+  const [setDisplay, setContent] = combine<
+    [HTMLElement, LinkedDataWithDocument]
+  >(
     fork(
       ([container, { linkedData }]) => {
         displayAnnotations({ container, linkedData });
@@ -140,7 +142,9 @@ export const editableContentComponent: Component<{
       ([container, documentContent]) => {
         setContext({ container, ...documentContent });
       }
-    )
+    ),
+    undefined,
+    undefined
   );
 
   const [changesProvider, onChange] = dataPortal<

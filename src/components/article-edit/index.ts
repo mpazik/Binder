@@ -15,7 +15,7 @@ import {
   passOnlyChanged,
   Provider,
 } from "../../libs/connections";
-import { map } from "../../libs/connections/processors2";
+import { withState, map } from "../../libs/connections/processors2";
 import { throwIfNull } from "../../libs/errors";
 import {
   findHashUri,
@@ -94,14 +94,51 @@ export const articleEditSupport: Component<{
   );
 
   const articleSaver = createArticleSaver(storeWrite, ldStoreWrite);
-  let editorContext: EditorContext;
+
+  const [discard, setContextForDiscard] = withState<EditorContext>(
+    (editorContext) => {
+      const { container, contentDocument } = throwIfNull(editorContext);
+      revertDocument(getDocumentContentRoot(contentDocument), container);
+    }
+  );
+
+  const [saveArticle, setContextForSave] = withState<EditorContext>(
+    (editorContext) => {
+      const { linkedData, container, contentDocument } = editorContext;
+      try {
+        const newContentDocument = isNew(linkedData)
+          ? contentDocument
+          : createNewDocument(contentDocument, container);
+        articleSaver({
+          contentDocument: newContentDocument,
+          linkedData,
+        }).then((newLinkedData) => {
+          editBarStateIn(["hidden"]);
+          onSave({
+            linkedData: newLinkedData,
+            contentDocument: newContentDocument,
+            container,
+          });
+        });
+      } catch (error) {
+        editBarStateIn([
+          "error",
+          {
+            reason: error,
+            onTryAgain: () => saveArticle(),
+          },
+        ]);
+      }
+    }
+  );
 
   editorContextProvider(
     onClose,
     fork(
       () => modalStateConsumer(undefined), // reset modal
       ({ linkedData }) => onChange(isEditable(linkedData) ? [] : undefined), // reset change bar
-      (c) => (editorContext = c),
+      setContextForSave,
+      setContextForDiscard,
       map(
         ({ linkedData }) => isNew(linkedData),
         (newDocument) => {
@@ -111,36 +148,6 @@ export const articleEditSupport: Component<{
     )
   );
 
-  const saveArticle = async (): Promise<LinkedDataWithHashId> => {
-    editBarStateIn(["saving"]);
-    const { linkedData, container, contentDocument } = editorContext;
-    try {
-      const newContentDocument = isNew(linkedData)
-        ? contentDocument
-        : createNewDocument(contentDocument, container);
-      const newLinkedData = await articleSaver({
-        contentDocument: newContentDocument,
-        linkedData,
-      });
-      editBarStateIn(["hidden"]);
-      onSave({
-        linkedData: newLinkedData,
-        contentDocument: newContentDocument,
-        container,
-      });
-      return newLinkedData;
-    } catch (error) {
-      return new Promise((resolve) => {
-        editBarStateIn([
-          "error",
-          {
-            reason: error,
-            onTryAgain: () => saveArticle().then(resolve),
-          },
-        ]);
-      });
-    }
-  };
   saveRequestProvider(onClose, saveArticle);
 
   const editBarStateUpdater = (visible: boolean, modified = false) =>
@@ -181,10 +188,7 @@ export const articleEditSupport: Component<{
         "edit-bar",
         editBar({
           onSave: saveArticle,
-          onDiscard: () => {
-            const { container, contentDocument } = throwIfNull(editorContext);
-            revertDocument(getDocumentContentRoot(contentDocument), container);
-          },
+          onDiscard: discard,
           provider: editBarStateOut,
         })
       )
