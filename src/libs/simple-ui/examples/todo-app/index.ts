@@ -1,24 +1,20 @@
 import { urlHashProvider } from "../../../browser-providers";
 import {
+  Callback,
+  combine,
   Consumer,
   dataPortal,
-  Provider,
-  combineLatest,
-  filter,
   fork,
-  forkMapJoin,
-  map,
-  mapTo,
   match,
   onAnimationFrame,
   passOnlyChanged,
-  pipe,
+  Provider,
   reducer,
   split,
-  wrap,
-  wrapMerge,
 } from "../../../connections";
 import "todomvc-app-css/index.css";
+import { filter } from "../../../connections/filters";
+import { map, mapTo, pipe, toObject, wrap } from "../../../connections/mappers";
 import { itemsReconciliation } from "../../items-reconciliation";
 import {
   a,
@@ -54,10 +50,10 @@ import {
   getTodoId,
   isKey,
   newTodoName,
-  TodoFilter,
   onSubmit,
   pluralize,
   TodoChange,
+  TodoFilter,
   todosChanger,
 } from "./functions";
 import { newTodo, Todo, TodoId } from "./model";
@@ -109,37 +105,33 @@ const TodoItemComponent: ComponentItem<
     edited: Consumer<TodoChange>;
   }
 > = ({ itemProvider, destroyed, edited, id, toggled }) => (render, onClose) => {
-  const [todo, editing] = wrapMerge("todo", "editing")<Todo, boolean>(
-    undefined,
-    false
-  )(
-    // new name triggers editing change and might cause getting new item which would cause a glitch
-    onAnimationFrame(
-      onClose,
-      map((props: { todo: Todo; editing: boolean }) => renderView(props))(
-        render
-      )
-    )
+  const newTodoNameOut = fork(
+    () => editing(false),
+    map(newTodoName(id), edited)
+  );
+  const renderView: Callback<{ todo: Todo; editing: boolean }> = map(
+    TodoItemView({
+      onToggle: mapTo(id, toggled),
+      onEditDisplay: focusAndSelectTarget,
+      onEditStarted: fork(() => editing(true), focusTarget),
+      onEditSubmit: newTodoNameOut,
+      onKeydown: split(
+        isKey("Enter"),
+        newTodoNameOut,
+        filter(isKey("Escape"), () => editing(false))
+      ),
+      onDestroy: mapTo(id, destroyed),
+    }),
+    render
   );
 
-  const stopEditing = mapTo(false)(editing);
-  const startEditing = mapTo(true)(editing);
-
-  const newTodoNameOut = fork(stopEditing, map(newTodoName(id))(edited));
+  const [todo, editing] = combine(
+    // new name triggers editing change and might cause getting new item which would cause a glitch
+    onAnimationFrame(onClose, map(toObject("todo", "editing"), renderView)),
+    undefined as Todo | undefined,
+    false
+  );
   itemProvider(onClose, todo);
-
-  const renderView = TodoItemView({
-    onToggle: mapTo(id)(toggled),
-    onEditDisplay: focusAndSelectTarget,
-    onEditStarted: fork(startEditing, focusTarget),
-    onEditSubmit: newTodoNameOut,
-    onKeydown: split(
-      isKey("Enter"),
-      newTodoNameOut,
-      filter(isKey("Escape"))(stopEditing)
-    ),
-    onDestroy: mapTo(id)(destroyed),
-  });
 };
 
 const TodoListView: ViewSetup<
@@ -171,17 +163,18 @@ const TodoList: Component<{
   changeTodo: Consumer<TodoChange>;
 }> = ({ showingTodos, changeTodo }) => (render, onClose) => {
   const renderList = TodoListView({
-    destroyed: map((it: TodoId): TodoChange => ["del", it])(changeTodo),
+    destroyed: map((it: TodoId): TodoChange => ["del", it], changeTodo),
     toggled: map(
-      (it: TodoId): TodoChange => ["chg", it, ["chg", "completed", ["tgl"]]]
-    )(changeTodo),
+      (it: TodoId): TodoChange => ["chg", it, ["chg", "completed", ["tgl"]]],
+      changeTodo
+    ),
     edited: changeTodo,
   });
 
   showingTodos(
     onClose,
     itemsReconciliation<Todo, TodoId>(getTodoId)(
-      map(pipe(wrap("list")(), renderList))(render)
+      map(pipe(wrap("list"), renderList), render)
     )
   );
 };
@@ -221,22 +214,21 @@ const Footer: Component<{
   activeItemsCount: Provider<number>;
   todoFilter: Provider<TodoFilter>;
 }> = ({ activeItemsCount, todoFilter }) => (render, onClose) => {
-  const combine = combineLatest(
-    {
-      todoFilter: "all" as TodoFilter,
-    },
-    { count: 0 },
-    { activeTodoWord: "items" }
-  )(map(FooterView)(render));
+  const [setFilter, setCount, setActiveTodoWork] = combine(
+    map(
+      pipe(toObject("todoFilter", "count", "activeTodoWord"), FooterView),
+      render
+    ),
+    "all" as TodoFilter,
+    0,
+    "items"
+  );
 
   activeItemsCount(
     onClose,
-    forkMapJoin<number, { count: number; activeTodoWord: string }>(
-      pipe(pluralize("item"), wrap("activeTodoWord")()),
-      wrap("count")()
-    )(combine)
+    fork(setCount, map(pluralize("item"), setActiveTodoWork))
   );
-  todoFilter(onClose, map(wrap("todoFilter")<TodoFilter>())(combine));
+  todoFilter(onClose, setFilter);
 };
 
 const AppView: ViewSetup<{
@@ -290,7 +282,7 @@ const AppComponent: Component = () => (render, onClose) => {
     onKeydown: onSubmit(
       fork(
         () => renderAction(),
-        map(addNewTodo)((e) => updateTodoList(e))
+        map(addNewTodo, (e) => updateTodoList(e))
       )
     ),
     footer: Footer({
@@ -303,24 +295,19 @@ const AppComponent: Component = () => (render, onClose) => {
     }),
   });
 
-  const renderAction = map(renderAppView)(render);
+  const renderAction = map(renderAppView, render);
   renderAction();
 
-  const combineShowingTodos = combineLatest(
-    {
-      todoFilter: "all" as TodoFilter,
-    },
-    { todos: [] as Todo[] }
-  )(map(filterShowingTodos)(showingTodos));
+  const [setFilter, setTodos] = combine(
+    map(filterShowingTodos, showingTodos),
+    "all" as TodoFilter,
+    [] as Todo[]
+  );
 
   const updateTodoList = reducer(
     [newTodo("first")],
-    todosChanger
-  )(
-    fork(
-      map(countActive)(passOnlyChanged(activeItemsCount)),
-      map(wrap("todos")<Todo[]>())(combineShowingTodos)
-    )
+    todosChanger,
+    fork(map(countActive, passOnlyChanged(activeItemsCount)), setTodos)
   );
 
   urlHashProvider(
@@ -330,12 +317,8 @@ const AppComponent: Component = () => (render, onClose) => {
         ["#/", "all"],
         ["#/active", "active"],
         ["#/completed", "completed"],
-      ])
-    )(
-      fork(
-        todoFilter,
-        map(wrap("todoFilter")<TodoFilter>())(combineShowingTodos)
-      )
+      ]),
+      fork(todoFilter, setFilter)
     )
   );
 };

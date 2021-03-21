@@ -10,8 +10,13 @@ import {
   ResourceStoreWrite,
 } from "../../functions/store";
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
-import { Consumer, dataPortal, fork, Provider } from "../../libs/connections";
-import { combine, map } from "../../libs/connections/processors2";
+import {
+  combine,
+  Consumer,
+  dataPortal,
+  fork,
+  Provider,
+} from "../../libs/connections";
 import { throwIfNull } from "../../libs/errors";
 import { HashUri } from "../../libs/hash";
 import {
@@ -42,6 +47,7 @@ import {
   DocumentChange,
   newDocumentComparator,
 } from "../article-edit/document-change";
+import { map } from "../../libs/connections/mappers";
 
 const detectDocumentChange = (
   contentRoot: HTMLElement,

@@ -1,3 +1,4 @@
+import { Callback } from "../../libs/connections";
 import { newStateMachineWithFeedback } from "../../libs/named-state";
 
 import { createProfile, GDriveProfile } from "./app-files";
@@ -30,53 +31,57 @@ const handleError = (e: Error | unknown): GDriveAction => [
     "Unknown Error: " + JSON.stringify(e),
 ];
 
-export const gdrive = newStateMachineWithFeedback<GDriveState, GDriveAction>(
-  initGdriveState,
-  {
-    idle: {
-      initialize: (gapi) => {
-        return gapi.auth2.getAuthInstance().isSignedIn.get()
-          ? ["profileRetrieving", gapi]
-          : ["ready", gapi];
+export const gdrive = (
+  callback: Callback<GDriveState>
+): Callback<GDriveAction> =>
+  newStateMachineWithFeedback<GDriveState, GDriveAction>(
+    initGdriveState,
+    {
+      idle: {
+        initialize: (gapi) => {
+          return gapi.auth2.getAuthInstance().isSignedIn.get()
+            ? ["profileRetrieving", gapi]
+            : ["ready", gapi];
+        },
+        fail: (reason) => ["error", reason],
       },
-      fail: (reason) => ["error", reason],
-    },
-    loggingIn: {
-      retrieveProfile: (profile) => ["profileRetrieving", profile],
-    },
-    profileRetrieving: {
-      loggedIn: (profile) => ["logged", profile],
-      fail: (reason) => ["error", reason],
-    },
-    logged: {
-      logout: (_, profile) => ["loggingOut", profile.gapi],
-    },
-    loggingOut: {
-      loggedOut: (gapi) => ["ready", gapi],
-    },
-    ready: {
-      login: (_, gapi) => {
-        return ["loggingIn", gapi];
+      loggingIn: {
+        retrieveProfile: (profile) => ["profileRetrieving", profile],
       },
+      profileRetrieving: {
+        loggedIn: (profile) => ["logged", profile],
+        fail: (reason) => ["error", reason],
+      },
+      logged: {
+        logout: (_, profile) => ["loggingOut", profile.gapi],
+      },
+      loggingOut: {
+        loggedOut: (gapi) => ["ready", gapi],
+      },
+      ready: {
+        login: (_, gapi) => {
+          return ["loggingIn", gapi];
+        },
+      },
+      error: {},
     },
-    error: {},
-  },
-  {
-    idle: () =>
-      initializeGoogleDrive()
-        .then<GDriveAction>((gapi) => ["initialize", gapi])
-        .catch(handleError),
-    loggingIn: (gapi) =>
-      signIn(gapi)
-        .then<GDriveAction>(() => ["retrieveProfile", gapi])
-        .catch(handleError),
-    profileRetrieving: (gapi) =>
-      createProfile(gapi)
-        .then<GDriveAction>((profile) => ["loggedIn", profile])
-        .catch(handleError),
-    loggingOut: (gapi) =>
-      signOut(gapi)
-        .then<GDriveAction>(() => ["loggedOut", gapi])
-        .catch(handleError),
-  }
-);
+    {
+      idle: () =>
+        initializeGoogleDrive()
+          .then<GDriveAction>((gapi) => ["initialize", gapi])
+          .catch(handleError),
+      loggingIn: (gapi) =>
+        signIn(gapi)
+          .then<GDriveAction>(() => ["retrieveProfile", gapi])
+          .catch(handleError),
+      profileRetrieving: (gapi) =>
+        createProfile(gapi)
+          .then<GDriveAction>((profile) => ["loggedIn", profile])
+          .catch(handleError),
+      loggingOut: (gapi) =>
+        signOut(gapi)
+          .then<GDriveAction>(() => ["loggedOut", gapi])
+          .catch(handleError),
+    },
+    callback
+  );

@@ -1,5 +1,6 @@
 import { fork, passOnlyChanged, Provider } from "../../libs/connections";
-import { filter, map, mapTo, not } from "../../libs/connections/processors2";
+import { filter, not } from "../../libs/connections/filters";
+import { map, mapTo } from "../../libs/connections/mappers";
 import { b, button, Component, div, View } from "../../libs/simple-ui/render";
 import { isKey } from "../../libs/simple-ui/utils/funtions";
 

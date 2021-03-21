@@ -35,6 +35,9 @@ export type ComponentRuntime = (render: Renderer, onClose: OnCloseRegister) => v
 // setup component
 export type Component<T = void> = (props: T) => ComponentRuntime;
 
+export type ComponentRuntime2 = (render: Renderer, onClose: OnCloseRegister) => void;
+export type Component2<T = void> = (props: T) => ComponentRuntime;
+
 type Prop = string | number | boolean | Record<string, unknown> | Prop[] | undefined | Provider<any>;
 type ViewProps = Record<string, Prop> | Prop | void;
 export type View<T extends ViewProps = void> = (props: T) => JsonHtml;

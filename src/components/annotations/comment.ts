@@ -1,11 +1,7 @@
 import { fork, Provider } from "../../libs/connections";
-import {
-  and,
-  delayedState,
-  filter,
-  map,
-  or,
-} from "../../libs/connections/processors2";
+import { delayedState } from "../../libs/connections";
+import { and, filter, or } from "../../libs/connections/filters";
+import { map } from "../../libs/connections/mappers";
 import { throwIfNull } from "../../libs/errors";
 import { newStateHandler, newStateMapper } from "../../libs/named-state";
 import {

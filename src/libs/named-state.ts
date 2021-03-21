@@ -1,5 +1,5 @@
-import { Consumer, Processor, reducer } from "./connections";
-import { Callback } from "./connections/processors2";
+import { reducer } from "./connections";
+import { Callback } from "./connections";
 
 export type NamedAction<N, T = void> = T extends void
   ? [name: N]
@@ -84,8 +84,10 @@ const newStateMachineHandler = <S extends SomeState, A extends SomeAction>(
 
 export const newStateMachine = <S extends SomeState, A extends SomeAction>(
   initState: S,
-  behaviours: Behaviours<S, A>
-): Processor<A, S> => reducer(initState, newStateMachineHandler(behaviours));
+  behaviours: Behaviours<S, A>,
+  callback: Callback<S>
+): Callback<A> =>
+  reducer(initState, newStateMachineHandler(behaviours), callback);
 
 type StateFeedbacks<S extends SomeState, A extends SomeAction> = {
   [SK in S[0]]?: (
@@ -100,8 +102,9 @@ export const newStateMachineWithFeedback = <
 >(
   initState: S,
   behaviours: Behaviours<S, A>,
-  feedbacks: StateFeedbacks<S, A>
-): Processor<A, S> => (push) => {
+  feedbacks: StateFeedbacks<S, A>,
+  callback: Callback<S>
+): Callback<A> => {
   let abortController = new AbortController();
 
   const handleState = (state: S) => {
@@ -113,9 +116,9 @@ export const newStateMachineWithFeedback = <
         handleAction(action)
       );
     }
-    push(state);
+    callback(state);
   };
-  const handleAction = newStateMachine(initState, behaviours)(handleState);
+  const handleAction = newStateMachine(initState, behaviours, handleState);
   handleState(initState);
   return handleAction;
 };
@@ -131,7 +134,7 @@ export const filterState = <S extends SomeState, K extends S[0]>(
 
 export type StateWithFeedback<S, A> = {
   state: S;
-  feedback: Consumer<A>;
+  feedback: Callback<A>;
 };
 export const newStateMachineWithFeedback2 = <
   S extends SomeState,
@@ -139,8 +142,8 @@ export const newStateMachineWithFeedback2 = <
 >(
   initState: S,
   behaviours: Behaviours<S, A>,
-  push: Consumer<StateWithFeedback<S, A>>
-): Consumer<A> => {
+  push: Callback<StateWithFeedback<S, A>>
+): Callback<A> => {
   const handleState = (state: S) => {
     // const feedback = feedbacks[state[0] as S[0]];
     // if (feedback) {
@@ -150,7 +153,7 @@ export const newStateMachineWithFeedback2 = <
     // }
     push({ state, feedback: handleAction });
   };
-  const handleAction = newStateMachine(initState, behaviours)(handleState);
+  const handleAction = newStateMachine(initState, behaviours, handleState);
   handleState(initState);
   return handleAction;
 };

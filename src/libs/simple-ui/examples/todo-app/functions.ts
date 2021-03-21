@@ -3,13 +3,13 @@ import {
   booleanChanger,
   EntityListChange,
   entityListChanger,
-  filter,
   fork,
-  map,
   ObjectChange,
   objectChanger,
   Processor,
 } from "../../../connections";
+import { filter } from "../../../connections/filters";
+import { map } from "../../../connections/mappers";
 
 import { newTodo, Todo, TodoId, TodoName } from "./model";
 
@@ -20,7 +20,7 @@ const inputValue = (event: Event): string =>
   (event.target as HTMLInputElement).value;
 
 export const onSubmit: Processor<KeyboardEvent, string> = (push) =>
-  filter(isKey("Enter"))(fork(map(inputValue)(push), focusTarget));
+  filter(isKey("Enter"), fork(map(inputValue, push), focusTarget));
 
 export const focusTarget = (event: Event): void =>
   (event.target as HTMLInputElement).focus();
@@ -35,12 +35,11 @@ export const countActive = (todos: Todo[]): number =>
   todos.filter((it) => !it.completed).length;
 
 export type TodoFilter = "all" | "active" | "completed";
-export type NowShowingObj = { todoFilter: TodoFilter };
 
-export const filterShowingTodos = ({
-  todoFilter,
-  todos,
-}: NowShowingObj & { todos: Todo[] }): Todo[] => {
+export const filterShowingTodos = ([todoFilter, todos]: [
+  TodoFilter,
+  Todo[]
+]): Todo[] => {
   if (todoFilter == "all") {
     return todos;
   }

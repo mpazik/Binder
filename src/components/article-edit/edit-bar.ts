@@ -1,5 +1,5 @@
 import { Provider } from "../../libs/connections";
-import { map } from "../../libs/connections/processors2";
+import { map } from "../../libs/connections/mappers";
 import { newStateOptionalMapper } from "../../libs/named-state";
 import {
   button,

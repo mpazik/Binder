@@ -34,7 +34,6 @@ import {
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { currentDocumentUriProvider } from "../../functions/url-hijack";
 import { Consumer, dataPortal, fork, Provider } from "../../libs/connections";
-import { mapTo, pluck } from "../../libs/connections/processors2";
 import { HashName, HashUri } from "../../libs/hash";
 import { filterState } from "../../libs/named-state";
 import { measureAsyncTime } from "../../libs/performance";
@@ -45,6 +44,7 @@ import { fileDrop } from "../file-drop";
 import { fileNavigation } from "../navigation";
 import { searchBox } from "../navigation/search-box";
 import { profilePanel } from "../profile";
+import { map, mapTo, pick } from "../../libs/connections/mappers";
 
 const initServices = async (): Promise<{
   contentFetcher: LinkedDataWithDocumentFetcher;
@@ -149,7 +149,7 @@ export const App = asyncLoader(
                 onGDriveState,
                 filterState(
                   "logged",
-                  pluck("user", pluck("emailAddress", setUserEmail))
+                  map(pick("user"), map(pick("emailAddress"), setUserEmail))
                 )
               ),
               storeStateProvider,

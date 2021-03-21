@@ -4,10 +4,8 @@ import {
   dataPortal,
   reducer,
   EntityListChange,
-  map,
-  pipe,
-  wrap,
 } from "../../connections";
+import { map, pipe, wrap } from "../../connections/mappers";
 import { ItemProvider } from "../items-reconciliation";
 import {
   button,
@@ -126,8 +124,9 @@ const main: Component = () => (render, onClose) => {
       entityListChanger<ItemProvider<Item, ItemId>, ItemId>(
         (it) => it.id,
         (it) => it
-      )
-    )(map(pipe(wrap("list")(), renderMainView))(render))
+      ),
+      map(pipe(wrap("list"), renderMainView), render)
+    )
   );
 };
 

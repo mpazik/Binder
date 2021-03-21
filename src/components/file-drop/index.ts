@@ -1,5 +1,5 @@
 import { Consumer, Provider } from "../../libs/connections";
-import { map } from "../../libs/connections/processors2";
+import { map } from "../../libs/connections/mappers";
 import { Component, h2 } from "../../libs/simple-ui/render";
 import { blanket } from "../common/blanket";
 

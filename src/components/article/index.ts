@@ -12,12 +12,8 @@ import {
 } from "../../functions/store";
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { Consumer, dataPortal, fork, Provider } from "../../libs/connections";
-import {
-  closableForEach,
-  combine,
-  map,
-  mapAwait,
-} from "../../libs/connections/processors2";
+import { closableForEach, combine } from "../../libs/connections";
+import { map, mapAwait } from "../../libs/connections/mappers";
 import { LinkedData } from "../../libs/linked-data";
 import {
   handleState,

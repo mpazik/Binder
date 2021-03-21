@@ -1,6 +1,6 @@
 import { queryParamProvider } from "../libs/browser-providers";
 import { fork, Provider, ProviderSetup } from "../libs/connections";
-import { map } from "../libs/connections/processors2";
+import { map } from "../libs/connections/mappers";
 
 const linkHijack: ProviderSetup<{ element?: Node }, string> = ({
   element = document,

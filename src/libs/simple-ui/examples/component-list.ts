@@ -3,14 +3,12 @@ import {
   dataPortal,
   EntityListChange,
   entityListChanger,
-  map,
   ObjectChange,
   objectChanger,
-  pipe,
   Provider,
   reducer,
-  wrap,
 } from "../../connections";
+import { map, pipe, wrap } from "../../connections/mappers";
 import { itemsReconciliation } from "../items-reconciliation";
 import {
   button,
@@ -121,10 +119,9 @@ const main: Component = () => (render, onClose) => {
       entityListChanger<Item, ItemId, ObjectChange<Item>>(
         getItemId,
         objectChanger<Item>((it) => it)
-      )
-    )(
+      ),
       itemsReconciliation<Item, ItemId>(getItemId)(
-        map(pipe(wrap("list")(), renderMainView))(render)
+        map(pipe(wrap("list"), renderMainView), render)
       )
     )
   );

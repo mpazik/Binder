@@ -1,8 +1,8 @@
 import { GDriveProfile } from "../../functions/gdrive/app-files";
 import { gdrive, GDriveState } from "../../functions/gdrive/controller";
 import { StoreState } from "../../functions/store";
-import { Consumer, fork, merge, Provider } from "../../libs/connections";
-import { map } from "../../libs/connections/processors2";
+import { combine, Consumer, fork, Provider } from "../../libs/connections";
+import { map } from "../../libs/connections/mappers";
 import { newStateMapper } from "../../libs/named-state";
 import {
   a,
@@ -147,25 +147,27 @@ export const profilePanel: Component<{
   });
 
   const renderProfile = map(profileView, map(profileContainer, render));
-  const [gdriveStateForProfile, storeStateForProfile] = merge<
-    GDriveState,
-    StoreState,
-    ProfileState
-  >((gdriveState, storeState) => {
-    if (gdriveState[0] === "logged") {
-      const profile = gdriveState[1];
-      if (storeState[0] === "uploading") {
-        return ["uploading", profile];
-      } else if (storeState[0] === "downloading") {
-        return ["downloading", profile];
-      } else if (storeState[0] === "error") {
-        return ["error", storeState[1].error.message];
+  const [gdriveStateForProfile, storeStateForProfile] = combine<
+    [GDriveState, StoreState]
+  >(
+    map(([gdriveState, storeState]): ProfileState => {
+      if (gdriveState[0] === "logged") {
+        const profile = gdriveState[1];
+        if (storeState[0] === "uploading") {
+          return ["uploading", profile];
+        } else if (storeState[0] === "downloading") {
+          return ["downloading", profile];
+        } else if (storeState[0] === "error") {
+          return ["error", storeState[1].error.message];
+        }
+      } else if (gdriveState[0] === "error") {
+        return ["error", gdriveState[1]];
       }
-    } else if (gdriveState[0] === "error") {
-      return ["error", gdriveState[1]];
-    }
-    return gdriveState;
-  })(renderProfile);
+      return gdriveState;
+    }, renderProfile),
+    undefined,
+    undefined
+  );
   renderProfile(["idle"]);
 
   const setAction = gdrive(fork(gdriveStateForProfile, gdriveStateConsumer));

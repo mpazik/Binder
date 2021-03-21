@@ -2,14 +2,9 @@ import { DocumentAnnotationsIndex } from "../../functions/indexes/document-annot
 import { LinkedDataStoreWrite } from "../../functions/store";
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { dataPortal, fork, Provider } from "../../libs/connections";
-import {
-  combine,
-  filterNonNull,
-  map,
-  ignoreParam,
-  withValue,
-  withState,
-} from "../../libs/connections/processors2";
+import { combine, withState } from "../../libs/connections";
+import { filterNonNull } from "../../libs/connections/filters";
+import { ignoreParam, map, withValue } from "../../libs/connections/mappers";
 import { HashUri } from "../../libs/hash";
 import { findHashUri, LinkedData } from "../../libs/linked-data";
 import { Component, div, slot } from "../../libs/simple-ui/render";

@@ -1,4 +1,4 @@
-import { Processor, reducer } from "../../connections";
+import { reducer } from "../../connections";
 import {
   button,
   Component,
@@ -11,11 +11,8 @@ import {
 
 const item: View<{ name: string }> = ({ name }) => p(name);
 
-const listAppender = <S>(initState: S[] = []): Processor<S, S[]> =>
-  reducer(initState, (list, item) => {
-    list.push(item);
-    return list;
-  });
+const reduceStringList = (list: string[], item: string): string[] =>
+  list.concat(item);
 
 const mainView: ViewSetup<
   {
@@ -36,7 +33,7 @@ const main: Component = () => (render) => {
     onClick: () => addItem(new Date().toISOString()),
   });
 
-  const addItem = listAppender<string>()((list) =>
+  const addItem = reducer([], reduceStringList, (list) =>
     render(renderMainView({ list }))
   );
 };

@@ -1,5 +1,4 @@
 import { Consumer, Provider } from "../../libs/connections";
-import { toUndefined } from "../../libs/connections/processors2";
 import { throwIfNull } from "../../libs/errors";
 import { HashName, HashUri } from "../../libs/hash";
 import {
@@ -32,6 +31,7 @@ import {
   ResourceStoreWrite,
 } from "./local-store";
 import { newMissingLinkedDataDownloader } from "./missing-linked-data-downloader";
+import { transformIfDefined } from "../../libs/connections/mappers";
 
 export type {
   ResourceStoreWrite,
@@ -150,7 +150,9 @@ export const createStore = async (indexLinkedData: Indexer): Promise<Index> => {
 
     const blob: Blob | undefined =
       (await localResourceStoreRead(hash)) ||
-      toUndefined(linkedDataToBlob)(await localLinkedDataStoreRead(hash));
+      transformIfDefined(linkedDataToBlob)(
+        await localLinkedDataStoreRead(hash)
+      );
 
     if (!blob) {
       updateState([

@@ -1,163 +1,162 @@
+import { filterNonNullTuple, nonUndefined } from "./filters";
 import {
-  BiProcessor,
+  Callback,
   Consumer,
-  Processor,
-  Provider,
   OnCloseRegister,
-  Merge,
+  PartialTuple,
+  Processor,
 } from "./types";
 import { equal } from "./utils/equal";
 
-export const map = <T, S>(transform: (v: T) => S): Processor<T, S> => (
-  push
-) => (v: T) => push(transform(v));
+/**
+ * Passes only changed element, with one state being delayed.
+ * It is use full for delayed hide operation
+ */
+export const delayedState = <S, T extends S>(
+  stateToDelay: T,
+  delay: number,
+  callback: Callback<S>,
+  comparator: (a: S, b: S) => boolean = equal
+): Callback<S> => {
+  let lastValue: S;
+  let timeout: ReturnType<typeof setTimeout> | null = null;
 
-export const filter = <T>(predicate: (v: T) => boolean): Processor<T, T> => (
-  push
-) => (v: T) => {
-  if (predicate(v)) push(v);
+  return (value: S) => {
+    if (comparator(value, stateToDelay)) {
+      if (!timeout) {
+        timeout = setTimeout(() => {
+          timeout = null;
+          lastValue = stateToDelay;
+          callback(stateToDelay);
+        }, delay);
+      }
+    } else {
+      if (comparator(value, lastValue)) {
+        if (timeout) {
+          clearTimeout(timeout);
+          timeout = null;
+        }
+        return;
+      }
+      lastValue = value;
+      callback(value);
+    }
+  };
 };
 
-export const flatten = <T>(array: T[]): Processor<T, T> => (push) => (v: T) =>
+export const closableForEach = <T>(
+  handler: (v: T, signal: AbortSignal) => void,
+  callback: Callback<T>
+): Callback<T> => {
+  let abortController = new AbortController();
+
+  return (v: T) => {
+    abortController.abort();
+    abortController = new AbortController();
+    handler(v, abortController.signal);
+    callback(v);
+  };
+};
+
+export const flatten = <T>(push: Callback<T>): Callback<T[]> => (array) =>
   array.forEach(push);
 
 export const reducer = <S, C>(
   initState: S,
-  reduce: (state: S, change: C) => S
-): Processor<C, S> => (push) => {
+  reduce: (state: S, change: C) => S,
+  callback: Callback<S>
+): Callback<C> => {
   let state: S = initState;
   return (change) => {
     const newState = reduce(state, change);
     state = newState;
-    push(newState);
+    callback(newState);
   };
 };
 
-export const match = <T, S>(map: Map<T, S>): Processor<T, S> => (push) => (
-  v: T
-) => {
-  const newV = map.get(v);
-  if (newV) push(newV!);
+export function split<T, S>(
+  isFirst: (v: T | S) => v is T,
+  onFirst: Callback<T>,
+  onSecond: Callback<S>
+): Callback<T | S>;
+
+export function split<T>(
+  predicate: (v: T) => boolean,
+  onFirst: Callback<T>,
+  onSecond: Callback<T>
+): Callback<T>;
+
+export function split<T>(
+  predicate: (v: T) => boolean,
+  onFirst: Callback<T>,
+  onSecond: Callback<T>
+): Callback<T> {
+  return (value) => {
+    predicate(value) ? onFirst(value) : onSecond(value);
+  };
+}
+export const splitOnUndefined = <T>(
+  onUndefined: Callback<undefined>,
+  onValue: Callback<T>
+): Callback<T | undefined> => split(nonUndefined, onValue, onUndefined);
+
+export const withDefaultValue = <T>(
+  defaultValue: T,
+  callback: Callback<T>
+): Callback<T | undefined | null> => (value) => {
+  callback(value ?? defaultValue);
 };
 
 export const fork = <T>(...consumers: Consumer<T>[]): Consumer<T> => (data) => {
   consumers.forEach((push) => push(data));
 };
 
-export const forkMapJoin = <T, S>(
-  map1: (v: T) => Partial<S>,
-  map2: (v: T) => Partial<S>
-): Processor<T, S> =>
-  map<T, S>((v) => Object.assign({}, map1(v), map2(v)) as S);
+export const combine = <T extends readonly unknown[]>(
+  callback: (args: T) => void,
+  ...init: PartialTuple<T>
+): {
+  [K in keyof T]: Callback<T[K]>;
+} => combineAlways(filterNonNullTuple(callback), ...init);
 
-export const split = <T>(
-  predicate: (v: T) => boolean,
-  push1: Consumer<T>,
-  push2: Consumer<T>
-): Consumer<T> => (data) => {
-  predicate(data) ? push1(data) : push2(data);
+export const combineAlways = <T extends readonly unknown[]>(
+  callback: (args: PartialTuple<T>) => void,
+  ...init: PartialTuple<T>
+): {
+  [K in keyof T]: Callback<T[K]>;
+} => {
+  const state = init.slice(0);
+
+  return (init.map((s, n) => {
+    return (newStateN: unknown) => {
+      state[n] = newStateN;
+      callback((state as unknown) as T);
+    };
+  }) as unknown) as {
+    [K in keyof T]: Callback<T[K]>;
+  };
 };
 
-export const merge = <T, S, W>(
-  combine: (stateA: T, stateB: S) => W,
-  initA?: T,
-  initB?: S
-): Merge<T, S, W> => (push) => {
-  let stateA: T | undefined = initA;
-  let stateB: S | undefined = initB;
-  const tryPush = () =>
-    stateA && stateB ? push(combine(stateA, stateB)) : undefined;
-  tryPush();
+export const withState = <S, V = void>(
+  callback: (state: S, value: V) => void,
+  init?: S
+): [(v: V) => void, (s: S) => void, () => void] => {
+  let state: S | undefined = init;
   return [
-    (newStateA) => {
-      stateA = newStateA;
-      tryPush();
+    (v) => {
+      if (state) {
+        callback(state, v);
+      }
     },
-    (newStateB) => {
-      stateB = newStateB;
-      tryPush();
+    (s) => {
+      state = s;
+    },
+    () => {
+      state = undefined;
     },
   ];
 };
 
-export const objectMerge = <T, S>(initA?: T, initB?: S): Merge<T, S, T & S> =>
-  merge((stateA, stateB) => Object.assign({}, stateA, stateB), initA, initB);
-
-export function combineLatest<T1, T2>(
-  init1: T1,
-  init2: T2
-): Processor<T1 | T2, T1 & T2>;
-
-export function combineLatest<T1, T2, T3>(
-  init1: T1,
-  init2: T2,
-  init3: T3
-): Processor<T1 | T2 | T3, T1 & T2 & T3>;
-
-export function combineLatest(
-  ...init: Record<string, unknown>[]
-): Processor<any, any> {
-  return reducer(Object.assign({}, ...init), (state, change) =>
-    Object.assign(state, change)
-  );
-}
-
-export const filterType = <T, S extends T>(
-  predicate: (v: T) => v is S
-): Processor<T, S> => (push) => (v: T) => {
-  if (predicate(v)) push(v);
-};
-
-export const filterNonNull = <T>(): Processor<T | undefined | null, T> => (
-  push
-) => (v: T | undefined | null) => {
-  if (v) push(v);
-};
-
-export const mapTo = <T>(value: T): Processor<any, T> => (push) => (v: T) =>
-  push(value);
-
-export const biMap = <T1, T2, S1, S2>(
-  transform1: (v: T1) => S1,
-  transform2: (v: T2) => S2
-): BiProcessor<T1, T2, S1, S2> => ([push1, push2]) => [
-  (val: T1) => {
-    push1(transform1(val));
-  },
-  (val: T2) => {
-    push2(transform2(val));
-  },
-];
-
-export const wrapMerge = <K1 extends keyof any, K2 extends keyof any>(
-  key1: K1,
-  key2: K2
-) => <T1, T2>(initA?: T1, initB?: T2) => (
-  push: Consumer<{ [A in K1]: T1 } & { [B in K2]: T2 }>
-) =>
-  biMap(
-    wrap(key1)<T1>(),
-    wrap(key2)<T2>()
-  )(
-    objectMerge<{ [A in K1]: T1 }, { [B in K2]: T2 }>(
-      initA !== undefined ? wrap(key1)<T1>()(initA) : undefined,
-      initB !== undefined ? wrap(key2)<T2>()(initB) : undefined
-    )(push)
-  );
-
-export const pipe = <T, S, U>(map1: (v: T) => S, map2: (v: S) => U) => (
-  v: T
-): U => map2(map1(v));
-
-export const wrap = <K extends keyof any>(key: K) => <V>() => (
-  value: V
-): { [A in K]: V } => {
-  const o = {} as { [A in K]: V };
-  o[key] = value;
-  return o;
-};
-
-export const log = <T>(name: string, push: Consumer<T>): Consumer<T> => (
+export const log = <T>(name: string, push: Callback<T>): Callback<T> => (
   value
 ) => {
   console.log(name, value);
@@ -166,8 +165,8 @@ export const log = <T>(name: string, push: Consumer<T>): Consumer<T> => (
 
 export const onAnimationFrame = <T>(
   onClose: OnCloseRegister,
-  push: Consumer<T>
-): Consumer<T> => {
+  push: Callback<T>
+): Callback<T> => {
   let lastValue: T | null = null;
   let frameRequest: null | ReturnType<typeof window.requestAnimationFrame>;
 
@@ -190,11 +189,19 @@ export const onAnimationFrame = <T>(
   };
 };
 
-export const passOnlyChanged = <T>(push: Consumer<T>): Consumer<T> => {
+export const passOnlyChanged = <T>(push: Callback<T>): Callback<T> => {
   let lastValue: T;
   return (value) => {
     if (equal(value, lastValue)) return;
     lastValue = value;
     push(value);
   };
+};
+
+export const match = <T, S>(
+  map: Map<T, S>,
+  callback: Callback<S>
+): Callback<T> => (v: T) => {
+  const newV = map.get(v);
+  if (newV) callback(newV!);
 };

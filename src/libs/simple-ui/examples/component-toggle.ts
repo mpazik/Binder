@@ -1,12 +1,10 @@
 import {
-  Consumer,
+  Callback,
   dataPortal,
-  map,
   Provider,
   ProviderSetup,
-  pipe,
-  wrap,
 } from "../../connections";
+import { map, pipe, wrap } from "../../connections/mappers";
 import { Network, resumableNetwork } from "../../connections/network";
 import {
   button,
@@ -56,7 +54,7 @@ const timerView: View<{ n: number }> = ({ n }) => {
 
 const subNetwork: Network<{
   seconds: number;
-  consumer: Consumer<number>;
+  consumer: Callback<number>;
 }> = ({ seconds, consumer }, onClose) => {
   periodicProvider(seconds)(onClose, consumer);
 };
@@ -109,7 +107,7 @@ const main: Component = () => (render) => {
   });
 
   const increaseState = createIncreaseState(
-    map(pipe(wrap("num")(), renderMainView))(render)
+    map(pipe(wrap("num"), renderMainView), render)
   );
 };
 

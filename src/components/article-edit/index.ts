@@ -15,7 +15,8 @@ import {
   passOnlyChanged,
   Provider,
 } from "../../libs/connections";
-import { withState, map } from "../../libs/connections/processors2";
+import { withState } from "../../libs/connections";
+import { map } from "../../libs/connections/mappers";
 import { throwIfNull } from "../../libs/errors";
 import {
   findHashUri,

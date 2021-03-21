@@ -1,6 +1,7 @@
-import { Consumer, Provider } from "./types";
+import { Callback, Provider } from "./types";
 export type {
   Consumer,
+  Callback,
   Provider,
   Processor,
   ProviderSetup,
@@ -22,7 +23,7 @@ export * from "./processors";
 
 export const dataPortal = <T>(): [
   provider: Provider<T>,
-  consumer: Consumer<T>
+  consumer: Callback<T>
 ] => {
   let consumer: ((value: T) => void) | undefined;
   return [
