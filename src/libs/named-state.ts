@@ -1,5 +1,6 @@
 import { reducer } from "./connections";
 import { Callback } from "./connections";
+import { GDriveAction } from "../functions/gdrive/controller";
 
 export type NamedAction<N, T = void> = T extends void
   ? [name: N]
@@ -43,6 +44,17 @@ export const newStateMapper = <S extends SomeState, T>(
     [SK in S[0]]: (state: StateByName<S, SK>[1]) => T;
   }
 ) => ([key, data]: S): T => mappers[key as S[0]](data);
+
+export const newStateWithFeedbackMapper = <
+  S extends SomeState,
+  A extends SomeAction,
+  T
+>(
+  mappers: {
+    [SK in S[0]]: (state: StateByName<S, SK>[1], feedback: Callback<A>) => T;
+  }
+) => ({ state: [key, data], feedback }: StateWithFeedback<S, A>): T =>
+  mappers[key as S[0]](data, feedback);
 
 export const newStateOptionalMapper = <S extends SomeState, T>(
   mappers: {
@@ -89,40 +101,6 @@ export const newStateMachine = <S extends SomeState, A extends SomeAction>(
 ): Callback<A> =>
   reducer(initState, newStateMachineHandler(behaviours), callback);
 
-type StateFeedbacks<S extends SomeState, A extends SomeAction> = {
-  [SK in S[0]]?: (
-    state: StateByName<S, SK>[1],
-    abortSignal: AbortSignal
-  ) => Promise<A>;
-};
-
-export const newStateMachineWithFeedback = <
-  S extends SomeState,
-  A extends SomeAction
->(
-  initState: S,
-  behaviours: Behaviours<S, A>,
-  feedbacks: StateFeedbacks<S, A>,
-  callback: Callback<S>
-): Callback<A> => {
-  let abortController = new AbortController();
-
-  const handleState = (state: S) => {
-    abortController.abort();
-    abortController = new AbortController();
-    const feedback = feedbacks[state[0] as S[0]];
-    if (feedback) {
-      feedback(state[1], abortController.signal).then((action) =>
-        handleAction(action)
-      );
-    }
-    callback(state);
-  };
-  const handleAction = newStateMachine(initState, behaviours, handleState);
-  handleState(initState);
-  return handleAction;
-};
-
 export const filterState = <S extends SomeState, K extends S[0]>(
   stateName: K,
   callback: Callback<StateByName<S, K>[1]>
@@ -136,7 +114,7 @@ export type StateWithFeedback<S, A> = {
   state: S;
   feedback: Callback<A>;
 };
-export const newStateMachineWithFeedback2 = <
+export const newStateMachineWithFeedback = <
   S extends SomeState,
   A extends SomeAction
 >(
@@ -145,15 +123,8 @@ export const newStateMachineWithFeedback2 = <
   push: Callback<StateWithFeedback<S, A>>
 ): Callback<A> => {
   const handleState = (state: S) => {
-    // const feedback = feedbacks[state[0] as S[0]];
-    // if (feedback) {
-    //   feedback(state[1], abortController.signal).then((action) =>
-    //     handleAction(action)
-    //   );
-    // }
     push({ state, feedback: handleAction });
   };
   const handleAction = newStateMachine(initState, behaviours, handleState);
-  handleState(initState);
   return handleAction;
 };

@@ -1,4 +1,4 @@
-import { fork, passOnlyChanged, Provider } from "../../libs/connections";
+import { fork, passOnlyChanged } from "../../libs/connections";
 import { filter, not } from "../../libs/connections/filters";
 import { map, mapTo } from "../../libs/connections/mappers";
 import { b, button, Component, div, View } from "../../libs/simple-ui/render";
@@ -53,10 +53,12 @@ export const selectionToolbarView: View<{
     )
   );
 
-export const selectionToolbar: Component<{
-  selectionProvider: Provider<OptSelection>;
-  buttons: Button[];
-}> = ({ selectionProvider, buttons }) => (render, onClose) => {
+export const selectionToolbar: Component<
+  {
+    buttons: Button[];
+  },
+  { selectionHandler: OptSelection }
+> = ({ buttons }) => (render, onClose) => {
   const renderState = map((selection: OptSelection) => {
     if (!selection) return;
     return selectionToolbarView({
@@ -105,5 +107,8 @@ export const selectionToolbar: Component<{
   onClose(() => {
     document.removeEventListener("mouseup", mouseUpHandler);
   });
-  selectionProvider(onClose, selectionHandler);
+
+  return {
+    selectionHandler,
+  };
 };

@@ -17,6 +17,14 @@ export const pick = <T extends object, K extends keyof T>(
   key: K
 ): Function<T, T[K]> => (v) => v[key];
 
+export const extend = <T, S>(extend: (v: T) => S): Function<T, [T, S]> => (
+  v
+) => [v, extend(v)];
+
+export const extendAsync = <T, S>(
+  extend: (v: T) => Promise<S>
+): Function<T, Promise<[T, S]>> => (v) => extend(v).then((m) => [v, m]);
+
 export const transformIfDefined = <T, S>(
   map: Function<T, S>
 ): Function<T | undefined, S | undefined> => (v) => (v ? map(v) : undefined);

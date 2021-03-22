@@ -31,14 +31,11 @@ export const updateBrowserHistory = (uri: string): void => {
 };
 
 export const currentDocumentUriProvider = ({
-  extraProvider,
   defaultUri,
 }: {
-  extraProvider: Provider<string>;
   defaultUri: string;
 }): Provider<string> => (onClose, push) => {
   const pushUrl = fork(updateBrowserHistory, push);
-  extraProvider(onClose, pushUrl);
   linkHijack({})(onClose, pushUrl);
   queryParamProvider(
     onClose,

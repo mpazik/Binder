@@ -1,18 +1,13 @@
-import {
-  Callback,
-  dataPortal,
-  Provider,
-  ProviderSetup,
-} from "../../connections";
+import { Callback, ProviderSetup } from "../../connections";
 import { map, pipe, wrap } from "../../connections/mappers";
 import { Network, resumableNetwork } from "../../connections/network";
 import {
   button,
   Component,
-  ComponentRuntime,
   div,
   setupComponent,
-  slot,
+  Slot,
+  newSlot,
   span,
   View,
   ViewSetup,
@@ -59,10 +54,10 @@ const subNetwork: Network<{
   periodicProvider(seconds)(onClose, consumer);
 };
 
-const timer: Component<{ start: Provider<number>; init: number }> = ({
-  start,
-  init,
-}) => (render, onClose) => {
+const timer: Component<{ init: number }, { start: number }> = ({ init }) => (
+  render,
+  onClose
+) => {
   const startSubnetwork = resumableNetwork(subNetwork, onClose);
 
   const startTimer = (seconds: number) => {
@@ -71,14 +66,16 @@ const timer: Component<{ start: Provider<number>; init: number }> = ({
       consumer: (n) => render(timerView({ n })),
     });
   };
-  start(onClose, startTimer);
   startTimer(init);
+  return {
+    start: startTimer,
+  };
 };
 
 const mainView: ViewSetup<
   {
     init: string;
-    bottomSlot: ComponentRuntime;
+    bottomSlot: Slot;
     onClick: () => void;
     onClickTrigger: () => void;
   },
@@ -91,19 +88,16 @@ const mainView: ViewSetup<
     span(`number: ${num}`),
     button({ onClick: onClick }, "test"),
     button({ onClick: onClickTrigger }, "trigger"),
-    ...(num % 2 === 0 ? [slot("bottom-slot", bottomSlot)] : [])
+    ...(num % 2 === 0 ? [bottomSlot] : [])
   );
 
 const main: Component = () => (render) => {
-  const [timerProvider, setTimerStart] = dataPortal<number>();
+  const [bottomSlot, { start }] = newSlot("bottom-slot", timer({ init: 3 }));
   const renderMainView = mainView({
     init: "test",
-    bottomSlot: timer({
-      start: timerProvider,
-      init: 3,
-    }),
+    bottomSlot,
     onClick: () => increaseState(),
-    onClickTrigger: () => setTimerStart(Math.floor(Math.random() * 10)),
+    onClickTrigger: () => start(Math.floor(Math.random() * 10)),
   });
 
   const increaseState = createIncreaseState(

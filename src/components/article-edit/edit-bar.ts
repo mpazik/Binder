@@ -1,4 +1,3 @@
-import { Provider } from "../../libs/connections";
 import { map } from "../../libs/connections/mappers";
 import { newStateOptionalMapper } from "../../libs/named-state";
 import {
@@ -79,10 +78,14 @@ const createEditBarView: OptionalViewSetup<
       ),
   });
 
-export const editBar: Component<{
-  onSave: () => void;
-  onDiscard: () => void;
-  provider: Provider<EditBarState>;
-}> = ({ provider, onSave, onDiscard }) => (render, onClose) => {
-  provider(onClose, map(createEditBarView({ onSave, onDiscard }), render));
+export const editBar: Component<
+  {
+    onSave: () => void;
+    onDiscard: () => void;
+  },
+  { updateEditBar: EditBarState }
+> = ({ onSave, onDiscard }) => (render) => {
+  return {
+    updateEditBar: map(createEditBarView({ onSave, onDiscard }), render),
+  };
 };

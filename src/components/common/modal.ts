@@ -1,4 +1,3 @@
-import { Provider } from "../../libs/connections";
 import { Component, div, JsonHtml } from "../../libs/simple-ui/render";
 
 import { blanket } from "./blanket";
@@ -28,11 +27,13 @@ const modalView = (
     blanket({ onClick: closeModal })
   );
 
-export const modal: Component<{ provider: Provider<ModalState> }> = ({
-  provider,
-}) => (render, onClose) => {
+export const modal: Component<void, { displayModal: ModalState }> = () => (
+  render
+) => {
   const renderModal = (state: ModalState) => {
     render(state ? modalView(state, () => renderModal(undefined)) : undefined);
   };
-  provider(onClose, renderModal);
+  return {
+    displayModal: renderModal,
+  };
 };

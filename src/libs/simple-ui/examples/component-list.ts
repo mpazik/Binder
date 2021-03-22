@@ -1,7 +1,5 @@
 import {
   Consumer,
-  dataPortal,
-  EntityListChange,
   entityListChanger,
   ObjectChange,
   objectChanger,
@@ -94,11 +92,7 @@ const newIdGenerator = () => {
 };
 const getItemId = (it: Item) => it.id;
 
-const main: Component = () => (render, onClose) => {
-  const [listUpdatesProvider, updateList] = dataPortal<
-    EntityListChange<Item, ItemId, ObjectChange<Item>>
-  >();
-
+const main: Component = () => (render) => {
   const generateId = newIdGenerator();
   const renderMainView = mainView({
     onAdd: () => {
@@ -112,17 +106,14 @@ const main: Component = () => (render, onClose) => {
     },
   });
 
-  listUpdatesProvider(
-    onClose,
-    reducer(
-      [],
-      entityListChanger<Item, ItemId, ObjectChange<Item>>(
-        getItemId,
-        objectChanger<Item>((it) => it)
-      ),
-      itemsReconciliation<Item, ItemId>(getItemId)(
-        map(pipe(wrap("list"), renderMainView), render)
-      )
+  const updateList = reducer(
+    [],
+    entityListChanger<Item, ItemId, ObjectChange<Item>>(
+      getItemId,
+      objectChanger<Item>((it) => it)
+    ),
+    itemsReconciliation<Item, ItemId>(getItemId)(
+      map(pipe(wrap("list"), renderMainView), render)
     )
   );
 };

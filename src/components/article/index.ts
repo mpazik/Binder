@@ -11,21 +11,26 @@ import {
   ResourceStoreWrite,
 } from "../../functions/store";
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
-import { Consumer, dataPortal, fork, Provider } from "../../libs/connections";
-import { closableForEach, combine } from "../../libs/connections";
+import { currentDocumentUriProvider } from "../../functions/url-hijack";
+import {
+  closableForEach,
+  combine,
+  Consumer,
+  fork,
+} from "../../libs/connections";
 import { map, mapAwait } from "../../libs/connections/mappers";
 import { LinkedData } from "../../libs/linked-data";
 import {
   handleState,
   mapState,
-  newStateMachineWithFeedback2,
+  newStateMachineWithFeedback,
   StateWithFeedback,
 } from "../../libs/named-state";
 import {
   Component,
   div,
   JsonHtml,
-  slot,
+  newSlot,
   span,
   ViewSetup,
 } from "../../libs/simple-ui/render";
@@ -67,7 +72,7 @@ const newArticleViewStateMachine = ({
       .catch((error) => ["fail", error.toString()] as ArticleViewAction);
 
   return (push: Consumer<ArticleStateWithFeedback>) =>
-    newStateMachineWithFeedback2<ArticleViewState, ArticleViewAction>(
+    newStateMachineWithFeedback<ArticleViewState, ArticleViewAction>(
       articleViewInitState,
       {
         idle: {
@@ -123,30 +128,28 @@ const createArticleView: ViewSetup<
       div({ class: "flash mt-3 flash-error" }, span(reason)),
   });
 
-export const articleComponent: Component<{
-  userEmailProvider: Provider<string>;
-  documentAnnotationsIndex: DocumentAnnotationsIndex;
-  contentFetcher: LinkedDataWithDocumentFetcher;
-  onArticleLoaded?: (article: LinkedData) => void;
-  storeWrite: ResourceStoreWrite;
-  ldStoreWrite: LinkedDataStoreWrite;
-  ldStoreRead: LinkedDataStoreRead;
-  uriProvider: Provider<string | undefined | null>;
-  fileProvider: Provider<Blob>;
-}> = ({
+export const articleComponent: Component<
+  {
+    documentAnnotationsIndex: DocumentAnnotationsIndex;
+    contentFetcher: LinkedDataWithDocumentFetcher;
+    onArticleLoaded?: (article: LinkedData) => void;
+    storeWrite: ResourceStoreWrite;
+    ldStoreWrite: LinkedDataStoreWrite;
+    ldStoreRead: LinkedDataStoreRead;
+  },
+  {
+    setUserEmail: string;
+    setUri: string | undefined | null;
+    provideFile: Blob;
+  }
+> = ({
   documentAnnotationsIndex,
   onArticleLoaded,
   contentFetcher,
   storeWrite,
   ldStoreWrite,
   ldStoreRead,
-  uriProvider,
-  fileProvider,
-  userEmailProvider,
 }) => (render, onClose) => {
-  const [dataProvider, onLoaded] = dataPortal<LinkedDataWithDocument>();
-
-  const [creatorProvider, setCreator] = dataPortal<string>();
   const [setUser, setState] = combine<[string, ArticleStateWithFeedback]>(
     ([user, { state }]) => {
       if (["loading", "ready"].includes(state[0])) {
@@ -156,17 +159,14 @@ export const articleComponent: Component<{
     undefined,
     undefined
   );
-  userEmailProvider(onClose, setUser);
 
-  const contentSlot = slot(
+  const [contentSlot, { setCreator, setContent }] = newSlot(
     "content-blah",
     editableContentComponent({
       storeWrite,
       ldStoreWrite,
       ldStoreRead,
       documentAnnotationsIndex,
-      creatorProvider,
-      provider: dataProvider,
       onSave: (linkedData) => {
         onArticleLoaded?.(linkedData);
       },
@@ -178,7 +178,7 @@ export const articleComponent: Component<{
   const onLoadedParentHandler = ({ state }: ArticleStateWithFeedback) =>
     handleState<ArticleViewState>(state, {
       ready: (state) => {
-        onLoaded(state);
+        setContent(state);
         onArticleLoaded?.(state.linkedData);
       },
     });
@@ -187,13 +187,18 @@ export const articleComponent: Component<{
     contentFetcher,
   })(fork(renderState, onLoadedParentHandler, setState));
 
-  uriProvider(
-    onClose,
-    map((uri) => ["load", uri] as ArticleViewAction, articleViewStateMachine)
+  const setUri = map(
+    (uri) => ["load", uri] as ArticleViewAction,
+    articleViewStateMachine
   );
-  fileProvider(
-    onClose,
-    mapAwait(
+
+  currentDocumentUriProvider({
+    defaultUri: "https://pl.wikipedia.org/wiki/Dedal_z_Sykionu",
+  })(onClose, setUri);
+
+  return {
+    setUserEmail: setUser,
+    provideFile: mapAwait(
       processFileToArticle,
       map(
         (article) => ["display", article] as ArticleViewAction,
@@ -202,6 +207,7 @@ export const articleComponent: Component<{
       (error) => {
         console.error(error);
       }
-    )
-  );
+    ),
+    setUri,
+  };
 };

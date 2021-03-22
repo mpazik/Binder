@@ -1,12 +1,14 @@
-import { Consumer, Provider } from "../../libs/connections";
+import { Callback } from "../../libs/connections";
 import { map } from "../../libs/connections/mappers";
 import { Component, h2 } from "../../libs/simple-ui/render";
 import { blanket } from "../common/blanket";
 
-export const fileDrop: Component<{
-  fileConsumer: Consumer<Blob>;
-  displayProvider: Provider<boolean>;
-}> = ({ fileConsumer, displayProvider }) => (render, onClose) => {
+export const fileDrop: Component<
+  {
+    onFile: Callback<Blob>;
+  },
+  { displayFileDrop: boolean }
+> = ({ onFile }) => (render) => {
   const handleFile = (e: DragEvent) => {
     if (!e.dataTransfer || e.dataTransfer.items.length === 0) {
       console.warn("There was no file attached");
@@ -31,10 +33,10 @@ export const fileDrop: Component<{
       console.warn(`File type '${file.type}' is not supported`);
       return;
     }
-    fileConsumer(file);
+    onFile(file);
   };
 
-  const handleDisplay = map((display) => {
+  const displayFileDrop = map((display) => {
     if (!display) return undefined;
     return blanket(
       {
@@ -59,7 +61,7 @@ export const fileDrop: Component<{
         },
         onDrop: (e) => {
           e.preventDefault();
-          handleDisplay(false);
+          displayFileDrop(false);
           handleFile(e);
           // processFileToArticle(file).then((content) => {
           //   articleViewStateMachine(["display", content]);
@@ -68,10 +70,10 @@ export const fileDrop: Component<{
         onDragleave: (e) => {
           e.stopPropagation();
           e.preventDefault();
-          handleDisplay(false);
+          displayFileDrop(false);
         },
       })
     );
   }, render);
-  displayProvider(onClose, handleDisplay);
+  return { displayFileDrop };
 };

@@ -10,15 +10,10 @@ import {
   ResourceStoreWrite,
 } from "../../functions/store";
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
-import {
-  combine,
-  Consumer,
-  dataPortal,
-  fork,
-  Provider,
-} from "../../libs/connections";
-import { throwIfNull } from "../../libs/errors";
-import { HashUri } from "../../libs/hash";
+import { combine, Consumer, fork } from "../../libs/connections";
+import { filter, nonNull } from "../../libs/connections/filters";
+import { map, pick, pipe } from "../../libs/connections/mappers";
+import { throwIfNull2 } from "../../libs/errors";
 import {
   findHashUri,
   findUrl,
@@ -30,7 +25,7 @@ import {
   article,
   Component,
   div,
-  slot,
+  newSlot,
   span,
   View,
 } from "../../libs/simple-ui/render";
@@ -39,7 +34,6 @@ import { annotationsSupport } from "../annotations";
 import { currentSelection, OptSelection } from "../annotations/selection";
 import {
   articleEditSupport,
-  EditorContext,
   EditorContextWithHash,
   isEditable,
 } from "../article-edit";
@@ -47,7 +41,6 @@ import {
   DocumentChange,
   newDocumentComparator,
 } from "../article-edit/document-change";
-import { map } from "../../libs/connections/mappers";
 
 const detectDocumentChange = (
   contentRoot: HTMLElement,
@@ -77,169 +70,174 @@ const contentHeaderView: View<LinkedData> = (linkedData: LinkedData) => {
   );
 };
 
-export const contentDisplayComponent: Component<{
-  provider: Provider<{ content: Document; editable: boolean }>;
-  onDisplay: Consumer<HTMLElement>;
-  onChange: Consumer<DocumentChange[]>;
-  onSelect: Consumer<OptSelection>;
-}> = ({ provider, onDisplay, onChange, onSelect }) => (render, onClose) => {
-  provider(onClose, ({ content, editable }) => {
-    const contentRoot = getDocumentContentRoot(content);
-    let editorElement: HTMLElement | undefined;
-    render(
-      article({
-        id: "editor-body",
-        contenteditable: editable,
-        class: "editable markdown-body flex-1",
-        style: { outline: "none" },
-        onInput: onChange
-          ? detectDocumentChange(contentRoot, onChange) // ideally should be triggered on resize too
-          : undefined,
-        dangerouslySetInnerHTML: contentRoot?.innerHTML,
-        onMouseup: () => {
-          if (editorElement) onSelect(currentSelection(editorElement));
-        },
-        onFocusout: () => {
-          console.log("focus out");
-          onSelect(undefined);
-        },
-        onDisplay: (e) => {
-          editorElement = e.target as HTMLElement;
-          if (onDisplay) {
-            onDisplay(editorElement);
-          }
-        },
-      })
-    );
-  });
+const contentFields: Component<void, { renderFields: LinkedData }> = () => (
+  render
+) => ({
+  renderFields: (linkedData) => render(contentHeaderView(linkedData)),
+});
+
+export const contentDisplayComponent: Component<
+  {
+    onDisplay: Consumer<HTMLElement>;
+    onChange: Consumer<DocumentChange[]>;
+    onSelect: Consumer<OptSelection>;
+  },
+  { displayContent: { content: Document; editable: boolean } }
+> = ({ onDisplay, onChange, onSelect }) => (render) => {
+  return {
+    displayContent: ({ content, editable }) => {
+      const contentRoot = getDocumentContentRoot(content);
+      let editorElement: HTMLElement | undefined;
+      // noinspection JSUnusedGlobalSymbols
+      render(
+        article({
+          id: "editor-body",
+          contenteditable: editable,
+          class: "editable markdown-body flex-1",
+          style: { outline: "none" },
+          onInput: onChange
+            ? detectDocumentChange(contentRoot, onChange) // ideally should be triggered on resize too
+            : undefined,
+          dangerouslySetInnerHTML: contentRoot?.innerHTML,
+          onMouseup: () => {
+            if (editorElement) onSelect(currentSelection(editorElement));
+          },
+          onFocusout: () => {
+            console.log("focus out");
+            onSelect(undefined);
+          },
+          onDisplay: (e) => {
+            editorElement = e.target as HTMLElement;
+            if (onDisplay) {
+              onDisplay(editorElement);
+            }
+          },
+        })
+      );
+    },
+  };
 };
 
-export const editableContentComponent: Component<{
-  provider: Provider<LinkedDataWithDocument>;
-  storeWrite: ResourceStoreWrite;
-  ldStoreWrite: LinkedDataStoreWrite;
-  ldStoreRead: LinkedDataStoreRead;
-  onSave: Consumer<LinkedDataWithHashId>;
-  documentAnnotationsIndex: DocumentAnnotationsIndex;
-  creatorProvider: Provider<string>;
-}> = ({
-  provider,
+export const editableContentComponent: Component<
+  {
+    storeWrite: ResourceStoreWrite;
+    ldStoreWrite: LinkedDataStoreWrite;
+    ldStoreRead: LinkedDataStoreRead;
+    onSave: Consumer<LinkedDataWithHashId>;
+    documentAnnotationsIndex: DocumentAnnotationsIndex;
+  },
+  { setCreator: string; setContent: LinkedDataWithDocument }
+> = ({
   storeWrite,
   ldStoreWrite,
   ldStoreRead,
   onSave,
   documentAnnotationsIndex,
-  creatorProvider,
-}) => (render, onClose) => {
-  const [documentProvider, displayAnnotations] = dataPortal<{
-    container: HTMLElement;
-    linkedData: LinkedData;
-  }>();
-  const [editorContextProvider, setContext] = dataPortal<EditorContext>();
-  const [referenceProvider, setReference] = dataPortal<HashUri>();
-  const [saveRequestProvider, requestDocumentSave] = dataPortal<void>();
-  const [setDisplay, setContent] = combine<
+}) => (render) => {
+  const [handleContentDisplayed, setContent] = combine<
     [HTMLElement, LinkedDataWithDocument]
   >(
     fork(
       ([container, { linkedData }]) => {
-        displayAnnotations({ container, linkedData });
+        displayDocumentAnnotations({ container, linkedData });
       },
       ([container, documentContent]) => {
-        setContext({ container, ...documentContent });
+        setEditorContext({ container, ...documentContent });
       }
     ),
     undefined,
     undefined
   );
 
-  const [changesProvider, onChange] = dataPortal<
-    DocumentChange[] | undefined
-  >();
+  const [
+    annotationSupportSlot,
+    {
+      displaySelectionToolbar,
+      displayDocumentAnnotations,
+      setCreator,
+      setReference,
+    },
+  ] = newSlot(
+    "annotation-support",
+    annotationsSupport({
+      ldStoreWrite,
+      ldStoreRead,
+      documentAnnotationsIndex,
+      requestDocumentSave: () => saveArticle(),
+    })
+  );
 
-  const [fieldsProvider, linkedDataForFields] = dataPortal<LinkedData>();
-  const [selectionProvider, onSelect] = dataPortal<OptSelection>();
-
-  const [contentProvider, documentToDisplay] = dataPortal<{
-    content: Document;
-    editable: boolean;
-  }>();
-
-  provider(
-    onClose,
-    fork(
-      map(({ linkedData }) => linkedData, linkedDataForFields),
-      map(
-        ({ contentDocument, linkedData }) => ({
-          content: contentDocument,
-          editable: isEditable(linkedData),
-        }),
-        documentToDisplay
+  const [
+    editSupportSlot,
+    { setEditorContext, displayChanges, saveArticle },
+  ] = newSlot(
+    "edit-support",
+    articleEditSupport({
+      ldStoreWrite,
+      storeWrite,
+      onSave: fork<EditorContextWithHash>(
+        setContent,
+        map(pick("linkedData"), onSave),
+        map(
+          pipe(
+            pick("linkedData"),
+            findHashUri,
+            throwIfNull2(
+              () => "save article should have hash uri reference to the content"
+            )
+          ),
+          setReference
+        )
       ),
-      ({ linkedData }) => onChange(isEditable(linkedData) ? [] : undefined), // reset change bar
-      setContent,
-      ({ linkedData }) => {
-        const hashUri = findHashUri(linkedData);
-        if (hashUri) setReference(hashUri);
-      }
-    )
+    })
+  );
+
+  const [contentSlot, { displayContent }] = newSlot(
+    "content",
+    contentDisplayComponent({
+      onChange: displayChanges,
+      onDisplay: handleContentDisplayed,
+      onSelect: displaySelectionToolbar,
+    })
+  );
+
+  const [contentFieldsSlot, { renderFields }] = newSlot(
+    "content-fields",
+    contentFields()
   );
 
   render(
     div(
       { id: "content", class: "ml-4" },
-      slot("content-fields", (render) => {
-        fieldsProvider(onClose, (linkedData) =>
-          render(contentHeaderView(linkedData))
-        );
-      }),
+      contentFieldsSlot,
       div(
         { id: "editor", class: "mb-3 position-relative" },
-        slot(
-          "content",
-          contentDisplayComponent({
-            provider: contentProvider,
-            onChange,
-            onDisplay: setDisplay,
-            onSelect,
-          })
-        ),
-        slot(
-          "edit-support",
-          articleEditSupport({
-            changesProvider,
-            ldStoreWrite,
-            storeWrite,
-            onSave: fork<EditorContextWithHash>(
-              setContext,
-              ({ linkedData }) => onSave(linkedData),
-              ({ linkedData }) => {
-                const hashUri = throwIfNull(
-                  findHashUri(linkedData),
-                  () =>
-                    "save article should have hash uri reference to the content"
-                );
-                setReference(hashUri);
-              }
-            ),
-            editorContextProvider,
-            saveRequestProvider,
-          })
-        ),
-        slot(
-          "annotation-support",
-          annotationsSupport({
-            selectionProvider,
-            creatorProvider,
-            ldStoreWrite,
-            ldStoreRead,
-            documentProvider,
-            referenceProvider,
-            documentAnnotationsIndex,
-            requestDocumentSave,
-          })
-        )
+        contentSlot,
+        editSupportSlot,
+        annotationSupportSlot
       )
     )
   );
+
+  return {
+    setCreator,
+    setContent: fork(
+      setContent,
+      map(
+        ({ contentDocument, linkedData }) => ({
+          content: contentDocument,
+          editable: isEditable(linkedData),
+        }),
+        displayContent
+      ),
+      map(
+        pick("linkedData"),
+        fork(
+          renderFields,
+          map((ld) => (isEditable(ld) ? [] : undefined), displayChanges),
+          map(findHashUri, filter(nonNull, setReference))
+        )
+      )
+    ),
+  };
 };

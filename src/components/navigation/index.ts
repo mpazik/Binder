@@ -2,7 +2,14 @@ import {
   DirectoryIndex,
   DirectoryRecord,
 } from "../../functions/indexes/directory-index";
-import { Provider } from "../../libs/connections";
+import { Callback } from "../../libs/connections";
+import {
+  extendAsync,
+  map,
+  mapAwait,
+  pipe,
+  toObject,
+} from "../../libs/connections/mappers";
 import { HashUri } from "../../libs/hash";
 import { a, Component, View } from "../../libs/simple-ui/render";
 
@@ -24,15 +31,20 @@ const fileNavigationList: View<{
   ),
 ];
 
-export const fileNavigation: Component<{
-  selectedItemProvider: Provider<HashUri | undefined>;
-  directoryIndex: DirectoryIndex;
-}> = ({ directoryIndex, selectedItemProvider }) => (render, onClose) => {
-  const renderNavigation = (current?: HashUri) => {
-    directoryIndex({}).then((list) =>
-      render(fileNavigationList({ list, current }))
-    );
+export const fileNavigation: Component<
+  {
+    directoryIndex: DirectoryIndex;
+  },
+  { selectItem: HashUri | undefined }
+> = ({ directoryIndex }) => (render) => {
+  const renderNavigation: Callback<HashUri | undefined> = mapAwait(
+    extendAsync(() => directoryIndex({})),
+    map(pipe(toObject("current", "list"), fileNavigationList), render),
+    (e) => console.error(e)
+  );
+  renderNavigation(undefined);
+
+  return {
+    selectItem: renderNavigation,
   };
-  selectedItemProvider(onClose, renderNavigation);
-  renderNavigation();
 };

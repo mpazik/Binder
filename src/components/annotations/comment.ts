@@ -1,4 +1,4 @@
-import { fork, Provider } from "../../libs/connections";
+import { fork } from "../../libs/connections";
 import { delayedState } from "../../libs/connections";
 import { and, filter, or } from "../../libs/connections/filters";
 import { map } from "../../libs/connections/mappers";
@@ -49,9 +49,12 @@ export type CommentDisplayState =
   | ["hidden"]
   | ["visible", { position: Position; content: string }];
 
-export const commentDisplay: Component<{
-  commentProvider: Provider<CommentDisplayState>;
-}> = ({ commentProvider }) => (render, onClose) => {
+export const commentDisplay: Component<
+  void,
+  {
+    displayComment: CommentDisplayState;
+  }
+> = () => (render) => {
   const renderPopup = map(
     newStateMapper<CommentDisplayState, JsonHtml | undefined>({
       visible: (state) => {
@@ -74,7 +77,9 @@ export const commentDisplay: Component<{
     render
   );
   const handleData = delayedState(["hidden"], 200, renderPopup);
-  commentProvider(onClose, handleData);
+  return {
+    displayComment: handleData,
+  };
 };
 
 const commentFormView: View<{
@@ -134,20 +139,19 @@ export type CommentFormState =
   | ["hidden"]
   | ["visible", { selection: Selection }];
 
-export const commentForm: Component<{
-  commentFormProvider: Provider<CommentFormState>;
-  onCreatedComment: ({
-    selection,
-    comment,
-  }: {
-    selection: Selection;
-    comment: string;
-  }) => void;
-  onHide: ({ selection }: { selection: Selection }) => void;
-}> = ({ commentFormProvider, onCreatedComment, onHide }) => (
-  render,
-  onClose
-) => {
+export const commentForm: Component<
+  {
+    onCreatedComment: ({
+      selection,
+      comment,
+    }: {
+      selection: Selection;
+      comment: string;
+    }) => void;
+    onHide: ({ selection }: { selection: Selection }) => void;
+  },
+  { displayCommentForm: CommentFormState }
+> = ({ onCreatedComment, onHide }) => (render) => {
   let editor: HTMLElement | undefined;
   let selection: Selection | undefined;
 
@@ -173,9 +177,8 @@ export const commentForm: Component<{
     render
   );
 
-  commentFormProvider(
-    onClose,
-    fork(
+  return {
+    displayCommentForm: fork(
       renderForm,
       filter<CommentFormState>(
         ([name]) => name === "hidden",
@@ -188,6 +191,6 @@ export const commentForm: Component<{
         visible: ({ selection: s }) => (selection = s),
         hidden: () => (selection = undefined),
       })
-    )
-  );
+    ),
+  };
 };

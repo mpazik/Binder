@@ -1,21 +1,16 @@
 import { DocumentAnnotationsIndex } from "../../functions/indexes/document-annotations-index";
 import { LinkedDataStoreWrite } from "../../functions/store";
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
-import { dataPortal, fork, Provider } from "../../libs/connections";
+import { fork } from "../../libs/connections";
 import { combine, withState } from "../../libs/connections";
 import { filterNonNull } from "../../libs/connections/filters";
 import { ignoreParam, map, withValue } from "../../libs/connections/mappers";
 import { HashUri } from "../../libs/hash";
 import { findHashUri, LinkedData } from "../../libs/linked-data";
-import { Component, div, slot } from "../../libs/simple-ui/render";
+import { Component, div, newSlot } from "../../libs/simple-ui/render";
 
 import { Annotation, createAnnotation, QuoteSelector } from "./annotation";
-import {
-  commentDisplay,
-  CommentDisplayState,
-  commentForm,
-  CommentFormState,
-} from "./comment";
+import { commentDisplay, CommentDisplayState, commentForm } from "./comment";
 import { containerText, removeSelector, renderSelector } from "./highlights";
 import { quoteSelectorForRange } from "./quote-selector";
 import { OptSelection } from "./selection";
@@ -26,35 +21,28 @@ type AnnotationSaveArgs = {
   selector: QuoteSelector;
   content?: string;
 };
-export const annotationsSupport: Component<{
-  ldStoreWrite: LinkedDataStoreWrite;
-  ldStoreRead: LinkedDataStoreRead;
-  creatorProvider: Provider<string>;
-  selectionProvider: Provider<OptSelection>;
-  documentAnnotationsIndex: DocumentAnnotationsIndex;
-  referenceProvider: Provider<HashUri>;
-  requestDocumentSave: () => void;
-  documentProvider: Provider<{
-    container: HTMLElement;
-    linkedData: LinkedData;
-  }>;
-}> = ({
+export const annotationsSupport: Component<
+  {
+    ldStoreWrite: LinkedDataStoreWrite;
+    ldStoreRead: LinkedDataStoreRead;
+    documentAnnotationsIndex: DocumentAnnotationsIndex;
+    requestDocumentSave: () => void;
+  },
+  {
+    displayDocumentAnnotations: {
+      container: HTMLElement;
+      linkedData: LinkedData;
+    };
+    displaySelectionToolbar: OptSelection;
+    setCreator: string;
+    setReference: HashUri;
+  }
+> = ({
   ldStoreWrite,
   ldStoreRead,
-  creatorProvider,
-  referenceProvider,
   requestDocumentSave,
-  selectionProvider,
   documentAnnotationsIndex,
-  documentProvider,
-}) => (render, onClose) => {
-  const [commentToDisplayProvider, displayComment] = dataPortal<
-    CommentDisplayState
-  >();
-  const [commentFormProvider, displayCommentForm] = dataPortal<
-    CommentFormState
-  >();
-
+}) => (render) => {
   const [setCreator, setReference, saveAnnotation] = combine<
     [string | null, HashUri, AnnotationSaveArgs]
   >(
@@ -91,12 +79,6 @@ export const annotationsSupport: Component<{
     null
   );
 
-  creatorProvider(onClose, setCreator);
-  referenceProvider(
-    onClose,
-    fork(setReference, ignoreParam(saveKeptAnnotation))
-  );
-
   const displayAnnotation = (
     container: HTMLElement,
     text: string,
@@ -120,87 +102,86 @@ export const annotationsSupport: Component<{
       annotation.body ? withValue(["hidden"], displayComment) : undefined
     );
 
-  documentProvider(onClose, async ({ container, linkedData }) => {
-    const text = containerText(container);
-    const documentHashUri = findHashUri(linkedData);
-    if (!documentHashUri) return;
-    const annotationsHashUris = await documentAnnotationsIndex({
-      documentHashUri,
-    });
-    annotationsHashUris.forEach((hashUri) => {
-      ldStoreRead(hashUri).then(
-        filterNonNull((annotation) => {
-          displayAnnotation(
-            container,
-            text,
-            (annotation as unknown) as Annotation
-          );
-        })
-      );
-    });
-  });
-
-  render(
-    div(
-      slot(
-        "comment-form",
-        commentForm({
-          commentFormProvider,
-          onHide: ({ selection: { container, range } }) => {
-            const text = containerText(container);
-            return removeSelector(
-              container,
-              text,
-              quoteSelectorForRange(container, text, range)
-            );
-          },
-          onCreatedComment: ({ selection: { container, range }, comment }) => {
+  const [selectionToolbarSlot, { selectionHandler }] = newSlot(
+    "selection-toolbar",
+    selectionToolbar({
+      buttons: [
+        {
+          handler: (selection) => {
+            const { range, container } = selection;
             const text = containerText(container);
             const selector = quoteSelectorForRange(container, text, range);
-            removeSelector(container, text, selector);
-            saveAnnotation({ container, selector, content: comment });
+            renderSelector(container, text, selector, "purple");
+            displayCommentForm([
+              "visible",
+              {
+                selection,
+              },
+            ]);
           },
-        })
-      ),
-      slot(
-        "comment-display",
-        commentDisplay({
-          commentProvider: commentToDisplayProvider,
-        })
-      ),
-      slot(
-        "selection-toolbar",
-        selectionToolbar({
-          selectionProvider,
-          buttons: [
-            {
-              handler: (selection) => {
-                const { range, container } = selection;
-                const text = containerText(container);
-                const selector = quoteSelectorForRange(container, text, range);
-                renderSelector(container, text, selector, "purple");
-                displayCommentForm([
-                  "visible",
-                  {
-                    selection,
-                  },
-                ]);
-              },
-              label: "comment",
-              shortCutKey: "KeyC",
-            },
-            {
-              handler: ({ container, range }) => {
-                const text = containerText(container);
-                const selector = quoteSelectorForRange(container, text, range);
-                saveAnnotation({ container, selector });
-              },
-              label: "highlight",
-              shortCutKey: "KeyG",
-            },
-          ],
-        })
-      )
-    )
+          label: "comment",
+          shortCutKey: "KeyC",
+        },
+        {
+          handler: ({ container, range }) => {
+            const text = containerText(container);
+            const selector = quoteSelectorForRange(container, text, range);
+            saveAnnotation({ container, selector });
+          },
+          label: "highlight",
+          shortCutKey: "KeyG",
+        },
+      ],
+    })
   );
+  const [commentDisplaySlot, { displayComment }] = newSlot(
+    "comment-display",
+    commentDisplay()
+  );
+
+  const [commentFormSlot, { displayCommentForm }] = newSlot(
+    "comment-form",
+    commentForm({
+      onHide: ({ selection: { container, range } }) => {
+        const text = containerText(container);
+        return removeSelector(
+          container,
+          text,
+          quoteSelectorForRange(container, text, range)
+        );
+      },
+      onCreatedComment: ({ selection: { container, range }, comment }) => {
+        const text = containerText(container);
+        const selector = quoteSelectorForRange(container, text, range);
+        removeSelector(container, text, selector);
+        saveAnnotation({ container, selector, content: comment });
+      },
+    })
+  );
+
+  render(div(commentFormSlot, commentDisplaySlot, selectionToolbarSlot));
+  return {
+    setReference: fork(setReference, ignoreParam(saveKeptAnnotation)),
+    displaySelectionToolbar: selectionHandler,
+    setCreator: setCreator,
+    displayDocumentAnnotations: async ({ container, linkedData }) => {
+      const text = containerText(container);
+      const documentHashUri = findHashUri(linkedData);
+      if (!documentHashUri) return;
+      const annotationsHashUris = await documentAnnotationsIndex({
+        documentHashUri,
+      });
+      annotationsHashUris.forEach((hashUri) => {
+        ldStoreRead(hashUri).then(
+          filterNonNull((annotation) => {
+            displayAnnotation(
+              container,
+              text,
+              (annotation as unknown) as Annotation
+            );
+          })
+        );
+      });
+    },
+  };
 };

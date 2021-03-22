@@ -1,12 +1,11 @@
-import { dataPortal, Provider } from "../../connections";
 import {
   button,
   Component,
-  ComponentRuntime,
   div,
   h3,
   setupComponent,
-  slot,
+  Slot,
+  newSlot,
   span,
   ViewSetup,
 } from "../render";
@@ -20,20 +19,22 @@ const createIncreaseState = (consume: (state: number) => void) => {
   };
 };
 
-const subComponent: Component<{ numberProvider: Provider<number> }> = ({
-  numberProvider,
-}) => (render, onClose) => {
+const subComponent: Component<void, { provideNumber: number }> = () => (
+  render
+) => {
   const renderView = (num: number) => {
     render(div(h3("sub-component"), span(`Value: ${num}`)));
   };
   renderView(42);
-  numberProvider(onClose, renderView);
+  return {
+    provideNumber: renderView,
+  };
 };
 
 const MainView: ViewSetup<
   {
     init: string;
-    bottomSlot: ComponentRuntime;
+    bottomSlot: Slot;
     onClick: () => void;
     onClickTrigger: () => void;
   },
@@ -46,18 +47,20 @@ const MainView: ViewSetup<
     span(`number: ${num}`),
     button({ onClick: onClick }, "test"),
     button({ onClick: onClickTrigger }, "trigger"),
-    slot("bottom-slot", bottomSlot)
+    bottomSlot
   );
 
 const main: Component = () => (render) => {
-  const [randomNumberProvider, setRandomNumber] = dataPortal<number>();
+  const [bottomSlot, { provideNumber }] = newSlot(
+    "bottom-slot",
+    subComponent()
+  );
+
   const renderMainView = MainView({
     init: "test",
-    bottomSlot: subComponent({
-      numberProvider: randomNumberProvider,
-    }),
+    bottomSlot,
     onClick: () => increaseState(),
-    onClickTrigger: () => setRandomNumber(Math.floor(Math.random() * 10)),
+    onClickTrigger: () => provideNumber(Math.floor(Math.random() * 10)),
   });
 
   const increaseState = createIncreaseState((num: number) => {

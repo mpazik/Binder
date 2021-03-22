@@ -8,23 +8,17 @@ import {
   LinkedDataStoreWrite,
   ResourceStoreWrite,
 } from "../../functions/store";
-import {
-  Consumer,
-  dataPortal,
-  fork,
-  passOnlyChanged,
-  Provider,
-} from "../../libs/connections";
+import { Consumer, fork, passOnlyChanged } from "../../libs/connections";
 import { withState } from "../../libs/connections";
-import { map } from "../../libs/connections/mappers";
+import { map, pick, pipe } from "../../libs/connections/mappers";
 import { throwIfNull } from "../../libs/errors";
 import {
   findHashUri,
   LinkedData,
   LinkedDataWithHashId,
 } from "../../libs/linked-data";
-import { Component, fragment, slot } from "../../libs/simple-ui/render";
-import { modal, ModalState } from "../common/modal";
+import { Component, fragment, newSlot } from "../../libs/simple-ui/render";
+import { modal } from "../common/modal";
 
 import {
   changesIndicatorBar,
@@ -36,7 +30,7 @@ import {
   revertDocumentChange,
 } from "./document-change";
 import { renderDocumentChangeModal } from "./document-change-modal";
-import { editBar, EditBarState } from "./edit-bar";
+import { editBar } from "./edit-bar";
 
 const createNewDocument = (
   initialContent: Document,
@@ -63,37 +57,18 @@ export type EditorContextWithHash = EditorContext & {
   linkedData: LinkedDataWithHashId;
 };
 
-export const articleEditSupport: Component<{
-  changesProvider: Provider<DocumentChange[] | undefined>;
-  editorContextProvider: Provider<EditorContext>;
-  storeWrite: ResourceStoreWrite;
-  ldStoreWrite: LinkedDataStoreWrite;
-  onSave: Consumer<EditorContextWithHash>;
-  saveRequestProvider: Provider<void>;
-}> = ({
-  changesProvider,
-  editorContextProvider,
-  storeWrite,
-  ldStoreWrite,
-  onSave,
-  saveRequestProvider,
-}) => (render, onClose) => {
-  const [editBarStateOut, editBarStateIn] = dataPortal<EditBarState>();
-  const [modalStateProvider, modalStateConsumer] = dataPortal<ModalState>();
-  const [changesProvider2, onChange] = dataPortal<
-    DocumentChange[] | undefined
-  >();
-  changesProvider(
-    onClose,
-    fork(
-      onChange,
-      map(
-        (changes) => Boolean(changes && changes.length > 0),
-        passOnlyChanged((modified) => editBarStateUpdater(modified, modified))
-      )
-    )
-  );
-
+export const articleEditSupport: Component<
+  {
+    storeWrite: ResourceStoreWrite;
+    ldStoreWrite: LinkedDataStoreWrite;
+    onSave: Consumer<EditorContextWithHash>;
+  },
+  {
+    saveArticle: void;
+    displayChanges: DocumentChange[] | undefined;
+    setEditorContext: EditorContext;
+  }
+> = ({ storeWrite, ldStoreWrite, onSave }) => (render) => {
   const articleSaver = createArticleSaver(storeWrite, ldStoreWrite);
 
   const [discard, setContextForDiscard] = withState<EditorContext>(
@@ -114,7 +89,7 @@ export const articleEditSupport: Component<{
           contentDocument: newContentDocument,
           linkedData,
         }).then((newLinkedData) => {
-          editBarStateIn(["hidden"]);
+          updateEditBar(["hidden"]);
           onSave({
             linkedData: newLinkedData,
             contentDocument: newContentDocument,
@@ -122,7 +97,7 @@ export const articleEditSupport: Component<{
           });
         });
       } catch (error) {
-        editBarStateIn([
+        updateEditBar([
           "error",
           {
             reason: error,
@@ -133,26 +108,8 @@ export const articleEditSupport: Component<{
     }
   );
 
-  editorContextProvider(
-    onClose,
-    fork(
-      () => modalStateConsumer(undefined), // reset modal
-      ({ linkedData }) => onChange(isEditable(linkedData) ? [] : undefined), // reset change bar
-      setContextForSave,
-      setContextForDiscard,
-      map(
-        ({ linkedData }) => isNew(linkedData),
-        (newDocument) => {
-          editBarStateUpdater(newDocument, newDocument);
-        }
-      )
-    )
-  );
-
-  saveRequestProvider(onClose, saveArticle);
-
   const editBarStateUpdater = (visible: boolean, modified = false) =>
-    editBarStateIn(
+    updateEditBar(
       visible
         ? [
             "visible",
@@ -163,36 +120,52 @@ export const articleEditSupport: Component<{
         : ["hidden"]
     );
 
-  render(
-    fragment(
-      slot(
-        "gutter",
-        changesIndicatorBar({
-          changesProvider: changesProvider2,
-          onDiffBarClick: (change) => {
-            modalStateConsumer({
-              top: documentChangeTopRelativePosition(change),
-              left: 20,
-              content: renderDocumentChangeModal({
-                oldLines: change.oldLines,
-                onRevert: () => {
-                  revertDocumentChange(change);
-                  modalStateConsumer(undefined);
-                },
-              }),
-            });
-          },
-        })
-      ),
-      slot("modal-diff", modal({ provider: modalStateProvider })),
-      slot(
-        "edit-bar",
-        editBar({
-          onSave: saveArticle,
-          onDiscard: discard,
-          provider: editBarStateOut,
-        })
-      )
-    )
+  const [gutterSlot, { displayChangesOnBar }] = newSlot(
+    "gutter",
+    changesIndicatorBar({
+      onDiffBarClick: (change) => {
+        displayModal({
+          top: documentChangeTopRelativePosition(change),
+          left: 20,
+          content: renderDocumentChangeModal({
+            oldLines: change.oldLines,
+            onRevert: () => {
+              revertDocumentChange(change);
+              displayModal(undefined);
+            },
+          }),
+        });
+      },
+    })
   );
+  const [modalDiffSlot, { displayModal }] = newSlot("modal-diff", modal());
+  const [editBarSlot, { updateEditBar }] = newSlot(
+    "edit-bar",
+    editBar({
+      onSave: saveArticle,
+      onDiscard: discard,
+    })
+  );
+  render(fragment(gutterSlot, modalDiffSlot, editBarSlot));
+
+  return {
+    setEditorContext: fork(
+      () => displayModal(undefined), // reset modal
+      ({ linkedData }) =>
+        displayChangesOnBar(isEditable(linkedData) ? [] : undefined), // reset change bar
+      setContextForSave,
+      setContextForDiscard,
+      map(pipe(pick("linkedData"), isNew), (newDocument) => {
+        editBarStateUpdater(newDocument, !newDocument);
+      })
+    ),
+    saveArticle,
+    displayChanges: fork(
+      displayChangesOnBar,
+      map(
+        (changes) => Boolean(changes && changes.length > 0),
+        passOnlyChanged((modified) => editBarStateUpdater(modified, modified))
+      )
+    ),
+  };
 };

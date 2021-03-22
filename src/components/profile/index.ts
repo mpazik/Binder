@@ -1,9 +1,16 @@
 import { GDriveProfile } from "../../functions/gdrive/app-files";
-import { gdrive, GDriveState } from "../../functions/gdrive/controller";
+import {
+  GDriveAction,
+  GDriveState,
+  GDriveStateWithFeedback,
+} from "../../functions/gdrive/controller";
 import { StoreState } from "../../functions/store";
-import { combine, Consumer, fork, Provider } from "../../libs/connections";
+import { combine } from "../../libs/connections";
 import { map } from "../../libs/connections/mappers";
-import { newStateMapper } from "../../libs/named-state";
+import {
+  newStateWithFeedbackMapper,
+  StateWithFeedback,
+} from "../../libs/named-state";
 import {
   a,
   Component,
@@ -13,7 +20,7 @@ import {
   li,
   summary,
   ul,
-  ViewSetup,
+  View,
 } from "../../libs/simple-ui/render";
 import { loading } from "../common/async-loader";
 import { maxLengthText } from "../common/max-length-text";
@@ -56,77 +63,85 @@ type ProfileState =
   | ["downloading", GDriveProfile]
   | ["error", string];
 
-export const createProfileView: ViewSetup<
-  {
-    login: () => void;
-    logout: () => void;
-  },
-  ProfileState
-> = ({ login, logout }) =>
-  newStateMapper({
-    idle: () => loading(),
-    loggingOut: () => loading(),
-    loggingIn: () => loading(),
-    profileRetrieving: () => loading(),
-    ready: () =>
+export const profileView: View<StateWithFeedback<
+  ProfileState,
+  GDriveAction
+>> = newStateWithFeedbackMapper<ProfileState, GDriveAction, JsonHtml>({
+  idle: () => loading(),
+  loading: () => loading(),
+  loggingOut: () => loading(),
+  loggingIn: () => loading(),
+  profileRetrieving: () => loading(),
+  ready: (_, setAction) =>
+    div(
+      { class: "p-2" },
+      a({ type: "button", onClick: () => setAction(["login"]) }, "Sign In"),
+      " to your cloud storage provider to synchronize your data"
+    ),
+  logged: (profile, setAction) =>
+    div(
+      { class: "d-flex", style: { width: "100%" } },
+      div({ class: "p-2", dangerouslySetInnerHTML: gdriveLogoIcon }),
       div(
-        { class: "p-2" },
-        a({ type: "button", onClick: login }, "Sign In"),
-        " to your cloud storage provider to synchronize your data"
+        { class: "flex-auto d-flex flex-column" },
+        div(profile.user.displayName),
+        div({ class: " text-small text-gray" }, profile.user.emailAddress)
       ),
-    logged: (profile) =>
-      div(
-        { class: "d-flex", style: { width: "100%" } },
-        div({ class: "p-2", dangerouslySetInnerHTML: gdriveLogoIcon }),
-        div(
-          { class: "flex-auto d-flex flex-column" },
-          div(profile.user.displayName),
-          div({ class: " text-small text-gray" }, profile.user.emailAddress)
-        ),
-        details(
-          { class: "dropdown details-reset details-overlay" },
-          summary({
-            class: "btn-octicon",
-            role: "button",
-            dangerouslySetInnerHTML: moreIcon,
-          }),
-          ul(
-            { class: "dropdown-menu dropdown-menu-sw right-0" },
-            li(a({ class: "dropdown-item", onClick: logout }, "Logout"))
+      details(
+        { class: "dropdown details-reset details-overlay" },
+        summary({
+          class: "btn-octicon",
+          role: "button",
+          dangerouslySetInnerHTML: moreIcon,
+        }),
+        ul(
+          { class: "dropdown-menu dropdown-menu-sw right-0" },
+          li(
+            a(
+              {
+                class: "dropdown-item",
+                onClick: () => setAction(["logout"]),
+              },
+              "Logout"
+            )
           )
         )
-      ),
-    uploading: (profile) =>
+      )
+    ),
+  uploading: (profile) =>
+    div(
+      { class: "d-flex", style: { width: "100%" } },
+      div({ class: "p-2", dangerouslySetInnerHTML: uploadIcon }),
       div(
-        { class: "d-flex", style: { width: "100%" } },
-        div({ class: "p-2", dangerouslySetInnerHTML: uploadIcon }),
-        div(
-          { class: "flex-auto d-flex flex-column" },
-          div(profile.user.displayName),
-          div({ class: " text-small text-gray" }, profile.user.emailAddress)
-        )
-      ),
-    downloading: (profile) =>
+        { class: "flex-auto d-flex flex-column" },
+        div(profile.user.displayName),
+        div({ class: " text-small text-gray" }, profile.user.emailAddress)
+      )
+    ),
+  downloading: (profile) =>
+    div(
+      { class: "d-flex", style: { width: "100%" } },
+      div({ class: "p-2", dangerouslySetInnerHTML: downloadIcon }),
       div(
-        { class: "d-flex", style: { width: "100%" } },
-        div({ class: "p-2", dangerouslySetInnerHTML: downloadIcon }),
-        div(
-          { class: "flex-auto d-flex flex-column" },
-          div(profile.user.displayName),
-          div({ class: " text-small text-gray" }, profile.user.emailAddress)
-        )
-      ),
-    error: (reason) =>
-      div(
-        { class: "d-inline-flex flex-items-center", style: { width: "100%" } },
-        div({
-          class: "p-2",
-          style: { fill: "#d73a49" },
-          dangerouslySetInnerHTML: errorIcon,
-        }),
-        div({ class: "d-flex" }, maxLengthText(reason, 50))
-      ),
-  });
+        { class: "flex-auto d-flex flex-column" },
+        div(profile.user.displayName),
+        div({ class: " text-small text-gray" }, profile.user.emailAddress)
+      )
+    ),
+  error: (reason) =>
+    div(
+      {
+        class: "d-inline-flex flex-items-center",
+        style: { width: "100%" },
+      },
+      div({
+        class: "p-2",
+        style: { fill: "#d73a49" },
+        dangerouslySetInnerHTML: errorIcon,
+      }),
+      div({ class: "d-flex" }, maxLengthText(reason, 50))
+    ),
+});
 
 const profileContainer = (viewDom: JsonHtml) =>
   div(
@@ -137,39 +152,43 @@ const profileContainer = (viewDom: JsonHtml) =>
     viewDom
   );
 
-export const profilePanel: Component<{
-  gdriveStateConsumer: Consumer<GDriveState>;
-  storeStateProvider: Provider<StoreState>;
-}> = ({ gdriveStateConsumer, storeStateProvider }) => (render, onClose) => {
-  const profileView = createProfileView({
-    logout: () => setAction(["logout"]),
-    login: () => setAction(["login"]),
-  });
-
-  const renderProfile = map(profileView, map(profileContainer, render));
+export const profilePanel: Component<
+  void,
+  {
+    updateStoreState: StoreState;
+    updateGdriveState: GDriveStateWithFeedback;
+  }
+> = () => (render) => {
+  const renderProfileContainer = map(profileContainer, render);
+  const renderProfile = map(profileView, renderProfileContainer);
   const [gdriveStateForProfile, storeStateForProfile] = combine<
-    [GDriveState, StoreState]
+    [GDriveStateWithFeedback, StoreState]
   >(
-    map(([gdriveState, storeState]): ProfileState => {
-      if (gdriveState[0] === "logged") {
-        const profile = gdriveState[1];
-        if (storeState[0] === "uploading") {
-          return ["uploading", profile];
-        } else if (storeState[0] === "downloading") {
-          return ["downloading", profile];
-        } else if (storeState[0] === "error") {
-          return ["error", storeState[1].error.message];
+    map(([{ state: gdriveState, feedback }, storeState]) => {
+      const state: ProfileState = (() => {
+        if (gdriveState[0] === "logged") {
+          const profile = gdriveState[1];
+          if (storeState[0] === "uploading") {
+            return ["uploading", profile] as ProfileState;
+          } else if (storeState[0] === "downloading") {
+            return ["downloading", profile] as ProfileState;
+          } else if (storeState[0] === "error") {
+            return ["error", storeState[1].error.message] as ProfileState;
+          }
+        } else if (gdriveState[0] === "error") {
+          return ["error", gdriveState[1]] as ProfileState;
         }
-      } else if (gdriveState[0] === "error") {
-        return ["error", gdriveState[1]];
-      }
-      return gdriveState;
+        return gdriveState as ProfileState;
+      })();
+      return { state, feedback };
     }, renderProfile),
     undefined,
     undefined
   );
-  renderProfile(["idle"]);
+  renderProfileContainer(loading());
 
-  const setAction = gdrive(fork(gdriveStateForProfile, gdriveStateConsumer));
-  storeStateProvider(onClose, storeStateForProfile);
+  return {
+    updateStoreState: storeStateForProfile,
+    updateGdriveState: gdriveStateForProfile,
+  };
 };

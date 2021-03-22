@@ -3,7 +3,6 @@ import {
   Callback,
   combine,
   Consumer,
-  dataPortal,
   fork,
   match,
   onAnimationFrame,
@@ -22,11 +21,11 @@ import {
   classList,
   Component,
   ComponentItem,
-  ComponentRuntime,
   div,
   footer,
   h1,
   header,
+  newSlot,
   input,
   label,
   li,
@@ -39,6 +38,7 @@ import {
   ul,
   View,
   ViewSetup,
+  Slot,
 } from "../../render";
 
 import {
@@ -158,10 +158,12 @@ const TodoListView: ViewSetup<
     )
   );
 
-const TodoList: Component<{
-  showingTodos: Provider<Todo[]>;
-  changeTodo: Consumer<TodoChange>;
-}> = ({ showingTodos, changeTodo }) => (render, onClose) => {
+const TodoList: Component<
+  {
+    changeTodo: Consumer<TodoChange>;
+  },
+  { showingTodos: Todo[] }
+> = ({ changeTodo }) => (render) => {
   const renderList = TodoListView({
     destroyed: map((it: TodoId): TodoChange => ["del", it], changeTodo),
     toggled: map(
@@ -171,12 +173,11 @@ const TodoList: Component<{
     edited: changeTodo,
   });
 
-  showingTodos(
-    onClose,
-    itemsReconciliation<Todo, TodoId>(getTodoId)(
+  return {
+    showingTodos: itemsReconciliation<Todo, TodoId>(getTodoId)(
       map(pipe(wrap("list"), renderList), render)
-    )
-  );
+    ),
+  };
 };
 
 const selectorLink = (
@@ -210,10 +211,13 @@ const FooterView: View<{
     )
   );
 
-const Footer: Component<{
-  activeItemsCount: Provider<number>;
-  todoFilter: Provider<TodoFilter>;
-}> = ({ activeItemsCount, todoFilter }) => (render, onClose) => {
+const Footer: Component<
+  void,
+  {
+    activeItemsCount: number;
+    todoFilter: TodoFilter;
+  }
+> = () => (render) => {
   const [setFilter, setCount, setActiveTodoWork] = combine(
     map(
       pipe(toObject("todoFilter", "count", "activeTodoWord"), FooterView),
@@ -223,17 +227,15 @@ const Footer: Component<{
     0,
     "items"
   );
-
-  activeItemsCount(
-    onClose,
-    fork(setCount, map(pluralize("item"), setActiveTodoWork))
-  );
-  todoFilter(onClose, setFilter);
+  return {
+    activeItemsCount: fork(setCount, map(pluralize("item"), setActiveTodoWork)),
+    todoFilter: setFilter,
+  };
 };
 
 const AppView: ViewSetup<{
-  footer: ComponentRuntime;
-  main: ComponentRuntime;
+  footer: Slot;
+  main: Slot;
   onKeydown: Listener<"keydown">;
   onToggleAll: Listener<"change">;
   onInputDisplayed: Listener<"display">;
@@ -260,43 +262,46 @@ const AppView: ViewSetup<{
         onChange: onToggleAll,
       }),
       label({ for: "toggle-all" }),
-      slot("main", main)
+      main
     ),
-    slot("footer", footer)
+    footer
   );
 };
 
 const AppComponent: Component = () => (render, onClose) => {
-  const [showingTodosProvider, showingTodos] = dataPortal<Todo[]>();
-  const [activeItemsCountProvider, activeItemsCount] = dataPortal<number>();
-  const [todoFilterProvider, todoFilter] = dataPortal<TodoFilter>();
-
-  const renderAppView = AppView({
-    onToggleAll: (event) => {
-      updateTodoList([
-        "all",
-        ["set", "completed", (event.target as HTMLInputElement).checked],
-      ]);
-    },
-    onInputDisplayed: focusTarget,
-    onKeydown: onSubmit(
-      fork(
-        () => renderAction(),
-        map(addNewTodo, (e) => updateTodoList(e))
-      )
-    ),
-    footer: Footer({
-      activeItemsCount: activeItemsCountProvider,
-      todoFilter: todoFilterProvider,
-    }),
-    main: TodoList({
-      showingTodos: showingTodosProvider,
+  const [footer, { activeItemsCount, todoFilter }] = newSlot(
+    "footer",
+    Footer()
+  );
+  const [main, { showingTodos }] = newSlot(
+    "main",
+    TodoList({
       changeTodo: (e) => updateTodoList(e),
-    }),
-  });
+    })
+  );
 
-  const renderAction = map(renderAppView, render);
-  renderAction();
+  const renderAppView: Callback<void> = map(
+    AppView({
+      onToggleAll: (event) => {
+        updateTodoList([
+          "all",
+          ["set", "completed", (event.target as HTMLInputElement).checked],
+        ]);
+      },
+      onInputDisplayed: focusTarget,
+      onKeydown: onSubmit(
+        fork(
+          () => renderAppView(),
+          map(addNewTodo, (e) => updateTodoList(e))
+        )
+      ),
+      footer,
+      main,
+    }),
+    render
+  );
+
+  renderAppView();
 
   const [setFilter, setTodos] = combine(
     map(filterShowingTodos, showingTodos),

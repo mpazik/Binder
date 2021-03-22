@@ -25,30 +25,50 @@ type CustomElements = {
 type Nodes = { [P in keyof SimplifiedElementsMap]: (SimplifiedElementsMap[P] & EventHandlers) } & CustomElements;
 
 export type JsonHtml = JsonMl<Nodes>;
+export type Slot = JsonHtml;
 export type JsonHtmlProps = TagProps<Nodes>;
 export type JsonHtmlAttrs<T extends TagName<Nodes>> = Attributes<Nodes, T>;
 
 export type Renderer = (jsonml?: JsonHtml) => void;
 
 export type Listener<K extends keyof EventMap> = (event: EventMap[K]) => void;
-export type ComponentRuntime = (render: Renderer, onClose: OnCloseRegister) => void;
-// setup component
-export type Component<T = void> = (props: T) => ComponentRuntime;
 
-export type ComponentRuntime2 = (render: Renderer, onClose: OnCloseRegister) => void;
-export type Component2<T = void> = (props: T) => ComponentRuntime;
+export type Handlers<T extends object> = {
+  [K in keyof T]: (args: T[K]) => void;
+};
+type ComponentRuntime = (render: Renderer, onClose: OnCloseRegister) => void;
+export type ComponentBody<P extends void | object> = (render: Renderer, onClose: OnCloseRegister) => P extends object ? Handlers<P> : void;
+export type Component<T = void, P extends void | object = void> = (props: T) => ComponentBody<P>;
 
-type Prop = string | number | boolean | Record<string, unknown> | Prop[] | undefined | Provider<any>;
+export const newSlot = <P extends object>(key: string, runtime: ComponentBody<P>): [Slot, Handlers<P>] => {
+  let handlers: Handlers<P> | undefined;
+  const proxy = new Proxy({}, {
+    get: (_, prop) => (args: P[keyof P]) => {
+      if (handlers) {
+        return handlers[prop as keyof P](args);
+      } else {
+        console.error(`Can not trigger event "${String(prop)}" on inactive component in slot "${key}"`);
+      }
+    },
+  }) as Handlers<P>;
+
+  return [slot(key, (render, onClose) => {
+    handlers = runtime(render, onClose) as unknown as Handlers<P>;
+    onClose(() => handlers = undefined);
+  }), proxy];
+};
+
+type Prop = string | number | boolean | Record<string, unknown> | Prop[] | undefined | Provider<unknown>;
 type ViewProps = Record<string, Prop> | Prop | void;
 export type View<T extends ViewProps = void> = (props: T) => JsonHtml;
 export type OptionalView<T extends ViewProps = void> = (props: T) => JsonHtml | undefined;
 
 // type ViewConfig = Record<string, Prop | Listener<any> | ComponentRuntime> | void;
 export type ViewSetup<C = void, T extends ViewProps = void> = (
-  config: C
+  config: C,
 ) => View<T>;
 export type OptionalViewSetup<C = void, T extends ViewProps = void> = (
-  config: C
+  config: C,
 ) => OptionalView<T>;
 
 type Slots = Map<string, { element: Element; runtime: ComponentRuntime }>;
@@ -77,7 +97,7 @@ function handleChildren(node: Node, slots: Slots, children: [Node, Slots][]) {
   });
 }
 
-const trueBooleanAttributes = ['contenteditable']
+const trueBooleanAttributes = ["contenteditable"];
 
 const convertToDom = (elem: JsonHtml): [Node, Slots] =>
   mapJsonMl<Nodes, [Node, Slots]>(
@@ -86,8 +106,8 @@ const convertToDom = (elem: JsonHtml): [Node, Slots] =>
     ([tag, attrs, children]) => {
       const slots: Slots = new Map();
 
-      if (tag === 'fragment') {
-        const node = document.createDocumentFragment()
+      if (tag === "fragment") {
+        const node = document.createDocumentFragment();
         handleChildren(node, slots, children);
         return [node, slots];
       }
@@ -115,10 +135,10 @@ const convertToDom = (elem: JsonHtml): [Node, Slots] =>
             const styleKey1 = styleKey as keyof CSSStyleDeclaration;
             // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore
-            node.style[styleKey1] = styles[styleKey1]
+            node.style[styleKey1] = styles[styleKey1];
           }
-        } else if (attrKey === 'dangerouslySetInnerHTML') {
-          node.innerHTML = attrVal as string
+        } else if (attrKey === "dangerouslySetInnerHTML") {
+          node.innerHTML = attrVal as string;
         } else if (typeof attrVal === "function") {
           const type = attrKey.substr(2).toLowerCase();
           const listener = attrVal as (event: Event) => void;
@@ -127,13 +147,13 @@ const convertToDom = (elem: JsonHtml): [Node, Slots] =>
               listener(({
                 type: "display",
                 target: node,
-              } as unknown) as Event)
+              } as unknown) as Event),
             );
           }
           node.addEventListener(type, (e: Event) => listener(e));
         } else if (typeof attrVal === "boolean") {
           attrVal
-            ? trueBooleanAttributes.includes(attrKey) ? node.setAttribute(attrKey, 'true') :  node.setAttribute(attrKey, attrKey)
+            ? trueBooleanAttributes.includes(attrKey) ? node.setAttribute(attrKey, "true") : node.setAttribute(attrKey, attrKey)
             : node.removeAttribute(attrKey);
         } else {
           node.setAttribute(attrKey, attrVal as string);
@@ -143,22 +163,20 @@ const convertToDom = (elem: JsonHtml): [Node, Slots] =>
       handleChildren(node, slots, children);
 
       return [node, slots];
-    }
+    },
   );
 
 export type Deactivate = () => void;
 
 const slotHandler = (parent: Element): Renderer => {
-  const existingSlots = new Map<
-    string,
-    { element: Element; deactivate: Deactivate }
-  >();
+  const existingSlots = new Map<string,
+    { element: Element; deactivate: Deactivate }>();
 
   return (jsonml?: JsonHtml) => {
-    console.debug('render', jsonml)
+    console.debug("render", jsonml);
     if (jsonml === undefined) {
       parent.innerHTML = "";
-      return
+      return;
     }
     const [newChild, renderedSlots] = convertToDom(jsonml);
 
@@ -171,16 +189,16 @@ const slotHandler = (parent: Element): Renderer => {
       const oldElement = existingSlots.get(slotKey)!.element;
       if (newElement.parentNode) {
         // replace new slot by the old slot with the content
-        newElement.parentNode.replaceChild(oldElement, newElement)
+        newElement.parentNode.replaceChild(oldElement, newElement);
       } else {
-        console.error('no-parent', oldElement)
+        console.error("no-parent", oldElement);
       }
     }
 
     // activate components in newly rendered slots
     for (const slotKey of setDifference(rendered, existing)) {
       const { element, runtime } = renderedSlots.get(slotKey)!;
-      const deactivate = setupComponent(runtime, element)
+      const deactivate = setupComponent(runtime, element);
       existingSlots.set(slotKey, { element, deactivate });
     }
 
@@ -199,13 +217,10 @@ const slotHandler = (parent: Element): Renderer => {
 export const setupComponent = (runtime: ComponentRuntime, element: Element): Deactivate => {
   const abortController = new AbortController();
   runtime(slotHandler(element), (handler) => {
-    abortController.signal.addEventListener('abort', handler)
+    abortController.signal.addEventListener("abort", handler);
   });
-  return () => abortController.abort()
-}
-
-const replaceByPrevious = (current: Element, previous: Element) =>
-  current.parentNode!.replaceChild(previous, current);
+  return () => abortController.abort();
+};
 
 const setDifference = <T>(setA: Set<T>, setB: Set<T>): Set<T> =>
   new Set([...setA].filter((x) => !setB.has(x)));
@@ -213,7 +228,7 @@ const setDifference = <T>(setA: Set<T>, setB: Set<T>): Set<T> =>
 const setIntersection = <T>(setA: Set<T>, setB: Set<T>): Set<T> =>
   new Set([...setA].filter((x) => setB.has(x)));
 
-export type ComponentItem<I, ID , T = void> = (props: T & {itemProvider: Provider<I>, id: ID}) => ComponentRuntime;
+export type ComponentItem<I, ID, T = void> = (props: T & { itemProvider: Provider<I>, id: ID }) => ComponentRuntime;
 
 export const div = newTagFactory<Nodes>("div");
 export const h1 = newTagFactory<Nodes>("h1");
@@ -239,11 +254,11 @@ export const article = newTagFactory<Nodes>("article");
 export const details = newTagFactory<Nodes>("details");
 export const summary = newTagFactory<Nodes>("summary");
 export const fragment = (...children: JsonHtml[]): JsonHtml => [
-  'fragment',
+  "fragment",
   {},
-  ...children
+  ...children,
 ];
-export const slot = (key: string, onRender: ComponentRuntime): JsonHtml => [
+export const slot = (key: string, onRender: ComponentBody<void>): Slot => [
   "slot",
   { componentHandler: onRender, key },
 ];

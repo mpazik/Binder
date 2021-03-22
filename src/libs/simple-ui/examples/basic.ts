@@ -1,10 +1,10 @@
 import {
   button,
   Component,
-  ComponentRuntime,
   div,
   h3,
   setupComponent,
+  Slot,
   slot,
   span,
   ViewSetup,
@@ -16,7 +16,7 @@ const subComponent: Component<{ param: string }> = ({ param }) => (render) => {
 
 const mainView: ViewSetup<{
   init: string;
-  bottomSlot: ComponentRuntime;
+  bottomSlot: Slot;
   onClick: () => void;
 }> = ({ onClick, bottomSlot }) => () =>
   div(
@@ -24,15 +24,18 @@ const mainView: ViewSetup<{
       id: "main",
     },
     button({ onClick: onClick }, "test"),
-    slot("bottom-slot", bottomSlot)
+    bottomSlot
   );
 
 const main: Component = () => (render) => {
   const renderMainView = mainView({
     init: "test",
-    bottomSlot: subComponent({
-      param: "custom param",
-    }),
+    bottomSlot: slot(
+      "bottom-slot",
+      subComponent({
+        param: "custom param",
+      })
+    ),
     onClick: () => alert("clicked"),
   });
   render(renderMainView());

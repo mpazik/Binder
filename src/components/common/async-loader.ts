@@ -1,6 +1,6 @@
 import {
   Component,
-  ComponentRuntime,
+  ComponentBody,
   div,
   h1,
   p,
@@ -16,7 +16,7 @@ const errorMessage: View<{ error: string }> = ({ error }) =>
 export const asyncLoader = <T extends unknown>(
   promise: Promise<T>,
   component: Component<T>
-): ComponentRuntime => (render, onClose) => {
+): ComponentBody<void> => (render, onClose) => {
   render(loading());
   promise
     .then((value) => component(value)(render, onClose))

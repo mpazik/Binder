@@ -1,4 +1,5 @@
-import { Consumer, Provider } from "../../libs/connections";
+import { Callback } from "../../libs/connections";
+import { transformIfDefined } from "../../libs/connections/mappers";
 import { throwIfNull } from "../../libs/errors";
 import { HashName, HashUri } from "../../libs/hash";
 import {
@@ -12,6 +13,7 @@ import {
 import { jsonLdMimeType, LinkedDataWithHashId } from "../../libs/linked-data";
 import { handleState, mapState } from "../../libs/named-state";
 import { measureAsyncTime } from "../../libs/performance";
+import { Opaque } from "../../libs/types";
 import { GDriveConfig } from "../gdrive/app-files";
 import { GDriveState } from "../gdrive/controller";
 import { findOrCreateFileByHash } from "../gdrive/file";
@@ -24,14 +26,13 @@ import {
   createLocalLinkedDataStoreWrite,
   createLocalResourceStoreRead,
   createLocalResourceStoreWrite,
-  createLocalStoreDb,
   LinkedDataStoreRead,
   LinkedDataStoreWrite,
+  LocalStoreDb,
   ResourceStoreRead,
   ResourceStoreWrite,
 } from "./local-store";
 import { newMissingLinkedDataDownloader } from "./missing-linked-data-downloader";
-import { transformIfDefined } from "../../libs/connections/mappers";
 
 export type {
   ResourceStoreWrite,
@@ -45,7 +46,6 @@ type Index = {
   readLinkedData: LinkedDataStoreRead;
   writeLinkedData: LinkedDataStoreWrite;
   updateGdriveState: (gdrive: GDriveState) => void;
-  storeStateProvider: Provider<StoreState>;
 };
 
 export type BlobHashRecord = {
@@ -56,7 +56,8 @@ export type BlobHashRecord = {
 const syncRequiredStore = "sync-required" as StoreName;
 const syncPropsStore = "sync-props" as StoreName;
 
-const createSyncDb = () =>
+export type SyncDb = Opaque<IDBDatabase>;
+export const createSyncDb = (): Promise<SyncDb> =>
   openDb(
     "sync-db",
     (event) => {
@@ -67,7 +68,7 @@ const createSyncDb = () =>
       db.createObjectStore(syncPropsStore);
     },
     1
-  );
+  ) as Promise<SyncDb>;
 
 export type StoreState =
   | ["idle"]
@@ -88,8 +89,12 @@ const linkedDataToBlob = (ld: LinkedDataWithHashId): Blob =>
     type: jsonLdMimeType,
   });
 
-export const createStore = async (indexLinkedData: Indexer): Promise<Index> => {
-  const localStoreDb = await createLocalStoreDb();
+export const createStore = (
+  indexLinkedData: Indexer,
+  localStoreDb: LocalStoreDb,
+  syncDb: SyncDb,
+  handleNewState: Callback<StoreState>
+): Index => {
   const localResourceStoreRead = createLocalResourceStoreRead(localStoreDb);
   const localResourceStoreWrite = createLocalResourceStoreWrite(localStoreDb);
   const localLinkedDataStoreRead = createLocalLinkedDataStoreRead(localStoreDb);
@@ -99,14 +104,13 @@ export const createStore = async (indexLinkedData: Indexer): Promise<Index> => {
   const localLinkedDataStoreIterate = createLocalLinkedDataStoreIterate(
     localStoreDb
   );
-  const syncDb = await createSyncDb();
+
   const [remoteStoreRead, updateGdriveState] = createStatefulGDriveStoreRead();
   let state: StoreState = ["idle"];
-  let stateConsumer: Consumer<StoreState> | undefined;
 
   const updateState = (newState: StoreState) => {
     state = newState;
-    stateConsumer?.(state);
+    handleNewState(state);
     handleState(state, {
       downloading: async (config) => {
         const since = await storeGet<Date>(syncDb, "last-sync", syncPropsStore);
@@ -246,6 +250,7 @@ export const createStore = async (indexLinkedData: Indexer): Promise<Index> => {
       updateState(
         mapState(gdrive, {
           idle: () => ["idle"],
+          loading: () => ["idle"],
           ready: () => ["idle"],
           loggingIn: () => ["idle"],
           profileRetrieving: () => ["idle"],
@@ -256,12 +261,6 @@ export const createStore = async (indexLinkedData: Indexer): Promise<Index> => {
           error: () => ["idle"],
         })
       );
-    },
-    storeStateProvider: (onClose, consumer) => {
-      onClose(() => {
-        stateConsumer = undefined;
-      });
-      stateConsumer = consumer;
     },
   };
 };

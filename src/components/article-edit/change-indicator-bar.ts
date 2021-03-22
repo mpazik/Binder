@@ -1,5 +1,5 @@
 import { firstOf, lastOf } from "../../libs/array";
-import { Consumer, Provider } from "../../libs/connections";
+import { Consumer, splitOnUndefined } from "../../libs/connections";
 import { Component, div, View } from "../../libs/simple-ui/render";
 
 import { DocumentChange } from "./document-change";
@@ -44,11 +44,13 @@ const changeIndicator: View<{
   });
 };
 
-export const changesIndicatorBar: Component<{
-  changesProvider: Provider<DocumentChange[] | undefined>;
-  onDiffBarClick: Consumer<DocumentChange>;
-}> = ({ changesProvider, onDiffBarClick }) => (render, onClose) => {
-  const renderGutter = (changes: DocumentChange[]) =>
+export const changesIndicatorBar: Component<
+  {
+    onDiffBarClick: Consumer<DocumentChange>;
+  },
+  { displayChangesOnBar: DocumentChange[] | undefined }
+> = ({ onDiffBarClick }) => (render) => ({
+  displayChangesOnBar: splitOnUndefined(render, (changes: DocumentChange[]) =>
     render(
       div(
         {
@@ -60,8 +62,6 @@ export const changesIndicatorBar: Component<{
           changeIndicator({ docDiff, onClick: onDiffBarClick })
         )
       )
-    );
-  changesProvider(onClose, (changes) =>
-    changes ? renderGutter(changes) : render(undefined)
-  );
-};
+    )
+  ),
+});

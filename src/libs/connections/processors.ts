@@ -1,11 +1,5 @@
 import { filterNonNullTuple, nonUndefined } from "./filters";
-import {
-  Callback,
-  Consumer,
-  OnCloseRegister,
-  PartialTuple,
-  Processor,
-} from "./types";
+import { Callback, Consumer, OnCloseRegister, PartialTuple } from "./types";
 import { equal } from "./utils/equal";
 
 /**
@@ -56,6 +50,14 @@ export const closableForEach = <T>(
     handler(v, abortController.signal);
     callback(v);
   };
+};
+
+export const forEach = <T>(
+  handler: (v: T) => void,
+  callback: Callback<T>
+): Callback<T> => (v: T) => {
+  handler(v);
+  callback(v);
 };
 
 export const flatten = <T>(push: Callback<T>): Callback<T[]> => (array) =>
@@ -156,12 +158,8 @@ export const withState = <S, V = void>(
   ];
 };
 
-export const log = <T>(name: string, push: Callback<T>): Callback<T> => (
-  value
-) => {
-  console.log(name, value);
-  push(value);
-};
+export const log = <T>(name: string, callback: Callback<T>): Callback<T> =>
+  forEach((value) => console.log(name, value), callback);
 
 export const onAnimationFrame = <T>(
   onClose: OnCloseRegister,

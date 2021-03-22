@@ -3,7 +3,6 @@ import {
   Consumer,
   dataPortal,
   reducer,
-  EntityListChange,
 } from "../../connections";
 import { map, pipe, wrap } from "../../connections/mappers";
 import { ItemProvider } from "../items-reconciliation";
@@ -88,11 +87,7 @@ const newIdGenerator = (): (() => ItemId) => {
   };
 };
 
-const main: Component = () => (render, onClose) => {
-  const [listUpdatesProvider, updateList] = dataPortal<
-    EntityListChange<ItemProvider<Item, ItemId>, ItemId>
-  >();
-
+const main: Component = () => (render) => {
   const generateId = newIdGenerator();
   const itemChangeConsumers = new Map<ItemId, Consumer<Item>>();
   const renderMainView = mainView({
@@ -117,16 +112,13 @@ const main: Component = () => (render, onClose) => {
     },
   });
 
-  listUpdatesProvider(
-    onClose,
-    reducer(
-      [],
-      entityListChanger<ItemProvider<Item, ItemId>, ItemId>(
-        (it) => it.id,
-        (it) => it
-      ),
-      map(pipe(wrap("list"), renderMainView), render)
-    )
+  const updateList = reducer(
+    [],
+    entityListChanger<ItemProvider<Item, ItemId>, ItemId>(
+      (it) => it.id,
+      (it) => it
+    ),
+    map(pipe(wrap("list"), renderMainView), render)
   );
 };
 
