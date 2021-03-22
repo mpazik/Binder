@@ -1,8 +1,7 @@
 import { DocumentAnnotationsIndex } from "../../functions/indexes/document-annotations-index";
 import { LinkedDataStoreWrite } from "../../functions/store";
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
-import { fork } from "../../libs/connections";
-import { combine, withState } from "../../libs/connections";
+import { combine, fork, withState } from "../../libs/connections";
 import { filterNonNull } from "../../libs/connections/filters";
 import { ignoreParam, map, withValue } from "../../libs/connections/mappers";
 import { HashUri } from "../../libs/hash";
@@ -13,7 +12,7 @@ import { Annotation, createAnnotation, QuoteSelector } from "./annotation";
 import { commentDisplay, CommentDisplayState, commentForm } from "./comment";
 import { containerText, removeSelector, renderSelector } from "./highlights";
 import { quoteSelectorForRange } from "./quote-selector";
-import { OptSelection } from "./selection";
+import { OptSelection, selectionPosition } from "./selection";
 import { selectionToolbar } from "./selection-toolbar";
 
 type AnnotationSaveArgs = {
@@ -115,7 +114,9 @@ export const annotationsSupport: Component<
             displayCommentForm([
               "visible",
               {
-                selection,
+                container,
+                selector,
+                position: selectionPosition(selection),
               },
             ]);
           },
@@ -126,6 +127,7 @@ export const annotationsSupport: Component<
           handler: ({ container, range }) => {
             const text = containerText(container);
             const selector = quoteSelectorForRange(container, text, range);
+            console.log("selector", selector, range);
             saveAnnotation({ container, selector });
           },
           label: "highlight",
@@ -142,17 +144,11 @@ export const annotationsSupport: Component<
   const [commentFormSlot, { displayCommentForm }] = newSlot(
     "comment-form",
     commentForm({
-      onHide: ({ selection: { container, range } }) => {
-        const text = containerText(container);
-        return removeSelector(
-          container,
-          text,
-          quoteSelectorForRange(container, text, range)
-        );
+      onHide: ({ container, selector }) => {
+        return removeSelector(container, containerText(container), selector);
       },
-      onCreatedComment: ({ selection: { container, range }, comment }) => {
+      onCreatedComment: ({ container, selector, comment }) => {
         const text = containerText(container);
-        const selector = quoteSelectorForRange(container, text, range);
         removeSelector(container, text, selector);
         saveAnnotation({ container, selector, content: comment });
       },
@@ -174,6 +170,7 @@ export const annotationsSupport: Component<
       annotationsHashUris.forEach((hashUri) => {
         ldStoreRead(hashUri).then(
           filterNonNull((annotation) => {
+            console.log("display annotation", annotation);
             displayAnnotation(
               container,
               text,

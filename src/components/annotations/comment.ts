@@ -19,7 +19,8 @@ import {
   isKey,
 } from "../../libs/simple-ui/utils/funtions";
 
-import { Position, Selection, selectionPosition } from "./selection";
+import { QuoteSelector } from "./annotation";
+import { Position } from "./selection";
 
 const commentView: View<{
   position: Position;
@@ -135,31 +136,33 @@ const commentFormView: View<{
     )
   );
 
+type Selection = {
+  container: HTMLElement;
+  selector: QuoteSelector;
+};
 export type CommentFormState =
   | ["hidden"]
-  | ["visible", { selection: Selection }];
+  | ["visible", Selection & { position: Position }];
 
 export const commentForm: Component<
   {
-    onCreatedComment: ({
-      selection,
-      comment,
-    }: {
-      selection: Selection;
-      comment: string;
-    }) => void;
-    onHide: ({ selection }: { selection: Selection }) => void;
+    onCreatedComment: (
+      s: Selection & {
+        comment: string;
+      }
+    ) => void;
+    onHide: (s: Selection) => void;
   },
   { displayCommentForm: CommentFormState }
 > = ({ onCreatedComment, onHide }) => (render) => {
   let editor: HTMLElement | undefined;
-  let selection: Selection | undefined;
+  let state: Selection | undefined;
 
   const renderForm = map(
     newStateMapper<CommentFormState, JsonHtml | undefined>({
-      visible: ({ selection }) =>
+      visible: ({ container, position, selector }) =>
         commentFormView({
-          position: selectionPosition(selection),
+          position,
           onDisplay: (e) => (editor = e),
           onCancel: () => {
             renderForm(["hidden"]);
@@ -167,7 +170,8 @@ export const commentForm: Component<
           onSave: () => {
             onCreatedComment({
               comment: throwIfNull(editor).innerHTML,
-              selection,
+              selector,
+              container,
             });
             renderForm(["hidden"]);
           },
@@ -184,12 +188,12 @@ export const commentForm: Component<
         ([name]) => name === "hidden",
         fork(
           () => (editor = undefined),
-          () => onHide({ selection: throwIfNull(selection) })
+          () => onHide(throwIfNull(state))
         )
       ),
       newStateHandler({
-        visible: ({ selection: s }) => (selection = s),
-        hidden: () => (selection = undefined),
+        visible: (s) => (state = s),
+        hidden: () => (state = undefined),
       })
     ),
   };

@@ -42,6 +42,7 @@ export const quoteSelectorForRange = (
     range.startContainer,
     range.startOffset
   );
+  console.log(range, range.toString());
   const exact = range.toString().trim();
   const [prefix, suffix] = expandText(
     text,
