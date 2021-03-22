@@ -131,7 +131,7 @@ export const annotationsSupport: Component<
             saveAnnotation({ container, selector });
           },
           label: "highlight",
-          shortCutKey: "KeyG",
+          shortCutKey: "KeyH",
         },
       ],
     })
