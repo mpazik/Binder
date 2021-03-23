@@ -11,19 +11,10 @@ import {
   newStateWithFeedbackMapper,
   StateWithFeedback,
 } from "../../libs/named-state";
-import {
-  a,
-  Component,
-  details,
-  div,
-  JsonHtml,
-  li,
-  summary,
-  ul,
-  View,
-} from "../../libs/simple-ui/render";
+import { a, Component, div, JsonHtml, View } from "../../libs/simple-ui/render";
 import { loading } from "../common/async-loader";
 import { maxLengthText } from "../common/max-length-text";
+import { moreActions } from "../common/more-acctions";
 
 const gdriveLogoIcon = `
 <svg xmlns="http://www.w3.org/2000/svg" width="25" height="22" viewBox="0 0 1443.061 1249.993" role="img">
@@ -33,11 +24,6 @@ const gdriveLogoIcon = `
   <path fill="#11a861" d="M0 833.329l240.525 416.664 481.006-833.328L481.017 0z"/>
 </svg>
 `;
-
-const moreIcon = `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
-  <path d="M8 9a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM1.5 9a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm13 0a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
-</svg>`;
 
 const uploadIcon = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" role="img">
@@ -87,26 +73,14 @@ export const profileView: View<StateWithFeedback<
         div(profile.user.displayName),
         div({ class: " text-small text-gray" }, profile.user.emailAddress)
       ),
-      details(
-        { class: "dropdown details-reset details-overlay" },
-        summary({
-          class: "btn-octicon",
-          role: "button",
-          dangerouslySetInnerHTML: moreIcon,
-        }),
-        ul(
-          { class: "dropdown-menu dropdown-menu-sw right-0" },
-          li(
-            a(
-              {
-                class: "dropdown-item",
-                onClick: () => setAction(["logout"]),
-              },
-              "Logout"
-            )
-          )
-        )
-      )
+      moreActions({
+        actions: [
+          {
+            label: "Logout",
+            handler: () => setAction(["logout"]),
+          },
+        ],
+      })
     ),
   uploading: (profile) =>
     div(

@@ -9,7 +9,11 @@ import { findHashUri, LinkedData } from "../../libs/linked-data";
 import { Component, div, newSlot } from "../../libs/simple-ui/render";
 
 import { Annotation, createAnnotation, QuoteSelector } from "./annotation";
-import { commentDisplay, CommentDisplayState, commentForm } from "./comment";
+import {
+  annotationDisplay,
+  AnnotationDisplayState,
+  commentForm,
+} from "./annotation-display";
 import { containerText, removeSelector, renderSelector } from "./highlights";
 import { quoteSelectorForRange } from "./quote-selector";
 import { OptSelection, selectionPosition } from "./selection";
@@ -59,7 +63,11 @@ export const annotationsSupport: Component<
         creator ?? undefined
       );
       ldStoreWrite(annotation).then(() => {
-        displayAnnotation(container, containerText(container), annotation);
+        displayAnnotationSelection(
+          container,
+          containerText(container),
+          annotation
+        );
       });
     },
     null,
@@ -78,7 +86,7 @@ export const annotationsSupport: Component<
     null
   );
 
-  const displayAnnotation = (
+  const displayAnnotationSelection = (
     container: HTMLElement,
     text: string,
     annotation: Annotation
@@ -88,17 +96,12 @@ export const annotationsSupport: Component<
       text,
       annotation.target.selector,
       annotation.motivation === "commenting" ? "yellow" : "green",
-      annotation.body
-        ? map(
-            (position) =>
-              [
-                "visible",
-                { content: annotation.body?.value, position },
-              ] as CommentDisplayState,
-            displayComment
-          )
-        : undefined,
-      annotation.body ? withValue(["hidden"], displayComment) : undefined
+      map(
+        (position) =>
+          ["visible", { annotation, position }] as AnnotationDisplayState,
+        displayAnnotation
+      ),
+      withValue(["hidden"], displayAnnotation)
     );
 
   const [selectionToolbarSlot, { selectionHandler }] = newSlot(
@@ -136,9 +139,9 @@ export const annotationsSupport: Component<
       ],
     })
   );
-  const [commentDisplaySlot, { displayComment }] = newSlot(
-    "comment-display",
-    commentDisplay()
+  const [annotationDisplaySlot, { displayAnnotation }] = newSlot(
+    "annotation-display",
+    annotationDisplay()
   );
 
   const [commentFormSlot, { displayCommentForm }] = newSlot(
@@ -155,7 +158,7 @@ export const annotationsSupport: Component<
     })
   );
 
-  render(div(commentFormSlot, commentDisplaySlot, selectionToolbarSlot));
+  render(div(commentFormSlot, annotationDisplaySlot, selectionToolbarSlot));
   return {
     setReference: fork(setReference, ignoreParam(saveKeptAnnotation)),
     displaySelectionToolbar: selectionHandler,
@@ -170,8 +173,7 @@ export const annotationsSupport: Component<
       annotationsHashUris.forEach((hashUri) => {
         ldStoreRead(hashUri).then(
           filterNonNull((annotation) => {
-            console.log("display annotation", annotation);
-            displayAnnotation(
+            displayAnnotationSelection(
               container,
               text,
               (annotation as unknown) as Annotation

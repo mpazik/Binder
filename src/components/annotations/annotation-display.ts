@@ -9,6 +9,7 @@ import {
   Component,
   div,
   JsonHtml,
+  span,
   View,
 } from "../../libs/simple-ui/render";
 import {
@@ -18,19 +19,21 @@ import {
   hasMetaKey,
   isKey,
 } from "../../libs/simple-ui/utils/funtions";
+import { moreActions } from "../common/more-acctions";
+import { relativeDateOfAction } from "../common/relative-date";
 
-import { QuoteSelector } from "./annotation";
+import { Annotation, QuoteSelector } from "./annotation";
 import { Position } from "./selection";
 
-const commentView: View<{
+const annotationView: View<{
   position: Position;
-  content: string;
+  annotation: Annotation;
   onHover: () => void;
   onHoverOut: () => void;
-}> = ({ position: [left, top], content, onHover, onHoverOut }) =>
+}> = ({ position: [left, top], annotation, onHover, onHoverOut }) =>
   div(
     {
-      class: "Box Popover",
+      class: "Box Box--condensed Popover",
       style: {
         left,
         top,
@@ -39,30 +42,59 @@ const commentView: View<{
       onMouseleave: onHoverOut,
       onMouseenter: onHover,
     },
-    div({
-      class: "Popover-message Popover-message--top box-shadow-large p-2",
-      style: {},
-      dangerouslySetInnerHTML: content,
-    })
+    div(
+      {
+        class: "Popover-message Popover-message--top box-shadow-large",
+      },
+      div(
+        { class: "Box-header d-flex flex-items-center" },
+        span(
+          { class: "flex-auto" },
+          relativeDateOfAction({
+            action:
+              annotation.motivation === "commenting"
+                ? "commented"
+                : "highlighted",
+            date: new Date(annotation.created),
+          })
+        ),
+        moreActions({
+          actions: [
+            {
+              label: "Delete",
+              handler: () => alert("Deleting is not supported yet"),
+            },
+          ],
+        })
+      ),
+      ...(annotation.body
+        ? [
+            div({
+              class: "Box-body",
+              dangerouslySetInnerHTML: annotation.body.value,
+            }),
+          ]
+        : [])
+    )
   );
 
-export type CommentDisplayState =
+export type AnnotationDisplayState =
   | ["hidden"]
-  | ["visible", { position: Position; content: string }];
+  | ["visible", { position: Position; annotation: Annotation }];
 
-export const commentDisplay: Component<
+export const annotationDisplay: Component<
   void,
   {
-    displayComment: CommentDisplayState;
+    displayAnnotation: AnnotationDisplayState;
   }
 > = () => (render) => {
   const renderPopup = map(
-    newStateMapper<CommentDisplayState, JsonHtml | undefined>({
+    newStateMapper<AnnotationDisplayState, JsonHtml | undefined>({
       visible: (state) => {
-        const { position, content } = state;
-        return commentView({
+        const { position, annotation } = state;
+        return annotationView({
           position,
-          content,
+          annotation,
           onHover: () => {
             handleData(["visible", state]);
           },
@@ -79,7 +111,7 @@ export const commentDisplay: Component<
   );
   const handleData = delayedState(["hidden"], 200, renderPopup);
   return {
-    displayComment: handleData,
+    displayAnnotation: handleData,
   };
 };
 
