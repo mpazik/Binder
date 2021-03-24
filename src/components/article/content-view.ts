@@ -11,7 +11,6 @@ import {
 } from "../../functions/store";
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { combine, Consumer, fork } from "../../libs/connections";
-import { filter, nonNull } from "../../libs/connections/filters";
 import { map, pick, pipe } from "../../libs/connections/mappers";
 import { throwIfNull2 } from "../../libs/errors";
 import {
@@ -235,7 +234,7 @@ export const editableContentComponent: Component<
         fork(
           renderFields,
           map((ld) => (isEditable(ld) ? [] : undefined), displayChanges),
-          map(findHashUri, filter(nonNull, setReference))
+          map(findHashUri, setReference)
         )
       )
     ),

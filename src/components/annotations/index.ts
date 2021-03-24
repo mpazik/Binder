@@ -1,7 +1,7 @@
 import { DocumentAnnotationsIndex } from "../../functions/indexes/document-annotations-index";
 import { LinkedDataStoreWrite } from "../../functions/store";
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
-import { combine, fork, withState } from "../../libs/connections";
+import { fork, withMultiState, withState } from "../../libs/connections";
 import { filterNonNull } from "../../libs/connections/filters";
 import { ignoreParam, map, withValue } from "../../libs/connections/mappers";
 import { HashUri } from "../../libs/hash";
@@ -38,7 +38,7 @@ export const annotationsSupport: Component<
     };
     displaySelectionToolbar: OptSelection;
     setCreator: string;
-    setReference: HashUri;
+    setReference: HashUri | undefined;
   }
 > = ({
   ldStoreWrite,
@@ -46,10 +46,11 @@ export const annotationsSupport: Component<
   requestDocumentSave,
   documentAnnotationsIndex,
 }) => (render) => {
-  const [setCreator, setReference, saveAnnotation] = combine<
-    [string | null, HashUri, AnnotationSaveArgs]
+  const [saveAnnotation, [setCreator, setReference]] = withMultiState<
+    [string, HashUri | undefined],
+    AnnotationSaveArgs
   >(
-    ([creator, reference, annotationSaveArgs]) => {
+    ([creator, reference], annotationSaveArgs) => {
       if (!reference) {
         keepAnnotationForSave(annotationSaveArgs);
         requestDocumentSave();
@@ -70,7 +71,6 @@ export const annotationsSupport: Component<
         );
       });
     },
-    null,
     undefined,
     undefined
   );
@@ -130,7 +130,6 @@ export const annotationsSupport: Component<
           handler: ({ container, range }) => {
             const text = containerText(container);
             const selector = quoteSelectorForRange(container, text, range);
-            console.log("selector", selector, range);
             saveAnnotation({ container, selector });
           },
           label: "highlight",

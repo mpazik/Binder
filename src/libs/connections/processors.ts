@@ -1,6 +1,13 @@
 import { filterNonNullTuple, nonUndefined } from "./filters";
-import { Callback, Consumer, OnCloseRegister, PartialTuple } from "./types";
+import {
+  Callback,
+  Consumer,
+  OnCloseRegister,
+  PartialTuple,
+  Tuple,
+} from "./types";
 import { equal } from "./utils/equal";
+import { throwIfUndefined } from "../errors";
 
 /**
  * Passes only changed element, with one state being delayed.
@@ -120,7 +127,7 @@ export const combine = <T extends readonly unknown[]>(
   [K in keyof T]: Callback<T[K]>;
 } => combineAlways(filterNonNullTuple(callback), ...init);
 
-export const combineAlways = <T extends readonly unknown[]>(
+export const combineAlways = <T extends Tuple>(
   callback: (args: PartialTuple<T>) => void,
   ...init: PartialTuple<T>
 ): {
@@ -145,15 +152,38 @@ export const withState = <S, V = void>(
   let state: S | undefined = init;
   return [
     (v) => {
-      if (state) {
-        callback(state, v);
-      }
+      callback(throwIfUndefined(state), v);
     },
     (s) => {
       state = s;
     },
     () => {
       state = undefined;
+    },
+  ];
+};
+
+export const withMultiState = <S extends Tuple, V = void>(
+  callback: (state: PartialTuple<S>, value: V) => void,
+  ...init: PartialTuple<S>
+): [
+  (v: V) => void,
+  {
+    [K in keyof S]: Callback<S[K]>;
+  }
+] => {
+  const state = init.slice(0);
+
+  return [
+    (v) => {
+      callback((state as unknown) as PartialTuple<S>, v);
+    },
+    (init.map((s, n) => {
+      return (newStateN: unknown) => {
+        state[n] = newStateN;
+      };
+    }) as unknown) as {
+      [K in keyof S]: Callback<S[K]>;
     },
   ];
 };
