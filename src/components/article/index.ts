@@ -18,7 +18,7 @@ import {
   Consumer,
   fork,
 } from "../../libs/connections";
-import { map, mapAwait } from "../../libs/connections/mappers";
+import { ignore, map, mapAwait, pick } from "../../libs/connections/mappers";
 import { LinkedData } from "../../libs/linked-data";
 import {
   handleState,
@@ -128,6 +128,10 @@ const createArticleView: ViewSetup<
       div({ class: "flash mt-3 flash-error" }, span(reason)),
   });
 
+const scrollTop = () => {
+  window.scrollTo(0, 0);
+};
+
 export const articleComponent: Component<
   {
     documentAnnotationsIndex: DocumentAnnotationsIndex;
@@ -177,10 +181,11 @@ export const articleComponent: Component<
 
   const onLoadedParentHandler = ({ state }: ArticleStateWithFeedback) =>
     handleState<ArticleViewState>(state, {
-      ready: (state) => {
-        setContent(state);
-        onArticleLoaded?.(state.linkedData);
-      },
+      ready: fork(
+        setContent,
+        onArticleLoaded ? map(pick("linkedData"), onArticleLoaded) : ignore,
+        scrollTop
+      ),
     });
 
   const articleViewStateMachine = newArticleViewStateMachine({

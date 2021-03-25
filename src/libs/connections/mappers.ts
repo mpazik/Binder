@@ -1,6 +1,8 @@
 import { Callback } from "./types";
 
 type Function<T, S> = (v: T) => S;
+export const identity = <T>(v: T) => v;
+export const ignore = (v: unknown): void => {};
 
 export const head = <H, T extends unknown[]>(array: readonly [H, ...T]): H =>
   array[0];
@@ -78,10 +80,8 @@ export const mapAwait = <T, S>(
   onError: Callback<unknown>
 ): Callback<T> => (v: T) => transform(v).then(callback).catch(onError);
 
-export const mapTo = <T>(
-  value: T,
-  callback: Callback<T>
-): Callback<unknown> => () => map(to(value), callback);
+export const mapTo = <T>(value: T, callback: Callback<T>): Callback<unknown> =>
+  map(to(value), callback);
 
 export const mapToUndefined = (
   callback: Callback<undefined>
