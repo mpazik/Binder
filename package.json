@@ -20,6 +20,7 @@
     "@primer/octicons": "^11.0.0",
     "diff": "^5.0.0",
     "jsonld": "^3.3.0",
+    "pdfjs-dist": "^2.6.347",
     "schema-dts": "^0.7.1"
   },
   "devDependencies": {
@@ -30,6 +31,7 @@
     "@types/jest": "^26.0.20",
     "@types/jsonld": "^1.5.2",
     "@types/mozilla-readability": "^0.2.0",
+    "@types/pdfjs-dist": "^2.1.7",
     "@typescript-eslint/eslint-plugin": "^4.3.0",
     "@typescript-eslint/parser": "^4.3.0",
     "babel-jest": "^26.6.3",

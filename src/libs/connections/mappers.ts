@@ -27,9 +27,10 @@ export const extendAsync = <T, S>(
   extend: (v: T) => Promise<S>
 ): Function<T, Promise<[T, S]>> => (v) => extend(v).then((m) => [v, m]);
 
-export const transformIfDefined = <T, S>(
+export const passUndefined = <T, S>(
   map: Function<T, S>
-): Function<T | undefined, S | undefined> => (v) => (v ? map(v) : undefined);
+): Function<T | undefined, S | undefined> => (v) =>
+  v === undefined ? undefined : map(v);
 
 export function pipe<T, S>(map1: (v: T) => S): Function<T, S>;
 export function pipe<T, S, U>(

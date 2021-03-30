@@ -80,7 +80,12 @@ module.exports = {
   `,
       inject: false,
     }),
-    new CopyWebpackPlugin({ patterns: [{ from: "assets" }] }),
+    new CopyWebpackPlugin({
+      patterns: [
+        { from: "assets" },
+        { from: "node_modules/pdfjs-dist/build/pdf.worker.js" },
+      ],
+    }),
     new webpack.DefinePlugin(
       process.env.NODE_ENV === "production" ? prodConfig : devConfig
     ),

@@ -1,5 +1,5 @@
 import { Callback } from "../../libs/connections";
-import { transformIfDefined } from "../../libs/connections/mappers";
+import { passUndefined } from "../../libs/connections/mappers";
 import { throwIfNull } from "../../libs/errors";
 import { HashName, HashUri } from "../../libs/hash";
 import {
@@ -154,9 +154,7 @@ export const createStore = (
 
     const blob: Blob | undefined =
       (await localResourceStoreRead(hash)) ||
-      transformIfDefined(linkedDataToBlob)(
-        await localLinkedDataStoreRead(hash)
-      );
+      passUndefined(linkedDataToBlob)(await localLinkedDataStoreRead(hash));
 
     if (!blob) {
       updateState([
