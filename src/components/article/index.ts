@@ -77,8 +77,10 @@ const newArticleViewStateMachine = ({
       {
         idle: {
           load: (url) => ["initializing", url],
+          display: (articleContent) => ["ready", articleContent],
         },
         initializing: {
+          load: (url) => ["initializing", url],
           display: (articleContent) => ["ready", articleContent],
           fail: (reason, url) => ["error", { reason, url }],
         },
@@ -90,15 +92,16 @@ const newArticleViewStateMachine = ({
           display: (articleContent) => ["ready", articleContent],
         },
         loading: {
-          display: (articleContent) => ["ready", articleContent],
           load: (url, { existingArticle }) => [
             "loading",
             { existingArticle, newUrl: url },
           ],
+          display: (articleContent) => ["ready", articleContent],
           fail: (reason, { newUrl }) => ["error", { reason, url: newUrl }],
         },
         error: {
           load: (url) => ["initializing", url],
+          display: (articleContent) => ["ready", articleContent],
           retry: (_, { url }) => ["initializing", url],
         },
       },
