@@ -1,6 +1,5 @@
-import { reducer } from "./connections";
+import { reduce } from "./connections";
 import { Callback } from "./connections";
-import { GDriveAction } from "../functions/gdrive/controller";
 
 export type NamedAction<N, T = void> = T extends void
   ? [name: N]
@@ -99,7 +98,7 @@ export const newStateMachine = <S extends SomeState, A extends SomeAction>(
   behaviours: Behaviours<S, A>,
   callback: Callback<S>
 ): Callback<A> =>
-  reducer(initState, newStateMachineHandler(behaviours), callback);
+  reduce(initState, newStateMachineHandler(behaviours), callback);
 
 export const filterState = <S extends SomeState, K extends S[0]>(
   stateName: K,

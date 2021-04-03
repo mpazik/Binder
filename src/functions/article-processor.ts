@@ -2,8 +2,10 @@ import { Readability } from "@mozilla/readability";
 
 import { throwIfNull } from "../libs/errors";
 import { createArticle } from "../libs/ld-schemas";
-import { LinkedData } from "../libs/linked-data";
+import { LinkedData, LinkedDataWithHashId } from "../libs/linked-data";
 import { measureTime } from "../libs/performance";
+
+import { documentToBlob } from "./content-saver";
 
 export const articleMediaType = "text/html";
 
@@ -75,6 +77,16 @@ const removeRootAndContentWrappers = (contentDocument: Document) => {
   );
 };
 
+export type LinkedDataWithContent = {
+  content: Blob;
+  linkedData: LinkedData;
+};
+
+export type SavedLinkedDataWithContent = {
+  content: Blob;
+  linkedData: LinkedDataWithHashId;
+};
+
 export type LinkedDataWithDocument = {
   contentDocument: Document;
   linkedData: LinkedData;
@@ -83,7 +95,7 @@ export type LinkedDataWithDocument = {
 const processStringToArticle = async (
   text: string,
   url?: string
-): Promise<LinkedDataWithDocument> => {
+): Promise<LinkedDataWithContent> => {
   const domParser = new DOMParser();
   const dom = measureTime("parse", () =>
     domParser.parseFromString(text, articleMediaType)
@@ -129,14 +141,14 @@ const processStringToArticle = async (
   }
 
   return {
-    contentDocument,
+    content: documentToBlob(contentDocument),
     linkedData: articleLd,
   };
 };
 
 export const processFileToArticle = async (
   file: Blob
-): Promise<LinkedDataWithDocument> => {
+): Promise<LinkedDataWithContent> => {
   const reader = new FileReader();
   const text = await new Promise<string>((resolve, reject) => {
     reader.addEventListener("load", (event) => {
@@ -154,5 +166,5 @@ export const processFileToArticle = async (
 export const processResponseToArticle = async (
   response: Response,
   url: string
-): Promise<LinkedDataWithDocument> =>
+): Promise<LinkedDataWithContent> =>
   processStringToArticle(await response.text(), url);

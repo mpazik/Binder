@@ -4,8 +4,7 @@ import { findHashUri, LinkedData } from "../libs/linked-data";
 import { measureAsyncTime } from "../libs/performance";
 
 import {
-  LinkedDataWithDocument,
-  parseArticleContent,
+  LinkedDataWithContent,
   processResponseToArticle,
 } from "./article-processor";
 import { Fetch } from "./fetch-trough-proxy";
@@ -14,26 +13,22 @@ import { LinkedDataStoreRead, ResourceStoreRead } from "./store/local-store";
 export type LinkedDataWithDocumentFetcher = (
   uri: string,
   signal?: AbortSignal
-) => Promise<LinkedDataWithDocument>;
+) => Promise<LinkedDataWithContent>;
 
-type LinkedDataDocumentFetcher = (
+type LinkedDataContentFetcher = (
   linkedData: LinkedData,
   signal?: AbortSignal
-) => Promise<Document>;
+) => Promise<Blob>;
 
-const createLinkedDataDocumentFetcher = (
+const createLinkedDataContentFetcher = (
   storeRead: ResourceStoreRead
-): LinkedDataDocumentFetcher => async (article) => {
+): LinkedDataContentFetcher => (article) => {
   const hashUri = throwIfNull(findHashUri(article));
-
-  // todo this won't work in the new world
-  return await measureAsyncTime("read stored", async () => {
-    const contentBlob: Blob = await throwIfNull(
-      await storeRead(hashUri),
-      () => `Could not find content for uri: '${hashUri}'`
-    );
-    return parseArticleContent(await contentBlob.text());
-  });
+  return measureAsyncTime("read stored", () =>
+    storeRead(hashUri)
+  ).then((blob) =>
+    throwIfNull(blob, () => `Could not find content for uri: '${hashUri}'`)
+  );
 };
 
 export const createLinkedDataWithDocumentFetcher = (
@@ -42,7 +37,7 @@ export const createLinkedDataWithDocumentFetcher = (
   linkedDataStoreRead: LinkedDataStoreRead,
   resourceStoreRead: ResourceStoreRead
 ): LinkedDataWithDocumentFetcher => {
-  const linkedDataDocumentFetcher = createLinkedDataDocumentFetcher(
+  const linkedDataContentFetcher = createLinkedDataContentFetcher(
     resourceStoreRead
   );
 
@@ -50,14 +45,11 @@ export const createLinkedDataWithDocumentFetcher = (
     const hash = isHashUri(url) ? url : await getHash(url);
     if (hash) {
       const linkedData = throwIfNull(await linkedDataStoreRead(hash));
-      const contentDocument = await linkedDataDocumentFetcher(
-        linkedData,
-        signal
-      );
+      const content = await linkedDataContentFetcher(linkedData, signal);
 
       return {
         linkedData,
-        contentDocument,
+        content,
       };
     }
 

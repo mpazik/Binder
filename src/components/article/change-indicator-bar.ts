@@ -54,7 +54,6 @@ export const changesIndicatorBar: Component<
     render(
       div(
         {
-          id: "editor-gutter",
           class: "bg-gray position-absolute",
           style: { height: "100%", width: 8, left: -20, top: 0 },
         },

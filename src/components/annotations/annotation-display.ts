@@ -1,4 +1,4 @@
-import { fork } from "../../libs/connections";
+import { fork, withState } from "../../libs/connections";
 import { delayedState } from "../../libs/connections";
 import { and, filter, or } from "../../libs/connections/filters";
 import { map } from "../../libs/connections/mappers";
@@ -187,24 +187,33 @@ export const commentForm: Component<
   },
   { displayCommentForm: CommentFormState }
 > = ({ onCreatedComment, onHide }) => (render) => {
-  let editor: HTMLElement | undefined;
-  let state: Selection | undefined;
+  const [createComment, setContainer] = withState<HTMLElement, Selection>(
+    (editor, { selector, container }) => {
+      onCreatedComment({
+        comment: throwIfNull(editor).innerHTML,
+        selector,
+        container,
+      });
+    }
+  );
+
+  const [hide, setSelectionForHide, resetSelection] = withState<Selection>(
+    onHide
+  );
 
   const renderForm = map(
     newStateMapper<CommentFormState, JsonHtml | undefined>({
-      visible: ({ container, position, selector }) =>
+      visible: ({ position, ...selection }) =>
         commentFormView({
           position,
-          onDisplay: (e) => (editor = e),
+          onDisplay: setContainer,
           onCancel: () => {
+            hide();
             renderForm(["hidden"]);
           },
           onSave: () => {
-            onCreatedComment({
-              comment: throwIfNull(editor).innerHTML,
-              selector,
-              container,
-            });
+            hide();
+            createComment(selection);
             renderForm(["hidden"]);
           },
         }),
@@ -216,16 +225,10 @@ export const commentForm: Component<
   return {
     displayCommentForm: fork(
       renderForm,
-      filter<CommentFormState>(
-        ([name]) => name === "hidden",
-        fork(
-          () => (editor = undefined),
-          () => onHide(throwIfNull(state))
-        )
-      ),
+      filter<CommentFormState>(([name]) => name === "hidden", hide),
       newStateHandler({
-        visible: (s) => (state = s),
-        hidden: () => (state = undefined),
+        visible: setSelectionForHide,
+        hidden: resetSelection,
       })
     ),
   };

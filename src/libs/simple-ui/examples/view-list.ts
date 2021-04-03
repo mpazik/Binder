@@ -1,4 +1,4 @@
-import { reducer } from "../../connections";
+import { reduce } from "../../connections";
 import {
   button,
   Component,
@@ -33,7 +33,7 @@ const main: Component = () => (render) => {
     onClick: () => addItem(new Date().toISOString()),
   });
 
-  const addItem = reducer([], reduceStringList, (list) =>
+  const addItem = reduce([], reduceStringList, (list) =>
     render(renderMainView({ list }))
   );
 };

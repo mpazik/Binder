@@ -1,6 +1,6 @@
 import { throwIfNull } from "../../libs/errors";
 
-import { annotation, QuoteSelector } from "./annotation";
+import { QuoteSelector } from "./annotation";
 import { Position } from "./selection";
 
 type Rect = {
@@ -59,9 +59,11 @@ const wrapWithHighlight = (
 const removeHighlight = (part: Text): void => {
   const highlight = throwIfNull(part.parentElement);
   if (!highlight.classList.contains(highlightClass)) {
-    throw new Error(
-      `Can not remove highlight on element "${highlight}" which does not have "${highlightClass}" class`
+    console.error(
+      `Can not remove highlight on element which does not have "${highlightClass}" class`,
+      highlight
     );
+    return;
   }
   if (highlight.childNodes.length === 1) {
     highlight.parentNode!.replaceChild(highlight.firstChild!, highlight);
@@ -128,7 +130,8 @@ const findPartsBySelector = (
   const start = text.indexOf(phrase) + (selector.prefix?.length || 0);
 
   if (start < 0) {
-    console.error("Could not select text for: " + JSON.stringify(annotation));
+    console.error(`Could not find selector "${JSON.stringify(selector)}`);
+    return [];
   }
   return findParts(container, start, exact.length);
 };

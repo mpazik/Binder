@@ -8,7 +8,7 @@ import {
   onAnimationFrame,
   passOnlyChanged,
   Provider,
-  reducer,
+  reduce,
   split,
 } from "../../../connections";
 import "todomvc-app-css/index.css";
@@ -309,7 +309,7 @@ const AppComponent: Component = () => (render, onClose) => {
     [] as Todo[]
   );
 
-  const updateTodoList = reducer(
+  const updateTodoList = reduce(
     [newTodo("first")],
     todosChanger,
     fork(map(countActive, passOnlyChanged(activeItemsCount)), setTodos)

@@ -1,3 +1,5 @@
+import { throwIfUndefined } from "../errors";
+
 import { filterNonNullTuple, nonUndefined } from "./filters";
 import {
   Callback,
@@ -7,7 +9,6 @@ import {
   Tuple,
 } from "./types";
 import { equal } from "./utils/equal";
-import { throwIfUndefined } from "../errors";
 
 /**
  * Passes only changed element, with one state being delayed.
@@ -70,14 +71,14 @@ export const forEach = <T>(
 export const flatten = <T>(push: Callback<T>): Callback<T[]> => (array) =>
   array.forEach(push);
 
-export const reducer = <S, C>(
+export const reduce = <S, C>(
   initState: S,
-  reduce: (state: S, change: C) => S,
+  reducer: (state: S, change: C) => S,
   callback: Callback<S>
 ): Callback<C> => {
   let state: S = initState;
   return (change) => {
-    const newState = reduce(state, change);
+    const newState = reducer(state, change);
     state = newState;
     callback(newState);
   };
@@ -104,6 +105,32 @@ export function split<T>(
     predicate(value) ? onFirst(value) : onSecond(value);
   };
 }
+
+export function splitMap<T, S, Q>(
+  isFirst: (v: T | S) => v is T,
+  onFirst: (v: T) => Q,
+  onSecond: (v: S) => Q,
+  callback: Callback<Q>
+): Callback<T | S>;
+
+export function splitMap<T, S>(
+  predicate: (v: T) => boolean,
+  onFirst: (v: T) => S,
+  onSecond: (v: T) => S,
+  callback: Callback<S>
+): Callback<T>;
+
+export function splitMap<T, S>(
+  predicate: (v: T) => boolean,
+  onFirst: (v: T) => S,
+  onSecond: (v: T) => S,
+  callback: Callback<S>
+): Callback<T> {
+  return (value) => {
+    callback(predicate(value) ? onFirst(value) : onSecond(value));
+  };
+}
+
 export const splitOnUndefined = <T>(
   onUndefined: Callback<undefined>,
   onValue: Callback<T>
@@ -116,7 +143,9 @@ export const withDefaultValue = <T>(
   callback(value ?? defaultValue);
 };
 
-export const fork = <T>(...consumers: Consumer<T>[]): Consumer<T> => (data) => {
+export const fork = <T = void>(...consumers: Consumer<T>[]): Consumer<T> => (
+  data
+) => {
   consumers.forEach((push) => push(data));
 };
 
@@ -145,15 +174,41 @@ export const combineAlways = <T extends Tuple>(
   };
 };
 
+// export const combineAlways2 = <T extends Tuple>(
+//   callback: (args: PartialTuple<T>) => void,
+//   ...init: PartialTuple<T>
+// ): {
+//   [K in keyof T]: Callback<T[K]>;
+// } => {
+//   const update = reduce<unknown[], [n: number, change: unknown]>(
+//     init.slice(),
+//     (state, [n, change]) => {
+//       state[n] = change;
+//       return state;
+//     },
+//     cast(callback)
+//   );
+//
+//   return (init.map((s, n) => (newStateN: unknown) =>
+//     update([n, newStateN])
+//   ) as unknown) as {
+//     [K in keyof T]: Callback<T[K]>;
+//   };
+// };
+
 export const withState = <S, V = void>(
   callback: (state: S, value: V) => void,
   init?: S
-): [(v: V) => void, (s: S) => void, () => void] => {
+): [
+  V extends void ? () => void : (v: V) => void,
+  (s: S) => void,
+  () => void
+] => {
   let state: S | undefined = init;
   return [
-    (v) => {
+    ((v) => {
       callback(throwIfUndefined(state), v);
-    },
+    }) as V extends void ? () => void : (v: V) => void,
     (s) => {
       state = s;
     },

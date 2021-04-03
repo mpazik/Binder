@@ -51,14 +51,3 @@ export const createAnnotation = (
     selector,
   },
 });
-
-export const annotation: Annotation = createAnnotation(
-  "nih:sha-256;0ea13c00e7c872d446332715f7bc71bcf8ed9c864ac0be09814788667cbf1f1f",
-  {
-    type: "TextQuoteSelector",
-    exact: "synem i uczniem rzeźbiarza Patroklesa[1], wymienionego",
-    prefix: "Był ",
-    suffix: " przez",
-  },
-  "Some <b>comment</b>"
-);

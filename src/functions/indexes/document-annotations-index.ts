@@ -5,10 +5,10 @@ import {
   storeGet,
   storePut,
 } from "../../libs/indexeddb";
+import { isTypeEqualTo } from "../../libs/linked-data";
 import { Opaque } from "../../libs/types";
 
 import { Indexer } from "./types";
-import { isTypeEqualTo } from "../../libs/linked-data";
 
 export type Url = string;
 export type DocumentAnnotationsQuery = { documentHashUri: HashUri };

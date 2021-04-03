@@ -11,7 +11,7 @@ import {
 
 export type EditBarState =
   | ["hidden"]
-  | ["visible", { showDiscard: boolean }]
+  | ["visible", { modified: boolean }]
   | ["saving"]
   | ["error", { onTryAgain: () => void; reason: string }];
 
@@ -50,22 +50,21 @@ const styledButton = (
   );
 
 const createEditBarView: OptionalViewSetup<
-  { onSave: () => void; onDiscard: () => void },
+  { onSave: () => void; onUpdate: () => void; onDiscard: () => void },
   EditBarState
-> = ({ onDiscard, onSave }) =>
+> = ({ onDiscard, onSave, onUpdate }) =>
   newStateOptionalMapper({
-    visible: ({ showDiscard }) =>
-      popUpBar(
-        barMessage(
-          showDiscard
-            ? "Document has been modified"
-            : "External document, not yet saved"
-        ),
-        ...(showDiscard
-          ? [styledButton("Discard", onDiscard, "btn-danger")]
-          : []),
-        styledButton("Save", onSave, "btn-primary")
-      ),
+    visible: ({ modified }) =>
+      modified
+        ? popUpBar(
+            barMessage("Document has been modified"),
+            styledButton("Discard", onDiscard, "btn-danger"),
+            styledButton("Update", onUpdate, "btn-primary")
+          )
+        : popUpBar(
+            barMessage("External document, not yet saved"),
+            styledButton("Save", onSave, "btn-primary")
+          ),
     error: ({ reason, onTryAgain }) =>
       bar(
         barMessage(`Error saving document ${reason}`),
@@ -82,10 +81,14 @@ export const editBar: Component<
   {
     onSave: () => void;
     onDiscard: () => void;
+    onUpdate: () => void;
   },
   { updateEditBar: EditBarState }
-> = ({ onSave, onDiscard }) => (render) => {
+> = ({ onSave, onDiscard, onUpdate }) => (render) => {
   return {
-    updateEditBar: map(createEditBarView({ onSave, onDiscard }), render),
+    updateEditBar: map(
+      createEditBarView({ onSave, onUpdate, onDiscard }),
+      render
+    ),
   };
 };

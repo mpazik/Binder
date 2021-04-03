@@ -53,7 +53,7 @@ export const selectionPosition = ({ range, container }: Selection): Position =>
 
 export const currentSelection = (element: HTMLElement): OptSelection => {
   const range = currentRange();
-  return range
+  return range && range.toString().trim().length > 0
     ? {
         container: element,
         range,

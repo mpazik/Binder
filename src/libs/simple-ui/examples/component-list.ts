@@ -4,7 +4,7 @@ import {
   ObjectChange,
   objectChanger,
   Provider,
-  reducer,
+  reduce,
 } from "../../connections";
 import { map, pipe, wrap } from "../../connections/mappers";
 import { itemsReconciliation } from "../items-reconciliation";
@@ -106,7 +106,7 @@ const main: Component = () => (render) => {
     },
   });
 
-  const updateList = reducer(
+  const updateList = reduce(
     [],
     entityListChanger<Item, ItemId, ObjectChange<Item>>(
       getItemId,

@@ -1,7 +1,7 @@
 import { URL } from "schema-dts";
 
 import {
-  LinkedDataWithDocument,
+  LinkedDataWithContent,
   processFileToArticle,
 } from "../../functions/article-processor";
 import { DocumentAnnotationsIndex } from "../../functions/indexes/document-annotations-index";
@@ -38,18 +38,20 @@ import { centerLoadingSlot } from "../common/center-loading-component";
 
 import { editableContentComponent } from "./content-view";
 
+const defaultUri = "https://pl.wikipedia.org/wiki/Dedal_z_Sykionu";
+
 type RetryAction = ["retry"];
 type ArticleViewAction =
   | ["load", URL]
-  | ["display", LinkedDataWithDocument]
+  | ["display", LinkedDataWithContent]
   | ["fail", string]
   | RetryAction;
 
 export type ArticleViewState =
   | ["idle"]
   | ["initializing", URL]
-  | ["ready", LinkedDataWithDocument]
-  | ["loading", { existingArticle: LinkedDataWithDocument; newUrl: URL }]
+  | ["ready", LinkedDataWithContent]
+  | ["loading", { existingArticle: LinkedDataWithContent; newUrl: URL }]
   | ["error", { reason: string; url: URL }];
 
 const articleViewInitState: ArticleViewState = ["idle"];
@@ -201,7 +203,7 @@ export const articleComponent: Component<
   );
 
   currentDocumentUriProvider({
-    defaultUri: "https://pl.wikipedia.org/wiki/Dedal_z_Sykionu",
+    defaultUri,
   })(onClose, setUri);
 
   return {

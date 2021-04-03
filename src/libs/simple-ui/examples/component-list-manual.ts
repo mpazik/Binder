@@ -2,7 +2,7 @@ import {
   entityListChanger,
   Consumer,
   dataPortal,
-  reducer,
+  reduce,
 } from "../../connections";
 import { map, pipe, wrap } from "../../connections/mappers";
 import { ItemProvider } from "../items-reconciliation";
@@ -112,7 +112,7 @@ const main: Component = () => (render) => {
     },
   });
 
-  const updateList = reducer(
+  const updateList = reduce(
     [],
     entityListChanger<ItemProvider<Item, ItemId>, ItemId>(
       (it) => it.id,

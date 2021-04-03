@@ -81,6 +81,9 @@ export const mapAwait = <T, S>(
   onError: Callback<unknown>
 ): Callback<T> => (v: T) => transform(v).then(callback).catch(onError);
 
+export const cast = <T, S>(callback: Callback<S>): Callback<T> => (v: T) =>
+  callback((v as unknown) as S);
+
 export const mapTo = <T>(value: T, callback: Callback<T>): Callback<unknown> =>
   map(to(value), callback);
 
