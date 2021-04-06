@@ -1,15 +1,28 @@
-import * as pdfjsLib from "pdfjs-dist";
+import * as pdfJsLib from "pdfjs-dist";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import { TextLayerBuilder } from "pdfjs-dist/lib/web/text_layer_builder.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import { EventBus } from "pdfjs-dist/lib/web/ui_utils.js";
-import { URL } from "schema-dts";
 import "./text_layer_builder.css";
 
 import {
+  Callback,
+  closableForEach,
+  Consumer,
+  fork,
+} from "../../libs/connections";
+import { map } from "../../libs/connections/mappers";
+import {
+  handleState,
+  mapState,
+  newStateMachineWithFeedback,
+  StateWithFeedback,
+} from "../../libs/named-state";
+import {
   button,
+  canvas,
   Component,
   div,
   slot,
@@ -18,21 +31,10 @@ import {
   View,
   ViewSetup,
 } from "../../libs/simple-ui/render";
-import { Callback, closableForEach, Consumer } from "../../libs/connections";
-import { map } from "../../libs/connections/mappers";
-import {
-  handleState,
-  mapState,
-  newStateMachineWithFeedback,
-  StateWithFeedback,
-} from "../../libs/named-state";
 import { centerLoadingSlot } from "../common/center-loading-component";
 
-const url =
-  "https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf";
-
 // The workerSrc property shall be specified.
-pdfjsLib.GlobalWorkerOptions.workerSrc = "./pdf.worker.js";
+pdfJsLib.GlobalWorkerOptions.workerSrc = "./pdf.worker.js";
 
 type PdfDocument = {
   openPage: (page: number) => void;
@@ -43,22 +45,15 @@ const renderPdf = async (
   container: HTMLElement,
   data: Blob
 ): Promise<PdfDocument> => {
-  const pdfDocument = await pdfjsLib.getDocument({
+  const pdfDocument = await pdfJsLib.getDocument({
     data: new Uint8Array(await data.arrayBuffer()),
   }).promise;
 
-  const div = document.createElement("div");
-  div.setAttribute("style", "position: relative");
-  container.appendChild(div);
-
   const containerWidth = container.getBoundingClientRect().width;
-
-  const canvas = document.createElement("canvas");
-  div.appendChild(canvas);
-
-  const textLayerDiv = document.createElement("div");
-  textLayerDiv.setAttribute("class", "textLayer");
-  div.appendChild(textLayerDiv);
+  const canvas = container.getElementsByTagName("canvas")[0];
+  const textLayerDiv = container.getElementsByClassName(
+    "textLayer"
+  )[0] as HTMLElement;
 
   let pageOpening = false;
   let nextPageToOpen: number | undefined;
@@ -81,7 +76,7 @@ const renderPdf = async (
       openNextPage(nextPageToOpen);
       return;
     }
-    div.setAttribute("id", "page-" + (page._pageIndex + 1));
+    container.setAttribute("id", "page-" + (page._pageIndex + 1));
 
     const originalViewport = page.getViewport({ scale: 1 });
     const viewport = page.getViewport({
@@ -91,6 +86,7 @@ const renderPdf = async (
     canvas.width = viewport.width;
     textLayerDiv.style.width = viewport.width + "px";
     textLayerDiv.style.height = viewport.height + "px";
+    textLayerDiv.innerHTML = "";
 
     await page.render({
       canvasContext: canvas.getContext("2d")!,
@@ -122,8 +118,22 @@ const renderPdf = async (
   };
 };
 
+const contentComponent: Component<{ onDisplay: Callback<HTMLElement> }> = ({
+  onDisplay,
+}) => (render) => {
+  render(
+    div(
+      {
+        onDisplay: (e) => onDisplay(e.target as HTMLElement),
+        style: { position: "relative" },
+      },
+      canvas(),
+      div({ class: "textLayer" })
+    )
+  );
+};
+
 type PdfViewAction =
-  | ["fetch", URL]
   | ["load", Blob]
   | ["setContainer", HTMLElement]
   | ["display", PdfDocument]
@@ -131,8 +141,7 @@ type PdfViewAction =
   | ["fail", string];
 
 export type PdfViewState =
-  | ["idle", { container?: HTMLElement; url?: URL; data?: Blob }]
-  | ["fetching", { container: HTMLElement; url: URL }]
+  | ["idle", { container?: HTMLElement; data?: Blob }]
   | ["rendering", { data: Blob; container: HTMLElement }]
   | [
       "displaying",
@@ -148,24 +157,12 @@ const newPdfViewStateMachine = () => {
       ["idle", {}],
       {
         idle: {
-          setContainer: (container, { url, data }) =>
-            data
-              ? ["rendering", { data, container }]
-              : url
-              ? ["fetching", { url, container }]
-              : ["idle", { container }],
-          fetch: (url, { container }) =>
-            container ? ["fetching", { url, container }] : ["idle", { url }],
+          setContainer: (container, { data }) =>
+            data ? ["rendering", { data, container }] : ["idle", { container }],
           load: (data, { container }) =>
             container ? ["rendering", { data, container }] : ["idle", { data }],
         },
-        fetching: {
-          fetch: (url, { container }) => ["fetching", { url, container }],
-          load: (data, { container }) => ["rendering", { data, container }],
-          fail: (reason, { container }) => ["error", { reason, container }],
-        },
         rendering: {
-          fetch: (url, { container }) => ["fetching", { url, container }],
           load: (data, { container }) => ["rendering", { data, container }],
           display: (document, { container }) => [
             "displaying",
@@ -174,7 +171,6 @@ const newPdfViewStateMachine = () => {
           fail: (reason, { container }) => ["error", { reason, container }],
         },
         displaying: {
-          fetch: (url, { container }) => ["fetching", { url, container }],
           openPage: (pageNumber, { document, container }) => [
             "displaying",
             { document, container, currentPage: pageNumber },
@@ -186,19 +182,11 @@ const newPdfViewStateMachine = () => {
             "error",
             { reason, container },
           ],
-          fetch: (url, { container }) => ["fetching", { url, container }],
           load: (data, { container }) => ["rendering", { data, container }],
         },
       },
       closableForEach(({ state, feedback }) => {
         handleState<PdfViewState>(state, {
-          fetching: ({ url }) => {
-            fetch(url)
-              .then((it) => it.blob())
-              .then((data) => {
-                feedback(["load", data]);
-              });
-          },
           rendering: ({ container, data }) => {
             renderPdf(container, data).then((it) => {
               feedback(["display", it]);
@@ -242,20 +230,11 @@ const pdfNav: View<{
     )
   );
 
-const contentComponent: Component<{ setContainer: Callback<HTMLElement> }> = ({
-  setContainer,
-}) => (render) => {
-  render(div({ onDisplay: (e) => setContainer(e.target as HTMLElement) }));
-};
-
 const createPdfView: ViewSetup<{ contentSlot: Slot }, PdfStateWithFeedback> = ({
   contentSlot,
 }) => ({ state, feedback }) =>
   mapState(state, {
     idle: () => {
-      return div(centerLoadingSlot(), contentSlot);
-    },
-    fetching: () => {
       return div(centerLoadingSlot(), contentSlot);
     },
     rendering: () => {
@@ -281,16 +260,22 @@ const createPdfView: ViewSetup<{ contentSlot: Slot }, PdfStateWithFeedback> = ({
     },
   });
 
-export const pdf: Component = () => (render) => {
+export const pdfContentDisplay: Component<
+  { onDisplay: () => void },
+  { updateContent: Blob }
+> = ({ onDisplay }) => (render) => {
   const contentSlot = slot(
     "content",
     contentComponent({
-      setContainer: (container) => {
+      onDisplay: fork(onDisplay, (container) => {
         sendAction(["setContainer", container]);
-      },
+      }),
     })
   );
   const renderPdf = map(createPdfView({ contentSlot }), render);
   const sendAction = newPdfViewStateMachine()(renderPdf);
-  sendAction(["fetch", url]);
+
+  return {
+    updateContent: (blob) => sendAction(["load", blob]),
+  };
 };

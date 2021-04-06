@@ -1,12 +1,13 @@
 import {
-  articleMediaType,
-  documentContentRoodId,
-  getDocumentContentRoot,
   LinkedDataWithContent,
   LinkedDataWithDocument,
-  parseArticleContent,
   SavedLinkedDataWithContent,
-} from "../../functions/article-processor";
+} from "../../functions/content-processors";
+import {
+  documentContentRoodId,
+  getDocumentContentRoot,
+  parseArticleContent,
+} from "../../functions/content-processors/html-processor";
 import {
   createContentSaver,
   documentToBlob,
@@ -18,19 +19,26 @@ import {
 import {
   Consumer,
   fork,
-  log,
   passOnlyChanged,
+  split,
   splitMap,
   withMultiState,
   withState,
 } from "../../libs/connections";
 import { filterNonNullTuple } from "../../libs/connections/filters";
-import { map, mapTo, pick, pipe, to } from "../../libs/connections/mappers";
+import { map, pick, pipe, to } from "../../libs/connections/mappers";
+import {
+  EncodingFormat,
+  htmlMediaType,
+  isEncodingEqualTo,
+  pdfMediaType,
+} from "../../libs/ld-schemas";
 import { findHashUri, LinkedData } from "../../libs/linked-data";
 import { article, Component, div, newSlot } from "../../libs/simple-ui/render";
 import { throttleArg } from "../../libs/throttle";
 import { currentSelection, OptSelection } from "../annotations/selection";
 import { modal } from "../common/modal";
+import { pdfContentDisplay } from "../pdf";
 
 import {
   changesIndicatorBar,
@@ -173,67 +181,48 @@ export const contentDisplayComponent: Component<
   );
 
   const [modalDiffSlot, { displayModal }] = newSlot("modal-diff", modal());
+  const [pdfDisplaySlot, { updateContent: updatePdfContent }] = newSlot(
+    "pdf-display",
+    pdfContentDisplay({
+      onDisplay: resetEditBar,
+    })
+  );
 
-  const displayContent = async ({
+  const displayHtml = async ({
     content,
     linkedData,
   }: LinkedDataWithContent) => {
-    if (linkedData.encodingFormat === articleMediaType) {
-      console.log("display content");
-      const contentDocument = parseArticleContent(await content.text());
-      const contentRoot = getDocumentContentRoot(contentDocument);
-      if (isEditable(linkedData)) {
-        setDocumentForUpdate({ contentDocument, linkedData });
-        render(
+    const contentDocument = parseArticleContent(await content.text());
+    const contentRoot = getDocumentContentRoot(contentDocument);
+    if (isEditable(linkedData)) {
+      setDocumentForUpdate({ contentDocument, linkedData });
+      render(
+        div(
           div(
-            div(
-              gutterSlot,
-              modalDiffSlot,
-              article({
-                contenteditable: true,
-                class: "editable markdown-body flex-1",
-                style: { outline: "none" },
-                onInput: detectDocumentChange(
-                  contentRoot,
-                  fork(
-                    displayChangesOnBar,
-                    map(
-                      (changes) => Boolean(changes && changes.length > 0),
-                      passOnlyChanged(
-                        map(
-                          (modified) =>
-                            (modified
-                              ? ["visible", { modified }]
-                              : ["hidden"]) as EditBarState,
-                          updateEditBar
-                        )
+            gutterSlot,
+            modalDiffSlot,
+            article({
+              contenteditable: true,
+              class: "editable markdown-body flex-1",
+              style: { outline: "none" },
+              onInput: detectDocumentChange(
+                contentRoot,
+                fork(
+                  displayChangesOnBar,
+                  map(
+                    (changes) => Boolean(changes && changes.length > 0),
+                    passOnlyChanged(
+                      map(
+                        (modified) =>
+                          (modified
+                            ? ["visible", { modified }]
+                            : ["hidden"]) as EditBarState,
+                        updateEditBar
                       )
                     )
                   )
-                ),
-                dangerouslySetInnerHTML: contentRoot.innerHTML,
-                onMouseup: sendSelection,
-                onFocusout: sendSelection,
-                onDisplay: map(
-                  (e) => e.target as HTMLElement,
-                  fork(
-                    onDisplay,
-                    setContainerForUpdate,
-                    setContainerForSelect,
-                    resetEditBar,
-                    map(to([]), displayChangesOnBar)
-                  )
-                ),
-              })
-            ),
-            editBarSlot
-          )
-        );
-      } else {
-        render(
-          div(
-            article({
-              class: "markdown-body flex-1",
+                )
+              ),
               dangerouslySetInnerHTML: contentRoot.innerHTML,
               onMouseup: sendSelection,
               onFocusout: sendSelection,
@@ -243,16 +232,61 @@ export const contentDisplayComponent: Component<
                   onDisplay,
                   setContainerForUpdate,
                   setContainerForSelect,
-                  resetEditBar
+                  resetEditBar,
+                  map(to([]), displayChangesOnBar)
                 )
               ),
-            }),
-            editBarSlot
-          )
-        );
-      }
+            })
+          ),
+          editBarSlot
+        )
+      );
+    } else {
+      render(
+        div(
+          article({
+            class: "markdown-body flex-1",
+            dangerouslySetInnerHTML: contentRoot.innerHTML,
+            onMouseup: sendSelection,
+            onFocusout: sendSelection,
+            onDisplay: map(
+              (e) => e.target as HTMLElement,
+              fork(
+                onDisplay,
+                setContainerForUpdate,
+                setContainerForSelect,
+                resetEditBar
+              )
+            ),
+          }),
+          editBarSlot
+        )
+      );
     }
   };
+
+  new Response();
+
+  const displayPdf = ({ content }: LinkedDataWithContent) => {
+    render(div(pdfDisplaySlot, editBarSlot));
+    updatePdfContent(content);
+  };
+
+  const displayNotSupported = ({ linkedData }: LinkedDataWithContent) => {
+    render(
+      div(`Content type ${linkedData["encodingFormat"]} is not supported`)
+    );
+  };
+
+  const isEncoding = (encoding: EncodingFormat) => ({
+    linkedData,
+  }: LinkedDataWithContent): boolean => isEncodingEqualTo(encoding)(linkedData);
+
+  const displayContent = split<LinkedDataWithContent>(
+    isEncoding(htmlMediaType),
+    displayHtml,
+    split(isEncoding(pdfMediaType), displayPdf, displayNotSupported)
+  );
 
   return {
     displayContent: fork(

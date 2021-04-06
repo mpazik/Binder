@@ -1,8 +1,13 @@
+import { nonUndefined } from "./filters";
 import { Callback } from "./types";
 
 type Function<T, S> = (v: T) => S;
-export const identity = <T>(v: T) => v;
-export const ignore = (v: unknown): void => {};
+export const identity = <T>(v: T): T => v;
+
+// eslint-disable-next-line unused-imports/no-unused-vars-ts,@typescript-eslint/no-unused-vars
+export const ignore = (v: unknown): void => {
+  // do nothing
+};
 
 export const head = <H, T extends unknown[]>(array: readonly [H, ...T]): H =>
   array[0];
@@ -11,7 +16,7 @@ export const tail = <T extends unknown[]>(
   array: readonly [unknown, ...T]
 ): T => {
   // eslint-disable-next-line unused-imports/no-unused-vars-ts,@typescript-eslint/no-unused-vars
-  const [head, ...tail] = array;
+  const [, ...tail] = array;
   return tail;
 };
 
@@ -27,10 +32,16 @@ export const extendAsync = <T, S>(
   extend: (v: T) => Promise<S>
 ): Function<T, Promise<[T, S]>> => (v) => extend(v).then((m) => [v, m]);
 
+export const branch = <T1, T2, S>(
+  p: (v: T1 | T2) => v is T1,
+  map1: Function<T1, S>,
+  map2: Function<T2, S>
+): Function<T1 | T2, S> => (v) => (p(v) ? map1(v) : map2(v));
+
 export const passUndefined = <T, S>(
   map: Function<T, S>
-): Function<T | undefined, S | undefined> => (v) =>
-  v === undefined ? undefined : map(v);
+): Function<T | undefined, S | undefined> =>
+  branch(nonUndefined, map, () => undefined);
 
 export function pipe<T, S>(map1: (v: T) => S): Function<T, S>;
 export function pipe<T, S, U>(

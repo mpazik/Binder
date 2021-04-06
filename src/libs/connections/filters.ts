@@ -13,6 +13,7 @@ export const or = <T>(...predicates: ((v: T) => boolean)[]) => (
 
 export const nonNull = <T>(v: T | undefined | null): v is T => Boolean(v);
 export const nonUndefined = <T>(v: T | undefined): v is T => Boolean(v);
+export const nonUndefined2 = <T>() => (v: T | undefined): v is T => Boolean(v);
 export const nonNullProp = <T, K extends keyof T>(key: K) => (
   v: T
 ): v is T & Required<Pick<T, K>> => nonNull(v[key]);

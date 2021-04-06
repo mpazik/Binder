@@ -2,10 +2,10 @@ import { URL } from "schema-dts";
 
 import {
   LinkedDataWithContent,
-  processFileToArticle,
-} from "../../functions/article-processor";
+  processFileToContent,
+} from "../../functions/content-processors";
 import { DocumentAnnotationsIndex } from "../../functions/indexes/document-annotations-index";
-import { LinkedDataWithDocumentFetcher } from "../../functions/linked-data-fetcher";
+import { LinkedDataWithContentFetcher } from "../../functions/linked-data-fetcher";
 import {
   LinkedDataStoreWrite,
   ResourceStoreWrite,
@@ -63,7 +63,7 @@ type ArticleStateWithFeedback = StateWithFeedback<
 const newArticleViewStateMachine = ({
   contentFetcher,
 }: {
-  contentFetcher: LinkedDataWithDocumentFetcher;
+  contentFetcher: LinkedDataWithContentFetcher;
 }) => {
   const fetchContent = (
     newUrl: string,
@@ -140,7 +140,7 @@ const scrollTop = () => {
 export const articleComponent: Component<
   {
     documentAnnotationsIndex: DocumentAnnotationsIndex;
-    contentFetcher: LinkedDataWithDocumentFetcher;
+    contentFetcher: LinkedDataWithContentFetcher;
     onArticleLoaded?: (article: LinkedData) => void;
     storeWrite: ResourceStoreWrite;
     ldStoreWrite: LinkedDataStoreWrite;
@@ -149,7 +149,7 @@ export const articleComponent: Component<
   {
     setUserEmail: string;
     setUri: string | undefined | null;
-    provideFile: Blob;
+    provideFile: File;
   }
 > = ({
   documentAnnotationsIndex,
@@ -209,7 +209,7 @@ export const articleComponent: Component<
   return {
     setUserEmail: setUser,
     provideFile: mapAwait(
-      processFileToArticle,
+      processFileToContent,
       map(
         (article) => ["display", article] as ArticleViewAction,
         articleViewStateMachine

@@ -42,6 +42,10 @@ type HTMLLIElement = HTMLElement & {
 type HTMLLabelElement = HTMLElement & {
   for: string;
 };
+type HTMLCanvasElement = HTMLElement & {
+  height: number;
+  width: number;
+};
 type HTMLSlotElement = HTMLElement & {
   name: string;
 };
@@ -63,7 +67,7 @@ type HTMLElementTagNameMap = {
   // body: HTMLBodyElement;
   br: HTMLElement;
   button: HTMLButtonElement;
-  // canvas: HTMLCanvasElement;
+  canvas: HTMLCanvasElement;
   // caption: HTMLTableCaptionElement;
   cite: HTMLElement;
   code: HTMLElement;

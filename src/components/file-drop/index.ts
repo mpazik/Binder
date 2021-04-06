@@ -5,7 +5,7 @@ import { blanket } from "../common/blanket";
 
 export const fileDrop: Component<
   {
-    onFile: Callback<Blob>;
+    onFile: Callback<File>;
   },
   { displayFileDrop: true | undefined }
 > = ({ onFile }) => (render) => {
@@ -27,10 +27,6 @@ export const fileDrop: Component<
     const file = firstItem.getAsFile();
     if (!file) {
       console.warn("Could not read a file");
-      return;
-    }
-    if (file.type !== "text/html") {
-      console.warn(`File type '${file.type}' is not supported`);
       return;
     }
     onFile(file);

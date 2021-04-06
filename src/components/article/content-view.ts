@@ -3,7 +3,7 @@ import { URL } from "schema-dts";
 import {
   LinkedDataWithContent,
   SavedLinkedDataWithContent,
-} from "../../functions/article-processor";
+} from "../../functions/content-processors";
 import { DocumentAnnotationsIndex } from "../../functions/indexes/document-annotations-index";
 import {
   LinkedDataStoreWrite,

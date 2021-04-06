@@ -2,7 +2,7 @@ export const throwIfNull = <T>(
   value: T | null | undefined,
   messageSupplier?: () => string
 ): T => {
-  if (value) return value;
+  if (value !== undefined && value !== null) return value;
   if (messageSupplier) throw new Error(messageSupplier());
   throw new Error("Expected value to be defined and non null");
 };
@@ -10,7 +10,7 @@ export const throwIfNull = <T>(
 export const throwIfNull2 = <T>(messageSupplier?: () => string) => (
   value: T | null | undefined
 ): T => {
-  if (value) return value;
+  if (value !== undefined && value !== null) return value;
   if (messageSupplier) throw new Error(messageSupplier());
   throw new Error("Expected value to be defined and non null");
 };

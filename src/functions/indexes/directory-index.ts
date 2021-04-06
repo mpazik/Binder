@@ -55,6 +55,7 @@ export const createDirectoryIndexer = (
   directoryIndexDb: DirectoryIndexDb
 ): Indexer => {
   return async (ld) => {
+    console.log("ld to index dirs", ld);
     if (!isTypeEqualTo(ld, "article")) return;
     return indexer(ld)
       .then((props) => storePut(directoryIndexDb, props, ld["@id"]))

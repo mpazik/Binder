@@ -5,12 +5,12 @@ import { measureAsyncTime } from "../libs/performance";
 
 import {
   LinkedDataWithContent,
-  processResponseToArticle,
-} from "./article-processor";
+  processResponseToContent,
+} from "./content-processors";
 import { Fetch } from "./fetch-trough-proxy";
 import { LinkedDataStoreRead, ResourceStoreRead } from "./store/local-store";
 
-export type LinkedDataWithDocumentFetcher = (
+export type LinkedDataWithContentFetcher = (
   uri: string,
   signal?: AbortSignal
 ) => Promise<LinkedDataWithContent>;
@@ -36,7 +36,7 @@ export const createLinkedDataWithDocumentFetcher = (
   fetchTroughProxy: Fetch,
   linkedDataStoreRead: LinkedDataStoreRead,
   resourceStoreRead: ResourceStoreRead
-): LinkedDataWithDocumentFetcher => {
+): LinkedDataWithContentFetcher => {
   const linkedDataContentFetcher = createLinkedDataContentFetcher(
     resourceStoreRead
   );
@@ -56,6 +56,6 @@ export const createLinkedDataWithDocumentFetcher = (
     const response = await fetchTroughProxy(url, {
       signal,
     });
-    return processResponseToArticle(response, url);
+    return processResponseToContent(response, url);
   };
 };

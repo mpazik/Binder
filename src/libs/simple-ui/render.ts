@@ -253,6 +253,7 @@ export const b = newTagFactory<Nodes>("b");
 export const article = newTagFactory<Nodes>("article");
 export const details = newTagFactory<Nodes>("details");
 export const summary = newTagFactory<Nodes>("summary");
+export const canvas = newTagFactory<Nodes>("canvas");
 export const fragment = (...children: JsonHtml[]): JsonHtml => [
   "fragment",
   {},
