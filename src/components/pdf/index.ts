@@ -20,6 +20,7 @@ import {
   newStateMachineWithFeedback,
   StateWithFeedback,
 } from "../../libs/named-state";
+import { measureAsyncTime } from "../../libs/performance";
 import {
   button,
   canvas,
@@ -31,6 +32,7 @@ import {
   View,
   ViewSetup,
 } from "../../libs/simple-ui/render";
+import { getTarget } from "../../libs/simple-ui/utils/funtions";
 import { centerLoadingSlot } from "../common/center-loading-component";
 
 // The workerSrc property shall be specified.
@@ -118,17 +120,24 @@ const renderPdf = async (
   };
 };
 
-const contentComponent: Component<{ onDisplay: Callback<HTMLElement> }> = ({
-  onDisplay,
-}) => (render) => {
+const contentComponent: Component<{
+  onDisplay: Callback<HTMLElement>;
+  onTextDisplay: (container: HTMLElement) => void;
+  onSelectionTrigger: () => void;
+}> = ({ onDisplay, onTextDisplay, onSelectionTrigger }) => (render) => {
   render(
     div(
       {
-        onDisplay: (e) => onDisplay(e.target as HTMLElement),
+        onDisplay: map(getTarget, onDisplay),
         style: { position: "relative" },
       },
       canvas(),
-      div({ class: "textLayer" })
+      div({
+        class: "textLayer",
+        onDisplay: map(getTarget, onTextDisplay),
+        onMouseup: onSelectionTrigger,
+        onFocusout: onSelectionTrigger,
+      })
     )
   );
 };
@@ -188,7 +197,9 @@ const newPdfViewStateMachine = () => {
       closableForEach(({ state, feedback }) => {
         handleState<PdfViewState>(state, {
           rendering: ({ container, data }) => {
-            renderPdf(container, data).then((it) => {
+            measureAsyncTime("pdf-render", () =>
+              renderPdf(container, data)
+            ).then((it) => {
               feedback(["display", it]);
             });
           },
@@ -261,15 +272,21 @@ const createPdfView: ViewSetup<{ contentSlot: Slot }, PdfStateWithFeedback> = ({
   });
 
 export const pdfContentDisplay: Component<
-  { onDisplay: () => void },
+  {
+    onDisplay: () => void;
+    onTextDisplay: (container: HTMLElement) => void;
+    onSelectionTrigger: () => void;
+  },
   { updateContent: Blob }
-> = ({ onDisplay }) => (render) => {
+> = ({ onDisplay, onSelectionTrigger, onTextDisplay }) => (render) => {
   const contentSlot = slot(
     "content",
     contentComponent({
       onDisplay: fork(onDisplay, (container) => {
         sendAction(["setContainer", container]);
       }),
+      onSelectionTrigger,
+      onTextDisplay,
     })
   );
   const renderPdf = map(createPdfView({ contentSlot }), render);

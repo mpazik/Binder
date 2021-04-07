@@ -185,6 +185,8 @@ export const contentDisplayComponent: Component<
     "pdf-display",
     pdfContentDisplay({
       onDisplay: resetEditBar,
+      onTextDisplay: setContainerForSelect,
+      onSelectionTrigger: sendSelection,
     })
   );
 
@@ -251,12 +253,7 @@ export const contentDisplayComponent: Component<
             onFocusout: sendSelection,
             onDisplay: map(
               (e) => e.target as HTMLElement,
-              fork(
-                onDisplay,
-                setContainerForUpdate,
-                setContainerForSelect,
-                resetEditBar
-              )
+              fork(onDisplay, setContainerForSelect, resetEditBar)
             ),
           }),
           editBarSlot
