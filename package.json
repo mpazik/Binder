@@ -18,8 +18,10 @@
     "@mozilla/readability": "^0.4.0",
     "@primer/css": "^15.2.0",
     "@primer/octicons": "^11.0.0",
+    "@types/jszip": "^3.4.1",
     "diff": "^5.0.0",
     "jsonld": "^3.3.0",
+    "jszip": "^3.6.0",
     "pdfjs-dist": "^2.6.347",
     "schema-dts": "^0.7.1"
   },

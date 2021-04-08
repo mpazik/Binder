@@ -4,6 +4,7 @@ type HTMLElement = {
   id: string;
   style: CSSStyleDeclaration;
   dangerouslySetInnerHTML: string;
+  dangerouslySetDom: HTMLElement;
 };
 type HTMLAnchorElement = HTMLElement & {
   target: string;

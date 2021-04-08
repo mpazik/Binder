@@ -3,7 +3,7 @@ import * as pdfjsLib from "pdfjs-dist";
 import { nonUndefined2 } from "../../libs/connections/filters";
 import { branch } from "../../libs/connections/mappers";
 import { throwIfUndefined } from "../../libs/errors";
-import { createArticle, pdfMediaType } from "../../libs/ld-schemas";
+import { createCreativeWork, pdfMediaType } from "../../libs/ld-schemas";
 import { LinkedData } from "../../libs/linked-data";
 import { measureAsyncTime } from "../../libs/performance";
 
@@ -65,10 +65,6 @@ export const parsePdfDate = (pdfDate: string): string | undefined => {
   }
 };
 
-export const getName = (title?: string): string => {
-  return title ?? "Untitled";
-};
-
 // more on https://framework.zend.com/manual/1.12/en/zend.pdf.info.html
 type PdfInfoMetadata = {
   PDFFormatVersion?: string;
@@ -85,19 +81,26 @@ type PdfInfoMetadata = {
   CreationDate?: string;
 };
 
+const getPdfType = (numPages: number) => (numPages > 50 ? "Book" : "Article");
+
 export const pdfContentProcessor: ContentProcessor = {
   mediaType: pdfMediaType,
   process: async (content, { url, name, createTime }) => {
-    const metadata = await measureAsyncTime("read pdf metadata", async () => {
-      const pdfDocument = await pdfjsLib.getDocument({
-        data: new Uint8Array(await content.arrayBuffer()),
-      }).promise;
-      return await pdfDocument.getMetadata();
-    });
+    const pdfDocument = await measureAsyncTime("read pdf metadata", () =>
+      content.arrayBuffer().then(
+        (data) =>
+          pdfjsLib.getDocument({
+            data: new Uint8Array(data),
+          }).promise
+      )
+    );
+    const metadata = await pdfDocument.getMetadata();
 
     const infoMetadata = metadata.info as PdfInfoMetadata;
-    const articleLd: LinkedData = createArticle({
+
+    const articleLd: LinkedData = createCreativeWork({
       id: url,
+      type: getPdfType(pdfDocument.numPages),
       name: getLinkedDataName(infoMetadata.Title, name),
       encodingFormat: pdfMediaType,
       dateCreated: branch(

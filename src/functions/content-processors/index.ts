@@ -1,3 +1,4 @@
+import { epubContentProcessor } from "./epub-processor";
 import { htmlContentProcessor } from "./html-processor";
 import { pdfContentProcessor } from "./pdf-processor";
 import { ContentProcessor, LinkedDataWithContent } from "./types";
@@ -12,6 +13,7 @@ export type {
 const contentProcessors: ContentProcessor[] = [
   htmlContentProcessor,
   pdfContentProcessor,
+  epubContentProcessor,
 ];
 
 const findProcessor = (contentType: string): ContentProcessor | undefined =>

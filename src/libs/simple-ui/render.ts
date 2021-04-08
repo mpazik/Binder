@@ -139,6 +139,8 @@ const convertToDom = (elem: JsonHtml): [Node, Slots] =>
           }
         } else if (attrKey === "dangerouslySetInnerHTML") {
           node.innerHTML = attrVal as string;
+        } else if (attrKey === "dangerouslySetDom") {
+          node.appendChild(attrVal as unknown as HTMLElement);
         } else if (typeof attrVal === "function") {
           const type = attrKey.substr(2).toLowerCase();
           const listener = attrVal as (event: Event) => void;

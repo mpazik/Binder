@@ -10,20 +10,22 @@ export const fileDrop: Component<
   { displayFileDrop: true | undefined }
 > = ({ onFile }) => (render) => {
   const handleFile = (e: DragEvent) => {
-    if (!e.dataTransfer || e.dataTransfer.items.length === 0) {
+    if (!e.dataTransfer) {
+      console.warn("There was no data transfered");
+      return;
+    }
+    const items = Array.from(e.dataTransfer.items).filter(
+      (it) => it.kind === "file"
+    );
+    if (items.length === 0) {
       console.warn("There was no file attached");
       return;
     }
-    if (e.dataTransfer.items.length > 1) {
+    if (items.length > 1) {
       console.warn("Only a single file upload is supported");
       return;
     }
-    const firstItem = e.dataTransfer.items[0];
-
-    if (firstItem.kind !== "file") {
-      console.warn("Item is not a file");
-      return;
-    }
+    const firstItem = items[0];
     const file = firstItem.getAsFile();
     if (!file) {
       console.warn("Could not read a file");
