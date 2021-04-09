@@ -34,11 +34,14 @@ export type LinkedDataWithHashId = LinkedData & { "@id": HashUri };
 
 export const getHash = (ld: LinkedDataWithHashId): HashName => ld["@id"];
 
-export const isTypeEqualTo = (ld: LinkedData, type: string): boolean =>
-  (Boolean(ld["@type"]) && ld["@type"]?.toLowerCase() === type) ||
-  (Boolean(ld["type"]) &&
-    typeof ld["type"] === "string" &&
-    ld["type"].toLowerCase() === type);
+export const getType = (ld: LinkedData): string | undefined =>
+  ld["@type"] ?? (ld["type"] as string);
+
+export const isTypeEqualTo = (ld: LinkedData, type: string): boolean => {
+  const ldType = getType(ld);
+  if (!ldType) return false;
+  return ldType.toLowerCase() === type;
+};
 
 export const getPropertyValue = <T = string>(
   ld: LinkedData,

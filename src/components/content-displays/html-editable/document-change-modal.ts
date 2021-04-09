@@ -1,4 +1,4 @@
-import { button, div, View } from "../../libs/simple-ui/render";
+import { button, div, View } from "../../../libs/simple-ui/render";
 
 export const renderDocumentChangeModal: View<{
   oldLines: Element[];

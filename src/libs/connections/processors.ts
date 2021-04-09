@@ -1,4 +1,4 @@
-import { throwIfUndefined } from "../errors";
+import { throwIfNull, throwIfUndefined } from "../errors";
 
 import { filterNonNullTuple, nonUndefined } from "./filters";
 import {
@@ -135,6 +135,23 @@ export const splitOnUndefined = <T>(
   onUndefined: Callback<undefined>,
   onValue: Callback<T>
 ): Callback<T | undefined> => split(nonUndefined, onValue, onUndefined);
+
+export const select = <T, S>(
+  selectorExtractor: (v: T) => S,
+  callbacks: [S, Callback<T>][],
+  defaultCallback: S extends undefined | null ? Callback<T> : never
+): Callback<T> => (value) => {
+  const selector = selectorExtractor(value);
+  console.log(selector, value);
+  if (selector) {
+    throwIfNull(callbacks.find((it) => it[0] === selector))[1](value);
+    return;
+  }
+  if (!defaultCallback) {
+    throw new Error(`Could not find callback for value '${value}'`);
+  }
+  defaultCallback(value);
+};
 
 export const withDefaultValue = <T>(
   defaultValue: T,

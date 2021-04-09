@@ -1,16 +1,14 @@
 import { URL } from "schema-dts";
 
-import {
-  LinkedDataWithContent,
-  SavedLinkedDataWithContent,
-} from "../../functions/content-processors";
+import { LinkedDataWithContent } from "../../functions/content-processors";
+import { createContentSaver } from "../../functions/content-saver";
 import { DocumentAnnotationsIndex } from "../../functions/indexes/document-annotations-index";
 import {
   LinkedDataStoreWrite,
   ResourceStoreWrite,
 } from "../../functions/store";
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
-import { Consumer, fork, withState } from "../../libs/connections";
+import { Consumer, fork, splitMap, withState } from "../../libs/connections";
 import { map, pick, pipe } from "../../libs/connections/mappers";
 import { throwIfNull2 } from "../../libs/errors";
 import {
@@ -28,8 +26,11 @@ import {
   View,
 } from "../../libs/simple-ui/render";
 import { annotationsSupport } from "../annotations";
+import { contentDisplayComponent } from "../content-displays";
 
-import { contentDisplayComponent } from "./content-display";
+import { EditBarState, saveBar } from "./edit-bar";
+
+const isNew = (linkedData: LinkedData) => !findHashUri(linkedData);
 
 const contentHeaderView: View<LinkedData> = (linkedData: LinkedData) => {
   const uri = findUrl(linkedData);
@@ -72,12 +73,50 @@ export const editableContentComponent: Component<
   onSave,
   documentAnnotationsIndex,
 }) => (render) => {
-  const [handleContentDisplayed, setContent] = withState<
-    LinkedDataWithContent,
-    HTMLElement
-  >(({ linkedData }, container) => {
-    displayDocumentAnnotations({ container, linkedData });
-  });
+  const contentSaver = createContentSaver(storeWrite, ldStoreWrite);
+  const storeData = (data: LinkedDataWithContent, retry: () => void) => {
+    try {
+      updateSaveBar(["saving"]);
+      const refError = () =>
+        "save article should have hash uri reference to the content";
+      contentSaver(data).then(
+        map(
+          pick("linkedData"),
+          fork(
+            onSave,
+            () => updateSaveBar(["hidden"]),
+            map(pipe(findHashUri, throwIfNull2(refError)), setReference)
+          )
+        )
+      );
+    } catch (reason) {
+      updateSaveBar(["error", { reason, onTryAgain: retry }]);
+    }
+  };
+
+  const [saveContent, setContextForSave] = withState<LinkedDataWithContent>(
+    (data) => {
+      if (!isNew(data.linkedData))
+        throw new Error("Can only save content that was not saved before");
+      storeData(data, saveContent);
+    }
+  );
+
+  const [saveBarSlot, { updateSaveBar }] = newSlot(
+    "save-bar",
+    saveBar({
+      onSave: saveContent,
+    })
+  );
+
+  const [resetSaveBar, setContextForBarReset] = withState<LinkedData>(
+    splitMap(
+      isNew,
+      () => ["visible"] as EditBarState,
+      () => ["hidden"] as EditBarState,
+      (data) => updateSaveBar(data)
+    )
+  );
 
   const [
     annotationSupportSlot,
@@ -93,36 +132,16 @@ export const editableContentComponent: Component<
       ldStoreWrite,
       ldStoreRead,
       documentAnnotationsIndex,
-      requestDocumentSave: () => saveContent(),
+      requestDocumentSave: saveContent,
     })
   );
 
-  const [contentSlot, { displayContent, saveContent }] = newSlot(
+  const [contentSlot, { displayContent }] = newSlot(
     "content",
     contentDisplayComponent({
-      ldStoreWrite,
-      storeWrite,
-      onDisplay: handleContentDisplayed,
+      contentSaver,
+      onAnnotationDisplayRequest: displayDocumentAnnotations,
       onSelect: displaySelectionToolbar,
-      onSave: fork<SavedLinkedDataWithContent>(
-        setContent,
-        map(
-          pick("linkedData"),
-          fork(
-            onSave,
-            map(
-              pipe(
-                findHashUri,
-                throwIfNull2(
-                  () =>
-                    "save article should have hash uri reference to the content"
-                )
-              ),
-              setReference
-            )
-          )
-        )
-      ),
     })
   );
 
@@ -133,24 +152,29 @@ export const editableContentComponent: Component<
 
   render(
     div(
-      { id: "content", class: "ml-4" },
+      { id: "content", class: "ml-4", onDisplay: resetSaveBar },
       contentFieldsSlot,
       div(
         { id: "editor", class: "mb-3 position-relative" },
         contentSlot,
         annotationSupportSlot
-      )
+      ),
+      saveBarSlot
     )
   );
 
   return {
     setCreator,
     setContent: fork(
-      setContent,
       displayContent,
+      setContextForSave,
       map(
         pick("linkedData"),
-        fork(renderFields, map(findHashUri, setReference))
+        fork(
+          renderFields,
+          map(findHashUri, setReference),
+          setContextForBarReset
+        )
       )
     ),
   };

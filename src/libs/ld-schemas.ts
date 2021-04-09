@@ -40,7 +40,5 @@ export const createArticle = (props: {
 }): WithContext<Article> =>
   createCreativeWork({ ...props, type: "Article" }) as WithContext<Article>;
 
-export const isEncodingEqualTo = (
-  encoding: EncodingFormat
-): ((ld: LinkedData) => boolean) => (ld: LinkedData) =>
-  ld["encodingFormat"] === encoding;
+export const getEncoding = (ld: LinkedData): string | undefined =>
+  ld["encodingFormat"] as string;

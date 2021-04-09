@@ -11,34 +11,60 @@ import {
 
 export type EditBarState =
   | ["hidden"]
-  | ["visible", { modified: boolean }]
+  | ["visible"]
   | ["saving"]
   | ["error", { onTryAgain: () => void; reason: string }];
-
-const barMessage = (message: string) => span({ class: "flex-1 f4" }, message);
 
 const barProps = {
   class: `position-sticky Box p-2 mt-4 bottom-2 d-flex flex-items-center bg-gray box-shadow-medium`,
 };
 
-const bar = (...controls: JsonHtml[]) => div(barProps, ...controls);
-
-const popUpBar = (...controls: JsonHtml[]) =>
+const editBar = ({
+  message = "",
+  controls,
+  popup = false,
+}: {
+  controls: JsonHtml[];
+  message?: string;
+  popup?: boolean;
+}) =>
   div(
-    {
-      ...barProps,
-      class: `${barProps.class} anim-fade-up`,
-      style: { "animation-delay": "0s" },
-    },
+    popup
+      ? barProps
+      : {
+          ...barProps,
+          class: `${barProps.class} anim-fade-up`,
+          style: { "animation-delay": "0s" },
+        },
+    span({ class: "flex-1 f4" }, message),
     ...controls
   );
 
-const styledButton = (
+export const simpleBar = (message: string, ...controls: JsonHtml[]): JsonHtml =>
+  editBar({
+    message,
+    controls,
+  });
+
+export const popUpBar = (message: string, ...controls: JsonHtml[]): JsonHtml =>
+  editBar({
+    message,
+    controls,
+    popup: true,
+  });
+
+export const errorBar = (reason: string, onTryAgain: () => void): JsonHtml =>
+  simpleBar(
+    `Error saving document ${reason}`,
+    styledButton("Try again", onTryAgain, "btn-primary")
+  );
+
+export const styledButton = (
   label: string,
   onClick?: () => void,
   extraClass = "",
   disabled = false
-) =>
+): JsonHtml =>
   button(
     {
       class: `btn mr-2 ${extraClass}`,
@@ -49,46 +75,28 @@ const styledButton = (
     label
   );
 
-const createEditBarView: OptionalViewSetup<
-  { onSave: () => void; onUpdate: () => void; onDiscard: () => void },
+const createSaveBarView: OptionalViewSetup<
+  { onSave: () => void },
   EditBarState
-> = ({ onDiscard, onSave, onUpdate }) =>
+> = ({ onSave }) =>
   newStateOptionalMapper({
-    visible: ({ modified }) =>
-      modified
-        ? popUpBar(
-            barMessage("Document has been modified"),
-            styledButton("Discard", onDiscard, "btn-danger"),
-            styledButton("Update", onUpdate, "btn-primary")
-          )
-        : popUpBar(
-            barMessage("External document, not yet saved"),
-            styledButton("Save", onSave, "btn-primary")
-          ),
-    error: ({ reason, onTryAgain }) =>
-      bar(
-        barMessage(`Error saving document ${reason}`),
-        styledButton("Try again", onTryAgain, "btn-primary")
+    visible: () =>
+      popUpBar(
+        "External document, not yet saved",
+        styledButton("Save", onSave, "btn-primary")
       ),
+    error: ({ reason, onTryAgain }) => errorBar(reason, onTryAgain),
     saving: () =>
-      bar(
-        barMessage(""),
-        styledButton("Saving", undefined, "btn-primary", true)
-      ),
+      simpleBar("", styledButton("Saving", undefined, "btn-primary", true)),
   });
 
-export const editBar: Component<
+export const saveBar: Component<
   {
     onSave: () => void;
-    onDiscard: () => void;
-    onUpdate: () => void;
   },
-  { updateEditBar: EditBarState }
-> = ({ onSave, onDiscard, onUpdate }) => (render) => {
+  { updateSaveBar: EditBarState }
+> = ({ onSave }) => (render) => {
   return {
-    updateEditBar: map(
-      createEditBarView({ onSave, onUpdate, onDiscard }),
-      render
-    ),
+    updateSaveBar: map(createSaveBarView({ onSave }), render),
   };
 };

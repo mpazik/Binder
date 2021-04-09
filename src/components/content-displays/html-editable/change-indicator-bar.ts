@@ -1,6 +1,6 @@
-import { firstOf, lastOf } from "../../libs/array";
-import { Consumer, splitOnUndefined } from "../../libs/connections";
-import { Component, div, View } from "../../libs/simple-ui/render";
+import { firstOf, lastOf } from "../../../libs/array";
+import { Consumer, splitOnUndefined } from "../../../libs/connections";
+import { Component, div, View } from "../../../libs/simple-ui/render";
 
 import { DocumentChange } from "./document-change";
 

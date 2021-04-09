@@ -7,20 +7,17 @@ import { TextLayerBuilder } from "pdfjs-dist/lib/web/text_layer_builder.js";
 import { EventBus } from "pdfjs-dist/lib/web/ui_utils.js";
 import "./text_layer_builder.css";
 
-import {
-  Callback,
-  closableForEach,
-  Consumer,
-  fork,
-} from "../../libs/connections";
-import { map } from "../../libs/connections/mappers";
+import { LinkedDataWithContent } from "../../../functions/content-processors";
+import { Callback, closableForEach, Consumer } from "../../../libs/connections";
+import { map } from "../../../libs/connections/mappers";
+import { LinkedData } from "../../../libs/linked-data";
 import {
   handleState,
   mapState,
   newStateMachineWithFeedback,
   StateWithFeedback,
-} from "../../libs/named-state";
-import { measureAsyncTime } from "../../libs/performance";
+} from "../../../libs/named-state";
+import { measureAsyncTime } from "../../../libs/performance";
 import {
   button,
   canvas,
@@ -31,9 +28,10 @@ import {
   span,
   View,
   ViewSetup,
-} from "../../libs/simple-ui/render";
-import { getTarget } from "../../libs/simple-ui/utils/funtions";
-import { centerLoadingSlot } from "../common/center-loading-component";
+} from "../../../libs/simple-ui/render";
+import { getTarget } from "../../../libs/simple-ui/utils/funtions";
+import { AnnotationDisplayRequest } from "../../annotations";
+import { centerLoadingSlot } from "../../common/center-loading-component";
 
 // The workerSrc property shall be specified.
 pdfJsLib.GlobalWorkerOptions.workerSrc = "./pdf.worker.js";
@@ -143,68 +141,102 @@ const contentComponent: Component<{
 };
 
 type PdfViewAction =
-  | ["load", Blob]
+  | ["load", LinkedDataWithContent]
   | ["setContainer", HTMLElement]
+  | ["setTextContainer", HTMLElement]
   | ["display", PdfDocument]
   | ["openPage", number]
   | ["fail", string];
 
 export type PdfViewState =
-  | ["idle", { container?: HTMLElement; data?: Blob }]
-  | ["rendering", { data: Blob; container: HTMLElement }]
+  | [
+      "idle",
+      {
+        container?: HTMLElement;
+        textContainer?: HTMLElement;
+        data?: LinkedDataWithContent;
+      }
+    ]
+  | [
+      "rendering",
+      {
+        data: LinkedDataWithContent;
+        container: HTMLElement;
+        textContainer: HTMLElement;
+      }
+    ]
   | [
       "displaying",
-      { document: PdfDocument; currentPage: number; container: HTMLElement }
+      {
+        document: PdfDocument;
+        currentPage: number;
+        container: HTMLElement;
+        linkedData: LinkedData;
+        textContainer: HTMLElement;
+      }
     ]
-  | ["error", { reason: string; container: HTMLElement }];
+  | [
+      "error",
+      { reason: string; container: HTMLElement; textContainer: HTMLElement }
+    ];
 
 type PdfStateWithFeedback = StateWithFeedback<PdfViewState, PdfViewAction>;
 
-const newPdfViewStateMachine = () => {
+const newPdfViewStateMachine = (
+  displayAnnotations: Consumer<AnnotationDisplayRequest>
+) => {
   return (push: Consumer<PdfStateWithFeedback>) =>
     newStateMachineWithFeedback<PdfViewState, PdfViewAction>(
       ["idle", {}],
       {
         idle: {
-          setContainer: (container, { data }) =>
-            data ? ["rendering", { data, container }] : ["idle", { container }],
-          load: (data, { container }) =>
-            container ? ["rendering", { data, container }] : ["idle", { data }],
+          setContainer: (container, { data, textContainer }) =>
+            data && textContainer
+              ? ["rendering", { data, container, textContainer }]
+              : ["idle", { data, container, textContainer }],
+          setTextContainer: (textContainer, { data, container }) =>
+            data && container
+              ? ["rendering", { data, container, textContainer }]
+              : ["idle", { data, container, textContainer }],
+          load: (data, { container, textContainer }) =>
+            container && textContainer
+              ? ["rendering", { data, container, textContainer }]
+              : ["idle", { data, container, textContainer }],
         },
         rendering: {
-          load: (data, { container }) => ["rendering", { data, container }],
-          display: (document, { container }) => [
+          load: (data, state) => ["rendering", { ...state, data }],
+          display: (
+            document,
+            { container, textContainer, data: { linkedData } }
+          ) => [
             "displaying",
-            { document, container, currentPage: 1 },
+            { document, container, textContainer, currentPage: 1, linkedData },
           ],
-          fail: (reason, { container }) => ["error", { reason, container }],
+          fail: (reason, state) => ["error", { reason, ...state }],
         },
         displaying: {
-          openPage: (pageNumber, { document, container }) => [
+          openPage: (pageNumber, state) => [
             "displaying",
-            { document, container, currentPage: pageNumber },
+            { ...state, currentPage: pageNumber },
           ],
-          load: (data, { container }) => ["rendering", { data, container }],
+          load: (data, state) => ["rendering", { data, ...state }],
         },
         error: {
-          setContainer: (container, { reason }) => [
-            "error",
-            { reason, container },
-          ],
-          load: (data, { container }) => ["rendering", { data, container }],
+          load: (data, state) => ["rendering", { data, ...state }],
         },
       },
       closableForEach(({ state, feedback }) => {
         handleState<PdfViewState>(state, {
-          rendering: ({ container, data }) => {
+          rendering: ({ container, data: { content } }) => {
             measureAsyncTime("pdf-render", () =>
-              renderPdf(container, data)
+              renderPdf(container, content)
             ).then((it) => {
               feedback(["display", it]);
             });
           },
-          displaying: ({ document, currentPage }) => {
+          displaying: ({ document, currentPage, linkedData, container }) => {
             document.openPage(currentPage);
+            displayAnnotations({ container, linkedData });
           },
         });
       }, push)
@@ -271,28 +303,29 @@ const createPdfView: ViewSetup<{ contentSlot: Slot }, PdfStateWithFeedback> = ({
     },
   });
 
-export const pdfContentDisplay: Component<
+export const pdfDisplay: Component<
   {
-    onDisplay: () => void;
-    onTextDisplay: (container: HTMLElement) => void;
+    onAnnotationDisplayRequest: Consumer<AnnotationDisplayRequest>;
     onSelectionTrigger: () => void;
   },
-  { updateContent: Blob }
-> = ({ onDisplay, onSelectionTrigger, onTextDisplay }) => (render) => {
+  { displayContent: LinkedDataWithContent }
+> = ({ onAnnotationDisplayRequest, onSelectionTrigger }) => (render) => {
   const contentSlot = slot(
     "content",
     contentComponent({
-      onDisplay: fork(onDisplay, (container) => {
+      onDisplay: (container) => {
         sendAction(["setContainer", container]);
-      }),
+      },
       onSelectionTrigger,
-      onTextDisplay,
+      onTextDisplay: (container) => sendAction(["setTextContainer", container]),
     })
   );
   const renderPdf = map(createPdfView({ contentSlot }), render);
-  const sendAction = newPdfViewStateMachine()(renderPdf);
+  const sendAction = newPdfViewStateMachine(onAnnotationDisplayRequest)(
+    renderPdf
+  );
 
   return {
-    updateContent: (blob) => sendAction(["load", blob]),
+    displayContent: (content) => sendAction(["load", content]),
   };
 };

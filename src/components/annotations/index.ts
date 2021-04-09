@@ -24,6 +24,12 @@ type AnnotationSaveArgs = {
   selector: QuoteSelector;
   content?: string;
 };
+
+export type AnnotationDisplayRequest = {
+  container: HTMLElement;
+  linkedData: LinkedData;
+};
+
 export const annotationsSupport: Component<
   {
     ldStoreWrite: LinkedDataStoreWrite;
@@ -32,10 +38,7 @@ export const annotationsSupport: Component<
     requestDocumentSave: () => void;
   },
   {
-    displayDocumentAnnotations: {
-      container: HTMLElement;
-      linkedData: LinkedData;
-    };
+    displayDocumentAnnotations: AnnotationDisplayRequest;
     displaySelectionToolbar: OptSelection;
     setCreator: string;
     setReference: HashUri | undefined;

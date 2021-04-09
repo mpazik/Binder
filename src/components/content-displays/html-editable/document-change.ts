@@ -1,4 +1,4 @@
-import { diffArrayItems } from "../../libs/diff";
+import { diffArrayItems } from "../../../libs/diff";
 
 export type DocumentChange = {
   changeType: "mod" | "add" | "del";
