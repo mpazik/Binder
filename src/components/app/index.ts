@@ -1,6 +1,7 @@
 import "./styles.css";
 import "./loading.css";
 
+import { processFileToContent } from "../../functions/content-processors";
 import { createProxyFetch, Fetch } from "../../functions/fetch-trough-proxy";
 import { gdrive } from "../../functions/gdrive/controller";
 import { createCompositeIndexer } from "../../functions/indexes/composite-indexer";
@@ -29,19 +30,33 @@ import {
   createLocalStoreDb,
   LocalStoreDb,
 } from "../../functions/store/local-store";
-import { updateBrowserHistory } from "../../functions/url-hijack";
-import { fork } from "../../libs/connections";
-import { map, mapTo, pick } from "../../libs/connections/mappers";
+import {
+  currentDocumentUriProvider,
+  updateBrowserHistory,
+} from "../../functions/url-hijack";
+import { combineAlways, fork } from "../../libs/connections";
+import { filter, nonNull } from "../../libs/connections/filters";
+import {
+  head,
+  map,
+  mapAwait,
+  mapTo,
+  mapToUndefined,
+  pick,
+} from "../../libs/connections/mappers";
 import { HashName, HashUri } from "../../libs/hash";
 import { filterState } from "../../libs/named-state";
 import { measureAsyncTime } from "../../libs/performance";
 import { div, newSlot } from "../../libs/simple-ui/render";
-import { articleComponent } from "../article";
 import { asyncLoader } from "../common/async-loader";
+import { loader } from "../common/loader";
+import { contentComponent } from "../content";
 import { fileDrop } from "../file-drop";
 import { fileNavigation } from "../navigation";
 import { searchBox } from "../navigation/search-box";
 import { profilePanel } from "../profile";
+
+const defaultUri = "https://pl.wikipedia.org/wiki/Dedal_z_Sykionu";
 
 const initServices = async (): Promise<{
   directoryIndex: DirectoryIndex;
@@ -105,17 +120,39 @@ export const App = asyncLoader(
     localStoreDb,
     indexLinkedData,
     synchDb,
-  }) => (render) => {
-    const [profilePanelSlot, { updateStoreState, updateGdriveState }] = newSlot(
-      "profile",
-      profilePanel()
+  }) => (render, onClose) => {
+    const [setUserEmail, pushUser] = combineAlways<[string | null, void]>(
+      map(
+        head,
+        filter(nonNull, (user) => {
+          setCreator(user);
+        })
+      ),
+      null,
+      undefined
     );
 
-    const store = createStore(
-      indexLinkedData,
-      localStoreDb,
-      synchDb,
-      updateStoreState
+    const store = createStore(indexLinkedData, localStoreDb, synchDb, (s) =>
+      updateStoreState(s)
+    );
+
+    const updateGdrive = gdrive(
+      fork(
+        (s) => updateGdriveState(s),
+        filterState(
+          "logged",
+          map(pick("user"), map(pick("emailAddress"), setUserEmail))
+        ),
+        store.updateGdriveState
+      )
+    );
+
+    const [profilePanelSlot, { updateStoreState, updateGdriveState }] = newSlot(
+      "profile",
+      profilePanel({
+        login: () => updateGdrive(["login"]),
+        logout: () => updateGdrive(["logout"]),
+      })
     );
 
     const contentFetcher = createLinkedDataWithDocumentFetcher(
@@ -137,39 +174,47 @@ export const App = asyncLoader(
       })
     );
 
-    const [contentSlot, { setUserEmail, setUri, provideFile }] = newSlot(
+    const [contentSlot, { setCreator, setContent }] = newSlot(
       "content",
-      articleComponent({
-        documentAnnotationsIndex,
-        contentFetcher,
+      contentComponent({
         storeWrite: store.writeResource,
         ldStoreWrite: store.writeLinkedData,
         ldStoreRead: store.readLinkedData,
-        onArticleLoaded: (linkedData) =>
-          selectItem(linkedData["@id"] as HashUri),
+        documentAnnotationsIndex,
+        onSave: (linkedData) => selectItem(linkedData["@id"] as HashUri),
+      })
+    );
+
+    const [
+      contentLoaderSlot,
+      { load: loadUri, display: displayFile },
+    ] = newSlot(
+      "content-loader",
+      loader({
+        fetcher: contentFetcher,
+        onLoaded: fork(
+          map(pick("linkedData"), (linkedData) =>
+            selectItem(linkedData["@id"] as HashUri)
+          ),
+          setContent,
+          mapToUndefined(pushUser)
+        ),
+        contentSlot,
       })
     );
 
     const [fileDropSlot, { displayFileDrop }] = newSlot(
       "file-drop",
-      fileDrop({ onFile: provideFile })
+      fileDrop({
+        onFile: mapAwait(processFileToContent, displayFile, (error) => {
+          console.error(error);
+        }),
+      })
     );
 
-    const updateGdrive = gdrive(
-      fork(
-        updateGdriveState,
-        map(
-          pick("state"),
-          fork(
-            filterState(
-              "logged",
-              map(pick("user"), map(pick("emailAddress"), setUserEmail))
-            ),
-            store.updateGdriveState
-          )
-        )
-      )
-    );
+    currentDocumentUriProvider({
+      defaultUri,
+    })(onClose, loadUri);
 
     render(
       div(
@@ -186,11 +231,11 @@ export const App = asyncLoader(
           },
           profilePanelSlot,
           searchBox(
-            map((url) => url.toString(), fork(updateBrowserHistory, setUri))
+            map((url) => url.toString(), fork(updateBrowserHistory, loadUri))
           ),
           contentNavSlot
         ),
-        div({ id: "container" }, div({ class: "p-4" }, contentSlot))
+        div({ id: "container" }, div({ class: "p-4" }, contentLoaderSlot))
       )
     );
   }

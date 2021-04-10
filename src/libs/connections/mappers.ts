@@ -1,11 +1,10 @@
-import { nonUndefined } from "./filters";
+import { defined } from "./filters";
 import { Callback } from "./types";
 
 type Function<T, S> = (v: T) => S;
 export const identity = <T>(v: T): T => v;
 
-// eslint-disable-next-line unused-imports/no-unused-vars-ts,@typescript-eslint/no-unused-vars
-export const ignore = (v: unknown): void => {
+export const ignore: (v: unknown) => void = () => {
   // do nothing
 };
 
@@ -41,7 +40,7 @@ export const branch = <T1, T2, S>(
 export const passUndefined = <T, S>(
   map: Function<T, S>
 ): Function<T | undefined, S | undefined> =>
-  branch(nonUndefined, map, () => undefined);
+  branch(defined, map, () => undefined);
 
 export function pipe<T, S>(map1: (v: T) => S): Function<T, S>;
 export function pipe<T, S, U>(

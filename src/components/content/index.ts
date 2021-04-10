@@ -1,5 +1,3 @@
-import { URL } from "schema-dts";
-
 import { LinkedDataWithContent } from "../../functions/content-processors";
 import { createContentSaver } from "../../functions/content-saver";
 import { DocumentAnnotationsIndex } from "../../functions/indexes/document-annotations-index";
@@ -13,51 +11,19 @@ import { map, pick, pipe } from "../../libs/connections/mappers";
 import { throwIfNull2 } from "../../libs/errors";
 import {
   findHashUri,
-  findUrl,
   LinkedData,
   LinkedDataWithHashId,
 } from "../../libs/linked-data";
-import {
-  a,
-  Component,
-  div,
-  newSlot,
-  span,
-  View,
-} from "../../libs/simple-ui/render";
+import { Component, div, newSlot } from "../../libs/simple-ui/render";
 import { annotationsSupport } from "../annotations";
-import { contentDisplayComponent } from "../content-displays";
+import { contentDisplayComponent } from "../content-body";
 
+import { contentHeader } from "./content-header";
 import { EditBarState, saveBar } from "./edit-bar";
 
 const isNew = (linkedData: LinkedData) => !findHashUri(linkedData);
 
-const contentHeaderView: View<LinkedData> = (linkedData: LinkedData) => {
-  const uri = findUrl(linkedData);
-  return div(
-    { class: "Subhead" },
-    div({ class: "Subhead-heading" }, String(linkedData.name)),
-    div(
-      { class: "Subhead-description" },
-      ...(uri
-        ? [
-            span(
-              "From: ",
-              a({ href: uri, target: "_blank" }, new URL(uri).hostname)
-            ),
-          ]
-        : [])
-    )
-  );
-};
-
-const contentFields: Component<void, { renderFields: LinkedData }> = () => (
-  render
-) => ({
-  renderFields: (linkedData) => render(contentHeaderView(linkedData)),
-});
-
-export const editableContentComponent: Component<
+export const contentComponent: Component<
   {
     storeWrite: ResourceStoreWrite;
     ldStoreWrite: LinkedDataStoreWrite;
@@ -147,7 +113,7 @@ export const editableContentComponent: Component<
 
   const [contentFieldsSlot, { renderFields }] = newSlot(
     "content-fields",
-    contentFields()
+    contentHeader()
   );
 
   render(

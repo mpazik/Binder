@@ -2,7 +2,7 @@ import { DocumentAnnotationsIndex } from "../../functions/indexes/document-annot
 import { LinkedDataStoreWrite } from "../../functions/store";
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { fork, withMultiState, withState } from "../../libs/connections";
-import { filterNonNull } from "../../libs/connections/filters";
+import { filter, nonNull } from "../../libs/connections/filters";
 import { ignoreParam, map, withValue } from "../../libs/connections/mappers";
 import { HashUri } from "../../libs/hash";
 import { findHashUri, LinkedData } from "../../libs/linked-data";
@@ -82,7 +82,7 @@ export const annotationsSupport: Component<
     saveKeptAnnotation,
     keepAnnotationForSave,
   ] = withState<AnnotationSaveArgs | null>(
-    filterNonNull((annotationToSave) => {
+    filter(nonNull, (annotationToSave) => {
       saveAnnotation(annotationToSave);
       keepAnnotationForSave(null);
     }),
@@ -174,7 +174,7 @@ export const annotationsSupport: Component<
       });
       annotationsHashUris.forEach((hashUri) => {
         ldStoreRead(hashUri).then(
-          filterNonNull((annotation) => {
+          filter(nonNull, (annotation) => {
             displayAnnotationSelection(
               container,
               text,

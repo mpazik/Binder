@@ -58,7 +58,7 @@ export const newSlot = <P extends object>(key: string, runtime: ComponentBody<P>
   }), proxy];
 };
 
-type Prop = string | number | boolean | Record<string, unknown> | Prop[] | undefined | Provider<unknown>;
+export type Prop = string | number | boolean | Record<string, unknown> | Prop[] | undefined | Provider<unknown>;
 type ViewProps = Record<string, Prop> | Prop | void;
 export type View<T extends ViewProps = void> = (props: T) => JsonHtml;
 export type OptionalView<T extends ViewProps = void> = (props: T) => JsonHtml | undefined;

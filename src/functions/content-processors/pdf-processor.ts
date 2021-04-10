@@ -1,6 +1,6 @@
 import * as pdfjsLib from "pdfjs-dist";
 
-import { nonUndefined2 } from "../../libs/connections/filters";
+import { defined2 } from "../../libs/connections/filters";
 import { branch } from "../../libs/connections/mappers";
 import { throwIfUndefined } from "../../libs/errors";
 import { createCreativeWork, pdfMediaType } from "../../libs/ld-schemas";
@@ -104,7 +104,7 @@ export const pdfContentProcessor: ContentProcessor = {
       name: getLinkedDataName(infoMetadata.Title, name),
       encodingFormat: pdfMediaType,
       dateCreated: branch(
-        nonUndefined2<string>(),
+        defined2<string>(),
         parsePdfDate,
         () => createTime
       )(infoMetadata.CreationDate),

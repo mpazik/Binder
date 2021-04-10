@@ -229,7 +229,7 @@ export const createStore = (
       return hash;
     },
     readLinkedData: async (hash) => {
-      return await measureAsyncTime("read local linked data store", () =>
+      return await measureAsyncTime(`read local linked data: ${hash}`, () =>
         localLinkedDataStoreRead(hash)
       );
     },

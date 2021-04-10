@@ -1,17 +1,16 @@
 import { GDriveProfile } from "../../functions/gdrive/app-files";
-import {
-  GDriveAction,
-  GDriveState,
-  GDriveStateWithFeedback,
-} from "../../functions/gdrive/controller";
+import { GDriveState } from "../../functions/gdrive/controller";
 import { StoreState } from "../../functions/store";
 import { combine } from "../../libs/connections";
 import { map } from "../../libs/connections/mappers";
+import { newStateMapper } from "../../libs/named-state";
 import {
-  newStateWithFeedbackMapper,
-  StateWithFeedback,
-} from "../../libs/named-state";
-import { a, Component, div, JsonHtml, View } from "../../libs/simple-ui/render";
+  a,
+  Component,
+  div,
+  JsonHtml,
+  ViewSetup,
+} from "../../libs/simple-ui/render";
 import { loading } from "../common/async-loader";
 import { maxLengthText } from "../common/max-length-text";
 import { moreActions } from "../common/more-acctions";
@@ -49,73 +48,74 @@ type ProfileState =
   | ["downloading", GDriveProfile]
   | ["error", string];
 
-export const profileView: View<StateWithFeedback<
-  ProfileState,
-  GDriveAction
->> = newStateWithFeedbackMapper<ProfileState, GDriveAction, JsonHtml>({
-  idle: () => loading(),
-  loading: () => loading(),
-  loggingOut: () => loading(),
-  loggingIn: () => loading(),
-  profileRetrieving: () => loading(),
-  ready: (_, setAction) =>
-    div(
-      { class: "p-2" },
-      a({ type: "button", onClick: () => setAction(["login"]) }, "Sign In"),
-      " to your cloud storage provider to synchronize your data"
-    ),
-  logged: (profile, setAction) =>
-    div(
-      { class: "d-flex", style: { width: "100%" } },
-      div({ class: "p-2", dangerouslySetInnerHTML: gdriveLogoIcon }),
+export const createProfileView: ViewSetup<
+  { login: () => void; logout: () => void },
+  ProfileState
+> = ({ login, logout }) =>
+  newStateMapper<ProfileState, JsonHtml>({
+    idle: () => loading(),
+    loading: () => loading(),
+    loggingOut: () => loading(),
+    loggingIn: () => loading(),
+    profileRetrieving: () => loading(),
+    ready: () =>
       div(
-        { class: "flex-auto d-flex flex-column" },
-        div(profile.user.displayName),
-        div({ class: " text-small text-gray" }, profile.user.emailAddress)
+        { class: "p-2" },
+        a({ type: "button", onClick: login }, "Sign In"),
+        " to your cloud storage provider to synchronize your data"
       ),
-      moreActions({
-        actions: [
-          {
-            label: "Logout",
-            handler: () => setAction(["logout"]),
-          },
-        ],
-      })
-    ),
-  uploading: (profile) =>
-    div(
-      { class: "d-flex", style: { width: "100%" } },
-      div({ class: "p-2", dangerouslySetInnerHTML: uploadIcon }),
+    logged: (profile) =>
       div(
-        { class: "flex-auto d-flex flex-column" },
-        div(profile.user.displayName),
-        div({ class: " text-small text-gray" }, profile.user.emailAddress)
-      )
-    ),
-  downloading: (profile) =>
-    div(
-      { class: "d-flex", style: { width: "100%" } },
-      div({ class: "p-2", dangerouslySetInnerHTML: downloadIcon }),
+        { class: "d-flex", style: { width: "100%" } },
+        div({ class: "p-2", dangerouslySetInnerHTML: gdriveLogoIcon }),
+        div(
+          { class: "flex-auto d-flex flex-column" },
+          div(profile.user.displayName),
+          div({ class: " text-small text-gray" }, profile.user.emailAddress)
+        ),
+        moreActions({
+          actions: [
+            {
+              label: "Logout",
+              handler: logout,
+            },
+          ],
+        })
+      ),
+    uploading: (profile) =>
       div(
-        { class: "flex-auto d-flex flex-column" },
-        div(profile.user.displayName),
-        div({ class: " text-small text-gray" }, profile.user.emailAddress)
-      )
-    ),
-  error: (reason) =>
-    div(
-      {
-        class: "d-inline-flex flex-items-center",
-        style: { width: "100%" },
-      },
-      div({
-        class: "p-2",
-        style: { fill: "#d73a49" },
-        dangerouslySetInnerHTML: errorIcon,
-      }),
-      div({ class: "d-flex" }, maxLengthText(reason, 50))
-    ),
-});
+        { class: "d-flex", style: { width: "100%" } },
+        div({ class: "p-2", dangerouslySetInnerHTML: uploadIcon }),
+        div(
+          { class: "flex-auto d-flex flex-column" },
+          div(profile.user.displayName),
+          div({ class: " text-small text-gray" }, profile.user.emailAddress)
+        )
+      ),
+    downloading: (profile) =>
+      div(
+        { class: "d-flex", style: { width: "100%" } },
+        div({ class: "p-2", dangerouslySetInnerHTML: downloadIcon }),
+        div(
+          { class: "flex-auto d-flex flex-column" },
+          div(profile.user.displayName),
+          div({ class: " text-small text-gray" }, profile.user.emailAddress)
+        )
+      ),
+    error: (reason) =>
+      div(
+        {
+          class: "d-inline-flex flex-items-center",
+          style: { width: "100%" },
+        },
+        div({
+          class: "p-2",
+          style: { fill: "#d73a49" },
+          dangerouslySetInnerHTML: errorIcon,
+        }),
+        div({ class: "d-flex" }, maxLengthText(reason, 50))
+      ),
+  });
 
 const profileContainer = (viewDom: JsonHtml) =>
   div(
@@ -127,18 +127,21 @@ const profileContainer = (viewDom: JsonHtml) =>
   );
 
 export const profilePanel: Component<
-  void,
+  { login: () => void; logout: () => void },
   {
     updateStoreState: StoreState;
-    updateGdriveState: GDriveStateWithFeedback;
+    updateGdriveState: GDriveState;
   }
-> = () => (render) => {
+> = ({ logout, login }) => (render) => {
   const renderProfileContainer = map(profileContainer, render);
-  const renderProfile = map(profileView, renderProfileContainer);
+  const renderProfile = map(
+    createProfileView({ logout, login }),
+    renderProfileContainer
+  );
   const [gdriveStateForProfile, storeStateForProfile] = combine<
-    [GDriveStateWithFeedback, StoreState]
+    [GDriveState, StoreState]
   >(
-    map(([{ state: gdriveState, feedback }, storeState]) => {
+    map(([gdriveState, storeState]) => {
       const state: ProfileState = (() => {
         if (gdriveState[0] === "logged") {
           const profile = gdriveState[1];
@@ -154,7 +157,7 @@ export const profilePanel: Component<
         }
         return gdriveState as ProfileState;
       })();
-      return { state, feedback };
+      return state;
     }, renderProfile),
     undefined,
     undefined

@@ -1,14 +1,9 @@
-import { Callback, forEach } from "../../libs/connections";
-import { filter, nonUndefined } from "../../libs/connections/filters";
-import {
-  mapState,
-  newStateMachineWithFeedback,
-  StateWithFeedback,
-} from "../../libs/named-state";
+import { Callback, fork } from "../../libs/connections";
+import { filter, defined } from "../../libs/connections/filters";
+import { mapState, newStateMachine } from "../../libs/named-state";
 
 import { createProfile, GDriveProfile } from "./app-files";
 import { GApi, initializeGoogleDrive, signIn, signOut } from "./auth";
-import { a } from "../../libs/simple-ui/render";
 
 export type GDriveAction =
   | ["load"]
@@ -31,11 +26,6 @@ export type GDriveState =
   | ["error", string]
   | ["loggingOut", GApi];
 
-export type GDriveStateWithFeedback = StateWithFeedback<
-  GDriveState,
-  GDriveAction
->;
-
 export const initGdriveState: GDriveState = ["idle"];
 
 const handleError = (e: Error | unknown): GDriveAction => [
@@ -45,9 +35,9 @@ const handleError = (e: Error | unknown): GDriveAction => [
 ];
 
 export const gdrive = (
-  callback: Callback<GDriveStateWithFeedback>
-): Callback<GDriveAction> =>
-  newStateMachineWithFeedback<GDriveState, GDriveAction>(
+  callback: Callback<GDriveState>
+): Callback<GDriveAction> => {
+  const stateMachine = newStateMachine<GDriveState, GDriveAction>(
     initGdriveState,
     {
       idle: {
@@ -81,11 +71,11 @@ export const gdrive = (
       },
       error: {},
     },
-    forEach(({ state, feedback }) => {
+    fork((state) => {
       filter<Promise<GDriveAction> | undefined, Promise<GDriveAction>>(
-        nonUndefined,
+        defined,
         (promise: Promise<GDriveAction>) => {
-          promise.then(feedback);
+          promise.then(stateMachine);
         }
       )(
         mapState<GDriveState, Promise<GDriveAction> | undefined>(state, {
@@ -113,3 +103,5 @@ export const gdrive = (
       );
     }, callback)
   );
+  return stateMachine;
+};

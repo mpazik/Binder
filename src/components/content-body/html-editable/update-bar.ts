@@ -7,7 +7,7 @@ import {
   popUpBar,
   simpleBar,
   styledButton,
-} from "../../article/edit-bar";
+} from "../../content/edit-bar";
 
 const createUpdateBarView: OptionalViewSetup<
   { onUpdate: () => void; onDiscard: () => void },

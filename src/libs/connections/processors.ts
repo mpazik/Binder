@@ -1,6 +1,7 @@
 import { throwIfNull, throwIfUndefined } from "../errors";
 
-import { filterNonNullTuple, nonUndefined } from "./filters";
+import { defined, definedTuple, filter } from "./filters";
+import { ignore } from "./mappers";
 import {
   Callback,
   Consumer,
@@ -46,27 +47,35 @@ export const delayedState = <S, T extends S>(
   };
 };
 
-export const closableForEach = <T>(
-  handler: (v: T, signal: AbortSignal) => void,
-  callback: Callback<T>
-): Callback<T> => {
-  let abortController = new AbortController();
+/*
+Side effect free implementation
+type WithAbort<T> = [last: AbortController, old: [T, AbortController]];
+export const closableCorrect = <T>(
+  handler: (v: T, signal: AbortSignal) => void
+): Callback<T> =>
+  reduce<WithAbort<T>, T>(
+    [new AbortController(), (undefined as unknown) as [T, AbortController]],
+    ([controller], value) => [new AbortController(), [value, controller]],
+    ([lastController, [value, oldController]]) => {
+      oldController.abort();
+      handler(value, lastController.signal);
+    }
+  );
+  */
 
-  return (v: T) => {
-    abortController.abort();
-    abortController = new AbortController();
-    handler(v, abortController.signal);
-    callback(v);
-  };
-};
-
-export const forEach = <T>(
-  handler: (v: T) => void,
-  callback: Callback<T>
-): Callback<T> => (v: T) => {
-  handler(v);
-  callback(v);
-};
+export const closable = <T>(
+  handler: (v: T, signal: AbortSignal) => void
+): Callback<T> =>
+  reduce(
+    new AbortController(),
+    (oldController, value) => {
+      oldController.abort(); // side effect
+      const newController = new AbortController();
+      handler(value, newController.signal); // side effect
+      return newController;
+    },
+    ignore
+  );
 
 export const flatten = <T>(push: Callback<T>): Callback<T[]> => (array) =>
   array.forEach(push);
@@ -134,7 +143,7 @@ export function splitMap<T, S>(
 export const splitOnUndefined = <T>(
   onUndefined: Callback<undefined>,
   onValue: Callback<T>
-): Callback<T | undefined> => split(nonUndefined, onValue, onUndefined);
+): Callback<T | undefined> => split(defined, onValue, onUndefined);
 
 export const select = <T, S>(
   selectorExtractor: (v: T) => S,
@@ -166,12 +175,12 @@ export const fork = <T = void>(...consumers: Consumer<T>[]): Consumer<T> => (
   consumers.forEach((push) => push(data));
 };
 
-export const combine = <T extends readonly unknown[]>(
+export const combine = <T extends Tuple>(
   callback: (args: T) => void,
   ...init: PartialTuple<T>
 ): {
   [K in keyof T]: Callback<T[K]>;
-} => combineAlways(filterNonNullTuple(callback), ...init);
+} => combineAlways<T>(filter(definedTuple, callback), ...init);
 
 export const combineAlways = <T extends Tuple>(
   callback: (args: PartialTuple<T>) => void,
@@ -261,7 +270,7 @@ export const withMultiState = <S extends Tuple, V = void>(
 };
 
 export const log = <T>(name: string, callback: Callback<T>): Callback<T> =>
-  forEach((value) => console.log(name, value), callback);
+  fork((value) => console.log(name, value), callback);
 
 export const onAnimationFrame = <T>(
   onClose: OnCloseRegister,

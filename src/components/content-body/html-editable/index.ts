@@ -15,13 +15,13 @@ import {
   withMultiState,
   withState,
 } from "../../../libs/connections";
-import { filterNonNullTuple } from "../../../libs/connections/filters";
-import { map, mapAwait, to } from "../../../libs/connections/mappers";
+import { definedTuple, filter } from "../../../libs/connections/filters";
+import { ignore, map, mapAwait, to } from "../../../libs/connections/mappers";
 import { Component, div, newSlot } from "../../../libs/simple-ui/render";
 import { throttleArg } from "../../../libs/throttle";
 import { AnnotationDisplayRequest } from "../../annotations";
-import { EditBarState } from "../../article/edit-bar";
 import { modal } from "../../common/modal";
+import { EditBarState } from "../../content/edit-bar";
 import { editableHtmlView } from "../html-view";
 
 import {
@@ -90,7 +90,7 @@ export const htmlEdiableDisplay: Component<
     update,
     [setDocumentForUpdate, setContainerForUpdate],
   ] = withMultiState<[LinkedDataWithDocument, HTMLElement]>(
-    filterNonNullTuple(([data, container]) => {
+    filter(definedTuple, ([data, container]) => {
       const { linkedData, contentDocument } = data;
       updateData(
         {
@@ -183,7 +183,7 @@ export const htmlEdiableDisplay: Component<
         )
       );
     }),
-    () => {}
+    ignore
   );
 
   return {

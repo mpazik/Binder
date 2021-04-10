@@ -36,24 +36,13 @@ export const newStateHandler = <S extends SomeState>(
 export const handleState = <S extends SomeState>(
   [key, data]: S,
   handlers: StatesHandler<S>
-) => handlers[key as S[0]]?.(data);
+): void => handlers[key as S[0]]?.(data);
 
 export const newStateMapper = <S extends SomeState, T>(
   mappers: {
     [SK in S[0]]: (state: StateByName<S, SK>[1]) => T;
   }
 ) => ([key, data]: S): T => mappers[key as S[0]](data);
-
-export const newStateWithFeedbackMapper = <
-  S extends SomeState,
-  A extends SomeAction,
-  T
->(
-  mappers: {
-    [SK in S[0]]: (state: StateByName<S, SK>[1], feedback: Callback<A>) => T;
-  }
-) => ({ state: [key, data], feedback }: StateWithFeedback<S, A>): T =>
-  mappers[key as S[0]](data, feedback);
 
 export const newStateOptionalMapper = <S extends SomeState, T>(
   mappers: {
@@ -66,7 +55,7 @@ export const mapState = <S extends SomeState, T>(
   mappers: {
     [SK in S[0]]: (state: StateByName<S, SK>[1]) => T;
   }
-) => mappers[key as S[0]](data);
+): T => mappers[key as S[0]](data);
 
 type Behaviours<S extends SomeState, A extends SomeAction> = {
   [SK in S[0]]: {
@@ -76,29 +65,41 @@ type Behaviours<S extends SomeState, A extends SomeAction> = {
     ) => S;
   };
 };
+type DefaultHandlers<S extends SomeState, A extends SomeAction> = {
+  [AK in A[0]]?: (action: ActionByName<A, AK>[1]) => S;
+};
 
 const newStateMachineHandler = <S extends SomeState, A extends SomeAction>(
-  behaviours: Behaviours<S, A>
+  behaviours: Behaviours<S, A>,
+  defaults?: DefaultHandlers<S, A>
 ) => (state: S, action: A): S => {
   const behaviour = behaviours[state[0] as S[0]];
   const handler = behaviour[action[0] as A[0]];
-  if (!handler) {
-    throw new Error(
-      `Synchronizer in sate '${state[0]}' do not expected command '${action[0]}'`
+  if (handler)
+    return handler(
+      action[1] as ActionByName<A, A[0]>[1],
+      state[1] as StateByName<S, S[0]>[1]
     );
+
+  if (defaults) {
+    const defaultHandler = defaults[action[0] as A[0]];
+    if (defaultHandler) {
+      return defaultHandler(action[1] as ActionByName<A, A[0]>[1]);
+    }
   }
-  return handler(
-    action[1] as ActionByName<A, A[0]>[1],
-    state[1] as StateByName<S, S[0]>[1]
+
+  throw new Error(
+    `Synchronizer in sate '${state[0]}' do not expected command '${action[0]}'`
   );
 };
 
 export const newStateMachine = <S extends SomeState, A extends SomeAction>(
   initState: S,
   behaviours: Behaviours<S, A>,
-  callback: Callback<S>
+  callback: Callback<S>,
+  defaults?: DefaultHandlers<S, A>
 ): Callback<A> =>
-  reduce(initState, newStateMachineHandler(behaviours), callback);
+  reduce(initState, newStateMachineHandler(behaviours, defaults), callback);
 
 export const filterState = <S extends SomeState, K extends S[0]>(
   stateName: K,
@@ -107,23 +108,4 @@ export const filterState = <S extends SomeState, K extends S[0]>(
   if (state[0] === stateName) {
     callback(state[1]);
   }
-};
-
-export type StateWithFeedback<S, A> = {
-  state: S;
-  feedback: Callback<A>;
-};
-export const newStateMachineWithFeedback = <
-  S extends SomeState,
-  A extends SomeAction
->(
-  initState: S,
-  behaviours: Behaviours<S, A>,
-  push: Callback<StateWithFeedback<S, A>>
-): Callback<A> => {
-  const handleState = (state: S) => {
-    push({ state, feedback: handleAction });
-  };
-  const handleAction = newStateMachine(initState, behaviours, handleState);
-  return handleAction;
 };

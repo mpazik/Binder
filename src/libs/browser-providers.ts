@@ -18,8 +18,7 @@ export const queryParamProvider: Provider<URLSearchParams> = (
 ) => {
   const update = () => push(new URLSearchParams(window.location.search));
 
-  update();
+  setImmediate(update);
   window.addEventListener("popstate", update);
-
   onClose(() => document.removeEventListener("popstate", update));
 };
