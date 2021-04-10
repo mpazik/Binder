@@ -15,7 +15,7 @@ import {
   View,
 } from "../../libs/simple-ui/render";
 
-import { centerLoadingSlot } from "./center-loading-component";
+import { centerLoading } from "./center-loading-component";
 
 type LoaderAction<T, S> =
   | ["load", T]
@@ -82,10 +82,10 @@ const loaderView = <T extends Prop, S extends Prop>({
   retry: () => void;
 }): View<LoaderState<T, S>> =>
   newStateMapper({
-    idle: () => div(centerLoadingSlot()),
-    initializing: () => div(centerLoadingSlot()),
-    loading: () => div(centerLoadingSlot(), contentSlot),
+    idle: centerLoading,
+    initializing: () => centerLoading(),
     ready: () => div(contentSlot),
+    loading: () => div(centerLoading(), contentSlot),
     error: ({ reason }) =>
       errorView({
         reason,

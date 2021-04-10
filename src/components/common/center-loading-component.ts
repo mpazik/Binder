@@ -1,7 +1,6 @@
-import { mapTo } from "../../libs/connections/mappers";
-import { Component, JsonHtml, slot, View } from "../../libs/simple-ui/render";
+import { View } from "../../libs/simple-ui/render";
 
-const centerLoadingView: View = () => [
+export const centerLoading: View = () => [
   "div",
   {
     class: "loading black",
@@ -13,12 +12,3 @@ const centerLoadingView: View = () => [
     },
   },
 ];
-
-export const centerLoadingComponent: Component = () => (render, onClose) => {
-  const timeout = setTimeout(mapTo(centerLoadingView(), render), 300);
-
-  onClose(() => clearTimeout(timeout));
-};
-
-export const centerLoadingSlot = (): JsonHtml =>
-  slot("loading", centerLoadingComponent());

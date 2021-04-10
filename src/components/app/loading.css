@@ -3,6 +3,7 @@
     width: 80px;
     height: 80px;
     z-index: 1;
+    animation: delayedFadeIn 0.5s
 }
 .loading:after {
     content: " ";
@@ -13,18 +14,30 @@
     border-radius: 50%;
     border: 6px solid;
     border-color: #FFF transparent #FFF transparent;
-    animation: loading 1.4s linear infinite;
+    animation: rotate 1.4s linear infinite;
 }
 
 .loading.black:after {
     border-color: #24292e transparent #24292e transparent;
 }
 
-@keyframes loading {
+@keyframes rotate {
     0% {
         transform: rotate(0deg);
     }
     100% {
         transform: rotate(360deg);
+    }
+}
+
+@keyframes delayedFadeIn {
+    0% {
+        opacity: 0;
+    }
+    50% { /* if the loading is quick, do not display it */
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
     }
 }

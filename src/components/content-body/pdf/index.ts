@@ -30,7 +30,7 @@ import {
 } from "../../../libs/simple-ui/render";
 import { getTarget } from "../../../libs/simple-ui/utils/funtions";
 import { AnnotationDisplayRequest } from "../../annotations";
-import { centerLoadingSlot } from "../../common/center-loading-component";
+import { centerLoading } from "../../common/center-loading-component";
 
 // The workerSrc property shall be specified.
 pdfJsLib.GlobalWorkerOptions.workerSrc = "./pdf.worker.js";
@@ -277,10 +277,10 @@ const createPdfView: ViewSetup<
 > = ({ contentSlot, openPage }) =>
   newStateMapper({
     idle: () => {
-      return div(centerLoadingSlot(), contentSlot);
+      return div(centerLoading(), contentSlot);
     },
     rendering: () => {
-      return div(centerLoadingSlot(), contentSlot);
+      return div(centerLoading(), contentSlot);
     },
     displaying: ({ document: { numberOfPages }, currentPage }) => {
       return div(
