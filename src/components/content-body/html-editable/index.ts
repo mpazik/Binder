@@ -61,7 +61,7 @@ const createNewDocument = (
   return newDocument;
 };
 
-export const htmlEdiableDisplay: Component<
+export const htmlEditableDisplay: Component<
   {
     contentSaver: ContentSaver;
     onAnnotationDisplayRequest: Consumer<AnnotationDisplayRequest>;

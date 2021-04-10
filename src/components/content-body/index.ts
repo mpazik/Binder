@@ -22,10 +22,10 @@ import { currentSelection, OptSelection } from "../annotations/selection";
 
 import { epubDisplay } from "./epub/idnex";
 import { htmlDisplay } from "./html";
-import { htmlEdiableDisplay } from "./html-editable";
+import { htmlEditableDisplay } from "./html-editable";
 import { pdfDisplay } from "./pdf";
 
-const isEditable: (linkedData: LinkedData) => boolean = () => true;
+const isEditable: (linkedData: LinkedData) => boolean = () => false;
 
 export const contentDisplayComponent: Component<
   {
@@ -66,14 +66,14 @@ export const contentDisplayComponent: Component<
     { displayContent: updateHtmlEditableContent },
   ] = newSlot(
     "html-editable-display",
-    htmlEdiableDisplay({
+    htmlEditableDisplay({
       contentSaver,
       onAnnotationDisplayRequest: displayAnnotations,
       onSelectionTrigger: sendSelection,
     })
   );
 
-  const displayHtmlEdiable = async (content: LinkedDataWithContent) => {
+  const displayHtmlEditable = async (content: LinkedDataWithContent) => {
     console.log("display html editable");
     render(div(htmlEditableDisplaySlot));
     updateHtmlEditableContent(content);
@@ -119,7 +119,7 @@ export const contentDisplayComponent: Component<
           htmlMediaType,
           split(
             pipe(pick("linkedData"), isEditable),
-            displayHtmlEdiable,
+            displayHtmlEditable,
             displayHtml
           ),
         ],
