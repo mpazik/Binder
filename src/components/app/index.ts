@@ -34,15 +34,15 @@ import {
   currentDocumentUriProvider,
   updateBrowserHistory,
 } from "../../functions/url-hijack";
-import { combineAlways, fork } from "../../libs/connections";
-import { filter, nonNull } from "../../libs/connections/filters";
+import { combine, fork } from "../../libs/connections";
+import { filter } from "../../libs/connections/filters";
 import {
   head,
   map,
   mapAwait,
   mapTo,
-  mapToUndefined,
   pick,
+  to,
 } from "../../libs/connections/mappers";
 import { HashName, HashUri } from "../../libs/hash";
 import { filterState } from "../../libs/named-state";
@@ -121,15 +121,15 @@ export const App = asyncLoader(
     indexLinkedData,
     synchDb,
   }) => (render, onClose) => {
-    const [setUserEmail, pushUser] = combineAlways<[string | null, void]>(
-      map(
-        head,
-        filter(nonNull, (user) => {
+    const [setUserEmail, setContentReady] = combine<[string | null, boolean]>(
+      filter(
+        (v): v is [string, true] => Boolean(v[0] && v[1]),
+        map(head, (user) => {
           setCreator(user);
         })
       ),
       null,
-      undefined
+      false
     );
 
     const store = createStore(indexLinkedData, localStoreDb, synchDb, (s) =>
@@ -197,7 +197,7 @@ export const App = asyncLoader(
             selectItem(linkedData["@id"] as HashUri)
           ),
           setContent,
-          mapToUndefined(pushUser)
+          map(to(true), setContentReady)
         ),
         contentSlot,
       })

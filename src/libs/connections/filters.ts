@@ -12,8 +12,8 @@ export const or = <T>(...predicates: ((v: T) => boolean)[]) => (
 ): boolean => predicates.some((p) => p(v));
 
 export const nonNull = <T>(v: T | undefined | null): v is T => Boolean(v);
-export const defined = <T>(v: T | undefined): v is T => Boolean(v);
-export const defined2 = <T>() => (v: T | undefined): v is T => Boolean(v);
+export const defined = <T>(v: T | undefined): v is T => v !== undefined;
+export const defined2 = <T>() => (v: T | undefined): v is T => v !== undefined;
 export const definedProp = <T, K extends keyof T>(key: K) => (
   v: T
 ): v is T & Required<Pick<T, K>> => defined(v[key]);

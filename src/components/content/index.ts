@@ -75,13 +75,11 @@ export const contentComponent: Component<
     })
   );
 
-  const [resetSaveBar, setContextForBarReset] = withState<LinkedData>(
-    splitMap(
-      isNew,
-      () => ["visible"] as EditBarState,
-      () => ["hidden"] as EditBarState,
-      (data) => updateSaveBar(data)
-    )
+  const resetSaveBar = splitMap(
+    isNew,
+    () => ["visible"] as EditBarState,
+    () => ["hidden"] as EditBarState,
+    updateSaveBar
   );
 
   const [
@@ -118,7 +116,7 @@ export const contentComponent: Component<
 
   render(
     div(
-      { id: "content", class: "ml-4", onDisplay: resetSaveBar },
+      { id: "content", class: "ml-4" },
       contentFieldsSlot,
       div(
         { id: "editor", class: "mb-3 position-relative" },
@@ -136,11 +134,7 @@ export const contentComponent: Component<
       setContextForSave,
       map(
         pick("linkedData"),
-        fork(
-          renderFields,
-          map(findHashUri, setReference),
-          setContextForBarReset
-        )
+        fork(renderFields, map(findHashUri, setReference), resetSaveBar)
       )
     ),
   };
