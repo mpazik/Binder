@@ -4,241 +4,90 @@ import * as pdfJsLib from "pdfjs-dist";
 import { TextLayerBuilder } from "pdfjs-dist/lib/web/text_layer_builder.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
+// eslint-disable-next-line import/order
 import { EventBus } from "pdfjs-dist/lib/web/ui_utils.js";
 import "./text_layer_builder.css";
 
+import { PDFDocumentProxy } from "pdfjs-dist/types/display/api";
+
 import { LinkedDataWithContent } from "../../../functions/content-processors";
 import { Callback, Consumer, fork } from "../../../libs/connections";
-import { map } from "../../../libs/connections/mappers";
-import { LinkedData } from "../../../libs/linked-data";
-import {
-  handleState,
-  newStateMachine,
-  newStateMapper,
-} from "../../../libs/named-state";
-import { measureAsyncTime } from "../../../libs/performance";
+import { defined, filter } from "../../../libs/connections/filters";
 import {
   button,
-  canvas,
   Component,
   div,
-  slot,
-  Slot,
+  newSlot,
   span,
   View,
-  ViewSetup,
 } from "../../../libs/simple-ui/render";
-import { getTarget } from "../../../libs/simple-ui/utils/funtions";
 import { AnnotationDisplayRequest } from "../../annotations";
-import { centerLoading } from "../../common/center-loading-component";
+import { loader } from "../../common/loader";
 
 // The workerSrc property shall be specified.
 pdfJsLib.GlobalWorkerOptions.workerSrc = "./pdf.worker.js";
 
-type PdfDocument = {
-  openPage: (page: number) => void;
+type PdfDocument = Promise<PDFDocumentProxy>;
+type PageOpenRequest = { page: number; pdfDocument: PdfDocument };
+
+type PdfPage = {
+  canvas: HTMLElement;
+  textLayer: HTMLElement;
+  pdfDocument: PdfDocument;
+  currentPage: number;
   numberOfPages: number;
 };
 
-const renderPdf = async (
-  container: HTMLElement,
-  data: Blob
-): Promise<PdfDocument> => {
-  const pdfDocument = await pdfJsLib.getDocument({
-    data: new Uint8Array(await data.arrayBuffer()),
-  }).promise;
+const openPage = async (
+  pdfDocument: PdfDocument,
+  pageNumber: number,
+  abortSignal: AbortSignal
+): Promise<PdfPage | undefined> => {
+  const containerWidth = 696;
+  const pdf = await pdfDocument;
+  let canceled = false;
+  abortSignal.addEventListener("abort", () => (canceled = true));
 
-  const containerWidth = container.getBoundingClientRect().width;
-  const canvas = container.getElementsByTagName("canvas")[0];
-  const textLayerDiv = container.getElementsByClassName(
-    "textLayer"
-  )[0] as HTMLElement;
+  const canvas = document.createElement("canvas");
+  const textLayer = document.createElement("div");
+  textLayer.classList.add("textLayer");
 
-  let pageOpening = false;
-  let nextPageToOpen: number | undefined;
+  const page = await pdf.getPage(pageNumber);
+  if (canceled) return;
+  const textContent = await page.getTextContent();
+  if (canceled) return;
 
-  const openNextPage = (pageNumber: number) => {
-    pageOpening = false;
-    nextPageToOpen = undefined;
-    openPage(pageNumber);
-  };
+  const originalViewport = page.getViewport({ scale: 1 });
+  const viewport = page.getViewport({
+    scale: containerWidth / originalViewport.width,
+  });
+  canvas.height = viewport.height;
+  canvas.width = viewport.width;
+  textLayer.style.width = viewport.width + "px";
+  textLayer.style.height = viewport.height + "px";
 
-  const openPage = async (pageNumber: number) => {
-    if (pageOpening) {
-      nextPageToOpen = pageNumber;
-      return;
-    }
-    pageOpening = true;
+  await page.render({
+    canvasContext: canvas.getContext("2d")!,
+    viewport: viewport,
+  });
+  if (canceled) return;
 
-    const page = await pdfDocument.getPage(pageNumber);
-    if (nextPageToOpen) {
-      openNextPage(nextPageToOpen);
-      return;
-    }
-    container.setAttribute("id", "page-" + (page._pageIndex + 1));
-
-    const originalViewport = page.getViewport({ scale: 1 });
-    const viewport = page.getViewport({
-      scale: containerWidth / originalViewport.width,
-    });
-    canvas.height = viewport.height;
-    canvas.width = viewport.width;
-    textLayerDiv.style.width = viewport.width + "px";
-    textLayerDiv.style.height = viewport.height + "px";
-    textLayerDiv.innerHTML = "";
-
-    await page.render({
-      canvasContext: canvas.getContext("2d")!,
-      viewport: viewport,
-    });
-    if (nextPageToOpen) {
-      openNextPage(nextPageToOpen);
-      return;
-    }
-
-    const eventBus = new EventBus();
-    const textContent = await page.getTextContent();
-    const textLayer = new TextLayerBuilder({
-      textLayerDiv: textLayerDiv,
-      pageIndex: page._pageIndex,
-      viewport: viewport,
-      eventBus,
-    });
-
-    textLayer.setTextContent(textContent);
-    textLayer.render();
-    nextPageToOpen = undefined;
-    pageOpening = false;
-  };
+  const textLayerObj = new TextLayerBuilder({
+    textLayerDiv: textLayer,
+    pageIndex: page._pageIndex,
+    viewport: viewport,
+    eventBus: new EventBus(),
+  });
+  textLayerObj.setTextContent(textContent);
+  textLayerObj.render();
 
   return {
-    openPage,
-    numberOfPages: pdfDocument.numPages,
+    canvas,
+    textLayer,
+    currentPage: pageNumber,
+    pdfDocument,
+    numberOfPages: pdf.numPages,
   };
-};
-
-const contentComponent: Component<{
-  onDisplay: Callback<HTMLElement>;
-  onTextDisplay: (container: HTMLElement) => void;
-  onSelectionTrigger: () => void;
-}> = ({ onDisplay, onTextDisplay, onSelectionTrigger }) => (render) => {
-  render(
-    div(
-      {
-        onDisplay: map(getTarget, onDisplay),
-        style: { position: "relative" },
-      },
-      canvas(),
-      div({
-        class: "textLayer",
-        onDisplay: map(getTarget, onTextDisplay),
-        onMouseup: onSelectionTrigger,
-        onFocusout: onSelectionTrigger,
-      })
-    )
-  );
-};
-
-type PdfViewAction =
-  | ["load", LinkedDataWithContent]
-  | ["setContainer", HTMLElement]
-  | ["setTextContainer", HTMLElement]
-  | ["display", PdfDocument]
-  | ["openPage", number]
-  | ["fail", string];
-
-export type PdfViewState =
-  | [
-      "idle",
-      {
-        container?: HTMLElement;
-        textContainer?: HTMLElement;
-        data?: LinkedDataWithContent;
-      }
-    ]
-  | [
-      "rendering",
-      {
-        data: LinkedDataWithContent;
-        container: HTMLElement;
-        textContainer: HTMLElement;
-      }
-    ]
-  | [
-      "displaying",
-      {
-        document: PdfDocument;
-        currentPage: number;
-        container: HTMLElement;
-        linkedData: LinkedData;
-        textContainer: HTMLElement;
-      }
-    ]
-  | [
-      "error",
-      { reason: string; container: HTMLElement; textContainer: HTMLElement }
-    ];
-
-const newPdfViewStateMachine = (
-  displayAnnotations: Consumer<AnnotationDisplayRequest>,
-  push: Consumer<PdfViewState>
-) => {
-  const stateMachine = newStateMachine<PdfViewState, PdfViewAction>(
-    ["idle", {}],
-    {
-      idle: {
-        setContainer: (container, { data, textContainer }) =>
-          data && textContainer
-            ? ["rendering", { data, container, textContainer }]
-            : ["idle", { data, container, textContainer }],
-        setTextContainer: (textContainer, { data, container }) =>
-          data && container
-            ? ["rendering", { data, container, textContainer }]
-            : ["idle", { data, container, textContainer }],
-        load: (data, { container, textContainer }) =>
-          container && textContainer
-            ? ["rendering", { data, container, textContainer }]
-            : ["idle", { data, container, textContainer }],
-      },
-      rendering: {
-        load: (data, state) => ["rendering", { ...state, data }],
-        display: (
-          document,
-          { container, textContainer, data: { linkedData } }
-        ) => [
-          "displaying",
-          { document, container, textContainer, currentPage: 1, linkedData },
-        ],
-        fail: (reason, state) => ["error", { reason, ...state }],
-      },
-      displaying: {
-        openPage: (pageNumber, state) => [
-          "displaying",
-          { ...state, currentPage: pageNumber },
-        ],
-        load: (data, state) => ["rendering", { data, ...state }],
-      },
-      error: {
-        load: (data, state) => ["rendering", { data, ...state }],
-      },
-    },
-    fork((state) => {
-      handleState<PdfViewState>(state, {
-        rendering: ({ container, data: { content } }) => {
-          measureAsyncTime("pdf-render", () =>
-            renderPdf(container, content)
-          ).then((it) => {
-            stateMachine(["display", it]);
-          });
-        },
-        displaying: ({ document, currentPage, linkedData, container }) => {
-          document.openPage(currentPage);
-          displayAnnotations({ container, linkedData });
-        },
-      });
-    }, push)
-  );
-  return stateMachine;
 };
 
 const pdfNav: View<{
@@ -271,36 +120,58 @@ const pdfNav: View<{
     )
   );
 
-const createPdfView: ViewSetup<
-  { contentSlot: Slot; openPage: Callback<number> },
-  PdfViewState
-> = ({ contentSlot, openPage }) =>
-  newStateMapper({
-    idle: () => {
-      return div(centerLoading(), contentSlot);
-    },
-    rendering: () => {
-      return div(centerLoading(), contentSlot);
-    },
-    displaying: ({ document: { numberOfPages }, currentPage }) => {
-      return div(
-        pdfNav({
-          currentPage,
-          numberOfPages,
-          openPage,
-        }),
-        contentSlot,
-        pdfNav({
-          currentPage,
-          numberOfPages,
-          openPage,
-        })
+const contentComponent: Component<
+  {
+    onSelectionTrigger: () => void;
+    onPageOpen: Callback<PageOpenRequest>;
+  },
+  { renderPage: PdfPage }
+> = ({ onSelectionTrigger, onPageOpen }) => (render) => {
+  return {
+    renderPage: ({
+      canvas,
+      textLayer,
+      pdfDocument,
+      currentPage,
+      numberOfPages,
+    }) => {
+      const openPage = (page: number) => {
+        onPageOpen({ page, pdfDocument });
+      };
+      render(
+        div(
+          pdfNav({
+            currentPage,
+            numberOfPages,
+            openPage,
+          }),
+          div(
+            { style: { position: "relative" } },
+            div({ dangerouslySetDom: canvas }),
+            div({
+              dangerouslySetDom: textLayer,
+              // onMouseup: onSelectionTrigger,
+              // onFocusout: onSelectionTrigger,
+            })
+          ),
+          pdfNav({
+            currentPage,
+            numberOfPages,
+            openPage,
+          })
+        )
       );
     },
-    error: ({ reason }) => {
-      return div({ class: "flash mt-3 flash-error" }, span(reason));
-    },
-  });
+  };
+};
+
+const openPdf = (content: Blob): PdfDocument =>
+  content.arrayBuffer().then(
+    (data) =>
+      pdfJsLib.getDocument({
+        data: new Uint8Array(data),
+      }).promise
+  );
 
 export const pdfDisplay: Component<
   {
@@ -308,30 +179,38 @@ export const pdfDisplay: Component<
     onSelectionTrigger: () => void;
   },
   { displayContent: LinkedDataWithContent }
-> = ({ onAnnotationDisplayRequest, onSelectionTrigger }) => (render) => {
-  const contentSlot = slot(
+> = ({ onSelectionTrigger }) => (render) => {
+  const [contentSlot, { renderPage }] = newSlot(
     "content",
     contentComponent({
-      onDisplay: (container) => {
-        sendAction(["setContainer", container]);
-      },
       onSelectionTrigger,
-      onTextDisplay: (container) => sendAction(["setTextContainer", container]),
+      onPageOpen: (it) => {
+        load(it);
+      },
     })
   );
-  const renderPdf = map(
-    createPdfView({
+
+  const [pdfSlot, { load }] = newSlot(
+    "pdf-loader",
+    loader<PageOpenRequest, PdfPage | undefined>({
+      fetcher: ({ page, pdfDocument }, signal) =>
+        openPage(pdfDocument, page, signal),
+      onLoaded: filter(
+        defined,
+        fork(
+          renderPage
+          // map(pick("textLayer"), () => {})
+        )
+      ),
       contentSlot,
-      openPage: (page) => sendAction(["openPage", page]),
-    }),
-    render
-  );
-  const sendAction = newPdfViewStateMachine(
-    onAnnotationDisplayRequest,
-    renderPdf
+    })
   );
 
+  // todo move it up
+  render(div(pdfSlot));
+
   return {
-    displayContent: (content) => sendAction(["load", content]),
+    displayContent: ({ content }) =>
+      load({ pdfDocument: openPdf(content), page: 1 }),
   };
 };

@@ -119,7 +119,7 @@ export const contentComponent: Component<
       { id: "content", class: "ml-4" },
       contentFieldsSlot,
       div(
-        { id: "editor", class: "mb-3 position-relative" },
+        { id: "content-body", class: "mb-3 position-relative" },
         contentSlot,
         annotationSupportSlot
       ),

@@ -1,14 +1,14 @@
-import { View } from "../../libs/simple-ui/render";
+import { div, View } from "../../libs/simple-ui/render";
 
-export const centerLoading: View = () => [
-  "div",
-  {
-    class: "loading black",
-    style: {
-      position: "fixed",
-      left: "50%",
-      top: "30%",
-      transform: "translateX(-50%)",
+export const centerLoading: View = () =>
+  div(
+    {
+      style: {
+        position: "absolute",
+        left: "50%",
+        transform: "translateX(-50%)",
+        "z-index": "1",
+      },
     },
-  },
-];
+    div({ class: "loading black", style: { position: "fixed", top: "200px" } })
+  );
