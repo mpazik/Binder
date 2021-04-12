@@ -2,6 +2,7 @@ export type Position = [left: number, right: number];
 
 export type Selection = {
   container: HTMLElement;
+  fragment?: string;
   range: Range;
 };
 
@@ -51,12 +52,7 @@ export const selectionExists = (): boolean => {
 export const selectionPosition = ({ range, container }: Selection): Position =>
   rangePositionRelative(range, container);
 
-export const currentSelection = (element: HTMLElement): OptSelection => {
+export const currentSelection = (): Range | undefined => {
   const range = currentRange();
-  return range && range.toString().trim().length > 0
-    ? {
-        container: element,
-        range,
-      }
-    : undefined;
+  return range && range.toString().trim().length > 0 ? range : undefined;
 };

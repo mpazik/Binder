@@ -10,9 +10,9 @@ import "./text_layer_builder.css";
 
 import { PDFDocumentProxy } from "pdfjs-dist/types/display/api";
 
-import { LinkedDataWithContent } from "../../../functions/content-processors";
-import { Callback, Consumer, fork } from "../../../libs/connections";
+import { Callback, fork } from "../../../libs/connections";
 import { defined, filter } from "../../../libs/connections/filters";
+import { map, to } from "../../../libs/connections/mappers";
 import {
   button,
   Component,
@@ -20,20 +20,18 @@ import {
   newSlot,
   span,
   View,
+  ViewSetup,
 } from "../../../libs/simple-ui/render";
-import { AnnotationDisplayRequest } from "../../annotations";
-import { loader } from "../../common/loader";
+import { loaderWithContext } from "../../common/loader";
+import { ContentComponent } from "../types";
 
 // The workerSrc property shall be specified.
 pdfJsLib.GlobalWorkerOptions.workerSrc = "./pdf.worker.js";
 
-type PdfDocument = Promise<PDFDocumentProxy>;
-type PageOpenRequest = { page: number; pdfDocument: PdfDocument };
-
+type PdfDocument = PDFDocumentProxy;
 type PdfPage = {
   canvas: HTMLElement;
   textLayer: HTMLElement;
-  pdfDocument: PdfDocument;
   currentPage: number;
   numberOfPages: number;
 };
@@ -44,7 +42,6 @@ const openPage = async (
   abortSignal: AbortSignal
 ): Promise<PdfPage | undefined> => {
   const containerWidth = 696;
-  const pdf = await pdfDocument;
   let canceled = false;
   abortSignal.addEventListener("abort", () => (canceled = true));
 
@@ -52,7 +49,7 @@ const openPage = async (
   const textLayer = document.createElement("div");
   textLayer.classList.add("textLayer");
 
-  const page = await pdf.getPage(pageNumber);
+  const page = await pdfDocument.getPage(pageNumber);
   if (canceled) return;
   const textContent = await page.getTextContent();
   if (canceled) return;
@@ -85,8 +82,7 @@ const openPage = async (
     canvas,
     textLayer,
     currentPage: pageNumber,
-    pdfDocument,
-    numberOfPages: pdf.numPages,
+    numberOfPages: pdfDocument.numPages,
   };
 };
 
@@ -120,52 +116,47 @@ const pdfNav: View<{
     )
   );
 
+const setupPdfPageView: ViewSetup<
+  { openPage: (page: number) => void },
+  PdfPage
+> = ({ openPage }) => ({ currentPage, canvas, textLayer, numberOfPages }) =>
+  div(
+    pdfNav({
+      currentPage,
+      numberOfPages,
+      openPage,
+    }),
+    div(
+      { style: { position: "relative" } },
+      div({ dangerouslySetDom: canvas }),
+      div({
+        dangerouslySetDom: textLayer,
+        // onMouseup: onSelectionTrigger,
+        // onFocusout: onSelectionTrigger,
+      })
+    ),
+    pdfNav({
+      currentPage,
+      numberOfPages,
+      openPage,
+    })
+  );
+
 const contentComponent: Component<
   {
     onSelectionTrigger: () => void;
-    onPageOpen: Callback<PageOpenRequest>;
+    onPageOpen: Callback<number>;
   },
   { renderPage: PdfPage }
-> = ({ onSelectionTrigger, onPageOpen }) => (render) => {
+> = ({ onPageOpen }) => (render) => {
+  const pdfPageView = setupPdfPageView({ openPage: onPageOpen });
+
   return {
-    renderPage: ({
-      canvas,
-      textLayer,
-      pdfDocument,
-      currentPage,
-      numberOfPages,
-    }) => {
-      const openPage = (page: number) => {
-        onPageOpen({ page, pdfDocument });
-      };
-      render(
-        div(
-          pdfNav({
-            currentPage,
-            numberOfPages,
-            openPage,
-          }),
-          div(
-            { style: { position: "relative" } },
-            div({ dangerouslySetDom: canvas }),
-            div({
-              dangerouslySetDom: textLayer,
-              // onMouseup: onSelectionTrigger,
-              // onFocusout: onSelectionTrigger,
-            })
-          ),
-          pdfNav({
-            currentPage,
-            numberOfPages,
-            openPage,
-          })
-        )
-      );
-    },
+    renderPage: map(pdfPageView, render),
   };
 };
 
-const openPdf = (content: Blob): PdfDocument =>
+const openPdf = (content: Blob): Promise<PdfDocument> =>
   content.arrayBuffer().then(
     (data) =>
       pdfJsLib.getDocument({
@@ -173,13 +164,10 @@ const openPdf = (content: Blob): PdfDocument =>
       }).promise
   );
 
-export const pdfDisplay: Component<
-  {
-    onAnnotationDisplayRequest: Consumer<AnnotationDisplayRequest>;
-    onSelectionTrigger: () => void;
-  },
-  { displayContent: LinkedDataWithContent }
-> = ({ onSelectionTrigger }) => (render) => {
+export const pdfDisplay: ContentComponent = ({ onSelectionTrigger }) => (
+  render,
+  onClose
+) => {
   const [contentSlot, { renderPage }] = newSlot(
     "content",
     contentComponent({
@@ -190,27 +178,23 @@ export const pdfDisplay: Component<
     })
   );
 
-  const [pdfSlot, { load }] = newSlot(
-    "pdf-loader",
-    loader<PageOpenRequest, PdfPage | undefined>({
-      fetcher: ({ page, pdfDocument }, signal) =>
-        openPage(pdfDocument, page, signal),
-      onLoaded: filter(
-        defined,
-        fork(
-          renderPage
-          // map(pick("textLayer"), () => {})
-        )
-      ),
-      contentSlot,
-    })
-  );
-
-  // todo move it up
-  render(div(pdfSlot));
+  const { load, init } = loaderWithContext<
+    PdfDocument,
+    number,
+    PdfPage | undefined
+  >({
+    fetcher: (pdfDocument, page, signal) => openPage(pdfDocument, page, signal),
+    onLoaded: filter(
+      defined,
+      fork(
+        renderPage
+        // map(pick("textLayer"), () => {})
+      )
+    ),
+    contentSlot,
+  })(render, onClose);
 
   return {
-    displayContent: ({ content }) =>
-      load({ pdfDocument: openPdf(content), page: 1 }),
+    displayContent: fork(map(openPdf, init), map(to(1), load)),
   };
 };

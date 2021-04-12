@@ -5,7 +5,6 @@ import { fork, withMultiState, withState } from "../../libs/connections";
 import { filter, nonNull } from "../../libs/connections/filters";
 import { ignoreParam, map, withValue } from "../../libs/connections/mappers";
 import { HashUri } from "../../libs/hash";
-import { findHashUri, LinkedData } from "../../libs/linked-data";
 import { Component, div, newSlot } from "../../libs/simple-ui/render";
 
 import { Annotation, createAnnotation, QuoteSelector } from "./annotation";
@@ -27,7 +26,8 @@ type AnnotationSaveArgs = {
 
 export type AnnotationDisplayRequest = {
   container: HTMLElement;
-  linkedData: LinkedData;
+  reference: HashUri;
+  fragment?: string;
 };
 
 export const annotationsSupport: Component<
@@ -165,12 +165,10 @@ export const annotationsSupport: Component<
     setReference: fork(setReference, ignoreParam(saveKeptAnnotation)),
     displaySelectionToolbar: selectionHandler,
     setCreator: setCreator,
-    displayDocumentAnnotations: async ({ container, linkedData }) => {
+    displayDocumentAnnotations: async ({ container, reference }) => {
       const text = containerText(container);
-      const documentHashUri = findHashUri(linkedData);
-      if (!documentHashUri) return;
       const annotationsHashUris = await documentAnnotationsIndex({
-        documentHashUri,
+        documentHashUri: reference,
       });
       annotationsHashUris.forEach((hashUri) => {
         ldStoreRead(hashUri).then(

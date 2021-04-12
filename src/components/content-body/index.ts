@@ -2,28 +2,38 @@ import { LinkedDataWithContent } from "../../functions/content-processors";
 import { ContentSaver } from "../../functions/content-saver";
 import {
   Callback,
+  combineAlways,
   Consumer,
+  fork,
   passOnlyChanged,
   select,
   split,
-  withState,
+  withMultiState,
 } from "../../libs/connections";
+import { definedTuple, filter } from "../../libs/connections/filters";
 import { map, passUndefined, pick, pipe } from "../../libs/connections/mappers";
+import { throwIfUndefined } from "../../libs/errors";
+import { HashUri } from "../../libs/hash";
 import {
   epubMediaType,
   getEncoding,
   htmlMediaType,
   pdfMediaType,
 } from "../../libs/ld-schemas";
-import { LinkedData } from "../../libs/linked-data";
-import { Component, div, newSlot } from "../../libs/simple-ui/render";
+import { findHashUri, LinkedData } from "../../libs/linked-data";
+import { Component, div } from "../../libs/simple-ui/render";
 import { AnnotationDisplayRequest } from "../annotations";
 import { currentSelection, OptSelection } from "../annotations/selection";
 
-import { epubDisplay } from "./epub/idnex";
+import { epubDisplay } from "./epub";
 import { htmlDisplay } from "./html";
 import { htmlEditableDisplay } from "./html-editable";
 import { pdfDisplay } from "./pdf";
+import {
+  AnnotationContext,
+  ContentComponent,
+  DisplayController,
+} from "./types";
 
 const isEditable: (linkedData: LinkedData) => boolean = () => false;
 
@@ -36,73 +46,81 @@ export const contentDisplayComponent: Component<
   {
     displayContent: LinkedDataWithContent;
   }
-> = ({ onAnnotationDisplayRequest, onSelect, contentSaver }) => (render) => {
-  const [sendSelection, setContainerForSelect] = withState<HTMLElement>(
-    map(currentSelection, passOnlyChanged(onSelect))
-  );
-
-  const displayAnnotations: Callback<AnnotationDisplayRequest> = (data) => {
-    onAnnotationDisplayRequest(data);
-    setContainerForSelect(data.container);
-    // todo scroll to top
-  };
-
-  const [htmlDisplaySlot, { displayContent: updateHtmlContent }] = newSlot(
-    "html-display",
-    htmlDisplay({
-      onAnnotationDisplayRequest: displayAnnotations,
-      onSelectionTrigger: sendSelection,
-    })
-  );
-
-  const displayHtml = async (content: LinkedDataWithContent) => {
-    console.log("display html");
-    render(div(htmlDisplaySlot));
-    updateHtmlContent(content);
-  };
-
+> = ({ onAnnotationDisplayRequest, onSelect, contentSaver }) => (
+  render,
+  onClose
+) => {
   const [
-    htmlEditableDisplaySlot,
-    { displayContent: updateHtmlEditableContent },
-  ] = newSlot(
-    "html-editable-display",
-    htmlEditableDisplay({
-      contentSaver,
-      onAnnotationDisplayRequest: displayAnnotations,
-      onSelectionTrigger: sendSelection,
-    })
+    sendChangedSelection,
+    [setAnnotationContextForSelect],
+  ] = withMultiState<[AnnotationContext], Range | undefined>(
+    ([annotationContext], range) => {
+      if (annotationContext) {
+        const { container, fragment } = annotationContext;
+        range ? onSelect({ container, fragment, range }) : onSelect(undefined);
+      }
+    },
+    undefined
   );
 
-  const displayHtmlEditable = async (content: LinkedDataWithContent) => {
-    console.log("display html editable");
-    render(div(htmlEditableDisplaySlot));
-    updateHtmlEditableContent(content);
+  const sendSelection: Callback<void> = map(
+    currentSelection,
+    passOnlyChanged(sendChangedSelection)
+  );
+
+  const [setReference, setAnnotationContextForDisplay] = combineAlways<
+    [HashUri | undefined, AnnotationContext | undefined]
+  >(
+    filter(
+      definedTuple,
+      map(
+        ([reference, { container, fragment }]) => ({
+          container,
+          reference,
+          fragment,
+        }),
+        onAnnotationDisplayRequest
+      )
+    ),
+    undefined,
+    undefined
+  );
+
+  // multi state with linkedData and fallback for update
+  const [
+    saveNewContent,
+    [setLinkedDataForSave, setCallbackForUpdate],
+  ] = withMultiState<[LinkedData, Callback | undefined], Blob>(
+    ([linkedData, callback], blob) => {
+      contentSaver({
+        linkedData: throwIfUndefined(linkedData),
+        content: blob,
+      }).then(() => throwIfUndefined(callback)());
+    },
+    undefined,
+    undefined
+  );
+
+  const displayAnnotations: Callback<AnnotationContext> = fork(
+    setAnnotationContextForSelect,
+    setAnnotationContextForDisplay
+  );
+
+  const displayController: DisplayController = {
+    onDisplay: displayAnnotations,
+    onSelectionTrigger: sendSelection,
+    onContentModified: saveNewContent,
   };
 
-  const [pdfDisplaySlot, { displayContent: updatePdfContent }] = newSlot(
-    "pdf-display",
-    pdfDisplay({
-      onAnnotationDisplayRequest: displayAnnotations,
-      onSelectionTrigger: sendSelection,
-    })
-  );
-
-  const displayPdf = (content: LinkedDataWithContent) => {
-    render(div(pdfDisplaySlot));
-    updatePdfContent(content);
-  };
-
-  const [epubDisplaySlot, { displayContent: updateEpubContent }] = newSlot(
-    "epub-display",
-    epubDisplay({
-      onAnnotationDisplayRequest: displayAnnotations,
-      onSelectionTrigger: sendSelection,
-    })
-  );
-
-  const displayEpub = async (content: LinkedDataWithContent) => {
-    render(div(epubDisplaySlot));
-    updateEpubContent(content);
+  const displayContentComponent = (component: ContentComponent) => ({
+    content,
+  }: LinkedDataWithContent) => {
+    const { displayContent, saveComplete } = component(displayController)(
+      render,
+      onClose
+    );
+    setCallbackForUpdate(saveComplete);
+    displayContent(content);
   };
 
   const displayNotSupported = ({ linkedData }: LinkedDataWithContent) => {
@@ -112,21 +130,27 @@ export const contentDisplayComponent: Component<
   };
 
   return {
-    displayContent: select<LinkedDataWithContent, string | undefined>(
-      pipe(pick("linkedData"), passUndefined(getEncoding)),
-      [
+    displayContent: fork(
+      map(
+        pick("linkedData"),
+        fork(map(findHashUri, setReference), setLinkedDataForSave)
+      ),
+      select<LinkedDataWithContent, string | undefined>(
+        pipe(pick("linkedData"), passUndefined(getEncoding)),
         [
-          htmlMediaType,
-          split(
-            pipe(pick("linkedData"), isEditable),
-            displayHtmlEditable,
-            displayHtml
-          ),
+          [
+            htmlMediaType,
+            split(
+              pipe(pick("linkedData"), isEditable),
+              displayContentComponent(htmlEditableDisplay),
+              displayContentComponent(htmlDisplay)
+            ),
+          ],
+          [pdfMediaType, displayContentComponent(pdfDisplay)],
+          [epubMediaType, displayContentComponent(epubDisplay)],
         ],
-        [pdfMediaType, displayPdf],
-        [epubMediaType, displayEpub],
-      ],
-      displayNotSupported
+        displayNotSupported
+      )
     ),
   };
 };

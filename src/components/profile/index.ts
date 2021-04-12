@@ -2,6 +2,7 @@ import { GDriveProfile } from "../../functions/gdrive/app-files";
 import { GDriveState } from "../../functions/gdrive/controller";
 import { StoreState } from "../../functions/store";
 import { combine } from "../../libs/connections";
+import { definedTuple, filter } from "../../libs/connections/filters";
 import { map } from "../../libs/connections/mappers";
 import { newStateMapper } from "../../libs/named-state";
 import {
@@ -141,24 +142,27 @@ export const profilePanel: Component<
   const [gdriveStateForProfile, storeStateForProfile] = combine<
     [GDriveState, StoreState]
   >(
-    map(([gdriveState, storeState]) => {
-      const state: ProfileState = (() => {
-        if (gdriveState[0] === "logged") {
-          const profile = gdriveState[1];
-          if (storeState[0] === "uploading") {
-            return ["uploading", profile] as ProfileState;
-          } else if (storeState[0] === "downloading") {
-            return ["downloading", profile] as ProfileState;
-          } else if (storeState[0] === "error") {
-            return ["error", storeState[1].error.message] as ProfileState;
+    filter(
+      definedTuple,
+      map(([gdriveState, storeState]) => {
+        const state: ProfileState = (() => {
+          if (gdriveState[0] === "logged") {
+            const profile = gdriveState[1];
+            if (storeState[0] === "uploading") {
+              return ["uploading", profile] as ProfileState;
+            } else if (storeState[0] === "downloading") {
+              return ["downloading", profile] as ProfileState;
+            } else if (storeState[0] === "error") {
+              return ["error", storeState[1].error.message] as ProfileState;
+            }
+          } else if (gdriveState[0] === "error") {
+            return ["error", gdriveState[1]] as ProfileState;
           }
-        } else if (gdriveState[0] === "error") {
-          return ["error", gdriveState[1]] as ProfileState;
-        }
-        return gdriveState as ProfileState;
-      })();
-      return state;
-    }, renderProfile),
+          return gdriveState as ProfileState;
+        })();
+        return state;
+      }, renderProfile)
+    ),
     undefined,
     undefined
   );

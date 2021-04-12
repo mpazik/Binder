@@ -40,22 +40,27 @@ type ComponentRuntime = (render: Renderer, onClose: OnCloseRegister) => void;
 export type ComponentBody<P extends void | object> = (render: Renderer, onClose: OnCloseRegister) => P extends object ? Handlers<P> : void;
 export type Component<T = void, P extends void | object = void> = (props: T) => ComponentBody<P>;
 
-export const newSlot = <P extends object>(key: string, runtime: ComponentBody<P>): [Slot, Handlers<P>] => {
+const getComponentHandlers = <P extends object>(runtime: ComponentBody<P>): [ComponentBody<void>, Handlers<P>] => {
   let handlers: Handlers<P> | undefined;
   const proxy = new Proxy({}, {
     get: (_, prop) => (args: P[keyof P]) => {
       if (handlers) {
         return handlers[prop as keyof P](args);
       } else {
-        console.error(`Can not trigger event "${String(prop)}" on inactive component in slot "${key}"`);
+        console.error(`Can not trigger event "${String(prop)}" on inactive component`);
       }
     },
   }) as Handlers<P>;
 
-  return [slot(key, (render, onClose) => {
+  return [(render, onClose) => {
     handlers = runtime(render, onClose) as unknown as Handlers<P>;
     onClose(() => handlers = undefined);
-  }), proxy];
+  }, proxy];
+};
+
+export const newSlot = <P extends object>(key: string, runtime: ComponentBody<P>): [Slot, Handlers<P>] => {
+  const [body, handlers] = getComponentHandlers(runtime)
+  return [slot(key, body), handlers];
 };
 
 export type Prop = string | number | boolean | Record<string, unknown> | Prop[] | undefined | Provider<unknown>;

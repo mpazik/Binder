@@ -12,7 +12,7 @@ export type BiProcessor<T1, T2, S1, S2> = (
   a: [Consumer<S1>, Consumer<S2>]
 ) => [Consumer<T1>, Consumer<T2>];
 
-export type Callback<T> = (value: T) => void;
+export type Callback<T = void> = (value: T) => void;
 
 export type Tuple = readonly unknown[];
 export type PartialTuple<T> = {

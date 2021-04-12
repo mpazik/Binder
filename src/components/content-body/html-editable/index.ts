@@ -1,50 +1,29 @@
+import { documentContentRoodId } from "../../../functions/content-processors/html-processor";
+import { documentToBlob } from "../../../functions/content-saver";
 import {
-  LinkedDataWithContent,
-  LinkedDataWithDocument,
-} from "../../../functions/content-processors";
-import {
-  documentContentRoodId,
-  getDocumentContentRoot,
-  parseArticleContent,
-} from "../../../functions/content-processors/html-processor";
-import { ContentSaver, documentToBlob } from "../../../functions/content-saver";
-import {
-  Consumer,
+  Callback,
   fork,
   passOnlyChanged,
   withMultiState,
   withState,
 } from "../../../libs/connections";
 import { definedTuple, filter } from "../../../libs/connections/filters";
-import { ignore, map, mapAwait, to } from "../../../libs/connections/mappers";
+import { map, pick, to, wrap } from "../../../libs/connections/mappers";
 import { Component, div, newSlot } from "../../../libs/simple-ui/render";
-import { throttleArg } from "../../../libs/throttle";
-import { AnnotationDisplayRequest } from "../../annotations";
+import { loader } from "../../common/loader";
 import { modal } from "../../common/modal";
 import { EditBarState } from "../../content/edit-bar";
-import { editableHtmlView } from "../html-view";
+import { documentToHtmlContent, processToDocument } from "../html/utils";
+import { HtmlContent, setupEditableHtmlView } from "../html/view";
+import { AnnotationContext, ContentComponent } from "../types";
 
 import {
   changesIndicatorBar,
   documentChangeTopRelativePosition,
 } from "./change-indicator-bar";
-import {
-  DocumentChange,
-  newDocumentComparator,
-  revertDocumentChange,
-} from "./document-change";
+import { revertDocumentChange } from "./document-change";
 import { renderDocumentChangeModal } from "./document-change-modal";
 import { updateBar } from "./update-bar";
-
-// ideally should be triggered on resize too
-const detectDocumentChange = (
-  contentRoot: HTMLElement,
-  onChange: (c: DocumentChange[]) => void
-) => (e: InputEvent) =>
-  throttleArg<Element>(
-    map(newDocumentComparator(contentRoot), onChange),
-    300
-  )(e.target as HTMLElement);
 
 const createNewDocument = (
   initialContent: Document,
@@ -61,44 +40,34 @@ const createNewDocument = (
   return newDocument;
 };
 
-export const htmlEditableDisplay: Component<
+const contentComponent: Component<
   {
-    contentSaver: ContentSaver;
-    onAnnotationDisplayRequest: Consumer<AnnotationDisplayRequest>;
     onSelectionTrigger: () => void;
+    onContentModified: Callback<Blob>;
+    onDisplay: Callback<AnnotationContext>;
   },
-  { displayContent: LinkedDataWithContent }
-> = ({ contentSaver, onAnnotationDisplayRequest, onSelectionTrigger }) => (
-  render
-) => {
-  const updateData = (data: LinkedDataWithContent, retry: () => void) => {
+  { renderPage: { doc: Document }; saveComplete: void }
+> = ({ onDisplay, onSelectionTrigger, onContentModified }) => (render) => {
+  const updateData = (newContent: Blob, retry: () => void) => {
     try {
       updateUpdateBar(["saving"]);
-      contentSaver(data).then(() => {
-        updateUpdateBar(["hidden"]);
-      });
+      onContentModified(newContent);
     } catch (reason) {
       updateUpdateBar(["error", { reason, onTryAgain: retry }]);
     }
   };
 
-  const [discard, setContextForDiscard] = withState<LinkedDataWithContent>(
-    (data) => displayContent(data)
+  const [discard, setContextForDiscard] = withState<HtmlContent>((data) =>
+    displayContent(data)
   );
 
   const [
     update,
     [setDocumentForUpdate, setContainerForUpdate],
-  ] = withMultiState<[LinkedDataWithDocument, HTMLElement]>(
-    filter(definedTuple, ([data, container]) => {
-      const { linkedData, contentDocument } = data;
+  ] = withMultiState<[Document, HTMLElement]>(
+    filter(definedTuple, ([contentDocument, container]) => {
       updateData(
-        {
-          linkedData,
-          content: documentToBlob(
-            createNewDocument(contentDocument, container)
-          ),
-        },
+        documentToBlob(createNewDocument(contentDocument, container)),
         update
       );
     }),
@@ -135,58 +104,76 @@ export const htmlEditableDisplay: Component<
 
   const [modalDiffSlot, { displayModal }] = newSlot("modal-diff", modal());
 
-  const displayContent = mapAwait<
-    LinkedDataWithContent,
-    LinkedDataWithDocument
-  >(
-    async ({ content, linkedData }) => {
-      return {
-        linkedData,
-        contentDocument: parseArticleContent(await content.text()),
-      };
-    },
-    fork(setDocumentForUpdate, ({ contentDocument, linkedData }) => {
-      const contentRoot = getDocumentContentRoot(contentDocument);
-      render(
-        div(
-          div(
-            gutterSlot,
-            modalDiffSlot,
-            editableHtmlView({
-              content: contentRoot,
-              onInput: detectDocumentChange(
-                contentRoot,
-                fork(
-                  displayChangesOnBar,
-                  map(
-                    (changes) => Boolean(changes && changes.length > 0),
-                    passOnlyChanged(
-                      map(
-                        (modified) =>
-                          (modified ? ["visible"] : ["hidden"]) as EditBarState,
-                        updateUpdateBar
-                      )
-                    )
-                  )
-                )
-              ),
-              onDisplay: fork(
-                (container) =>
-                  onAnnotationDisplayRequest({ container, linkedData }),
-                setContainerForUpdate,
-                map(to([]), displayChangesOnBar)
-              ),
-              sendSelection: onSelectionTrigger,
-            })
-          ),
-          updateBarSlot
+  const editableHtmlView = setupEditableHtmlView({
+    onSelectionTrigger,
+    onDocumentChange: fork(
+      displayChangesOnBar,
+      map(
+        (changes) => Boolean(changes && changes.length > 0),
+        passOnlyChanged(
+          map(
+            (modified) => (modified ? ["visible"] : ["hidden"]) as EditBarState,
+            updateUpdateBar
+          )
         )
-      );
-    }),
-    ignore
+      )
+    ),
+    onDisplay: fork(
+      map(wrap("container"), onDisplay),
+      setContainerForUpdate,
+      map(to([]), displayChangesOnBar)
+    ),
+  });
+
+  const displayContent: Callback<HtmlContent> = map(
+    ({ content }) =>
+      div(
+        div(
+          gutterSlot,
+          modalDiffSlot,
+          editableHtmlView({
+            content,
+          })
+        ),
+        updateBarSlot
+      ),
+    render
   );
 
   return {
-    displayContent: fork(displayContent, setContextForDiscard),
+    renderPage: map(
+      pick("doc"),
+      fork(
+        map(documentToHtmlContent, fork(displayContent, setContextForDiscard)),
+        setDocumentForUpdate
+      )
+    ),
+    saveComplete: () => updateUpdateBar(["hidden"]),
+  };
+};
+
+export const htmlEditableDisplay: ContentComponent = ({
+  onContentModified,
+  onDisplay,
+  onSelectionTrigger,
+}) => (render, onClose) => {
+  const [contentSlot, { renderPage, saveComplete }] = newSlot(
+    "editable-html-content",
+    contentComponent({
+      onSelectionTrigger,
+      onContentModified,
+      onDisplay: onDisplay,
+    })
+  );
+
+  const { load } = loader<Blob, { doc: Document }>({
+    fetcher: (it) => processToDocument(it).then(wrap("doc")),
+    onLoaded: renderPage,
+    contentSlot,
+  })(render, onClose);
+
+  return {
+    displayContent: load,
+    saveComplete,
   };
 };

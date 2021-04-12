@@ -1,33 +1,45 @@
-import { LinkedDataWithContent } from "../../../functions/content-processors";
-import {
-  getDocumentContentRoot,
-  parseArticleContent,
-} from "../../../functions/content-processors/html-processor";
-import { Consumer } from "../../../libs/connections";
-import { Component } from "../../../libs/simple-ui/render";
-import { AnnotationDisplayRequest } from "../../annotations";
-import { htmlView } from "../html-view";
+import { Callback } from "../../../libs/connections";
+import { map, wrap } from "../../../libs/connections/mappers";
+import { Component, newSlot } from "../../../libs/simple-ui/render";
+import { loader } from "../../common/loader";
+import { ContentComponent } from "../types";
 
-export const htmlDisplay: Component<
+import { processToHtml } from "./utils";
+import { HtmlContent, setupHtmlView } from "./view";
+
+const contentComponent: Component<
   {
-    onAnnotationDisplayRequest: Consumer<AnnotationDisplayRequest>;
     onSelectionTrigger: () => void;
+    onDisplay: Callback<HTMLElement>;
   },
-  { displayContent: LinkedDataWithContent }
-> = ({ onSelectionTrigger, onAnnotationDisplayRequest }) => (render) => {
+  { renderPage: HtmlContent }
+> = ({ onDisplay, onSelectionTrigger }) => (render) => {
+  const htmlView = setupHtmlView({ onDisplay, onSelectionTrigger });
+
   return {
-    displayContent: async ({ linkedData, content }) => {
-      const contentDocument = parseArticleContent(await content.text());
-      const contentRoot = getDocumentContentRoot(contentDocument);
-      render(
-        htmlView({
-          content: contentRoot,
-          onDisplay: (container) => {
-            onAnnotationDisplayRequest({ linkedData, container });
-          },
-          sendSelection: onSelectionTrigger,
-        })
-      );
-    },
+    renderPage: map(htmlView, render),
+  };
+};
+
+export const htmlDisplay: ContentComponent = ({
+  onSelectionTrigger,
+  onDisplay,
+}) => (render, onClose) => {
+  const [contentSlot, { renderPage }] = newSlot(
+    "html-content",
+    contentComponent({
+      onSelectionTrigger,
+      onDisplay: map(wrap("container"), onDisplay),
+    })
+  );
+
+  const { load } = loader<Blob, HtmlContent>({
+    fetcher: processToHtml,
+    onLoaded: renderPage,
+    contentSlot,
+  })(render, onClose);
+
+  return {
+    displayContent: load,
   };
 };

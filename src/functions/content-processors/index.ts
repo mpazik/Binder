@@ -6,7 +6,6 @@ import { getNameFromUrl } from "./utils";
 
 export type {
   LinkedDataWithContent,
-  LinkedDataWithDocument,
   SavedLinkedDataWithContent,
 } from "./types";
 
