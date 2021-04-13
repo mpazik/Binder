@@ -15,7 +15,7 @@ import { modal } from "../../common/modal";
 import { EditBarState } from "../../content/edit-bar";
 import { documentToHtmlContent, processToDocument } from "../html/utils";
 import { HtmlContent, setupEditableHtmlView } from "../html/view";
-import { AnnotationContext, ContentComponent } from "../types";
+import { DisplayContext, ContentComponent } from "../types";
 
 import {
   changesIndicatorBar,
@@ -44,7 +44,7 @@ const contentComponent: Component<
   {
     onSelectionTrigger: () => void;
     onContentModified: Callback<Blob>;
-    onDisplay: Callback<AnnotationContext>;
+    onDisplay: Callback<DisplayContext>;
   },
   { renderPage: { doc: Document }; saveComplete: void }
 > = ({ onDisplay, onSelectionTrigger, onContentModified }) => (render) => {

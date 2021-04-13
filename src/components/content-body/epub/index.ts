@@ -14,7 +14,7 @@ import {
 } from "../../../libs/simple-ui/render";
 import { loaderWithContext } from "../../common/loader";
 import { setupHtmlView } from "../html/view";
-import { ContentComponent } from "../types";
+import { ContentComponent, DisplayContext } from "../types";
 
 const absolute = (base: string, relative: string) => {
   const separator = "/";
@@ -108,11 +108,24 @@ const openEpub = async (content: Blob): Promise<Epub> => {
 };
 
 const setupChapterView: ViewSetup<
-  { openChapter: (n: number) => void },
+  {
+    openChapter: (n: number) => void;
+    onSelectionTrigger: () => void;
+    onDisplay: Callback<DisplayContext>;
+  },
   EpubChapter
-> = ({ openChapter }) => ({ currentChapter, content, numberOfChapters }) =>
+> = ({ openChapter, onDisplay }) => ({
+  currentChapter,
+  content,
+  numberOfChapters,
+}) =>
   div(
-    setupHtmlView({})({ content: content }),
+    setupHtmlView({
+      onDisplay: (container) =>
+        onDisplay({ container, fragment: "chapter=" + currentChapter }),
+    })({
+      content: content,
+    }),
     button(
       {
         class: "btn",
@@ -138,25 +151,31 @@ const setupChapterView: ViewSetup<
 const contentComponent: Component<
   {
     onSelectionTrigger: () => void;
+    onDisplay: Callback<DisplayContext>;
     onChapterOpen: Callback<number>;
   },
   { renderPage: EpubChapter }
-> = ({ onChapterOpen }) => (render) => {
-  const chapterView = setupChapterView({ openChapter: onChapterOpen });
+> = ({ onChapterOpen, onDisplay, onSelectionTrigger }) => (render) => {
+  const chapterView = setupChapterView({
+    openChapter: onChapterOpen,
+    onDisplay,
+    onSelectionTrigger,
+  });
 
   return {
     renderPage: map(chapterView, render),
   };
 };
 
-export const epubDisplay: ContentComponent = ({ onSelectionTrigger }) => (
-  render,
-  onClose
-) => {
+export const epubDisplay: ContentComponent = ({
+  onSelectionTrigger,
+  onDisplay,
+}) => (render, onClose) => {
   const [contentSlot, { renderPage }] = newSlot(
     "epub-content",
     contentComponent({
       onSelectionTrigger,
+      onDisplay,
       onChapterOpen: (it) => {
         load(it);
       },

@@ -22,8 +22,9 @@ import {
   View,
   ViewSetup,
 } from "../../../libs/simple-ui/render";
+import { getTarget } from "../../../libs/simple-ui/utils/funtions";
 import { loaderWithContext } from "../../common/loader";
-import { ContentComponent } from "../types";
+import { ContentComponent, DisplayContext } from "../types";
 
 // The workerSrc property shall be specified.
 pdfJsLib.GlobalWorkerOptions.workerSrc = "./pdf.worker.js";
@@ -117,9 +118,14 @@ const pdfNav: View<{
   );
 
 const setupPdfPageView: ViewSetup<
-  { openPage: (page: number) => void },
+  { openPage: (page: number) => void; onDisplay: Callback<DisplayContext> },
   PdfPage
-> = ({ openPage }) => ({ currentPage, canvas, textLayer, numberOfPages }) =>
+> = ({ openPage, onDisplay }) => ({
+  currentPage,
+  canvas,
+  textLayer,
+  numberOfPages,
+}) =>
   div(
     pdfNav({
       currentPage,
@@ -131,6 +137,9 @@ const setupPdfPageView: ViewSetup<
       div({ dangerouslySetDom: canvas }),
       div({
         dangerouslySetDom: textLayer,
+        onDisplay: map(getTarget, (container) =>
+          onDisplay({ container, fragment: "page=" + currentPage })
+        ),
         // onMouseup: onSelectionTrigger,
         // onFocusout: onSelectionTrigger,
       })
@@ -146,10 +155,11 @@ const contentComponent: Component<
   {
     onSelectionTrigger: () => void;
     onPageOpen: Callback<number>;
+    onDisplay: Callback<DisplayContext>;
   },
   { renderPage: PdfPage }
-> = ({ onPageOpen }) => (render) => {
-  const pdfPageView = setupPdfPageView({ openPage: onPageOpen });
+> = ({ onPageOpen, onDisplay }) => (render) => {
+  const pdfPageView = setupPdfPageView({ openPage: onPageOpen, onDisplay });
 
   return {
     renderPage: map(pdfPageView, render),
@@ -164,14 +174,15 @@ const openPdf = (content: Blob): Promise<PdfDocument> =>
       }).promise
   );
 
-export const pdfDisplay: ContentComponent = ({ onSelectionTrigger }) => (
-  render,
-  onClose
-) => {
+export const pdfDisplay: ContentComponent = ({
+  onSelectionTrigger,
+  onDisplay,
+}) => (render, onClose) => {
   const [contentSlot, { renderPage }] = newSlot(
     "content",
     contentComponent({
       onSelectionTrigger,
+      onDisplay,
       onPageOpen: (it) => {
         load(it);
       },

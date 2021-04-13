@@ -29,11 +29,7 @@ import { epubDisplay } from "./epub";
 import { htmlDisplay } from "./html";
 import { htmlEditableDisplay } from "./html-editable";
 import { pdfDisplay } from "./pdf";
-import {
-  AnnotationContext,
-  ContentComponent,
-  DisplayController,
-} from "./types";
+import { ContentComponent, DisplayContext, DisplayController } from "./types";
 
 const isEditable: (linkedData: LinkedData) => boolean = () => false;
 
@@ -53,7 +49,7 @@ export const contentDisplayComponent: Component<
   const [
     sendChangedSelection,
     [setAnnotationContextForSelect],
-  ] = withMultiState<[AnnotationContext], Range | undefined>(
+  ] = withMultiState<[DisplayContext], Range | undefined>(
     ([annotationContext], range) => {
       if (annotationContext) {
         const { container, fragment } = annotationContext;
@@ -69,7 +65,7 @@ export const contentDisplayComponent: Component<
   );
 
   const [setReference, setAnnotationContextForDisplay] = combineAlways<
-    [HashUri | undefined, AnnotationContext | undefined]
+    [HashUri | undefined, DisplayContext | undefined]
   >(
     filter(
       definedTuple,
@@ -101,13 +97,20 @@ export const contentDisplayComponent: Component<
     undefined
   );
 
-  const displayAnnotations: Callback<AnnotationContext> = fork(
+  const displayAnnotations: Callback<DisplayContext> = fork(
     setAnnotationContextForSelect,
     setAnnotationContextForDisplay
   );
 
+  const scrollToTop: Callback<DisplayContext> = ({ container, fragment }) => {
+    const { x, y } = container.getBoundingClientRect();
+    // if there is no page fragment go to top of the page to show linked data, ideally it should be the top of the full content container
+    const scrollTop = fragment ? y + window.pageYOffset : 0;
+    window.scrollTo(x + window.pageXOffset, scrollTop);
+  };
+
   const displayController: DisplayController = {
-    onDisplay: displayAnnotations,
+    onDisplay: fork(displayAnnotations, scrollToTop),
     onSelectionTrigger: sendSelection,
     onContentModified: saveNewContent,
   };
