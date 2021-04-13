@@ -162,7 +162,7 @@ export const htmlEditableDisplay: ContentComponent = ({
     contentComponent({
       onSelectionTrigger,
       onContentModified,
-      onDisplay: onDisplay,
+      onDisplay,
     })
   );
 
