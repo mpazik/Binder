@@ -1,3 +1,7 @@
+import {
+  Annotation,
+  isFragmentSelector,
+} from "../../components/annotations/annotation";
 import { HashUri } from "../../libs/hash";
 import {
   openSingleStoreDb,
@@ -10,8 +14,10 @@ import { Opaque } from "../../libs/types";
 
 import { Indexer } from "./types";
 
-export type Url = string;
-export type DocumentAnnotationsQuery = { documentHashUri: HashUri };
+export type DocumentAnnotationsQuery = {
+  documentHashUri: HashUri;
+  fragment?: string;
+};
 export type DocumentAnnotationsDb = Opaque<SingleStoreDb<HashUri[]>>;
 export type DocumentAnnotationsIndex = (
   q: DocumentAnnotationsQuery
@@ -23,10 +29,13 @@ Promise<DocumentAnnotationsDb> =>
     DocumentAnnotationsDb
   >;
 
+const recordKey = (documentHashUri: HashUri, fragment?: string) =>
+  fragment ? `${documentHashUri}:${fragment}` : documentHashUri;
+
 export const createDocumentAnnotationsIndex = (
   annotationDb: DocumentAnnotationsDb
-): DocumentAnnotationsIndex => async ({ documentHashUri }) =>
-  storeGet<HashUri[]>(annotationDb, documentHashUri).then(
+): DocumentAnnotationsIndex => async ({ documentHashUri, fragment }) =>
+  storeGet<HashUri[]>(annotationDb, recordKey(documentHashUri, fragment)).then(
     (annotations = [] as HashUri[]) => annotations
   );
 
@@ -35,19 +44,23 @@ export const createDocumentAnnotationsIndexer = (
 ): Indexer => {
   return async (ld) => {
     if (!isTypeEqualTo(ld, "annotation")) return;
-    const target = ld.target;
+    const annotation = (ld as unknown) as Annotation;
+    const target = annotation.target;
     if (!target || typeof target !== "object") return;
-    const source = (target as Record<string, unknown>)["source"] as
-      | HashUri
-      | undefined;
+    const source = target.source as HashUri;
     if (!source) return;
 
-    const documentAnnotations = await storeGet<HashUri[]>(annotationDb, source);
+    const selector = annotation.target.selector;
+    const fragment = isFragmentSelector(selector) ? selector.value : undefined;
+    const key: string = recordKey(source, fragment);
+    console.log("indexing annotation", annotation, key);
+
+    const documentAnnotations = await storeGet<HashUri[]>(annotationDb, key);
 
     if (documentAnnotations) {
-      await storePut(annotationDb, [...documentAnnotations, ld["@id"]], source);
+      await storePut(annotationDb, [...documentAnnotations, ld["@id"]], key);
     } else {
-      await storePut(annotationDb, [ld["@id"]], source);
+      await storePut(annotationDb, [ld["@id"]], key);
     }
     return;
   };

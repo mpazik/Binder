@@ -151,9 +151,11 @@ export const renderSelector = (
       color,
       onHover
         ? () => {
-            onHover(
-              positionRelative(getPositionFromHighlights(highlights), container)
+            const positionFromHighlights = getPositionFromHighlights(
+              highlights
             );
+            const p = positionRelative(positionFromHighlights, container);
+            onHover(p);
           }
         : undefined,
       onHoverOut

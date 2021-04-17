@@ -151,7 +151,6 @@ export const select = <T, S>(
   defaultCallback: S extends undefined | null ? Callback<T> : never
 ): Callback<T> => (value) => {
   const selector = selectorExtractor(value);
-  console.log(selector, value);
   if (selector) {
     throwIfNull(callbacks.find((it) => it[0] === selector))[1](value);
     return;

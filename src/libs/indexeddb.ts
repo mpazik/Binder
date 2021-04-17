@@ -21,24 +21,31 @@ export type StoreDb = IDBDatabase;
 export const openSingleStoreDb = async <T>(
   dbName: string,
   params?: IDBObjectStoreParameters,
-  onCreation?: (db: SingleStoreDb<T>) => Promise<void>
+  onCreation?: (
+    db: SingleStoreDb<T>,
+    stores: Map<string, IDBObjectStore>
+  ) => Promise<void>
 ): Promise<SingleStoreDb<T>> =>
   openStoreDb(dbName, [{ name: defaultStoreName, params }], onCreation);
 
 export const openStoreDb = async (
   dbName: string,
   stores: { name: string; params?: IDBObjectStoreParameters }[],
-  onCreation?: (db: StoreDb) => Promise<void>
+  onCreation?: (
+    db: StoreDb,
+    stores: Map<string, IDBObjectStore>
+  ) => Promise<void>
 ): Promise<StoreDb> => {
   let promise: Promise<void> | undefined = undefined;
   const db = await openDb(
     dbName,
     (event) => {
       const db = (event.target as IDBRequest<IDBDatabase>)?.result;
-      stores.forEach(({ name, params }) => {
-        db.createObjectStore(name, params);
+      const objectStores = stores.map(({ name, params }) => {
+        const objectStore = db.createObjectStore(name, params);
+        return [name, objectStore] as [string, IDBObjectStore];
       });
-      promise = onCreation?.(db);
+      promise = onCreation?.(db, new Map(objectStores));
     },
     1
   );

@@ -11,7 +11,13 @@ import {
   withMultiState,
 } from "../../libs/connections";
 import { definedTuple, filter } from "../../libs/connections/filters";
-import { map, passUndefined, pick, pipe } from "../../libs/connections/mappers";
+import {
+  map,
+  passUndefined,
+  pick,
+  pipe,
+  to,
+} from "../../libs/connections/mappers";
 import { throwIfUndefined } from "../../libs/errors";
 import { HashUri } from "../../libs/hash";
 import {
@@ -134,6 +140,7 @@ export const contentDisplayComponent: Component<
 
   return {
     displayContent: fork(
+      map(to(undefined), setAnnotationContextForDisplay),
       map(
         pick("linkedData"),
         fork(map(findHashUri, setReference), setLinkedDataForSave)

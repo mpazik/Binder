@@ -1,8 +1,10 @@
+import { DocFragment } from "./annotation";
+
 export type Position = [left: number, right: number];
 
 export type Selection = {
   container: HTMLElement;
-  fragment?: string;
+  fragment?: DocFragment;
   range: Range;
 };
 

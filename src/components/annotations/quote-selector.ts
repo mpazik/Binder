@@ -1,4 +1,4 @@
-import { QuoteSelector } from "./annotation";
+import { AnnotationSelector, DocFragment, QuoteSelector } from "./annotation";
 import { expandText } from "./utils/string-expand";
 
 const undefinedForEmptyString = (string: string): string | undefined =>
@@ -35,8 +35,9 @@ const positionFromBegging = (
 export const quoteSelectorForRange = (
   container: HTMLElement,
   text: string,
-  range: Range
-): QuoteSelector => {
+  range: Range,
+  fragment?: DocFragment
+): AnnotationSelector => {
   const positionStart = positionFromBegging(
     container,
     range.startContainer,
@@ -50,10 +51,18 @@ export const quoteSelectorForRange = (
     positionStart + exact.length
   );
 
-  return {
+  const quoteSelector: QuoteSelector = {
     type: "TextQuoteSelector",
     exact,
     prefix: undefinedForEmptyString(prefix),
     suffix: undefinedForEmptyString(suffix),
+  };
+  if (!fragment) return quoteSelector;
+
+  return {
+    type: "FragmentSelector",
+    refinedBy: quoteSelector,
+    value: fragment.value,
+    conformsTo: fragment.spec,
   };
 };

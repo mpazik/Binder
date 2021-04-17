@@ -23,6 +23,7 @@ import {
   ViewSetup,
 } from "../../../libs/simple-ui/render";
 import { getTarget } from "../../../libs/simple-ui/utils/funtions";
+import { createPdfFragment } from "../../annotations/annotation";
 import { loaderWithContext } from "../../common/loader";
 import { ContentComponent, DisplayContext } from "../types";
 
@@ -118,9 +119,13 @@ const pdfNav: View<{
   );
 
 const setupPdfPageView: ViewSetup<
-  { openPage: (page: number) => void; onDisplay: Callback<DisplayContext> },
+  {
+    openPage: (page: number) => void;
+    onDisplay: Callback<DisplayContext>;
+    onSelectionTrigger: Callback;
+  },
   PdfPage
-> = ({ openPage, onDisplay }) => ({
+> = ({ openPage, onDisplay, onSelectionTrigger }) => ({
   currentPage,
   canvas,
   textLayer,
@@ -133,15 +138,20 @@ const setupPdfPageView: ViewSetup<
       openPage,
     }),
     div(
-      { style: { position: "relative" } },
+      {
+        style: { position: "relative" },
+        onDisplay: map(getTarget, (container) =>
+          onDisplay({
+            container,
+            fragment: createPdfFragment("page=" + currentPage),
+          })
+        ),
+      },
       div({ dangerouslySetDom: canvas }),
       div({
         dangerouslySetDom: textLayer,
-        onDisplay: map(getTarget, (container) =>
-          onDisplay({ container, fragment: "page=" + currentPage })
-        ),
-        // onMouseup: onSelectionTrigger,
-        // onFocusout: onSelectionTrigger,
+        onMouseup: onSelectionTrigger,
+        onFocusout: onSelectionTrigger,
       })
     ),
     pdfNav({
@@ -153,13 +163,17 @@ const setupPdfPageView: ViewSetup<
 
 const contentComponent: Component<
   {
-    onSelectionTrigger: () => void;
+    onSelectionTrigger: Callback;
     onPageOpen: Callback<number>;
     onDisplay: Callback<DisplayContext>;
   },
   { renderPage: PdfPage }
-> = ({ onPageOpen, onDisplay }) => (render) => {
-  const pdfPageView = setupPdfPageView({ openPage: onPageOpen, onDisplay });
+> = ({ onPageOpen, onDisplay, onSelectionTrigger }) => (render) => {
+  const pdfPageView = setupPdfPageView({
+    openPage: onPageOpen,
+    onDisplay,
+    onSelectionTrigger,
+  });
 
   return {
     renderPage: map(pdfPageView, render),

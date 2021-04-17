@@ -1,9 +1,10 @@
 import { Callback } from "../../libs/connections";
 import { Component } from "../../libs/simple-ui/render";
+import { DocFragment } from "../annotations/annotation";
 
 export type DisplayContext = {
   container: HTMLElement;
-  fragment?: string;
+  fragment?: DocFragment;
 };
 
 export type DisplayController = {

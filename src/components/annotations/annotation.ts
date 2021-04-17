@@ -5,6 +5,51 @@ export type QuoteSelector = {
   suffix?: string;
 };
 
+// Fragment specification comes from https://www.w3.org/TR/annotation-model/#fragment-selector
+export const HtmlFragmentSpec = "http://tools.ietf.org/rfc/rfc3236";
+export const PdfFragmentSpec = "http://tools.ietf.org/rfc/rfc3778";
+export const EpubFragmentSpec =
+  "http://www.idpf.org/epub/linking/cfi/epub-cfi.html";
+type FragmentSpec =
+  | typeof HtmlFragmentSpec
+  | typeof PdfFragmentSpec
+  | typeof EpubFragmentSpec;
+
+export type DocFragment = {
+  value: string;
+  spec: FragmentSpec;
+};
+
+export const createHtmlFragment = (value: string): DocFragment => ({
+  value,
+  spec: HtmlFragmentSpec,
+});
+export const createPdfFragment = (value: string): DocFragment => ({
+  value,
+  spec: PdfFragmentSpec,
+});
+export const createEpubFragment = (value: string): DocFragment => ({
+  value,
+  spec: EpubFragmentSpec,
+});
+
+export type FragmentSelector = {
+  type: "FragmentSelector";
+  conformsTo: FragmentSpec;
+  value: string;
+  refinedBy?: AnnotationSelector;
+};
+
+export type AnnotationSelector = FragmentSelector | QuoteSelector;
+
+export const isQuoteSelector = (
+  selector: AnnotationSelector
+): selector is QuoteSelector => selector.type === "TextQuoteSelector";
+
+export const isFragmentSelector = (
+  selector: AnnotationSelector
+): selector is FragmentSelector => selector.type === "FragmentSelector";
+
 export type TextualBody = {
   type: "TextualBody";
   value: string;
@@ -20,15 +65,13 @@ export type Annotation = {
   body?: TextualBody;
   target: {
     source: string;
-    selector: QuoteSelector;
+    selector: AnnotationSelector;
   };
 };
 
-export type AnnotationCore = { selector: QuoteSelector; content?: string };
-
 export const createAnnotation = (
   source: string,
-  selector: QuoteSelector,
+  selector: AnnotationSelector,
   htmlBody?: string,
   creator?: string
 ): Annotation => ({

@@ -4,10 +4,18 @@ import { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { fork, withMultiState, withState } from "../../libs/connections";
 import { filter, nonNull } from "../../libs/connections/filters";
 import { ignoreParam, map, withValue } from "../../libs/connections/mappers";
+import { throwIfNull } from "../../libs/errors";
 import { HashUri } from "../../libs/hash";
 import { Component, div, newSlot } from "../../libs/simple-ui/render";
 
-import { Annotation, createAnnotation, QuoteSelector } from "./annotation";
+import {
+  Annotation,
+  AnnotationSelector,
+  createAnnotation,
+  DocFragment,
+  isQuoteSelector,
+  QuoteSelector,
+} from "./annotation";
 import {
   annotationDisplay,
   AnnotationDisplayState,
@@ -20,14 +28,29 @@ import { selectionToolbar } from "./selection-toolbar";
 
 type AnnotationSaveArgs = {
   container: HTMLElement;
-  selector: QuoteSelector;
+  selector: AnnotationSelector;
   content?: string;
 };
 
 export type AnnotationDisplayRequest = {
   container: HTMLElement;
   reference: HashUri;
-  fragment?: string;
+  fragment?: DocFragment;
+};
+
+export const getQuoteSelector = (
+  selector: AnnotationSelector
+): QuoteSelector => {
+  if (isQuoteSelector(selector)) {
+    return selector;
+  }
+  const child = throwIfNull(selector.refinedBy);
+  if (isQuoteSelector(child)) {
+    return child;
+  }
+  throw new Error(
+    `Expected quote selector but got: ${JSON.stringify(selector)}`
+  );
 };
 
 export const annotationsSupport: Component<
@@ -97,7 +120,7 @@ export const annotationsSupport: Component<
     renderSelector(
       container,
       text,
-      annotation.target.selector,
+      getQuoteSelector(annotation.target.selector),
       annotation.motivation === "commenting" ? "yellow" : "green",
       map(
         (position) =>
@@ -116,12 +139,17 @@ export const annotationsSupport: Component<
             const { range, container } = selection;
             const text = containerText(container);
             const selector = quoteSelectorForRange(container, text, range);
-            renderSelector(container, text, selector, "purple");
+            renderSelector(
+              container,
+              text,
+              getQuoteSelector(selector),
+              "purple"
+            );
             displayCommentForm([
               "visible",
               {
                 container,
-                selector,
+                selector: getQuoteSelector(selector),
                 position: selectionPosition(selection),
               },
             ]);
@@ -130,9 +158,14 @@ export const annotationsSupport: Component<
           shortCutKey: "KeyC",
         },
         {
-          handler: ({ container, range }) => {
+          handler: ({ container, range, fragment }) => {
             const text = containerText(container);
-            const selector = quoteSelectorForRange(container, text, range);
+            const selector = quoteSelectorForRange(
+              container,
+              text,
+              range,
+              fragment
+            );
             saveAnnotation({ container, selector });
           },
           label: "highlight",
@@ -165,11 +198,13 @@ export const annotationsSupport: Component<
     setReference: fork(setReference, ignoreParam(saveKeptAnnotation)),
     displaySelectionToolbar: selectionHandler,
     setCreator: setCreator,
-    displayDocumentAnnotations: async ({ container, reference }) => {
+    displayDocumentAnnotations: async ({ container, reference, fragment }) => {
       const text = containerText(container);
       const annotationsHashUris = await documentAnnotationsIndex({
         documentHashUri: reference,
+        fragment: fragment?.value,
       });
+      console.log("annotations", annotationsHashUris);
       annotationsHashUris.forEach((hashUri) => {
         ldStoreRead(hashUri).then(
           filter(nonNull, (annotation) => {

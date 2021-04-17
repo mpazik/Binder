@@ -12,6 +12,7 @@ import {
   newSlot,
   ViewSetup,
 } from "../../../libs/simple-ui/render";
+import { createEpubFragment } from "../../annotations/annotation";
 import { loaderWithContext } from "../../common/loader";
 import { setupHtmlView } from "../html/view";
 import { ContentComponent, DisplayContext } from "../types";
@@ -122,7 +123,10 @@ const setupChapterView: ViewSetup<
   div(
     setupHtmlView({
       onDisplay: (container) =>
-        onDisplay({ container, fragment: "chapter=" + currentChapter }),
+        onDisplay({
+          container,
+          fragment: createEpubFragment("chapter=" + currentChapter),
+        }),
     })({
       content: content,
     }),
