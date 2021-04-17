@@ -53,7 +53,6 @@ export const createDocumentAnnotationsIndexer = (
     const selector = annotation.target.selector;
     const fragment = isFragmentSelector(selector) ? selector.value : undefined;
     const key: string = recordKey(source, fragment);
-    console.log("indexing annotation", annotation, key);
 
     const documentAnnotations = await storeGet<HashUri[]>(annotationDb, key);
 

@@ -3,6 +3,7 @@ import * as JSZip from "jszip";
 import { Callback, fork } from "../../../libs/connections";
 import { map, to } from "../../../libs/connections/mappers";
 import { getBlobFile, getXmlFile, ZipObject } from "../../../libs/epub";
+import { generateEpubcfi } from "../../../libs/epubcli";
 import { throwIfNull } from "../../../libs/errors";
 import { measureAsyncTime } from "../../../libs/performance";
 import {
@@ -55,6 +56,7 @@ type EpubChapter = {
   currentChapter: number;
   numberOfChapters: number;
   content: HTMLElement;
+  chapterFragment: string;
 };
 
 type Epub = {
@@ -71,13 +73,13 @@ const openChapter = async (
   const itemRef = throwIfNull(
     spineItems[chapterNum - 1]?.getAttribute("idref")
   );
-  const href = throwIfNull(
-    packageDoc.getElementById(itemRef)?.getAttribute("href")
-  );
+  const chapterItem = throwIfNull(packageDoc.getElementById(itemRef));
+  const href = throwIfNull(chapterItem.getAttribute("href"));
   return {
     currentChapter: chapterNum,
     numberOfChapters: spineItems.length,
     content: await prepareEpubPage(zip, rootDir + "/" + href),
+    chapterFragment: generateEpubcfi({ node: chapterItem, offset: 0 }),
   };
 };
 
@@ -115,18 +117,20 @@ const setupChapterView: ViewSetup<
     onDisplay: Callback<DisplayContext>;
   },
   EpubChapter
-> = ({ openChapter, onDisplay }) => ({
+> = ({ openChapter, onDisplay, onSelectionTrigger }) => ({
   currentChapter,
   content,
   numberOfChapters,
+  chapterFragment,
 }) =>
   div(
     setupHtmlView({
       onDisplay: (container) =>
         onDisplay({
           container,
-          fragment: createEpubFragment("chapter=" + currentChapter),
+          fragment: createEpubFragment(chapterFragment),
         }),
+      onSelectionTrigger,
     })({
       content: content,
     }),

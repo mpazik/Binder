@@ -1,28 +1,14 @@
-import { fork, withState } from "../../libs/connections";
-import { delayedState } from "../../libs/connections";
+import { delayedState, fork, withState } from "../../libs/connections";
 import { and, filter, or } from "../../libs/connections/filters";
 import { map } from "../../libs/connections/mappers";
 import { throwIfNull } from "../../libs/errors";
 import { newStateHandler, newStateMapper } from "../../libs/named-state";
-import {
-  button,
-  Component,
-  div,
-  JsonHtml,
-  span,
-  View,
-} from "../../libs/simple-ui/render";
-import {
-  focusElement,
-  getTarget,
-  hasCtrlKey,
-  hasMetaKey,
-  isKey,
-} from "../../libs/simple-ui/utils/funtions";
+import { button, Component, div, JsonHtml, span, View } from "../../libs/simple-ui/render";
+import { focusElement, getTarget, hasCtrlKey, hasMetaKey, isKey } from "../../libs/simple-ui/utils/funtions";
 import { moreActions } from "../common/more-acctions";
 import { relativeDateOfAction } from "../common/relative-date";
 
-import { Annotation, QuoteSelector } from "./annotation";
+import { Annotation, AnnotationSelector } from "./annotation";
 import { Position } from "./selection";
 
 const annotationView: View<{
@@ -170,7 +156,7 @@ const commentFormView: View<{
 
 type Selection = {
   container: HTMLElement;
-  selector: QuoteSelector;
+  selector: AnnotationSelector;
 };
 export type CommentFormState =
   | ["hidden"]

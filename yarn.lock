@@ -3259,6 +3259,11 @@ entities@^2.0.0:
   resolved "https://registry.yarnpkg.com/entities/-/entities-2.0.3.tgz"
   integrity sha512-MyoZ0jgnLvB2X3Lg5HqpFmn1kybDiIfEQmKzTb5apr51Rb+T3KdmMiqa70T+bhGnyv7bQ6WMj2QMHpGMmlrUYQ==
 
+epub-cfi-resolver@^1.0.1:
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/epub-cfi-resolver/-/epub-cfi-resolver-1.0.1.tgz#f64a8eb5063e0bda9c486cc521fd8f675b47205a"
+  integrity sha512-mB4tiuZa0QP/cP3tQtI3BEDvWyCxx3Xw+HRQScpQrEYq9PL0eC8/nSIyisNffJQ1LbZkmOBIlLyf87qu8Xm1xg==
+
 errno@^0.1.3, errno@~0.1.7:
   version "0.1.7"
   resolved "https://registry.yarnpkg.com/errno/-/errno-0.1.7.tgz"

@@ -16,11 +16,7 @@ import {
   isQuoteSelector,
   QuoteSelector,
 } from "./annotation";
-import {
-  annotationDisplay,
-  AnnotationDisplayState,
-  commentForm,
-} from "./annotation-display";
+import { annotationDisplay, AnnotationDisplayState, commentForm } from "./annotation-display";
 import { containerText, removeSelector, renderSelector } from "./highlights";
 import { quoteSelectorForRange } from "./quote-selector";
 import { OptSelection, selectionPosition } from "./selection";
@@ -136,9 +132,14 @@ export const annotationsSupport: Component<
       buttons: [
         {
           handler: (selection) => {
-            const { range, container } = selection;
+            const { range, container, fragment } = selection;
             const text = containerText(container);
-            const selector = quoteSelectorForRange(container, text, range);
+            const selector = quoteSelectorForRange(
+              container,
+              text,
+              range,
+              fragment
+            );
             renderSelector(
               container,
               text,
@@ -149,7 +150,7 @@ export const annotationsSupport: Component<
               "visible",
               {
                 container,
-                selector: getQuoteSelector(selector),
+                selector,
                 position: selectionPosition(selection),
               },
             ]);
@@ -183,11 +184,15 @@ export const annotationsSupport: Component<
     "comment-form",
     commentForm({
       onHide: ({ container, selector }) => {
-        return removeSelector(container, containerText(container), selector);
+        return removeSelector(
+          container,
+          containerText(container),
+          getQuoteSelector(selector)
+        );
       },
       onCreatedComment: ({ container, selector, comment }) => {
         const text = containerText(container);
-        removeSelector(container, text, selector);
+        removeSelector(container, text, getQuoteSelector(selector));
         saveAnnotation({ container, selector, content: comment });
       },
     })
@@ -204,7 +209,6 @@ export const annotationsSupport: Component<
         documentHashUri: reference,
         fragment: fragment?.value,
       });
-      console.log("annotations", annotationsHashUris);
       annotationsHashUris.forEach((hashUri) => {
         ldStoreRead(hashUri).then(
           filter(nonNull, (annotation) => {
