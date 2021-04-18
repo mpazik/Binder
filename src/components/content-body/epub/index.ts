@@ -88,6 +88,8 @@ const prepareEpubPage = async (
   await Promise.all(
     Array.from(body.getElementsByTagName("img")).map((img) => {
       const src = img.getAttribute("src")!;
+      // reset src for the time we fetch the data as it seems that browser tries prefetch the image even if dom is not printed yet
+      img.setAttribute("src", "");
       getBlobFile(zip, absolute(filePath, src)).then((it) =>
         img.setAttribute("src", URL.createObjectURL(it))
       );
