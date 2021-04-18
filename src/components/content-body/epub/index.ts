@@ -27,6 +27,7 @@ import {
   Component,
   div,
   newSlot,
+  View,
   ViewSetup,
 } from "../../../libs/simple-ui/render";
 import { createEpubFragment } from "../../annotations/annotation";
@@ -101,6 +102,7 @@ type EpubChapter = {
   nextChapter?: EpubCfi;
   previousChapter?: EpubCfi;
   content: HTMLElement;
+  navigation?: EpubCfi;
 };
 
 type Epub = {
@@ -151,6 +153,7 @@ const openChapter = async (
     content: await prepareEpubPage(zip, path, packageDoc, rootFilePath),
     previousChapter: cfiForChapterItem(chapterItem.previousElementSibling),
     nextChapter: cfiForChapterItem(chapterItem.nextElementSibling),
+    navigation: passNull(generateEpubCfi)(packageDoc.getElementById("nav")),
   };
 };
 
@@ -173,6 +176,36 @@ const openEpub = async (content: Blob): Promise<Epub> => {
   };
 };
 
+const epubNav: View<{
+  nextChapter?: string;
+  previousChapter?: string;
+  navigation?: string;
+}> = ({ previousChapter, nextChapter, navigation }) =>
+  div(
+    { class: "d-flex flex-justify-between flex-items-center" },
+    a(
+      {
+        href: `#${previousChapter ?? ""}`,
+        style: { visibility: previousChapter ? "visible" : "hidden" },
+      },
+      "← previous"
+    ),
+    a(
+      {
+        href: `#${navigation ?? ""}`,
+        style: { visibility: navigation ? "visible" : "hidden" },
+      },
+      "navigation"
+    ),
+    a(
+      {
+        href: `#${nextChapter ?? ""}`,
+        style: { visibility: nextChapter ? "visible" : "hidden" },
+      },
+      "next →"
+    )
+  );
+
 const setupChapterView: ViewSetup<
   {
     onSelectionTrigger: () => void;
@@ -184,8 +217,10 @@ const setupChapterView: ViewSetup<
   content,
   nextChapter,
   previousChapter,
+  navigation,
 }) =>
   div(
+    epubNav({ previousChapter, navigation, nextChapter }),
     setupHtmlView({
       onDisplay: (container) => {
         onDisplay({
@@ -198,23 +233,7 @@ const setupChapterView: ViewSetup<
     })({
       content: content,
     }),
-    div(
-      { class: "d-flex flex-justify-between flex-items-center" },
-      a(
-        {
-          href: `#${previousChapter ?? ""}`,
-          style: { visibility: previousChapter ? "visible" : "hidden" },
-        },
-        "← previous"
-      ),
-      a(
-        {
-          href: `#${nextChapter ?? ""}`,
-          style: { visibility: nextChapter ? "visible" : "hidden" },
-        },
-        "next →"
-      )
-    )
+    epubNav({ previousChapter, navigation, nextChapter })
   );
 
 const contentComponent: Component<
