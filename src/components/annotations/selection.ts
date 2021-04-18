@@ -24,9 +24,7 @@ export const clearSelection = (): void => {
   window.getSelection()?.removeAllRanges();
 };
 
-const rangeText = (range: Range): string => range.toString().trim();
-
-const rangePosition = (range: Range): [left: number, top: number] => {
+const rangeMiddlePosition = (range: Range): [left: number, top: number] => {
   const { x, y, width } = range.getBoundingClientRect();
   return [x + width / 2, y];
 };
@@ -36,7 +34,7 @@ const rangePositionRelative = (
   element: HTMLElement
 ): [left: number, top: number] => {
   const { x, y } = element.getBoundingClientRect();
-  const [left, top] = rangePosition(range);
+  const [left, top] = rangeMiddlePosition(range);
   return [left - x, top - y];
 };
 

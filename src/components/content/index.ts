@@ -7,7 +7,7 @@ import {
 } from "../../functions/store";
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { Consumer, fork, splitMap, withState } from "../../libs/connections";
-import { map, pick, pipe } from "../../libs/connections/mappers";
+import { map, pick, pipe, to } from "../../libs/connections/mappers";
 import { throwIfNull2 } from "../../libs/errors";
 import {
   findHashUri,
@@ -15,6 +15,7 @@ import {
   LinkedDataWithHashId,
 } from "../../libs/linked-data";
 import { Component, div, newSlot } from "../../libs/simple-ui/render";
+import { getTarget } from "../../libs/simple-ui/utils/funtions";
 import { annotationsSupport } from "../annotations";
 import {
   contentDisplayComponent,
@@ -96,6 +97,7 @@ export const contentComponent: Component<
       displayDocumentAnnotations,
       setCreator,
       setReference,
+      setContainer,
     },
   ] = newSlot(
     "annotation-support",
@@ -126,7 +128,11 @@ export const contentComponent: Component<
       { id: "content", class: "ml-4" },
       contentFieldsSlot,
       div(
-        { id: "content-body", class: "mb-3 position-relative" },
+        {
+          id: "content-body",
+          class: "mb-3 position-relative",
+          onDisplay: map(getTarget, setContainer),
+        },
         contentSlot,
         annotationSupportSlot
       ),
@@ -139,9 +145,10 @@ export const contentComponent: Component<
     displayContent: fork(
       displayContent,
       setContextForSave,
+      map(to(undefined), displaySelectionToolbar),
       map(
         pick("linkedData"),
-        fork(renderFields, map(findHashUri, setReference), resetSaveBar)
+        fork(renderFields, map(findHashUri, fork(setReference)), resetSaveBar)
       )
     ),
     goToFragment,

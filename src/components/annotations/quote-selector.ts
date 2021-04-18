@@ -15,7 +15,7 @@ const nodeTextLength = (node: Node): number => {
 };
 
 const positionFromBegging = (
-  container: Node,
+  textLayer: Node,
   node: Node,
   offset = 0
 ): number => {
@@ -28,22 +28,21 @@ const positionFromBegging = (
   if (!node.parentElement) {
     throw new Error("Something");
   }
-  if (node.parentElement === container) return length;
-  return positionFromBegging(container, node.parentElement, length);
+  if (node.parentElement === textLayer) return length;
+  return positionFromBegging(textLayer, node.parentElement, length);
 };
 
 export const quoteSelectorForRange = (
-  container: HTMLElement,
+  textLayer: HTMLElement,
   text: string,
   range: Range,
   fragment?: DocFragment
 ): AnnotationSelector => {
   const positionStart = positionFromBegging(
-    container,
+    textLayer,
     range.startContainer,
     range.startOffset
   );
-  console.log(range, range.toString());
   const exact = range.toString().trim();
   const [prefix, suffix] = expandText(
     text,

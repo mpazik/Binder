@@ -4,7 +4,6 @@ import { updateBrowserHistory } from "../../functions/url-hijack";
 import { getUriFragment } from "../../libs/browser-providers";
 import {
   Callback,
-  combineAlways,
   Consumer,
   fork,
   passOnlyChanged,
@@ -13,31 +12,19 @@ import {
   withMultiState,
   withState,
 } from "../../libs/connections";
-import {
-  and,
-  defined,
-  definedTuple,
-  filter,
-} from "../../libs/connections/filters";
-import {
-  map,
-  passUndefined,
-  pick,
-  pipe,
-  to,
-} from "../../libs/connections/mappers";
+import { and, defined, filter } from "../../libs/connections/filters";
+import { map, passUndefined, pick, pipe } from "../../libs/connections/mappers";
 import { throwIfUndefined } from "../../libs/errors";
-import { HashUri } from "../../libs/hash";
 import {
   epubMediaType,
   getEncoding,
   htmlMediaType,
   pdfMediaType,
 } from "../../libs/ld-schemas";
-import { findHashUri, LinkedData } from "../../libs/linked-data";
+import { LinkedData } from "../../libs/linked-data";
 import { Component, div } from "../../libs/simple-ui/render";
 import { AnnotationDisplayRequest } from "../annotations";
-import { currentSelection, OptSelection } from "../annotations/selection";
+import { currentSelection } from "../annotations/selection";
 
 import { epubDisplay } from "./epub";
 import { htmlDisplay } from "./html";
@@ -55,7 +42,7 @@ export const contentDisplayComponent: Component<
   {
     contentSaver: ContentSaver;
     onAnnotationDisplayRequest: Consumer<AnnotationDisplayRequest>;
-    onSelect: Consumer<OptSelection>;
+    onSelect: Consumer<Range | undefined>;
   },
   {
     displayContent: LinkedDataWithContentAndFragment;
@@ -65,42 +52,9 @@ export const contentDisplayComponent: Component<
   render,
   onClose
 ) => {
-  const [
-    sendChangedSelection,
-    [setAnnotationContextForSelect],
-  ] = withMultiState<[DisplayContext], Range | undefined>(
-    ([annotationContext], range) => {
-      if (annotationContext) {
-        const {
-          container,
-          fragmentForAnnotations: fragment,
-        } = annotationContext;
-        range ? onSelect({ container, fragment, range }) : onSelect(undefined);
-      }
-    },
-    undefined
-  );
-
   const sendSelection: Callback<void> = map(
     currentSelection,
-    passOnlyChanged(sendChangedSelection)
-  );
-
-  const [setReference, setAnnotationContextForDisplay] = combineAlways<
-    [HashUri | undefined, DisplayContext | undefined]
-  >(
-    filter(
-      definedTuple,
-      map(([reference, { container, fragmentForAnnotations: fragment }]) => {
-        return {
-          container,
-          reference,
-          fragment,
-        };
-      }, onAnnotationDisplayRequest)
-    ),
-    undefined,
-    undefined
+    passOnlyChanged(onSelect)
   );
 
   // multi state with linkedData and fallback for update
@@ -126,8 +80,8 @@ export const contentDisplayComponent: Component<
   }, undefined);
 
   const displayAnnotations: Callback<DisplayContext> = fork(
-    setAnnotationContextForSelect,
-    setAnnotationContextForDisplay
+    ({ fragmentForAnnotations: fragment, container }) =>
+      onAnnotationDisplayRequest({ fragment, textLayer: container })
   );
 
   const updateHistory: Callback<DisplayContext> = map(
@@ -170,11 +124,7 @@ export const contentDisplayComponent: Component<
 
   return {
     displayContent: fork(
-      map(to(undefined), setAnnotationContextForDisplay),
-      map(
-        pick("linkedData"),
-        fork(map(findHashUri, setReference), setLinkedDataForSave)
-      ),
+      map(pick("linkedData"), setLinkedDataForSave),
       select<LinkedDataWithContent, string | undefined>(
         pipe(pick("linkedData"), passUndefined(getEncoding)),
         [

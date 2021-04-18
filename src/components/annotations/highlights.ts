@@ -10,50 +10,23 @@ type Rect = {
   right: number;
 };
 
-const positionRelative = (
-  element: HTMLElement,
-  container: HTMLElement
-): Rect => {
-  let top = 0;
-  let left = 0;
-  let node = element;
-  do {
-    top += node.offsetTop;
-    left += node.offsetLeft;
-    node = node.offsetParent as HTMLElement;
-  } while (node != null && node !== container);
-
-  return {
-    top,
-    left,
-    bottom: top + element.offsetHeight,
-    right: left + element.offsetWidth,
-  };
-};
-
-const getBoundingClientRect = (
-  collection: HTMLElement[],
-  container: HTMLElement
-): Rect => {
-  return collection
-    .map((n) => positionRelative(n, container))
+const getBoundingClientRect = (collection: HTMLElement[]): Rect =>
+  collection
+    .map((n) => n.getBoundingClientRect() as Rect)
     .reduce((acc, r) => ({
       top: Math.min(acc.top, r.top),
       left: Math.min(acc.left, r.left),
       bottom: Math.max(acc.bottom, r.bottom),
       right: Math.max(acc.right, r.right),
     }));
-};
 
 const getPositionFromHighlights = (
   highlights: HTMLElement[],
   container: HTMLElement
 ): Position => {
-  const { left, right, bottom } = getBoundingClientRect(highlights, container);
-  return [
-    left + container.offsetLeft + (right - left) / 2,
-    bottom + container.offsetTop,
-  ];
+  const { x, y } = container.getBoundingClientRect();
+  const { left, bottom, right } = getBoundingClientRect(highlights);
+  return [left + (right - left) / 2 - x, bottom - y];
 };
 
 type HighlightColor = "purple" | "green" | "yellow";
@@ -98,13 +71,13 @@ const removeHighlight = (part: Text): void => {
 };
 
 const findParts = (
-  root: HTMLElement,
+  textLayer: HTMLElement,
   start: number,
   length: number
 ): Text[] => {
   const end = start + length;
-  const iterator = root.ownerDocument.createNodeIterator(
-    root,
+  const iterator = textLayer.ownerDocument.createNodeIterator(
+    textLayer,
     NodeFilter.SHOW_TEXT // Only return `Text` nodes.
   );
 
@@ -143,7 +116,7 @@ const findParts = (
 };
 
 const findPartsBySelector = (
-  container: HTMLElement,
+  textLayer: HTMLElement,
   text: string,
   selector: QuoteSelector
 ): Text[] => {
@@ -155,18 +128,19 @@ const findPartsBySelector = (
     console.error(`Could not find selector "${JSON.stringify(selector)}`);
     return [];
   }
-  return findParts(container, start, exact.length);
+  return findParts(textLayer, start, exact.length);
 };
 
 export const renderSelector = (
   container: HTMLElement,
+  textLayer: HTMLElement,
   text: string,
   selector: QuoteSelector,
   color: HighlightColor,
   onHover?: (p: Position) => void,
   onHoverOut?: () => void
 ): void => {
-  const parts = findPartsBySelector(container, text, selector);
+  const parts = findPartsBySelector(textLayer, text, selector);
   const highlights = parts.map((it) =>
     wrapWithHighlight(
       it,
@@ -186,11 +160,11 @@ export const renderSelector = (
 };
 
 export const removeSelector = (
-  container: HTMLElement,
+  textLayer: HTMLElement,
   text: string,
   selector: QuoteSelector
 ): void => {
-  const parts = findPartsBySelector(container, text, selector);
+  const parts = findPartsBySelector(textLayer, text, selector);
   parts.forEach(removeHighlight);
 };
 

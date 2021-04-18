@@ -3,7 +3,13 @@ import { LinkedDataStoreWrite } from "../../functions/store";
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { fork, withMultiState, withState } from "../../libs/connections";
 import { filter, nonNull } from "../../libs/connections/filters";
-import { ignoreParam, map, withValue } from "../../libs/connections/mappers";
+import {
+  ignoreParam,
+  map,
+  pick,
+  to,
+  withValue,
+} from "../../libs/connections/mappers";
 import { throwIfNull } from "../../libs/errors";
 import { HashUri } from "../../libs/hash";
 import { Component, div, newSlot } from "../../libs/simple-ui/render";
@@ -16,21 +22,23 @@ import {
   isQuoteSelector,
   QuoteSelector,
 } from "./annotation";
-import { annotationDisplay, AnnotationDisplayState, commentForm } from "./annotation-display";
+import {
+  annotationDisplay,
+  AnnotationDisplayState,
+  commentForm,
+} from "./annotation-display";
 import { containerText, removeSelector, renderSelector } from "./highlights";
 import { quoteSelectorForRange } from "./quote-selector";
-import { OptSelection, selectionPosition } from "./selection";
+import { Selection, selectionPosition } from "./selection";
 import { selectionToolbar } from "./selection-toolbar";
 
 type AnnotationSaveArgs = {
-  container: HTMLElement;
   selector: AnnotationSelector;
   content?: string;
 };
 
 export type AnnotationDisplayRequest = {
-  container: HTMLElement;
-  reference: HashUri;
+  textLayer: HTMLElement;
   fragment?: DocFragment;
 };
 
@@ -58,8 +66,9 @@ export const annotationsSupport: Component<
   },
   {
     displayDocumentAnnotations: AnnotationDisplayRequest;
-    displaySelectionToolbar: OptSelection;
+    displaySelectionToolbar: Range | undefined;
     setCreator: string;
+    setContainer: HTMLElement;
     setReference: HashUri | undefined;
   }
 > = ({
@@ -78,7 +87,7 @@ export const annotationsSupport: Component<
         requestDocumentSave();
         return;
       }
-      const { container, selector, content } = annotationSaveArgs;
+      const { selector, content } = annotationSaveArgs;
       const annotation = createAnnotation(
         reference,
         selector,
@@ -86,11 +95,7 @@ export const annotationsSupport: Component<
         creator ?? undefined
       );
       ldStoreWrite(annotation).then(() => {
-        displayAnnotationSelection(
-          container,
-          containerText(container),
-          annotation
-        );
+        changeSelection(["display", annotation]);
       });
     },
     undefined,
@@ -108,53 +113,71 @@ export const annotationsSupport: Component<
     null
   );
 
-  const displayAnnotationSelection = (
-    container: HTMLElement,
-    text: string,
-    annotation: Annotation
-  ) =>
-    renderSelector(
-      container,
-      text,
-      getQuoteSelector(annotation.target.selector),
-      annotation.motivation === "commenting" ? "yellow" : "green",
-      map(
-        (position) =>
-          ["visible", { annotation, position }] as AnnotationDisplayState,
-        displayAnnotation
-      ),
-      withValue(["hidden"], displayAnnotation)
-    );
+  const [
+    changeSelection,
+    [setContainerForSelector, setTextLayerForSelector],
+  ] = withMultiState<
+    [HTMLElement, HTMLElement | undefined],
+    ["display", Annotation] | ["select", Selection] | ["remove", QuoteSelector]
+  >(
+    ([container, textLayer], change) => {
+      if (!container || !textLayer) {
+        return;
+      }
+      const text = containerText(textLayer);
+      if (change[0] === "display") {
+        const annotation = change[1];
+        renderSelector(
+          container,
+          textLayer,
+          text,
+          getQuoteSelector(annotation.target.selector),
+          annotation.motivation === "commenting" ? "yellow" : "green",
+          map(
+            (position) =>
+              ["visible", { annotation, position }] as AnnotationDisplayState,
+            displayAnnotation
+          ),
+          withValue(["hidden"], displayAnnotation)
+        );
+      } else if (change[0] === "select") {
+        const selection = change[1];
+        const { fragment, range } = selection;
+        const selector = quoteSelectorForRange(
+          textLayer,
+          text,
+          range,
+          fragment
+        );
+        renderSelector(
+          container,
+          textLayer,
+          text,
+          getQuoteSelector(selector),
+          "purple"
+        );
+        displayCommentForm([
+          "visible",
+          {
+            selector,
+            position: selectionPosition(selection),
+          },
+        ]);
+      } else {
+        const selector = change[1];
+        removeSelector(textLayer, text, selector);
+      }
+    },
+    undefined,
+    undefined
+  );
 
   const [selectionToolbarSlot, { selectionHandler }] = newSlot(
     "selection-toolbar",
     selectionToolbar({
       buttons: [
         {
-          handler: (selection) => {
-            const { range, container, fragment } = selection;
-            const text = containerText(container);
-            const selector = quoteSelectorForRange(
-              container,
-              text,
-              range,
-              fragment
-            );
-            renderSelector(
-              container,
-              text,
-              getQuoteSelector(selector),
-              "purple"
-            );
-            displayCommentForm([
-              "visible",
-              {
-                container,
-                selector,
-                position: selectionPosition(selection),
-              },
-            ]);
-          },
+          handler: (it) => changeSelection(["select", it]),
           label: "comment",
           shortCutKey: "KeyC",
         },
@@ -167,7 +190,7 @@ export const annotationsSupport: Component<
               range,
               fragment
             );
-            saveAnnotation({ container, selector });
+            saveAnnotation({ selector });
           },
           label: "highlight",
           shortCutKey: "KeyH",
@@ -175,6 +198,23 @@ export const annotationsSupport: Component<
       ],
     })
   );
+
+  const [
+    displaySelectionToolbar,
+    [setFragmentForToolbar, setContainerForToolbar],
+  ] = withMultiState<[DocFragment | undefined, HTMLElement], Range | undefined>(
+    ([fragment, container], range) => {
+      if (!container) return;
+      if (range) {
+        selectionHandler({ range, fragment, container });
+      } else {
+        selectionHandler(undefined);
+      }
+    },
+    undefined,
+    undefined
+  );
+
   const [annotationDisplaySlot, { displayAnnotation }] = newSlot(
     "annotation-display",
     annotationDisplay()
@@ -183,43 +223,52 @@ export const annotationsSupport: Component<
   const [commentFormSlot, { displayCommentForm }] = newSlot(
     "comment-form",
     commentForm({
-      onHide: ({ container, selector }) => {
-        return removeSelector(
-          container,
-          containerText(container),
-          getQuoteSelector(selector)
-        );
-      },
-      onCreatedComment: ({ container, selector, comment }) => {
-        const text = containerText(container);
-        removeSelector(container, text, getQuoteSelector(selector));
-        saveAnnotation({ container, selector, content: comment });
+      onHide: ({ selector }) =>
+        changeSelection(["remove", getQuoteSelector(selector)]),
+      onCreatedComment: ({ selector, comment }) => {
+        saveAnnotation({ selector, content: comment });
       },
     })
   );
 
-  render(div(commentFormSlot, annotationDisplaySlot, selectionToolbarSlot));
-  return {
-    setReference: fork(setReference, ignoreParam(saveKeptAnnotation)),
-    displaySelectionToolbar: selectionHandler,
-    setCreator: setCreator,
-    displayDocumentAnnotations: async ({ container, reference, fragment }) => {
-      const text = containerText(container);
+  const [
+    displayDocumentAnnotations,
+    setReferenceForAnnotationDisplay,
+  ] = withState<HashUri | undefined, AnnotationDisplayRequest>(
+    async (reference, { fragment }) => {
       const annotationsHashUris = await documentAnnotationsIndex({
-        documentHashUri: reference,
+        documentHashUri: throwIfNull(reference),
         fragment: fragment?.value,
       });
       annotationsHashUris.forEach((hashUri) => {
         ldStoreRead(hashUri).then(
           filter(nonNull, (annotation) => {
-            displayAnnotationSelection(
-              container,
-              text,
-              (annotation as unknown) as Annotation
-            );
+            changeSelection(["display", (annotation as unknown) as Annotation]);
           })
         );
       });
     },
+    undefined
+  );
+
+  render(div(commentFormSlot, annotationDisplaySlot, selectionToolbarSlot));
+  return {
+    setReference: fork(
+      setReference,
+      setReferenceForAnnotationDisplay,
+      ignoreParam(saveKeptAnnotation)
+    ),
+    setContainer: fork(
+      setContainerForSelector,
+      setContainerForToolbar,
+      map(to(undefined), setTextLayerForSelector)
+    ),
+    setCreator: setCreator,
+    displaySelectionToolbar,
+    displayDocumentAnnotations: fork(
+      map(pick("fragment"), setFragmentForToolbar),
+      map(pick("textLayer"), setTextLayerForSelector),
+      displayDocumentAnnotations
+    ),
   };
 };

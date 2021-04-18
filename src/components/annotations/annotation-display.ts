@@ -168,7 +168,6 @@ const commentFormView: View<{
   );
 
 type Selection = {
-  container: HTMLElement;
   selector: AnnotationSelector;
 };
 export type CommentFormState =
@@ -187,11 +186,10 @@ export const commentForm: Component<
   { displayCommentForm: CommentFormState }
 > = ({ onCreatedComment, onHide }) => (render) => {
   const [createComment, setContainer] = withState<HTMLElement, Selection>(
-    (editor, { selector, container }) => {
+    (editor, { selector }) => {
       onCreatedComment({
         comment: throwIfNull(editor).innerHTML,
         selector,
-        container,
       });
     }
   );
