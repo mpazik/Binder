@@ -49,6 +49,7 @@ export const processFileToContent = async (
   if (!processor)
     throw new Error(`Content type "${contentType}" not supported`);
 
+  // todo we be good to do a reverse search here for a linked data to the file hash
   return processor.process(file, {
     name: file.name,
     createTime: new Date(file.lastModified).toISOString(),
