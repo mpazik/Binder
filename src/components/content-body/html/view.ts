@@ -30,7 +30,7 @@ export const setupEditableHtmlView: ViewSetup<
 > = ({ onDocumentChange, onDisplay, onSelectionTrigger }) => ({ content }) =>
   article({
     contenteditable: true,
-    class: "editable markdown-body flex-1",
+    class: "editable markdown-body flex-1 position-relative",
     style: { outline: "none" },
     onInput: detectDocumentChange(content, onDocumentChange),
     dangerouslySetDom: content,
@@ -47,7 +47,7 @@ export const setupHtmlView: ViewSetup<
   HtmlContent
 > = ({ onDisplay, onSelectionTrigger }) => ({ content }) =>
   article({
-    class: "markdown-body flex-1",
+    class: "markdown-body flex-1 position-relative",
     dangerouslySetDom: content,
     onMouseup: onSelectionTrigger,
     onFocusout: onSelectionTrigger,

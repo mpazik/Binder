@@ -25,6 +25,7 @@ export const clearSelection = (): void => {
 };
 
 const rangeText = (range: Range): string => range.toString().trim();
+
 const rangePosition = (range: Range): [left: number, top: number] => {
   const { x, y, width } = range.getBoundingClientRect();
   return [x + width / 2, y];

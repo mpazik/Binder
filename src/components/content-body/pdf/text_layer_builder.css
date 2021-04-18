@@ -37,23 +37,14 @@
     margin: -1px;
     padding: 1px;
     background-color: rgba(180, 0, 170, 1);
-    border-radius: 4px;
 }
 
-.textLayer .highlight.begin {
-    border-radius: 4px 0 0 4px;
-}
-
-.textLayer .highlight.end {
-    border-radius: 0 4px 4px 0;
-}
-
-.textLayer .highlight.middle {
-    border-radius: 0;
-}
-
-.textLayer .highlight.selected {
+.textLayer .highlight.highlight-green {
     background-color: rgba(0, 100, 0, 1);
+}
+
+.textLayer .highlight.highlight-yellow {
+    background-color: rgb(255, 170, 0);
 }
 
 .textLayer ::selection {

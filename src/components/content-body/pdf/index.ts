@@ -139,7 +139,7 @@ const setupPdfPageView: ViewSetup<
     }),
     div(
       {
-        style: { position: "relative" },
+        class: "position-relative",
         onDisplay: map(getTarget, (container) =>
           onDisplay({
             container,

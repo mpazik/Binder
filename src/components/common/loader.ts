@@ -100,7 +100,7 @@ const defaultErrorView: ErrorView = ({ reason, retry }) =>
   div(
     { class: "flash mt-3 flash-error" },
     p(reason),
-    button({ onClick: retry }, "Retry")
+    button({ class: "btn", onClick: retry }, "Retry")
   );
 
 const loaderView = <C, R, V extends Prop>({
@@ -143,7 +143,10 @@ export const loaderWithContext = <C, R, V extends Prop>({
   ): Promise<LoaderAction<C, R, V>> =>
     promise
       .then((article) => ["display", article] as LoaderAction<C, R, V>)
-      .catch((error) => ["fail", error.toString()] as LoaderAction<C, R, V>);
+      .catch((error) => {
+        console.error(error);
+        return ["fail", error.toString()] as LoaderAction<C, R, V>;
+      });
 
   const stateMachine: Consumer<LoaderAction<C, R, V>> = newLoaderStateMachine(
     fork(

@@ -10,28 +10,50 @@ type Rect = {
   right: number;
 };
 
-const getBoundingClientRect = (collection: HTMLElement[]): Rect =>
-  collection
-    .map((n) => n.getBoundingClientRect() as Rect)
+const positionRelative = (
+  element: HTMLElement,
+  container: HTMLElement
+): Rect => {
+  let top = 0;
+  let left = 0;
+  let node = element;
+  do {
+    top += node.offsetTop;
+    left += node.offsetLeft;
+    node = node.offsetParent as HTMLElement;
+  } while (node != null && node !== container);
+
+  return {
+    top,
+    left,
+    bottom: top + element.offsetHeight,
+    right: left + element.offsetWidth,
+  };
+};
+
+const getBoundingClientRect = (
+  collection: HTMLElement[],
+  container: HTMLElement
+): Rect => {
+  return collection
+    .map((n) => positionRelative(n, container))
     .reduce((acc, r) => ({
       top: Math.min(acc.top, r.top),
       left: Math.min(acc.left, r.left),
       bottom: Math.max(acc.bottom, r.bottom),
       right: Math.max(acc.right, r.right),
     }));
-
-const getPositionFromHighlights = (highlights: HTMLElement[]): Position => {
-  const { left, top, right } = getBoundingClientRect(highlights);
-  return [left + (right - left) / 2, top];
 };
 
-const positionRelative = (
-  position: Position,
-  element: HTMLElement
-): [left: number, top: number] => {
-  const { x, y } = element.getBoundingClientRect();
-  const [left, top] = position;
-  return [left - x, top - y];
+const getPositionFromHighlights = (
+  highlights: HTMLElement[],
+  container: HTMLElement
+): Position => {
+  const { left, right, bottom } = getBoundingClientRect(highlights, container);
+  return [
+    left + container.offsetLeft + (right - left) / 2,
+    bottom + container.offsetTop,
+  ];
 };
 
 type HighlightColor = "purple" | "green" | "yellow";
@@ -152,10 +174,10 @@ export const renderSelector = (
       onHover
         ? () => {
             const positionFromHighlights = getPositionFromHighlights(
-              highlights
+              highlights,
+              container
             );
-            const p = positionRelative(positionFromHighlights, container);
-            onHover(p);
+            onHover(positionFromHighlights);
           }
         : undefined,
       onHoverOut
