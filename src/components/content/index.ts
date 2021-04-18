@@ -16,7 +16,10 @@ import {
 } from "../../libs/linked-data";
 import { Component, div, newSlot } from "../../libs/simple-ui/render";
 import { annotationsSupport } from "../annotations";
-import { contentDisplayComponent } from "../content-body";
+import {
+  contentDisplayComponent,
+  LinkedDataWithContentAndFragment,
+} from "../content-body";
 
 import { contentHeader } from "./content-header";
 import { EditBarState, saveBar } from "./edit-bar";
@@ -31,7 +34,11 @@ export const contentComponent: Component<
     onSave: Consumer<LinkedDataWithHashId>;
     documentAnnotationsIndex: DocumentAnnotationsIndex;
   },
-  { setCreator: string; setContent: LinkedDataWithContent }
+  {
+    setCreator: string;
+    displayContent: LinkedDataWithContentAndFragment;
+    goToFragment: string;
+  }
 > = ({
   storeWrite,
   ldStoreWrite,
@@ -100,7 +107,7 @@ export const contentComponent: Component<
     })
   );
 
-  const [contentSlot, { displayContent }] = newSlot(
+  const [contentSlot, { displayContent, goToFragment }] = newSlot(
     "content",
     contentDisplayComponent({
       contentSaver,
@@ -129,7 +136,7 @@ export const contentComponent: Component<
 
   return {
     setCreator,
-    setContent: fork(
+    displayContent: fork(
       displayContent,
       setContextForSave,
       map(
@@ -137,5 +144,6 @@ export const contentComponent: Component<
         fork(renderFields, map(findHashUri, setReference), resetSaveBar)
       )
     ),
+    goToFragment,
   };
 };

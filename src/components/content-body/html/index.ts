@@ -1,9 +1,10 @@
-import { Callback } from "../../../libs/connections";
-import { map, wrap } from "../../../libs/connections/mappers";
+import { Callback, fork } from "../../../libs/connections";
+import { map, pick, wrap } from "../../../libs/connections/mappers";
 import { Component, newSlot } from "../../../libs/simple-ui/render";
 import { loader } from "../../common/loader";
 import { ContentComponent } from "../types";
 
+import { scrollToPageTopWhenNoFragment } from "./utils";
 import { processToHtml } from "./utils";
 import { HtmlContent, setupHtmlView } from "./view";
 
@@ -29,7 +30,10 @@ export const htmlDisplay: ContentComponent = ({
     "html-content",
     contentComponent({
       onSelectionTrigger,
-      onDisplay: map(wrap("container"), onDisplay),
+      onDisplay: map(
+        wrap("container"),
+        fork(onDisplay, scrollToPageTopWhenNoFragment)
+      ),
     })
   );
 
@@ -40,6 +44,9 @@ export const htmlDisplay: ContentComponent = ({
   })(render, onClose);
 
   return {
-    displayContent: load,
+    displayContent: map(pick("content"), load),
+    goToFragment: () => {
+      // handled by browser
+    },
   };
 };

@@ -12,9 +12,15 @@ import { PDFDocumentProxy } from "pdfjs-dist/types/display/api";
 
 import { Callback, fork } from "../../../libs/connections";
 import { defined, filter } from "../../../libs/connections/filters";
-import { map, to } from "../../../libs/connections/mappers";
 import {
-  button,
+  map,
+  passUndefined,
+  pick,
+  pipe,
+  withDefaultValue,
+} from "../../../libs/connections/mappers";
+import {
+  a,
   Component,
   div,
   newSlot,
@@ -26,6 +32,7 @@ import { getTarget } from "../../../libs/simple-ui/utils/funtions";
 import { createPdfFragment } from "../../annotations/annotation";
 import { loaderWithContext } from "../../common/loader";
 import { ContentComponent, DisplayContext } from "../types";
+import { scrollToTop } from "../utils";
 
 // The workerSrc property shall be specified.
 pdfJsLib.GlobalWorkerOptions.workerSrc = "./pdf.worker.js";
@@ -90,42 +97,36 @@ const openPage = async (
 
 const pdfNav: View<{
   currentPage: number;
-  openPage: (page: number) => void;
   numberOfPages: number;
-}> = ({ currentPage, openPage, numberOfPages }) =>
+}> = ({ currentPage, numberOfPages }) =>
   div(
     { class: "d-flex flex-justify-between flex-items-center" },
-    button(
+    a(
       {
-        class: "btn",
-        onClick: () => {
-          openPage(currentPage - 1);
-        },
-        disabled: currentPage === 1,
+        href: `#page=${currentPage - 1}`,
+        style: { visibility: currentPage === 1 ? "hidden" : "visible" },
       },
-      "previous"
+      "← previous"
     ),
     span(`${currentPage}/${numberOfPages}`),
-    button(
+    a(
       {
-        class: "btn",
-        onClick: () => {
-          openPage(currentPage + 1);
+        href: `#page=${currentPage + 1}`,
+        style: {
+          visibility: currentPage === numberOfPages ? "hidden" : "visible",
         },
-        disabled: currentPage === numberOfPages,
       },
-      "next"
+      "next →"
     )
   );
 
 const setupPdfPageView: ViewSetup<
   {
-    openPage: (page: number) => void;
     onDisplay: Callback<DisplayContext>;
     onSelectionTrigger: Callback;
   },
   PdfPage
-> = ({ openPage, onDisplay, onSelectionTrigger }) => ({
+> = ({ onDisplay, onSelectionTrigger }) => ({
   currentPage,
   canvas,
   textLayer,
@@ -135,7 +136,6 @@ const setupPdfPageView: ViewSetup<
     pdfNav({
       currentPage,
       numberOfPages,
-      openPage,
     }),
     div(
       {
@@ -143,7 +143,8 @@ const setupPdfPageView: ViewSetup<
         onDisplay: map(getTarget, (container) =>
           onDisplay({
             container,
-            fragment: createPdfFragment("page=" + currentPage),
+            fragmentForAnnotations: createPdfFragment("page=" + currentPage),
+            fragment: "page=" + currentPage,
           })
         ),
       },
@@ -157,20 +158,17 @@ const setupPdfPageView: ViewSetup<
     pdfNav({
       currentPage,
       numberOfPages,
-      openPage,
     })
   );
 
 const contentComponent: Component<
   {
     onSelectionTrigger: Callback;
-    onPageOpen: Callback<number>;
     onDisplay: Callback<DisplayContext>;
   },
   { renderPage: PdfPage }
-> = ({ onPageOpen, onDisplay, onSelectionTrigger }) => (render) => {
+> = ({ onDisplay, onSelectionTrigger }) => (render) => {
   const pdfPageView = setupPdfPageView({
-    openPage: onPageOpen,
     onDisplay,
     onSelectionTrigger,
   });
@@ -188,6 +186,23 @@ const openPdf = (content: Blob): Promise<PdfDocument> =>
       }).promise
   );
 
+const parsePageFragment = (fragment: string): number | undefined => {
+  const parsePageFragmentRaw = (fragment: string): number | undefined => {
+    if (!fragment.startsWith("page=")) return;
+    try {
+      return Number.parseInt(fragment.substring(5));
+    } catch (e) {
+      return undefined;
+    }
+  };
+
+  const page = parsePageFragmentRaw(fragment);
+  if (page) {
+    return page;
+  }
+  console.error(`Could not parse page number from ${fragment}`);
+};
+
 export const pdfDisplay: ContentComponent = ({
   onSelectionTrigger,
   onDisplay,
@@ -196,10 +211,7 @@ export const pdfDisplay: ContentComponent = ({
     "content",
     contentComponent({
       onSelectionTrigger,
-      onDisplay,
-      onPageOpen: (it) => {
-        load(it);
-      },
+      onDisplay: fork(onDisplay, map(pick("container"), scrollToTop)),
     })
   );
 
@@ -220,6 +232,17 @@ export const pdfDisplay: ContentComponent = ({
   })(render, onClose);
 
   return {
-    displayContent: fork(map(openPdf, init), map(to(1), load)),
+    displayContent: fork(
+      map(pipe(pick("content"), openPdf), init),
+      map(
+        pipe(
+          pick("fragment"),
+          passUndefined(parsePageFragment),
+          withDefaultValue(1)
+        ),
+        load
+      )
+    ),
+    goToFragment: map(parsePageFragment, filter(defined, load)),
   };
 };

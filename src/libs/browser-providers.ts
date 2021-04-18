@@ -12,11 +12,21 @@ export const urlHashProvider: Provider<string> = (onClose, push) => {
   });
 };
 
-export const queryParamProvider: Provider<URLSearchParams> = (
-  onClose,
-  push
-) => {
-  const update = () => push(new URLSearchParams(window.location.search));
+export const getQueryParams = (): URLSearchParams =>
+  new URLSearchParams(window.location.search);
+
+export const getUriFragment = (): string | undefined =>
+  window.location.hash ? window.location.hash.substring(1) : undefined;
+
+export const queryParamProvider: Provider<{
+  queryParams: URLSearchParams;
+  fragment?: string;
+}> = (onClose, push) => {
+  const update = () =>
+    push({
+      queryParams: getQueryParams(),
+      fragment: getUriFragment(),
+    });
 
   setImmediate(update);
   window.addEventListener("popstate", update);

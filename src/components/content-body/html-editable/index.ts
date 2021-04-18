@@ -13,7 +13,11 @@ import { Component, div, newSlot } from "../../../libs/simple-ui/render";
 import { loader } from "../../common/loader";
 import { modal } from "../../common/modal";
 import { EditBarState } from "../../content/edit-bar";
-import { documentToHtmlContent, processToDocument } from "../html/utils";
+import {
+  documentToHtmlContent,
+  processToDocument,
+  scrollToPageTopWhenNoFragment,
+} from "../html/utils";
 import { HtmlContent, setupEditableHtmlView } from "../html/view";
 import { DisplayContext, ContentComponent } from "../types";
 
@@ -162,7 +166,7 @@ export const htmlEditableDisplay: ContentComponent = ({
     contentComponent({
       onSelectionTrigger,
       onContentModified,
-      onDisplay,
+      onDisplay: fork(onDisplay, scrollToPageTopWhenNoFragment),
     })
   );
 
@@ -173,7 +177,10 @@ export const htmlEditableDisplay: ContentComponent = ({
   })(render, onClose);
 
   return {
-    displayContent: load,
+    displayContent: map(pick("content"), load),
+    goToFragment: () => {
+      // handled by browser
+    },
     saveComplete,
   };
 };

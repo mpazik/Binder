@@ -1,4 +1,6 @@
 // From https://github.com/fread-ink/epub-cfi-resolver/blob/master/index.js
+import { throwIfNull } from "../errors";
+
 function cfiEscape(str: string) {
   return str.replace(/[[\]^,();]/g, "^$&");
 }
@@ -75,23 +77,51 @@ const generatePart = ({ node, offset }: CfiNode) => {
   return cfi;
 };
 
-export const generateEpubcfi = (
-  node: CfiNode | CfiNode[],
+export type EpubCfi = string;
+
+export const generateEpubCfi = (
+  node: Node | Node[],
   extra?: string
-): string => {
+): EpubCfi => {
   let cfi;
 
   if (node instanceof Array) {
     const strs = [];
     for (const n of node) {
-      strs.push(generatePart(n));
+      strs.push(generatePart({ node: n, offset: 0 }));
     }
     cfi = strs.join("!");
   } else {
-    cfi = generatePart(node);
+    cfi = generatePart({ node, offset: 0 });
   }
 
   if (extra) cfi += extra;
 
-  return "epubcfi(" + cfi + ")";
+  return `epubcfi(${cfi})`;
 };
+
+export const emptyEpubCfi = "epubcfi()";
+
+const isCFI = new RegExp(/^epubcfi\((.*)\)$/);
+const hasNodeId = new RegExp(/^.*\[(.*)]$/);
+
+export const getCfiParts = (cfi: EpubCfi): string[] => {
+  const match = cfi.trim().match(isCFI);
+  if (!match) throw new Error("Not a valid CFI");
+  const cfiContent = match[1];
+  return cfiContent.split("!");
+};
+
+export const nodeIdFromCfiPart = (cfiPart: string): string => {
+  const nodeIdMatch = cfiPart.match(hasNodeId);
+  if (!nodeIdMatch)
+    throw new Error(`CFI part '${cfiPart}' does not have node id at the end`);
+  return nodeIdMatch[1];
+};
+
+// Simplistic implementation not compatible with standards, works only on ids,
+export const customParseFirstSegmentEpubCfi = (
+  cfi: EpubCfi,
+  dom: Document
+): Element =>
+  throwIfNull(dom.getElementById(nodeIdFromCfiPart(getCfiParts(cfi)[0])));

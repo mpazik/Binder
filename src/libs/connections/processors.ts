@@ -161,13 +161,6 @@ export const select = <T, S>(
   defaultCallback(value);
 };
 
-export const withDefaultValue = <T>(
-  defaultValue: T,
-  callback: Callback<T>
-): Callback<T | undefined | null> => (value) => {
-  callback(value ?? defaultValue);
-};
-
 export const fork = <T = void>(...consumers: Consumer<T>[]): Consumer<T> => (
   data
 ) => {

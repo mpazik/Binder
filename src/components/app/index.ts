@@ -1,7 +1,10 @@
 import "./styles.css";
 import "./loading.css";
 
-import { processFileToContent } from "../../functions/content-processors";
+import {
+  LinkedDataWithContent,
+  processFileToContent,
+} from "../../functions/content-processors";
 import { createProxyFetch, Fetch } from "../../functions/fetch-trough-proxy";
 import { gdrive } from "../../functions/gdrive/controller";
 import { createCompositeIndexer } from "../../functions/indexes/composite-indexer";
@@ -32,10 +35,18 @@ import {
 } from "../../functions/store/local-store";
 import {
   currentDocumentUriProvider,
+  newUriWithFragment,
   updateBrowserHistory,
+  UriWithFragment,
 } from "../../functions/url-hijack";
-import { combine, fork } from "../../libs/connections";
-import { filter } from "../../libs/connections/filters";
+import {
+  combine,
+  fork,
+  reduce,
+  split,
+  withMultiState,
+} from "../../libs/connections";
+import { defined, filter } from "../../libs/connections/filters";
 import {
   head,
   map,
@@ -174,7 +185,7 @@ export const App = asyncLoader(
       })
     );
 
-    const [contentSlot, { setCreator, setContent }] = newSlot(
+    const [contentSlot, { setCreator, displayContent, goToFragment }] = newSlot(
       "content",
       contentComponent({
         storeWrite: store.writeResource,
@@ -185,9 +196,16 @@ export const App = asyncLoader(
       })
     );
 
+    const [displayContentWithFragment, [setFragment]] = withMultiState<
+      [string | undefined],
+      LinkedDataWithContent
+    >(([fragment], content) => {
+      displayContent({ fragment, ...content });
+    }, undefined);
+
     const [
       contentLoaderSlot,
-      { load: loadUri, display: displayFile },
+      { load: loadResource, display: displayFile },
     ] = newSlot(
       "content-loader",
       loader({
@@ -196,7 +214,7 @@ export const App = asyncLoader(
           map(pick("linkedData"), (linkedData) =>
             selectItem(linkedData["@id"] as HashUri)
           ),
-          setContent,
+          displayContentWithFragment,
           map(to(true), setContentReady)
         ),
         contentSlot,
@@ -206,10 +224,34 @@ export const App = asyncLoader(
     const [fileDropSlot, { displayFileDrop }] = newSlot(
       "file-drop",
       fileDrop({
-        onFile: mapAwait(processFileToContent, displayFile, (error) => {
-          console.error(error);
-        }),
+        onFile: mapAwait(
+          processFileToContent,
+          fork(map(to(undefined), setFragment), displayFile),
+          (error) => {
+            console.error(error);
+          }
+        ),
       })
+    );
+
+    const loadUri = reduce<
+      UriWithFragment & { uriChanged: boolean },
+      UriWithFragment
+    >(
+      { uri: "", uriChanged: false },
+      (old, { uri, fragment }) => ({
+        uri,
+        fragment,
+        uriChanged: uri !== old.uri,
+      }),
+      split(
+        pick("uriChanged"),
+        ({ uri, fragment }) => {
+          setFragment(fragment);
+          loadResource(uri);
+        },
+        map(pick("fragment"), filter(defined, goToFragment))
+      )
     );
 
     currentDocumentUriProvider({
@@ -231,7 +273,10 @@ export const App = asyncLoader(
           },
           profilePanelSlot,
           searchBox(
-            map((url) => url.toString(), fork(updateBrowserHistory, loadUri))
+            map(
+              (url) => newUriWithFragment(url.toString()),
+              fork(updateBrowserHistory, loadUri)
+            )
           ),
           contentNavSlot
         ),

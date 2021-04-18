@@ -4,6 +4,12 @@ import { DocFragment } from "../annotations/annotation";
 
 export type DisplayContext = {
   container: HTMLElement;
+  fragment?: string;
+  fragmentForAnnotations?: DocFragment;
+};
+
+export type AnnotationContext = {
+  container: HTMLElement;
   fragment?: DocFragment;
 };
 
@@ -14,5 +20,9 @@ export type DisplayController = {
 };
 export type ContentComponent = Component<
   DisplayController,
-  { displayContent: Blob; saveComplete?: void }
+  {
+    displayContent: { content: Blob; fragment?: string };
+    goToFragment: string;
+    saveComplete?: void;
+  }
 >;

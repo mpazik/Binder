@@ -1,13 +1,29 @@
 import * as JSZip from "jszip";
 
+import { newUriWithFragment } from "../../../functions/url-hijack";
 import { Callback, fork } from "../../../libs/connections";
-import { map, to } from "../../../libs/connections/mappers";
+import { defined, filter } from "../../../libs/connections/filters";
+import {
+  map,
+  passNull,
+  passUndefined,
+  pick,
+  pipe,
+  withDefaultValue,
+} from "../../../libs/connections/mappers";
 import { getBlobFile, getXmlFile, ZipObject } from "../../../libs/epub";
-import { generateEpubcfi } from "../../../libs/epubcli";
+import {
+  customParseFirstSegmentEpubCfi,
+  emptyEpubCfi,
+  EpubCfi,
+  generateEpubCfi,
+  getCfiParts,
+  nodeIdFromCfiPart,
+} from "../../../libs/epubcfi";
 import { throwIfNull } from "../../../libs/errors";
 import { measureAsyncTime } from "../../../libs/performance";
 import {
-  button,
+  a,
   Component,
   div,
   newSlot,
@@ -17,6 +33,7 @@ import { createEpubFragment } from "../../annotations/annotation";
 import { loaderWithContext } from "../../common/loader";
 import { setupHtmlView } from "../html/view";
 import { ContentComponent, DisplayContext } from "../types";
+import { scrollToElement, scrollToTop } from "../utils";
 
 const absolute = (base: string, relative: string) => {
   const separator = "/";
@@ -35,15 +52,42 @@ const absolute = (base: string, relative: string) => {
 
 const prepareEpubPage = async (
   zip: ZipObject,
-  file: string
+  file: string,
+  packageDoc: Document,
+  rootFilePath: string
 ): Promise<HTMLElement> => {
-  const chapter = await getXmlFile(zip, file);
+  const filePath = absolute(rootFilePath, file);
+  const chapter = await getXmlFile(zip, filePath);
   const body = chapter.body;
+
+  Array.from(body.getElementsByTagName("a")).forEach((anchor) => {
+    const url = anchor.getAttribute("href");
+    if (!url || url.includes(":")) return anchor;
+
+    const { uri, fragment } = newUriWithFragment(url);
+    const path = uri === "" ? file : absolute(file, uri);
+    const manifestItem = packageDoc.querySelector(
+      `manifest > item[href='${path}']`
+    );
+    if (!manifestItem) {
+      console.error(`Could not find item in manifest for '${path}'`);
+      return anchor;
+    }
+    anchor.setAttribute(
+      "href",
+      `#${generateEpubCfi(
+        manifestItem,
+        passUndefined((f) => `![${f}]`)(fragment)
+      )}`
+    );
+
+    return anchor;
+  });
 
   await Promise.all(
     Array.from(body.getElementsByTagName("img")).map((img) => {
       const src = img.getAttribute("src")!;
-      getBlobFile(zip, absolute(file, src)).then((it) =>
+      getBlobFile(zip, absolute(filePath, src)).then((it) =>
         img.setAttribute("src", URL.createObjectURL(it))
       );
     })
@@ -53,33 +97,60 @@ const prepareEpubPage = async (
 };
 
 type EpubChapter = {
-  currentChapter: number;
-  numberOfChapters: number;
+  currentChapter: EpubCfi;
+  nextChapter?: EpubCfi;
+  previousChapter?: EpubCfi;
   content: HTMLElement;
-  chapterFragment: string;
 };
 
 type Epub = {
-  spineItems: HTMLCollectionOf<Element>;
   packageDoc: Document;
   zip: JSZip;
-  rootDir: string;
+  rootFilePath: string;
 };
 
 const openChapter = async (
-  { spineItems, packageDoc, zip, rootDir }: Epub,
-  chapterNum: number
+  { packageDoc, zip, rootFilePath }: Epub,
+  chapter: EpubCfi
 ): Promise<EpubChapter> => {
-  const itemRef = throwIfNull(
-    spineItems[chapterNum - 1]?.getAttribute("idref")
-  );
-  const chapterItem = throwIfNull(packageDoc.getElementById(itemRef));
-  const href = throwIfNull(chapterItem.getAttribute("href"));
+  const getManifestItem = (item: ChildNode) =>
+    throwIfNull(
+      packageDoc.getElementById(
+        throwIfNull((item as Element).getAttribute("idref"))
+      )
+    );
+
+  const { chapterItem, manifestItem } = (() => {
+    if (chapter === emptyEpubCfi) {
+      const chapterItem = throwIfNull(
+        packageDoc.querySelector("spine > itemref")
+      );
+      return {
+        chapterItem,
+        manifestItem: getManifestItem(chapterItem),
+      };
+    }
+    const manifestItem = customParseFirstSegmentEpubCfi(chapter, packageDoc);
+    return {
+      chapterItem: throwIfNull(
+        packageDoc.querySelector(
+          `spine > itemref[idref='${throwIfNull(manifestItem.id)}']`
+        )
+      ),
+      manifestItem,
+    };
+  })();
+
+  const path = throwIfNull(manifestItem.getAttribute("href"));
+
+  const cfiForChapterItem = (sibling: Element | null) =>
+    passNull(pipe(getManifestItem, generateEpubCfi))(sibling);
+
   return {
-    currentChapter: chapterNum,
-    numberOfChapters: spineItems.length,
-    content: await prepareEpubPage(zip, rootDir + "/" + href),
-    chapterFragment: generateEpubcfi({ node: chapterItem, offset: 0 }),
+    currentChapter: chapter,
+    content: await prepareEpubPage(zip, path, packageDoc, rootFilePath),
+    previousChapter: cfiForChapterItem(chapterItem.previousElementSibling),
+    nextChapter: cfiForChapterItem(chapterItem.nextElementSibling),
   };
 };
 
@@ -87,24 +158,16 @@ const openEpub = async (content: Blob): Promise<Epub> => {
   const zip: JSZip = throwIfNull(
     await measureAsyncTime("read pdf metadata", () => JSZip.loadAsync(content))
   ) as JSZip;
-
   const container = await getXmlFile(zip, "META-INF/container.xml");
-
-  const rootFile = throwIfNull(
-    container.getElementsByTagName("rootfile").item(0)
+  const rootFilePath = throwIfNull(
+    container
+      .getElementsByTagName("rootfile")
+      .item(0)
+      ?.getAttribute("full-path")
   );
-  const rootDir = "EPUB"; // todo we should compute it from the root file
-
-  const packageDoc = await getXmlFile(
-    zip,
-    throwIfNull(rootFile.getAttribute("full-path"))
-  );
-
-  const spine = packageDoc.getElementsByTagName("spine")[0];
-  const spineItems = spine.getElementsByTagName("itemref");
+  const packageDoc = await getXmlFile(zip, rootFilePath);
   return {
-    spineItems,
-    rootDir,
+    rootFilePath,
     zip,
     packageDoc,
   };
@@ -112,47 +175,45 @@ const openEpub = async (content: Blob): Promise<Epub> => {
 
 const setupChapterView: ViewSetup<
   {
-    openChapter: (n: number) => void;
     onSelectionTrigger: () => void;
     onDisplay: Callback<DisplayContext>;
   },
   EpubChapter
-> = ({ openChapter, onDisplay, onSelectionTrigger }) => ({
+> = ({ onDisplay, onSelectionTrigger }) => ({
   currentChapter,
   content,
-  numberOfChapters,
-  chapterFragment,
+  nextChapter,
+  previousChapter,
 }) =>
   div(
     setupHtmlView({
-      onDisplay: (container) =>
+      onDisplay: (container) => {
         onDisplay({
           container,
-          fragment: createEpubFragment(chapterFragment),
-        }),
+          fragmentForAnnotations: createEpubFragment(currentChapter),
+          fragment: currentChapter,
+        });
+      },
       onSelectionTrigger,
     })({
       content: content,
     }),
-    button(
-      {
-        class: "btn",
-        onClick: () => {
-          openChapter(currentChapter - 1);
+    div(
+      { class: "d-flex flex-justify-between flex-items-center" },
+      a(
+        {
+          href: `#${previousChapter ?? ""}`,
+          style: { visibility: previousChapter ? "visible" : "hidden" },
         },
-        disabled: currentChapter === 1,
-      },
-      "previous"
-    ),
-    button(
-      {
-        class: "btn",
-        onClick: () => {
-          openChapter(currentChapter + 1);
+        "← previous"
+      ),
+      a(
+        {
+          href: `#${nextChapter ?? ""}`,
+          style: { visibility: nextChapter ? "visible" : "hidden" },
         },
-        disabled: currentChapter === numberOfChapters,
-      },
-      "next"
+        "next →"
+      )
     )
   );
 
@@ -160,12 +221,10 @@ const contentComponent: Component<
   {
     onSelectionTrigger: () => void;
     onDisplay: Callback<DisplayContext>;
-    onChapterOpen: Callback<number>;
   },
   { renderPage: EpubChapter }
-> = ({ onChapterOpen, onDisplay, onSelectionTrigger }) => (render) => {
+> = ({ onDisplay, onSelectionTrigger }) => (render) => {
   const chapterView = setupChapterView({
-    openChapter: onChapterOpen,
     onDisplay,
     onSelectionTrigger,
   });
@@ -183,20 +242,30 @@ export const epubDisplay: ContentComponent = ({
     "epub-content",
     contentComponent({
       onSelectionTrigger,
-      onDisplay,
-      onChapterOpen: (it) => {
-        load(it);
-      },
+      onDisplay: fork(onDisplay, ({ fragment, container }) => {
+        if (fragment) {
+          const parts = getCfiParts(fragment);
+          if (parts[1]) {
+            scrollToElement(nodeIdFromCfiPart(parts[1]));
+            return;
+          }
+        }
+        scrollToTop(container);
+      }),
     })
   );
 
-  const { load, init } = loaderWithContext<Epub, number, EpubChapter>({
+  const { load, init } = loaderWithContext<Epub, EpubCfi, EpubChapter>({
     fetcher: (epub, chapterNumber) => openChapter(epub, chapterNumber),
     onLoaded: renderPage,
     contentSlot,
   })(render, onClose);
 
   return {
-    displayContent: fork(map(openEpub, init), map(to(1), load)),
+    displayContent: fork(
+      map(pipe(pick("content"), openEpub), init),
+      map(pipe(pick("fragment"), withDefaultValue(emptyEpubCfi)), load)
+    ),
+    goToFragment: filter(defined, load),
   };
 };

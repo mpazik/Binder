@@ -1,6 +1,7 @@
-import { queryParamProvider } from "../libs/browser-providers";
+import { getQueryParams, queryParamProvider } from "../libs/browser-providers";
 import { fork, Provider, ProviderSetup } from "../libs/connections";
-import { map } from "../libs/connections/mappers";
+import { map, pipe } from "../libs/connections/mappers";
+import { throwIfNull } from "../libs/errors";
 
 const linkHijack: ProviderSetup<{ element?: Node }, string> = ({
   element = document,
@@ -12,7 +13,7 @@ const linkHijack: ProviderSetup<{ element?: Node }, string> = ({
       return; // ignore anchor with explicitly set target attribute
     }
     const uri = element.getAttribute("href");
-    if (!uri || (uri && uri.startsWith("#"))) {
+    if (!uri) {
       return;
     }
     push(uri);
@@ -24,21 +25,61 @@ const linkHijack: ProviderSetup<{ element?: Node }, string> = ({
   onClose(() => element.removeEventListener("click", hijackLink));
 };
 
-export const updateBrowserHistory = (uri: string): void => {
+export const updateBrowserHistory = ({
+  uri = getCurrentUri(),
+  fragment,
+}: UriWithFragment | { fragment: string; uri?: string }): void => {
   const queryParams = new URLSearchParams(window.location.search);
   queryParams.set("uri", uri);
-  window.history.pushState({}, "", "?" + queryParams.toString());
+  window.history.pushState(
+    {},
+    "",
+    `?${queryParams.toString()}${fragment ? `#${fragment}` : ""}`
+  );
 };
+
+export type UriWithFragment = {
+  uri: string;
+  fragment?: string;
+};
+
+export const newUriWithFragment = (url: string): UriWithFragment => {
+  const fragmentPos = url.lastIndexOf("#");
+  return {
+    uri: fragmentPos < 0 ? url : url.substring(0, fragmentPos),
+    fragment: fragmentPos < 0 ? undefined : url.substring(fragmentPos + 1),
+  };
+};
+
+const getCurrentUri = () => throwIfNull(getQueryParams().get("uri"));
 
 export const currentDocumentUriProvider = ({
   defaultUri,
 }: {
   defaultUri: string;
-}): Provider<string> => (onClose, push) => {
-  const pushUrl = fork(updateBrowserHistory, push);
-  linkHijack({})(onClose, pushUrl);
+}): Provider<UriWithFragment> => (onClose, push) => {
+  linkHijack({})(
+    onClose,
+    map(
+      pipe(newUriWithFragment, (it) =>
+        it.uri === ""
+          ? {
+              uri: getCurrentUri(),
+              fragment: it.fragment,
+            }
+          : it
+      ),
+      fork(updateBrowserHistory, push)
+    )
+  );
   queryParamProvider(
     onClose,
-    map((it) => it.get("uri") || defaultUri, push)
+    map(({ queryParams, fragment }) => {
+      const uri = queryParams.get("uri");
+      return {
+        uri: uri ?? defaultUri,
+        fragment: uri ? fragment : undefined, // don't return fragment for default url
+      };
+    }, push)
   );
 };

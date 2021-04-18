@@ -1,4 +1,4 @@
-import { defined } from "./filters";
+import { defined, nonNull } from "./filters";
 import { Callback } from "./types";
 
 type Function<T, S> = (v: T) => S;
@@ -42,6 +42,11 @@ export const passUndefined = <T, S>(
 ): Function<T | undefined, S | undefined> =>
   branch(defined, map, () => undefined);
 
+export const passNull = <T, S>(
+  map: Function<T, S>
+): Function<T | undefined | null, S | undefined> =>
+  branch(nonNull, map, () => undefined);
+
 export function pipe<T, S>(map1: (v: T) => S): Function<T, S>;
 export function pipe<T, S, U>(
   map1: (v: T) => S,
@@ -79,6 +84,10 @@ export const wrap = <V, K extends keyof never>(
   ({ [key]: value } as { [A in K]: V });
 
 export const to = <T>(v: T): ((v: unknown) => T) => (): T => v;
+
+export const withDefaultValue = <T>(defaultValue: T) => (
+  value: T | undefined | null
+): T => value ?? defaultValue;
 
 export const map = <T, S>(
   transform: Function<T, S>,
