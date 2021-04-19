@@ -147,6 +147,13 @@ const commentFormView: View<{
             filter(isKey("Escape"), onCancel)
           ),
           onDisplay: map(getTarget, fork(focusElement, onDisplay)),
+          onPaste: (event) => {
+            event.preventDefault();
+            const text = event.clipboardData?.getData("text/plain");
+            if (text) {
+              document.execCommand("insertHTML", false, text);
+            }
+          },
         })
       ),
       div(
