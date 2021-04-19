@@ -9,3 +9,6 @@ export const isKey = (key: string) => (event: KeyboardEvent): boolean =>
 export const hasMetaKey = (event: KeyboardEvent): boolean => event.metaKey;
 
 export const hasCtrlKey = (event: KeyboardEvent): boolean => event.ctrlKey;
+
+export const hasNoKeyModifier = (event: KeyboardEvent): boolean =>
+  !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey;

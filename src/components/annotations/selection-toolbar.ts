@@ -1,8 +1,8 @@
 import { fork, passOnlyChanged } from "../../libs/connections";
-import { filter, not } from "../../libs/connections/filters";
+import { and, filter, not } from "../../libs/connections/filters";
 import { map, mapTo } from "../../libs/connections/mappers";
 import { button, Component, div, View } from "../../libs/simple-ui/render";
-import { isKey } from "../../libs/simple-ui/utils/funtions";
+import { hasNoKeyModifier, isKey } from "../../libs/simple-ui/utils/funtions";
 
 import {
   OptSelection,
@@ -45,7 +45,7 @@ export const selectionToolbarView: View<{
             class: `BtnGroup-item btn btn-sm`,
             type: "button",
             title: shortCutKey
-              ? `${label}    ${keyCodeToKeyName(shortCutKey)}`
+              ? `${label}    [${keyCodeToKeyName(shortCutKey)}]`
               : undefined,
             onClick: handler,
           },
@@ -88,7 +88,7 @@ export const selectionToolbar: Component<
         .filter((it) => Boolean(it.shortCutKey))
         .map(({ shortCutKey, handler }) =>
           filter(
-            isKey(shortCutKey!),
+            and(isKey(shortCutKey!), hasNoKeyModifier),
             fork(() => handler(selection), mapTo(undefined, selectionHandler))
           )
         );
