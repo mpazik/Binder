@@ -1,7 +1,7 @@
 import * as JSZip from "jszip";
 
 import { newUriWithFragment } from "../../../functions/url-hijack";
-import { Callback, fork } from "../../../libs/connections";
+import { Callback, fork, withMultiState } from "../../../libs/connections";
 import { defined, filter } from "../../../libs/connections/filters";
 import {
   map,
@@ -276,9 +276,26 @@ export const epubDisplay: ContentComponent = ({
     })
   );
 
+  const [changeChapter, [setChapter]] = withMultiState<
+    [EpubChapter],
+    KeyboardEvent
+  >(([chapter], keyboardEvent) => {
+    if (!chapter) return;
+    if (keyboardEvent.key === "ArrowLeft" && chapter.previousChapter) {
+      load(chapter.previousChapter);
+    } else if (keyboardEvent.key === "ArrowRight" && chapter.nextChapter) {
+      load(chapter.nextChapter);
+    }
+  }, undefined);
+
+  document.addEventListener("keyup", changeChapter);
+  onClose(() => {
+    document.removeEventListener("keyup", changeChapter);
+  });
+
   const { load, init } = loaderWithContext<Epub, EpubCfi, EpubChapter>({
     fetcher: (epub, chapterNumber) => openChapter(epub, chapterNumber),
-    onLoaded: renderPage,
+    onLoaded: fork(renderPage, setChapter),
     contentSlot,
   })(render, onClose);
 

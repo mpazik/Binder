@@ -10,7 +10,7 @@ import "./text_layer_builder.css";
 
 import { PDFDocumentProxy } from "pdfjs-dist/types/display/api";
 
-import { Callback, fork } from "../../../libs/connections";
+import { Callback, fork, withMultiState } from "../../../libs/connections";
 import { defined, filter } from "../../../libs/connections/filters";
 import {
   map,
@@ -19,6 +19,7 @@ import {
   pipe,
   withDefaultValue,
 } from "../../../libs/connections/mappers";
+import { isKey } from "../../../libs/simple-ui/examples/todo-app/functions";
 import {
   a,
   Component,
@@ -215,21 +216,33 @@ export const pdfDisplay: ContentComponent = ({
     })
   );
 
+  const [changePage, [setPage]] = withMultiState<[PdfPage], KeyboardEvent>(
+    ([page], keyboardEvent) => {
+      if (!page) return;
+      if (keyboardEvent.key === "ArrowLeft" && page.currentPage > 1) {
+        load(page.currentPage - 1);
+      } else if (
+        keyboardEvent.key === "ArrowRight" &&
+        page.currentPage < page.numberOfPages
+      ) {
+        load(page.currentPage + 1);
+      }
+    },
+    undefined
+  );
+
   const { load, init } = loaderWithContext<
     PdfDocument,
     number,
     PdfPage | undefined
   >({
     fetcher: (pdfDocument, page, signal) => openPage(pdfDocument, page, signal),
-    onLoaded: filter(
-      defined,
-      fork(
-        renderPage
-        // map(pick("textLayer"), () => {})
-      )
-    ),
+    onLoaded: filter(defined, fork(renderPage, setPage)),
     contentSlot,
   })(render, onClose);
+
+  document.addEventListener("keyup", changePage);
+  onClose(() => document.removeEventListener("keyup", changePage));
 
   return {
     displayContent: fork(

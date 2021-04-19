@@ -2,6 +2,7 @@ import { OnCloseRegister, Provider } from "../connections";
 
 import { SimplifiedElementsMap, SimplifiedEvent, SimplifiedEventMap } from "./dom";
 import { Attributes, JsonMl, mapJsonMl, newTagFactory, TagName, TagProps } from "./jsonml";
+import { CloseHandler } from "../connections/types";
 
 // todo render should be independent from JsonML and accpet only raw dom
 // there could be another jsonMl (jsonHtml) render that act as a glue code
@@ -221,12 +222,17 @@ const slotHandler = (parent: Element): Renderer => {
   };
 };
 
-export const setupComponent = (runtime: ComponentRuntime, element: Element): Deactivate => {
+export const newCloseController = (): [OnCloseRegister, CloseHandler] => {
   const abortController = new AbortController();
-  runtime(slotHandler(element), (handler) => {
+  return [(handler) => {
     abortController.signal.addEventListener("abort", handler);
-  });
-  return () => abortController.abort();
+  }, () => abortController.abort()]
+}
+
+export const setupComponent = (runtime: ComponentRuntime, element: Element): Deactivate => {
+  const [onClose, close] = newCloseController()
+  runtime(slotHandler(element), onClose);
+  return close;
 };
 
 const setDifference = <T>(setA: Set<T>, setB: Set<T>): Set<T> =>

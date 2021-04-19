@@ -13,8 +13,11 @@ import { map } from "../../../connections/mappers";
 
 import { newTodo, Todo, TodoId, TodoName } from "./model";
 
-export const isKey = (key: string) => (event: KeyboardEvent): boolean =>
-  event.code === key;
+/**
+ * @param keyCode full list of key codes available at {@link https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key/Key_Values}
+ */
+export const isKey = (keyCode: string) => (event: KeyboardEvent): boolean =>
+  event.code === keyCode;
 
 const inputValue = (event: Event): string =>
   (event.target as HTMLInputElement).value;

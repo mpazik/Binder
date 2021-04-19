@@ -22,7 +22,11 @@ import {
   pdfMediaType,
 } from "../../libs/ld-schemas";
 import { LinkedData } from "../../libs/linked-data";
-import { Component, div } from "../../libs/simple-ui/render";
+import {
+  Component,
+  div,
+  newCloseController,
+} from "../../libs/simple-ui/render";
 import { AnnotationDisplayRequest } from "../annotations";
 import { currentSelection } from "../annotations/selection";
 
@@ -79,6 +83,18 @@ export const contentDisplayComponent: Component<
     goToFragment(fragment);
   }, undefined);
 
+  const [
+    closeContentComponent,
+    [setCallbackForCloseComponent],
+  ] = withMultiState<[Callback]>(([closeComponent]) => {
+    if (closeComponent) {
+      console.log("closing");
+      closeComponent();
+    }
+  }, undefined);
+
+  onClose(closeContentComponent);
+
   const displayAnnotations: Callback<DisplayContext> = fork(
     ({ fragmentForAnnotations: fragment, container }) =>
       onAnnotationDisplayRequest({ fragment, textLayer: container })
@@ -108,9 +124,12 @@ export const contentDisplayComponent: Component<
     content,
     fragment,
   }: LinkedDataWithContentAndFragment) => {
+    closeContentComponent();
+    const [onClose, close] = newCloseController();
     const { displayContent, saveComplete, goToFragment } = component(
       displayController
     )(render, onClose);
+    setCallbackForCloseComponent(close);
     setCallbackForUpdate(saveComplete);
     setCallbackForFragment(goToFragment);
     displayContent({ content, fragment });

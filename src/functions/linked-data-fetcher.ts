@@ -24,9 +24,7 @@ const createLinkedDataContentFetcher = (
   storeRead: ResourceStoreRead
 ): LinkedDataContentFetcher => (article) => {
   const hashUri = throwIfNull(findHashUri(article));
-  return measureAsyncTime("read stored", () =>
-    storeRead(hashUri)
-  ).then((blob) =>
+  return storeRead(hashUri).then((blob) =>
     throwIfNull(blob, () => `Could not find content for uri: '${hashUri}'`)
   );
 };

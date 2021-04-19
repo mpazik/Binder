@@ -213,9 +213,7 @@ export const createStore = (
   return {
     readResource: async (hash) => {
       return (
-        (await measureAsyncTime("read local resource store", () =>
-          localResourceStoreRead(hash)
-        )) ??
+        localResourceStoreRead(hash) ??
         (await measureAsyncTime("read remote resource store", async () => {
           const result = await remoteStoreRead(hash);
           if (result) await localResourceStoreWrite(result);
@@ -228,11 +226,7 @@ export const createStore = (
       await markForSync(hash, name);
       return hash;
     },
-    readLinkedData: async (hash) => {
-      return await measureAsyncTime(`read local linked data: ${hash}`, () =>
-        localLinkedDataStoreRead(hash)
-      );
-    },
+    readLinkedData: async (hash) => localLinkedDataStoreRead(hash),
     writeLinkedData: async (linkedData) => {
       if (Array.isArray(linkedData)) {
         throw new Error("Array linked data are not supported");
