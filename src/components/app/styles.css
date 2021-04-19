@@ -18,7 +18,15 @@
     position: fixed;
     float: left;
     width: 256px;
+    left: -236px;
     height: 100%;
+    padding-right: 20px;
+    transition: 0.3s;
+    background-color: #EEE;
+}
+#navigation:hover {
+    transform: translate3d(236px, 0, 0);
+    background-color: transparent;
 }
 
 article {
