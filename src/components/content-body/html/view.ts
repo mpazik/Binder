@@ -43,11 +43,14 @@ export const setupHtmlView: ViewSetup<
   {
     onDisplay?: Callback<HTMLElement>;
     onSelectionTrigger?: () => void;
+    extraClass?: string;
   },
   HtmlContent
-> = ({ onDisplay, onSelectionTrigger }) => ({ content }) =>
+> = ({ onDisplay, onSelectionTrigger, extraClass }) => ({ content }) =>
   article({
-    class: "markdown-body flex-1 position-relative",
+    class:
+      "markdown-body flex-1 position-relative" +
+      (extraClass ? " " + extraClass : ""),
     dangerouslySetDom: content,
     onMouseup: onSelectionTrigger,
     onFocusout: onSelectionTrigger,

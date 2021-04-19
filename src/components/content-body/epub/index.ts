@@ -96,7 +96,9 @@ const prepareEpubPage = async (
     })
   );
 
-  return body;
+  const parent = document.createElement("div");
+  Array.from(body.children).forEach((child) => parent.appendChild(child));
+  return parent;
 };
 
 type EpubChapter = {
@@ -232,6 +234,7 @@ const setupChapterView: ViewSetup<
         });
       },
       onSelectionTrigger,
+      extraClass: "book",
     })({
       content: content,
     }),
