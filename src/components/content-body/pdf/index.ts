@@ -19,7 +19,6 @@ import {
   pipe,
   withDefaultValue,
 } from "../../../libs/connections/mappers";
-import { isKey } from "../../../libs/simple-ui/examples/todo-app/functions";
 import {
   a,
   Component,
@@ -124,15 +123,9 @@ const pdfNav: View<{
 const setupPdfPageView: ViewSetup<
   {
     onDisplay: Callback<DisplayContext>;
-    onSelectionTrigger: Callback;
   },
   PdfPage
-> = ({ onDisplay, onSelectionTrigger }) => ({
-  currentPage,
-  canvas,
-  textLayer,
-  numberOfPages,
-}) =>
+> = ({ onDisplay }) => ({ currentPage, canvas, textLayer, numberOfPages }) =>
   div(
     pdfNav({
       currentPage,
@@ -152,8 +145,6 @@ const setupPdfPageView: ViewSetup<
       div({ dangerouslySetDom: canvas }),
       div({
         dangerouslySetDom: textLayer,
-        onMouseup: onSelectionTrigger,
-        onFocusout: onSelectionTrigger,
       })
     ),
     pdfNav({
@@ -164,14 +155,12 @@ const setupPdfPageView: ViewSetup<
 
 const contentComponent: Component<
   {
-    onSelectionTrigger: Callback;
     onDisplay: Callback<DisplayContext>;
   },
   { renderPage: PdfPage }
-> = ({ onDisplay, onSelectionTrigger }) => (render) => {
+> = ({ onDisplay }) => (render) => {
   const pdfPageView = setupPdfPageView({
     onDisplay,
-    onSelectionTrigger,
   });
 
   return {
@@ -204,14 +193,13 @@ const parsePageFragment = (fragment: string): number | undefined => {
   console.error(`Could not parse page number from ${fragment}`);
 };
 
-export const pdfDisplay: ContentComponent = ({
-  onSelectionTrigger,
-  onDisplay,
-}) => (render, onClose) => {
+export const pdfDisplay: ContentComponent = ({ onDisplay }) => (
+  render,
+  onClose
+) => {
   const [contentSlot, { renderPage }] = newSlot(
     "content",
     contentComponent({
-      onSelectionTrigger,
       onDisplay: fork(onDisplay, map(pick("container"), scrollToTop)),
     })
   );

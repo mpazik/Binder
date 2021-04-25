@@ -7,7 +7,7 @@ import {
 } from "../../functions/store";
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { Consumer, fork, splitMap, withState } from "../../libs/connections";
-import { map, pick, pipe, to } from "../../libs/connections/mappers";
+import { map, pick, pipe } from "../../libs/connections/mappers";
 import { throwIfNull2 } from "../../libs/errors";
 import {
   findHashUri,
@@ -92,13 +92,7 @@ export const contentComponent: Component<
 
   const [
     annotationSupportSlot,
-    {
-      displaySelectionToolbar,
-      displayDocumentAnnotations,
-      setCreator,
-      setReference,
-      setContainer,
-    },
+    { displayDocumentAnnotations, setCreator, setReference, setContainer },
   ] = newSlot(
     "annotation-support",
     annotationsSupport({
@@ -114,7 +108,6 @@ export const contentComponent: Component<
     contentDisplayComponent({
       contentSaver,
       onAnnotationDisplayRequest: displayDocumentAnnotations,
-      onSelect: displaySelectionToolbar,
     })
   );
 
@@ -125,7 +118,7 @@ export const contentComponent: Component<
 
   render(
     div(
-      { id: "content", class: "ml-4" },
+      { id: "content-container", class: "ml-4" },
       contentFieldsSlot,
       div(
         {
@@ -145,7 +138,6 @@ export const contentComponent: Component<
     displayContent: fork(
       displayContent,
       setContextForSave,
-      map(to(undefined), displaySelectionToolbar),
       map(
         pick("linkedData"),
         fork(renderFields, map(findHashUri, fork(setReference)), resetSaveBar)

@@ -186,7 +186,7 @@ export const App = asyncLoader(
     );
 
     const [contentSlot, { setCreator, displayContent, goToFragment }] = newSlot(
-      "content",
+      "content-container",
       contentComponent({
         storeWrite: store.writeResource,
         ldStoreWrite: store.writeLinkedData,

@@ -46,12 +46,11 @@ const createNewDocument = (
 
 const contentComponent: Component<
   {
-    onSelectionTrigger: () => void;
     onContentModified: Callback<Blob>;
     onDisplay: Callback<DisplayContext>;
   },
   { renderPage: { doc: Document }; saveComplete: void }
-> = ({ onDisplay, onSelectionTrigger, onContentModified }) => (render) => {
+> = ({ onDisplay, onContentModified }) => (render) => {
   const updateData = (newContent: Blob, retry: () => void) => {
     try {
       updateUpdateBar(["saving"]);
@@ -109,7 +108,6 @@ const contentComponent: Component<
   const [modalDiffSlot, { displayModal }] = newSlot("modal-diff", modal());
 
   const editableHtmlView = setupEditableHtmlView({
-    onSelectionTrigger,
     onDocumentChange: fork(
       displayChangesOnBar,
       map(
@@ -159,12 +157,10 @@ const contentComponent: Component<
 export const htmlEditableDisplay: ContentComponent = ({
   onContentModified,
   onDisplay,
-  onSelectionTrigger,
 }) => (render, onClose) => {
   const [contentSlot, { renderPage, saveComplete }] = newSlot(
     "editable-html-content",
     contentComponent({
-      onSelectionTrigger,
       onContentModified,
       onDisplay: fork(onDisplay, scrollToPageTopWhenNoFragment),
     })

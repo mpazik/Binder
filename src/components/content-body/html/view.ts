@@ -24,35 +24,29 @@ export const setupEditableHtmlView: ViewSetup<
   {
     onDocumentChange: Callback<DocumentChange[]>;
     onDisplay?: Callback<HTMLElement>;
-    onSelectionTrigger?: () => void;
   },
   HtmlContent
-> = ({ onDocumentChange, onDisplay, onSelectionTrigger }) => ({ content }) =>
+> = ({ onDocumentChange, onDisplay }) => ({ content }) =>
   article({
     contenteditable: true,
     class: "editable markdown-body flex-1 position-relative",
     style: { outline: "none" },
     onInput: detectDocumentChange(content, onDocumentChange),
     dangerouslySetDom: content,
-    onMouseup: onSelectionTrigger,
-    onFocusout: onSelectionTrigger,
     onDisplay: onDisplay ? map(getTarget, onDisplay) : undefined,
   });
 
 export const setupHtmlView: ViewSetup<
   {
     onDisplay?: Callback<HTMLElement>;
-    onSelectionTrigger?: () => void;
     extraClass?: string;
   },
   HtmlContent
-> = ({ onDisplay, onSelectionTrigger, extraClass }) => ({ content }) =>
+> = ({ onDisplay, extraClass }) => ({ content }) =>
   article({
     class:
       "markdown-body flex-1 position-relative" +
       (extraClass ? " " + extraClass : ""),
     dangerouslySetDom: content,
-    onMouseup: onSelectionTrigger,
-    onFocusout: onSelectionTrigger,
     onDisplay: onDisplay ? map(getTarget, onDisplay) : undefined,
   });

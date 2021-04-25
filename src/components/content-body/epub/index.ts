@@ -212,11 +212,10 @@ const epubNav: View<{
 
 const setupChapterView: ViewSetup<
   {
-    onSelectionTrigger: () => void;
     onDisplay: Callback<DisplayContext>;
   },
   EpubChapter
-> = ({ onDisplay, onSelectionTrigger }) => ({
+> = ({ onDisplay }) => ({
   currentChapter,
   content,
   nextChapter,
@@ -233,7 +232,6 @@ const setupChapterView: ViewSetup<
           fragment: currentChapter,
         });
       },
-      onSelectionTrigger,
       extraClass: "book",
     })({
       content: content,
@@ -243,14 +241,12 @@ const setupChapterView: ViewSetup<
 
 const contentComponent: Component<
   {
-    onSelectionTrigger: () => void;
     onDisplay: Callback<DisplayContext>;
   },
   { renderPage: EpubChapter }
-> = ({ onDisplay, onSelectionTrigger }) => (render) => {
+> = ({ onDisplay }) => (render) => {
   const chapterView = setupChapterView({
     onDisplay,
-    onSelectionTrigger,
   });
 
   return {
@@ -258,14 +254,13 @@ const contentComponent: Component<
   };
 };
 
-export const epubDisplay: ContentComponent = ({
-  onSelectionTrigger,
-  onDisplay,
-}) => (render, onClose) => {
+export const epubDisplay: ContentComponent = ({ onDisplay }) => (
+  render,
+  onClose
+) => {
   const [contentSlot, { renderPage }] = newSlot(
     "epub-content",
     contentComponent({
-      onSelectionTrigger,
       onDisplay: fork(onDisplay, ({ fragment, container }) => {
         if (fragment) {
           const parts = getCfiParts(fragment);

@@ -6,7 +6,6 @@ import {
   Callback,
   Consumer,
   fork,
-  passOnlyChanged,
   select,
   split,
   withMultiState,
@@ -28,7 +27,6 @@ import {
   newCloseController,
 } from "../../libs/simple-ui/render";
 import { AnnotationDisplayRequest } from "../annotations";
-import { currentSelection } from "../annotations/selection";
 
 import { epubDisplay } from "./epub";
 import { htmlDisplay } from "./html";
@@ -46,21 +44,12 @@ export const contentDisplayComponent: Component<
   {
     contentSaver: ContentSaver;
     onAnnotationDisplayRequest: Consumer<AnnotationDisplayRequest>;
-    onSelect: Consumer<Range | undefined>;
   },
   {
     displayContent: LinkedDataWithContentAndFragment;
     goToFragment: string;
   }
-> = ({ onAnnotationDisplayRequest, onSelect, contentSaver }) => (
-  render,
-  onClose
-) => {
-  const sendSelection: Callback<void> = map(
-    currentSelection,
-    passOnlyChanged(onSelect)
-  );
-
+> = ({ onAnnotationDisplayRequest, contentSaver }) => (render, onClose) => {
   // multi state with linkedData and fallback for update
   const [
     saveNewContent,
@@ -116,7 +105,6 @@ export const contentDisplayComponent: Component<
 
   const displayController: DisplayController = {
     onDisplay: fork(displayAnnotations, updateHistory),
-    onSelectionTrigger: sendSelection,
     onContentModified: saveNewContent,
   };
 

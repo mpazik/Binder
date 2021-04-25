@@ -15,7 +15,6 @@ export type AnnotationContext = {
 
 export type DisplayController = {
   onDisplay: Callback<DisplayContext>;
-  onSelectionTrigger: () => void;
   onContentModified: Callback<Blob>;
 };
 export type ContentComponent = Component<

@@ -1,7 +1,13 @@
 import { DocumentAnnotationsIndex } from "../../functions/indexes/document-annotations-index";
 import { LinkedDataStoreWrite } from "../../functions/store";
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
-import { fork, withMultiState, withState } from "../../libs/connections";
+import {
+  fork,
+  nextTick,
+  passOnlyChanged,
+  withMultiState,
+  withState,
+} from "../../libs/connections";
 import { filter, nonNull } from "../../libs/connections/filters";
 import {
   ignoreParam,
@@ -29,7 +35,7 @@ import {
 } from "./annotation-display";
 import { containerText, removeSelector, renderSelector } from "./highlights";
 import { quoteSelectorForRange } from "./quote-selector";
-import { Selection, selectionPosition } from "./selection";
+import { currentSelection, Selection, selectionPosition } from "./selection";
 import { selectionToolbar } from "./selection-toolbar";
 
 type AnnotationSaveArgs = {
@@ -66,7 +72,6 @@ export const annotationsSupport: Component<
   },
   {
     displayDocumentAnnotations: AnnotationDisplayRequest;
-    displaySelectionToolbar: Range | undefined;
     setCreator: string;
     setContainer: HTMLElement;
     setReference: HashUri | undefined;
@@ -76,7 +81,7 @@ export const annotationsSupport: Component<
   ldStoreRead,
   requestDocumentSave,
   documentAnnotationsIndex,
-}) => (render) => {
+}) => (render, onClose) => {
   const [saveAnnotation, [setCreator, setReference]] = withMultiState<
     [string, HashUri | undefined],
     AnnotationSaveArgs
@@ -200,17 +205,16 @@ export const annotationsSupport: Component<
   );
 
   const [
-    displaySelectionToolbar,
+    handleSelection,
     [setFragmentForToolbar, setContainerForToolbar],
-  ] = withMultiState<[DocFragment | undefined, HTMLElement], Range | undefined>(
-    ([fragment, container], range) => {
+  ] = withMultiState<[DocFragment | undefined, HTMLElement], void>(
+    map(([fragment, container]) => {
       if (!container) return;
-      if (range) {
-        selectionHandler({ range, fragment, container });
-      } else {
-        selectionHandler(undefined);
-      }
-    },
+      const range = currentSelection();
+      if (!range) return;
+      if (!container.contains(range.commonAncestorContainer)) return;
+      return { range, fragment, container };
+    }, passOnlyChanged(selectionHandler)),
     undefined,
     undefined
   );
@@ -251,6 +255,13 @@ export const annotationsSupport: Component<
     undefined
   );
 
+  // next tick to make sure current selection would be calculated for even handling
+  const detectSelection = map(to(undefined), nextTick(handleSelection));
+  document.addEventListener("mouseup", detectSelection);
+  onClose(() => {
+    document.removeEventListener("mouseup", detectSelection);
+  });
+
   render(div(commentFormSlot, annotationDisplaySlot, selectionToolbarSlot));
   return {
     setReference: fork(
@@ -264,11 +275,11 @@ export const annotationsSupport: Component<
       map(to(undefined), setTextLayerForSelector)
     ),
     setCreator: setCreator,
-    displaySelectionToolbar,
     displayDocumentAnnotations: fork(
       map(pick("fragment"), setFragmentForToolbar),
       map(pick("textLayer"), setTextLayerForSelector),
       displayDocumentAnnotations
     ),
+    // todo reset select toolbar and comment form if empty
   };
 };

@@ -299,6 +299,12 @@ export const passOnlyChanged = <T>(push: Callback<T>): Callback<T> => {
   };
 };
 
+export const nextTick = <T>(push: Callback<T>): Callback<T> => {
+  return (value) => {
+    setImmediate(() => push(value));
+  };
+};
+
 export const match = <T, S>(
   map: Map<T, S>,
   callback: Callback<S>

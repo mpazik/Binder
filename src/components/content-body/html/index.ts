@@ -10,12 +10,11 @@ import { HtmlContent, setupHtmlView } from "./view";
 
 const contentComponent: Component<
   {
-    onSelectionTrigger: () => void;
     onDisplay: Callback<HTMLElement>;
   },
   { renderPage: HtmlContent }
-> = ({ onDisplay, onSelectionTrigger }) => (render) => {
-  const htmlView = setupHtmlView({ onDisplay, onSelectionTrigger });
+> = ({ onDisplay }) => (render) => {
+  const htmlView = setupHtmlView({ onDisplay });
 
   return {
     renderPage: map(
@@ -25,14 +24,13 @@ const contentComponent: Component<
   };
 };
 
-export const htmlDisplay: ContentComponent = ({
-  onSelectionTrigger,
-  onDisplay,
-}) => (render, onClose) => {
+export const htmlDisplay: ContentComponent = ({ onDisplay }) => (
+  render,
+  onClose
+) => {
   const [contentSlot, { renderPage }] = newSlot(
     "html-content",
     contentComponent({
-      onSelectionTrigger,
       onDisplay: map(
         wrap("container"),
         fork(onDisplay, scrollToPageTopWhenNoFragment)
