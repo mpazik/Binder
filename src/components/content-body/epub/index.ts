@@ -34,7 +34,7 @@ import { createEpubFragment } from "../../annotations/annotation";
 import { loaderWithContext } from "../../common/loader";
 import { setupHtmlView } from "../html/view";
 import { ContentComponent, DisplayContext } from "../types";
-import { scrollToElement, scrollToTop } from "../utils";
+import { doesElementReadsInput, scrollToElement, scrollToTop } from "../utils";
 
 const absolute = (base: string, relative: string) => {
   const separator = "/";
@@ -254,6 +254,17 @@ const contentComponent: Component<
   };
 };
 
+const scroll = ({ fragment, container }: DisplayContext) => {
+  if (fragment) {
+    const parts = getCfiParts(fragment);
+    if (parts[1]) {
+      scrollToElement(nodeIdFromCfiPart(parts[1]));
+      return;
+    }
+  }
+  scrollToTop(container);
+};
+
 export const epubDisplay: ContentComponent = ({ onDisplay }) => (
   render,
   onClose
@@ -261,16 +272,7 @@ export const epubDisplay: ContentComponent = ({ onDisplay }) => (
   const [contentSlot, { renderPage }] = newSlot(
     "epub-content",
     contentComponent({
-      onDisplay: fork(onDisplay, ({ fragment, container }) => {
-        if (fragment) {
-          const parts = getCfiParts(fragment);
-          if (parts[1]) {
-            scrollToElement(nodeIdFromCfiPart(parts[1]));
-            return;
-          }
-        }
-        scrollToTop(container);
-      }),
+      onDisplay: fork(onDisplay, scroll),
     })
   );
 
@@ -279,6 +281,7 @@ export const epubDisplay: ContentComponent = ({ onDisplay }) => (
     KeyboardEvent
   >(([chapter], keyboardEvent) => {
     if (!chapter) return;
+    if (passNull(doesElementReadsInput)(document.activeElement)) return;
     if (keyboardEvent.key === "ArrowLeft" && chapter.previousChapter) {
       load(chapter.previousChapter);
     } else if (keyboardEvent.key === "ArrowRight" && chapter.nextChapter) {

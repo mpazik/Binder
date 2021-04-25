@@ -11,40 +11,26 @@ import {
 } from "./types";
 import { equal } from "./utils/equal";
 
-/**
- * Passes only changed element, with one state being delayed.
- * It is use full for delayed hide operation
- */
-export const delayedState = <S, T extends S>(
-  stateToDelay: T,
+export const delayed = <T = void>(
   delay: number,
-  callback: Callback<S>,
-  comparator: (a: S, b: S) => boolean = equal
-): Callback<S> => {
-  let lastValue: S;
+  callback: Callback<T>
+): [delayed: Callback<T>, reset: Callback] => {
   let timeout: ReturnType<typeof setTimeout> | null = null;
 
-  return (value: S) => {
-    if (comparator(value, stateToDelay)) {
-      if (!timeout) {
-        timeout = setTimeout(() => {
-          timeout = null;
-          lastValue = stateToDelay;
-          callback(stateToDelay);
-        }, delay);
+  return [
+    (value: T) => {
+      timeout = setTimeout(() => {
+        timeout = null;
+        callback(value);
+      }, delay);
+    },
+    () => {
+      if (timeout) {
+        clearTimeout(timeout);
+        timeout = null;
       }
-    } else {
-      if (comparator(value, lastValue)) {
-        if (timeout) {
-          clearTimeout(timeout);
-          timeout = null;
-        }
-        return;
-      }
-      lastValue = value;
-      callback(value);
-    }
-  };
+    },
+  ];
 };
 
 /*
@@ -226,6 +212,28 @@ export const withState = <S, V = void>(
   return [
     ((v) => {
       callback(throwIfUndefined(state), v);
+    }) as V extends void ? () => void : (v: V) => void,
+    (s) => {
+      state = s;
+    },
+    () => {
+      state = undefined;
+    },
+  ];
+};
+
+export const withState2 = <S, V = void>(
+  callback: (args: [state: S | undefined, value: V]) => void,
+  init?: S
+): [
+  callback: V extends void ? () => void : (v: V) => void,
+  set: (s: S) => void,
+  reset: () => void
+] => {
+  let state: S | undefined = init;
+  return [
+    ((v) => {
+      callback([state, v]);
     }) as V extends void ? () => void : (v: V) => void,
     (s) => {
       state = s;

@@ -13,3 +13,12 @@ export const scrollToElement = (elementId: string): void => {
   }
   element.scrollIntoView();
 };
+
+const tagsReadingKeyboardInput = ["INPUT", "TEXTAREA", "BUTTON"];
+export const doesElementReadsInput = (element: Element): boolean => {
+  const tagName = element.tagName;
+  if (tagsReadingKeyboardInput.includes(tagName)) return true;
+  return (
+    tagName === "DIV" && element.getAttribute("contenteditable") === "true"
+  );
+};

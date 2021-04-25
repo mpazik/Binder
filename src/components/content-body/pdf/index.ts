@@ -14,6 +14,7 @@ import { Callback, fork, withMultiState } from "../../../libs/connections";
 import { defined, filter } from "../../../libs/connections/filters";
 import {
   map,
+  passNull,
   passUndefined,
   pick,
   pipe,
@@ -32,7 +33,7 @@ import { getTarget } from "../../../libs/simple-ui/utils/funtions";
 import { createPdfFragment } from "../../annotations/annotation";
 import { loaderWithContext } from "../../common/loader";
 import { ContentComponent, DisplayContext } from "../types";
-import { scrollToTop } from "../utils";
+import { doesElementReadsInput, scrollToTop } from "../utils";
 
 // The workerSrc property shall be specified.
 pdfJsLib.GlobalWorkerOptions.workerSrc = "./pdf.worker.js";
@@ -207,6 +208,7 @@ export const pdfDisplay: ContentComponent = ({ onDisplay }) => (
   const [changePage, [setPage]] = withMultiState<[PdfPage], KeyboardEvent>(
     ([page], keyboardEvent) => {
       if (!page) return;
+      if (passNull(doesElementReadsInput)(document.activeElement)) return;
       if (keyboardEvent.key === "ArrowLeft" && page.currentPage > 1) {
         load(page.currentPage - 1);
       } else if (

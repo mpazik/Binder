@@ -9,13 +9,7 @@ import {
   withState,
 } from "../../libs/connections";
 import { filter, nonNull } from "../../libs/connections/filters";
-import {
-  ignoreParam,
-  map,
-  pick,
-  to,
-  withValue,
-} from "../../libs/connections/mappers";
+import { ignoreParam, map, pick, to } from "../../libs/connections/mappers";
 import { throwIfNull } from "../../libs/errors";
 import { HashUri } from "../../libs/hash";
 import { Component, div, newSlot } from "../../libs/simple-ui/render";
@@ -28,11 +22,7 @@ import {
   isQuoteSelector,
   QuoteSelector,
 } from "./annotation";
-import {
-  annotationDisplay,
-  AnnotationDisplayState,
-  commentForm,
-} from "./annotation-display";
+import { annotationDisplay, commentForm } from "./annotation-display";
 import { containerText, removeSelector, renderSelector } from "./highlights";
 import { quoteSelectorForRange } from "./quote-selector";
 import { currentSelection, Selection, selectionPosition } from "./selection";
@@ -139,14 +129,17 @@ export const annotationsSupport: Component<
           getQuoteSelector(annotation.target.selector),
           annotation.motivation === "commenting" ? "yellow" : "green",
           map(
-            (position) =>
-              ["visible", { annotation, position }] as AnnotationDisplayState,
+            (position) => ({
+              annotation,
+              position,
+            }),
             displayAnnotation
           ),
-          withValue(["hidden"], displayAnnotation)
+          hideAnnotationDelayed
         );
       } else if (change[0] === "select") {
         const selection = change[1];
+        const position = selectionPosition(selection);
         const { fragment, range } = selection;
         const selector = quoteSelectorForRange(
           textLayer,
@@ -165,7 +158,7 @@ export const annotationsSupport: Component<
           "visible",
           {
             selector,
-            position: selectionPosition(selection),
+            position,
           },
         ]);
       } else {
@@ -219,10 +212,10 @@ export const annotationsSupport: Component<
     undefined
   );
 
-  const [annotationDisplaySlot, { displayAnnotation }] = newSlot(
-    "annotation-display",
-    annotationDisplay()
-  );
+  const [
+    annotationDisplaySlot,
+    { displayAnnotation, hideAnnotationDelayed, hideAnnotation },
+  ] = newSlot("annotation-display", annotationDisplay());
 
   const [commentFormSlot, { displayCommentForm }] = newSlot(
     "comment-form",
@@ -278,8 +271,10 @@ export const annotationsSupport: Component<
     displayDocumentAnnotations: fork(
       map(pick("fragment"), setFragmentForToolbar),
       map(pick("textLayer"), setTextLayerForSelector),
-      displayDocumentAnnotations
+      displayDocumentAnnotations,
+      map(to(undefined), handleSelection),
+      () => displayCommentForm(["hidden"]),
+      () => hideAnnotation()
     ),
-    // todo reset select toolbar and comment form if empty
   };
 };

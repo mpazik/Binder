@@ -1,6 +1,13 @@
-import { delayedState, fork, withState } from "../../libs/connections";
-import { and, filter, or } from "../../libs/connections/filters";
-import { map } from "../../libs/connections/mappers";
+import {
+  Callback,
+  delayed,
+  fork,
+  passOnlyChanged,
+  withState,
+  withState2,
+} from "../../libs/connections";
+import { and, defined, filter, or } from "../../libs/connections/filters";
+import { head, map, to } from "../../libs/connections/mappers";
 import { throwIfNull } from "../../libs/errors";
 import { newStateHandler, newStateMapper } from "../../libs/named-state";
 import {
@@ -44,6 +51,10 @@ const annotationView: View<{
     div(
       {
         class: "Popover-message Popover-message--top box-shadow-large",
+        style: {
+          width: "auto",
+          maxWidth: 350,
+        },
       },
       div(
         { class: "Box-header d-flex flex-items-center" },
@@ -77,14 +88,17 @@ const annotationView: View<{
     )
   );
 
+type DisplayAnnotation = { position: Position; annotation: Annotation };
 export type AnnotationDisplayState =
   | ["hidden"]
-  | ["visible", { position: Position; annotation: Annotation }];
+  | ["visible", DisplayAnnotation];
 
 export const annotationDisplay: Component<
   void,
   {
-    displayAnnotation: AnnotationDisplayState;
+    displayAnnotation: DisplayAnnotation;
+    hideAnnotation: void;
+    hideAnnotationDelayed: void;
   }
 > = () => (render) => {
   const renderPopup = map(
@@ -95,10 +109,10 @@ export const annotationDisplay: Component<
           position,
           annotation,
           onHover: () => {
-            handleData(["visible", state]);
+            displayAnnotation(state);
           },
           onHoverOut: () => {
-            handleData(["hidden"]);
+            delayedHide();
           },
         });
       },
@@ -108,9 +122,23 @@ export const annotationDisplay: Component<
     }),
     render
   );
-  const handleData = delayedState(["hidden"], 300, renderPopup);
+
+  const handleData = passOnlyChanged(renderPopup);
+
+  const [delayedHide, cleanDelay] = delayed<void>(
+    300,
+    map(to(["hidden"] as AnnotationDisplayState), handleData)
+  );
+
+  const displayAnnotation: Callback<DisplayAnnotation> = fork(
+    (data) => handleData(["visible", data]),
+    () => cleanDelay()
+  );
+
   return {
-    displayAnnotation: handleData,
+    displayAnnotation,
+    hideAnnotation: () => handleData(["hidden"]),
+    hideAnnotationDelayed: () => delayedHide(),
   };
 };
 
@@ -140,7 +168,7 @@ const commentFormView: View<{
         },
         div({
           class: "form-control p-1",
-          style: { "min-height": "80px", width: "200px" },
+          style: { "min-height": "80px", width: "300px" },
           contenteditable: true,
           onKeydown: fork(
             filter(and(isKey("Enter"), or(hasMetaKey, hasCtrlKey)), onSave),
@@ -201,8 +229,8 @@ export const commentForm: Component<
     }
   );
 
-  const [hide, setSelectionForHide, resetSelection] = withState<Selection>(
-    onHide
+  const [hide, setSelectionForHide, resetSelection] = withState2<Selection>(
+    map(head, filter(defined, onHide))
   );
 
   const renderForm = map(
