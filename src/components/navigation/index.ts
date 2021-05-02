@@ -1,15 +1,10 @@
+import { link, map, asyncMapWithErrorHandler } from "linki";
+
 import {
   DirectoryIndex,
   DirectoryRecord,
 } from "../../functions/indexes/directory-index";
 import { Callback } from "../../libs/connections";
-import {
-  extendAsync,
-  map,
-  mapAwait,
-  pipe,
-  toObject,
-} from "../../libs/connections/mappers";
 import { HashUri } from "../../libs/hash";
 import { a, Component, View } from "../../libs/simple-ui/render";
 
@@ -37,11 +32,16 @@ export const fileNavigation: Component<
   },
   { selectItem: HashUri | undefined }
 > = ({ directoryIndex }) => (render) => {
-  const renderNavigation: Callback<HashUri | undefined> = mapAwait(
-    extendAsync(() => directoryIndex({})),
-    map(pipe(toObject("current", "list"), fileNavigationList), render),
-    (e) => console.error(e)
+  const renderNavigation: Callback<HashUri | undefined> = link(
+    asyncMapWithErrorHandler(
+      (hashUri) =>
+        directoryIndex({}).then((list) => ({ list, current: hashUri })),
+      (e) => console.error(e)
+    ),
+    map(fileNavigationList),
+    render
   );
+
   renderNavigation(undefined);
 
   return {

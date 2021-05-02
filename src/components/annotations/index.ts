@@ -1,15 +1,19 @@
+import {
+  link,
+  filter,
+  nonNull,
+  map,
+  ignoreParam,
+  fork,
+  pick,
+  to,
+  passOnlyChanged,
+} from "linki";
+
 import { DocumentAnnotationsIndex } from "../../functions/indexes/document-annotations-index";
 import { LinkedDataStoreWrite } from "../../functions/store";
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
-import {
-  fork,
-  nextTick,
-  passOnlyChanged,
-  withMultiState,
-  withState,
-} from "../../libs/connections";
-import { filter, nonNull } from "../../libs/connections/filters";
-import { ignoreParam, map, pick, to } from "../../libs/connections/mappers";
+import { nextTick, withMultiState, withState } from "../../libs/connections";
 import { throwIfNull } from "../../libs/errors";
 import { HashUri } from "../../libs/hash";
 import { Component, div, newSlot } from "../../libs/simple-ui/render";
@@ -101,7 +105,7 @@ export const annotationsSupport: Component<
     saveKeptAnnotation,
     keepAnnotationForSave,
   ] = withState<AnnotationSaveArgs | null>(
-    filter(nonNull, (annotationToSave) => {
+    link(filter(nonNull), (annotationToSave) => {
       saveAnnotation(annotationToSave);
       keepAnnotationForSave(null);
     }),
@@ -128,11 +132,11 @@ export const annotationsSupport: Component<
           text,
           getQuoteSelector(annotation.target.selector),
           annotation.motivation === "commenting" ? "yellow" : "green",
-          map(
-            (position) => ({
+          link(
+            map((position) => ({
               annotation,
               position,
-            }),
+            })),
             displayAnnotation
           ),
           hideAnnotationDelayed
@@ -201,13 +205,17 @@ export const annotationsSupport: Component<
     handleSelection,
     [setFragmentForToolbar, setContainerForToolbar],
   ] = withMultiState<[DocFragment | undefined, HTMLElement], void>(
-    map(([fragment, container]) => {
-      if (!container) return;
-      const range = currentSelection();
-      if (!range) return;
-      if (!container.contains(range.commonAncestorContainer)) return;
-      return { range, fragment, container };
-    }, passOnlyChanged(selectionHandler)),
+    link(
+      map(([fragment, container]) => {
+        if (!container) return;
+        const range = currentSelection();
+        if (!range) return;
+        if (!container.contains(range.commonAncestorContainer)) return;
+        return { range, fragment, container };
+      }),
+      passOnlyChanged(),
+      selectionHandler
+    ),
     undefined,
     undefined
   );
@@ -239,7 +247,7 @@ export const annotationsSupport: Component<
       });
       annotationsHashUris.forEach((hashUri) => {
         ldStoreRead(hashUri).then(
-          filter(nonNull, (annotation) => {
+          link(filter(nonNull), (annotation) => {
             changeSelection(["display", (annotation as unknown) as Annotation]);
           })
         );
@@ -249,7 +257,7 @@ export const annotationsSupport: Component<
   );
 
   // next tick to make sure current selection would be calculated for even handling
-  const detectSelection = map(to(undefined), nextTick(handleSelection));
+  const detectSelection = link(ignoreParam(), nextTick(handleSelection));
   document.addEventListener("mouseup", detectSelection);
   onClose(() => {
     document.removeEventListener("mouseup", detectSelection);
@@ -260,19 +268,19 @@ export const annotationsSupport: Component<
     setReference: fork(
       setReference,
       setReferenceForAnnotationDisplay,
-      ignoreParam(saveKeptAnnotation)
+      link(ignoreParam(), saveKeptAnnotation)
     ),
     setContainer: fork(
       setContainerForSelector,
       setContainerForToolbar,
-      map(to(undefined), setTextLayerForSelector)
+      link(map(to(undefined)), setTextLayerForSelector)
     ),
     setCreator: setCreator,
     displayDocumentAnnotations: fork(
-      map(pick("fragment"), setFragmentForToolbar),
-      map(pick("textLayer"), setTextLayerForSelector),
+      link(map(pick("fragment")), setFragmentForToolbar),
+      link(map(pick("textLayer")), setTextLayerForSelector),
       displayDocumentAnnotations,
-      map(to(undefined), handleSelection),
+      link(ignoreParam(), handleSelection),
       () => displayCommentForm(["hidden"]),
       () => hideAnnotation()
     ),
