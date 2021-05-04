@@ -50,7 +50,7 @@ const annotationView: View<{
     },
     div(
       {
-        class: "Popover-message Popover-message--top box-shadow-large",
+        class: "Popover-message Popover-message--top color-shadow-large",
         style: {
           width: "auto",
           maxWidth: 350,
@@ -160,7 +160,7 @@ const commentFormView: View<{
     div(
       {
         class:
-          "Popover-message Popover-message--top box-shadow-large width-auto",
+          "Popover-message Popover-message--top color-shadow-large width-auto",
       },
       div(
         {

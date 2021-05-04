@@ -72,7 +72,10 @@ export const createProfileView: ViewSetup<
         div(
           { class: "flex-auto d-flex flex-column" },
           div(profile.user.displayName),
-          div({ class: " text-small text-gray" }, profile.user.emailAddress)
+          div(
+            { class: " text-small color-text-secondary" },
+            profile.user.emailAddress
+          )
         ),
         moreActions({
           actions: [
@@ -90,7 +93,10 @@ export const createProfileView: ViewSetup<
         div(
           { class: "flex-auto d-flex flex-column" },
           div(profile.user.displayName),
-          div({ class: " text-small text-gray" }, profile.user.emailAddress)
+          div(
+            { class: " text-small color-text-secondary" },
+            profile.user.emailAddress
+          )
         )
       ),
     downloading: (profile) =>
@@ -100,7 +106,10 @@ export const createProfileView: ViewSetup<
         div(
           { class: "flex-auto d-flex flex-column" },
           div(profile.user.displayName),
-          div({ class: " text-small text-gray" }, profile.user.emailAddress)
+          div(
+            { class: " text-small color-text-secondary" },
+            profile.user.emailAddress
+          )
         )
       ),
     error: (reason) =>
@@ -111,7 +120,7 @@ export const createProfileView: ViewSetup<
         },
         div({
           class: "p-2",
-          style: { fill: "#d73a49" },
+          style: { fill: "var(--color-icon-danger)" },
           dangerouslySetInnerHTML: errorIcon,
         }),
         div({ class: "d-flex" }, maxLengthText(reason, 50))

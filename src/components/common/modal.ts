@@ -16,7 +16,7 @@ const modalView = (
   div(
     div(
       {
-        class: "Popover Box box-shadow-extra-large",
+        class: "Popover Box color-shadow-extra-large",
         style: {
           top,
           left,

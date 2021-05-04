@@ -54,7 +54,7 @@ export const changesIndicatorBar: Component<
     render(
       div(
         {
-          class: "bg-gray position-absolute",
+          class: "color-bg-tertiary position-absolute",
           style: { height: "100%", width: 8, left: -20, top: 0 },
         },
         ...changes.map((docDiff) =>

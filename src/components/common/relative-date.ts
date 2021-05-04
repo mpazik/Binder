@@ -7,7 +7,7 @@ export const relativeDate: View<{ date: Date; defaultStyle?: boolean }> = ({
 }) =>
   span(
     {
-      ...(defaultStyle ? { class: "text-gray" } : {}),
+      ...(defaultStyle ? { class: "color-text-secondary" } : {}),
       title: formatDateTime(date),
     },
     formatRelativeTime(new Date(date))
@@ -18,7 +18,7 @@ export const relativeDateOfAction: View<{ date: Date; action: string }> = ({
   action,
 }) =>
   span(
-    { class: "text-gray" },
+    { class: "color-text-secondary" },
     action,
     ": ",
     relativeDate({ date, defaultStyle: false })

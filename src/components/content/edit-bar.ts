@@ -16,7 +16,7 @@ export type EditBarState =
   | ["error", { onTryAgain: () => void; reason: string }];
 
 const barProps = {
-  class: `position-sticky Box p-2 mt-4 bottom-2 d-flex flex-items-center bg-gray box-shadow-medium`,
+  class: `position-sticky Box p-2 mt-4 bottom-2 d-flex flex-items-center color-bg-tertiary color-shadow-medium`,
 };
 
 const editBar = ({

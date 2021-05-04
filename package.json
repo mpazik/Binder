@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@mozilla/readability": "^0.4.0",
-    "@primer/css": "^15.2.0",
+    "@primer/css": "^16.3.0",
     "@primer/octicons": "^11.0.0",
     "@types/jszip": "^3.4.1",
     "diff": "^5.0.0",

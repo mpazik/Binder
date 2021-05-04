@@ -37,7 +37,7 @@ export const selectionToolbarView: View<{
     div(
       {
         class:
-          "Popover-message Popover-message--bottom BtnGroup box-shadow-large width-auto d-flex",
+          "Popover-message Popover-message--bottom BtnGroup color-shadow-large width-auto d-flex",
       },
       ...buttons.map(({ handler, label, shortCutKey }) =>
         button(

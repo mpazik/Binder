@@ -83,6 +83,7 @@ module.exports = {
     new CopyWebpackPlugin({
       patterns: [
         { from: "assets" },
+        { from: "node_modules/@primer/css/dist/primer.css" },
         { from: "node_modules/pdfjs-dist/build/pdf.worker.js" },
       ],
     }),
