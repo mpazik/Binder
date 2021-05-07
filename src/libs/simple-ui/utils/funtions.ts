@@ -1,6 +1,9 @@
 export const getTarget = (event: Event): HTMLElement =>
   event.target as HTMLElement;
 
+export const getInputTarget = (event: Event): HTMLInputElement =>
+  event.target as HTMLInputElement;
+
 export const focusElement = (element: HTMLElement): void => element.focus();
 
 export const isKey = (key: string) => (event: KeyboardEvent): boolean =>

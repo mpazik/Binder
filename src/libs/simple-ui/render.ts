@@ -1,16 +1,27 @@
 import { OnCloseRegister, Provider } from "../connections";
-
-import { SimplifiedElementsMap, SimplifiedEvent, SimplifiedEventMap } from "./dom";
-import { Attributes, JsonMl, mapJsonMl, newTagFactory, TagName, TagProps } from "./jsonml";
 import { CloseHandler } from "../connections/types";
+
+import {
+  SimplifiedElementsMap,
+  SimplifiedEvent,
+  SimplifiedEventMap,
+} from "./dom";
+import {
+  Attributes,
+  JsonMl,
+  mapJsonMl,
+  newTagFactory,
+  TagName,
+  TagProps,
+} from "./jsonml";
 
 // todo render should be independent from JsonML and accpet only raw dom
 // there could be another jsonMl (jsonHtml) render that act as a glue code
 
 type CustomEventMap = {
-  display: SimplifiedEvent
-}
-export type EventMap = SimplifiedEventMap & CustomEventMap
+  display: SimplifiedEvent;
+};
+export type EventMap = SimplifiedEventMap & CustomEventMap;
 type EventHandlers = {
   [K in keyof EventMap as `on${Capitalize<K>}`]: (event: EventMap[K]) => void;
 };
@@ -20,10 +31,13 @@ type CustomElements = {
     componentHandler: ComponentRuntime;
   };
   // eslint-disable-next-line @typescript-eslint/ban-types
-  fragment: {}
+  fragment: {};
 };
 
-type Nodes = { [P in keyof SimplifiedElementsMap]: (SimplifiedElementsMap[P] & EventHandlers) } & CustomElements;
+type Nodes = {
+  [P in keyof SimplifiedElementsMap]: SimplifiedElementsMap[P] & EventHandlers;
+} &
+  CustomElements;
 
 export type JsonHtml = JsonMl<Nodes>;
 export type Slot = JsonHtml;
@@ -38,43 +52,70 @@ export type Handlers<T extends object> = {
   [K in keyof T]: (args: T[K]) => void;
 };
 type ComponentRuntime = (render: Renderer, onClose: OnCloseRegister) => void;
-export type ComponentBody<P extends void | object> = (render: Renderer, onClose: OnCloseRegister) => P extends object ? Handlers<P> : void;
-export type Component<T = void, P extends void | object = void> = (props: T) => ComponentBody<P>;
+export type ComponentBody<P extends void | object> = (
+  render: Renderer,
+  onClose: OnCloseRegister
+) => P extends object ? Handlers<P> : void;
+export type Component<T = void, P extends void | object = void> = (
+  props: T
+) => ComponentBody<P>;
 
-const getComponentHandlers = <P extends object>(runtime: ComponentBody<P>): [ComponentBody<void>, Handlers<P>] => {
+const getComponentHandlers = <P extends object>(
+  runtime: ComponentBody<P>
+): [ComponentBody<void>, Handlers<P>] => {
   let handlers: Handlers<P> | undefined;
-  const proxy = new Proxy({}, {
-    get: (_, prop) => (args: P[keyof P]) => {
-      if (handlers) {
-        return handlers[prop as keyof P](args);
-      } else {
-        console.error(`Can not trigger event "${String(prop)}" on inactive component`);
-      }
-    },
-  }) as Handlers<P>;
+  const proxy = new Proxy(
+    {},
+    {
+      get: (_, prop) => (args: P[keyof P]) => {
+        if (handlers) {
+          return handlers[prop as keyof P](args);
+        } else {
+          console.error(
+            `Can not trigger event "${String(prop)}" on inactive component`
+          );
+        }
+      },
+    }
+  ) as Handlers<P>;
 
-  return [(render, onClose) => {
-    handlers = runtime(render, onClose) as unknown as Handlers<P>;
-    onClose(() => handlers = undefined);
-  }, proxy];
+  return [
+    (render, onClose) => {
+      handlers = (runtime(render, onClose) as unknown) as Handlers<P>;
+      onClose(() => (handlers = undefined));
+    },
+    proxy,
+  ];
 };
 
-export const newSlot = <P extends object>(key: string, runtime: ComponentBody<P>): [Slot, Handlers<P>] => {
-  const [body, handlers] = getComponentHandlers(runtime)
+export const newSlot = <P extends object>(
+  key: string,
+  runtime: ComponentBody<P>
+): [Slot, Handlers<P>] => {
+  const [body, handlers] = getComponentHandlers(runtime);
   return [slot(key, body), handlers];
 };
 
-export type Prop = string | number | boolean | Record<string, unknown> | Prop[] | undefined | Provider<unknown>;
+export type Prop =
+  | string
+  | number
+  | boolean
+  | Record<string, unknown>
+  | Prop[]
+  | undefined
+  | Provider<unknown>;
 type ViewProps = Record<string, Prop> | Prop | void;
 export type View<T extends ViewProps = void> = (props: T) => JsonHtml;
-export type OptionalView<T extends ViewProps = void> = (props: T) => JsonHtml | undefined;
+export type OptionalView<T extends ViewProps = void> = (
+  props: T
+) => JsonHtml | undefined;
 
 // type ViewConfig = Record<string, Prop | Listener<any> | ComponentRuntime> | void;
 export type ViewSetup<C = void, T extends ViewProps = void> = (
-  config: C,
+  config: C
 ) => View<T>;
 export type OptionalViewSetup<C = void, T extends ViewProps = void> = (
-  config: C,
+  config: C
 ) => OptionalView<T>;
 
 type Slots = Map<string, { element: Element; runtime: ComponentRuntime }>;
@@ -95,7 +136,9 @@ function handleChildren(node: Node, slots: Slots, children: [Node, Slots][]) {
     childSlots.forEach((value, key) => {
       if (process.env.NODE_ENV !== "production") {
         if (slots.has(key)) {
-          throw new Error(`Slot with the key "${key}" is duplicated. Slot key must be unique`);
+          throw new Error(
+            `Slot with the key "${key}" is duplicated. Slot key must be unique`
+          );
         }
       }
       slots.set(key, value);
@@ -146,7 +189,7 @@ const convertToDom = (elem: JsonHtml): [Node, Slots] =>
         } else if (attrKey === "dangerouslySetInnerHTML") {
           node.innerHTML = attrVal as string;
         } else if (attrKey === "dangerouslySetDom") {
-          node.appendChild(attrVal as unknown as HTMLElement);
+          node.appendChild((attrVal as unknown) as HTMLElement);
         } else if (typeof attrVal === "function") {
           const type = attrKey.substr(2).toLowerCase();
           const listener = attrVal as (event: Event) => void;
@@ -155,13 +198,15 @@ const convertToDom = (elem: JsonHtml): [Node, Slots] =>
               listener(({
                 type: "display",
                 target: node,
-              } as unknown) as Event),
+              } as unknown) as Event)
             );
           }
           node.addEventListener(type, (e: Event) => listener(e));
         } else if (typeof attrVal === "boolean") {
           attrVal
-            ? trueBooleanAttributes.includes(attrKey) ? node.setAttribute(attrKey, "true") : node.setAttribute(attrKey, attrKey)
+            ? trueBooleanAttributes.includes(attrKey)
+              ? node.setAttribute(attrKey, "true")
+              : node.setAttribute(attrKey, attrKey)
             : node.removeAttribute(attrKey);
         } else {
           node.setAttribute(attrKey, attrVal as string);
@@ -171,14 +216,16 @@ const convertToDom = (elem: JsonHtml): [Node, Slots] =>
       handleChildren(node, slots, children);
 
       return [node, slots];
-    },
+    }
   );
 
 export type Deactivate = () => void;
 
 const slotHandler = (parent: Element): Renderer => {
-  const existingSlots = new Map<string,
-    { element: Element; deactivate: Deactivate }>();
+  const existingSlots = new Map<
+    string,
+    { element: Element; deactivate: Deactivate }
+  >();
 
   return (jsonml?: JsonHtml) => {
     console.debug("render", jsonml);
@@ -224,13 +271,19 @@ const slotHandler = (parent: Element): Renderer => {
 
 export const newCloseController = (): [OnCloseRegister, CloseHandler] => {
   const abortController = new AbortController();
-  return [(handler) => {
-    abortController.signal.addEventListener("abort", handler);
-  }, () => abortController.abort()]
-}
+  return [
+    (handler) => {
+      abortController.signal.addEventListener("abort", handler);
+    },
+    () => abortController.abort(),
+  ];
+};
 
-export const setupComponent = (runtime: ComponentRuntime, element: Element): Deactivate => {
-  const [onClose, close] = newCloseController()
+export const setupComponent = (
+  runtime: ComponentRuntime,
+  element: Element
+): Deactivate => {
+  const [onClose, close] = newCloseController();
   runtime(slotHandler(element), onClose);
   return close;
 };
@@ -241,7 +294,9 @@ const setDifference = <T>(setA: Set<T>, setB: Set<T>): Set<T> =>
 const setIntersection = <T>(setA: Set<T>, setB: Set<T>): Set<T> =>
   new Set([...setA].filter((x) => setB.has(x)));
 
-export type ComponentItem<I, ID, T = void> = (props: T & { itemProvider: Provider<I>, id: ID }) => ComponentRuntime;
+export type ComponentItem<I, ID, T = void> = (
+  props: T & { itemProvider: Provider<I>; id: ID }
+) => ComponentRuntime;
 
 export const div = newTagFactory<Nodes>("div");
 export const h1 = newTagFactory<Nodes>("h1");
@@ -289,8 +344,14 @@ const hashCode = (str: string) => {
   return hash;
 };
 
-export const slotForEntity = (key: string, entity: string | undefined, onRender: ComponentRuntime): JsonHtml => [
+export const slotForEntity = (
+  key: string,
+  entity: string | undefined,
+  onRender: ComponentRuntime
+): JsonHtml => [
   "slot",
-  { componentHandler: onRender, key: entity ? `${key}-${hashCode(entity)}` : key },
+  {
+    componentHandler: onRender,
+    key: entity ? `${key}-${hashCode(entity)}` : key,
+  },
 ];
-
