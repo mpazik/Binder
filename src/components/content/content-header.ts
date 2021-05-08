@@ -1,9 +1,21 @@
 import { URL } from "schema-dts";
 
+import { link, map } from "../../../../linki";
 import { findUrl, LinkedData } from "../../libs/linked-data";
-import { a, Component, div, span, View } from "../../libs/simple-ui/render";
+import {
+  a,
+  Component,
+  div,
+  newSlot,
+  Slot,
+  span,
+  ViewSetup,
+} from "../../libs/simple-ui/render";
+import { multiSelect } from "../common/multi-select";
 
-const contentHeaderView: View<LinkedData> = (linkedData: LinkedData) => {
+const newContentHeader: ViewSetup<{ categoriesSlot: Slot }, LinkedData> = ({
+  categoriesSlot,
+}) => (linkedData: LinkedData) => {
   const uri = findUrl(linkedData);
   return div(
     { class: "Subhead" },
@@ -17,7 +29,8 @@ const contentHeaderView: View<LinkedData> = (linkedData: LinkedData) => {
               a({ href: uri, target: "_blank" }, new URL(uri).hostname)
             ),
           ]
-        : [])
+        : []),
+      categoriesSlot
     )
   );
 };
@@ -25,6 +38,14 @@ const contentHeaderView: View<LinkedData> = (linkedData: LinkedData) => {
 export const contentHeader: Component<
   void,
   { renderFields: LinkedData }
-> = () => (render) => ({
-  renderFields: (linkedData) => render(contentHeaderView(linkedData)),
-});
+> = () => (render) => {
+  const [categoriesSlot] = newSlot("categories", multiSelect({}));
+
+  const containerHeaderView = newContentHeader({
+    categoriesSlot,
+  });
+
+  return {
+    renderFields: link(map(containerHeaderView), render),
+  };
+};

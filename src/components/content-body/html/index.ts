@@ -1,6 +1,6 @@
 import { Callback, fork } from "../../../libs/connections";
 import { map, pick, wrap } from "../../../libs/connections/mappers";
-import { Component, div, newSlot } from "../../../libs/simple-ui/render";
+import { Component, newSlot } from "../../../libs/simple-ui/render";
 import { loader } from "../../common/loader";
 import { ContentComponent } from "../types";
 
@@ -17,10 +17,7 @@ const contentComponent: Component<
   const htmlView = setupHtmlView({ onDisplay });
 
   return {
-    renderPage: map(
-      (it) => div(div({ style: { height: 100 } }), htmlView(it)),
-      render
-    ),
+    renderPage: map(htmlView, render),
   };
 };
 

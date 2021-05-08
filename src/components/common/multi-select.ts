@@ -158,6 +158,7 @@ export const setupMultiSelect: ViewSetup<{
   previousSuggestion: () => void;
   focusInput: () => void;
   placeholder?: string;
+  extraClass?: string;
 }> = ({
   suggestionsSlot,
   categoriesSlot,
@@ -169,18 +170,20 @@ export const setupMultiSelect: ViewSetup<{
   previousSuggestion,
   focusInput,
   placeholder,
+  extraClass = "p-0 mx-2",
 }) => () => {
   // noinspection JSUnusedGlobalSymbols
   return div(
     {
       class:
-        "multi-select form-control d-inline-block color-bg-primary py-0 position-relative",
+        "multi-select form-control d-inline-block color-bg-primary position-relative " +
+        extraClass,
       onClick: focusInput,
     },
     categoriesSlot,
     input({
       class:
-        "form-control color-bg-primary shorter d-inline-block p-0 my-1 border-0",
+        "form-control color-bg-primary shorter d-inline-block mx-1 p-0 border-0",
       onDisplay: link(map(getInputTarget), onInputDisplay),
       onKeydown: (event) => {
         if (event.key === "Enter" || event.key === "Tab") {
@@ -228,7 +231,9 @@ const listReducer: Reducer<string[], Actions<string>> = (
   }
 };
 
-export const ms: Component<{}, {}> = () => (render) => {
+export const multiSelect: Component<{ extraClass?: string }, {}> = ({
+  extraClass,
+}) => (render) => {
   const categories = ["food", "tool", "animal", "tiger", "cloth"];
 
   const [
@@ -298,6 +303,7 @@ export const ms: Component<{}, {}> = () => (render) => {
       previousSuggestion,
       focusInput: () => controlInput("focus"),
       placeholder: "add category",
+      extraClass,
     })()
   );
 

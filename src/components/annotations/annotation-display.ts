@@ -15,8 +15,11 @@ import {
   Component,
   div,
   JsonHtml,
+  newSlot,
+  Slot,
   span,
   View,
+  ViewSetup,
 } from "../../libs/simple-ui/render";
 import {
   focusElement,
@@ -26,17 +29,28 @@ import {
   isKey,
 } from "../../libs/simple-ui/utils/funtions";
 import { moreActions } from "../common/more-acctions";
+import { multiSelect } from "../common/multi-select";
 import { relativeDateOfAction } from "../common/relative-date";
 
 import { Annotation, AnnotationSelector } from "./annotation";
 import { Position } from "./selection";
 
-const annotationView: View<{
-  position: Position;
-  annotation: Annotation;
-  onHover: () => void;
-  onHoverOut: () => void;
-}> = ({ position: [left, top], annotation, onHover, onHoverOut }) =>
+const createAnnotationView: ViewSetup<
+  {
+    categoriesSlot: Slot;
+    onHover: (state: DisplayAnnotation) => void;
+    onHoverOut: () => void;
+  },
+  {
+    state: DisplayAnnotation;
+    position: Position;
+    annotation: Annotation;
+  }
+> = ({ categoriesSlot, onHover, onHoverOut }) => ({
+  position: [left, top],
+  annotation,
+  state,
+}) =>
   div(
     {
       class: "Box Box--condensed Popover",
@@ -46,13 +60,13 @@ const annotationView: View<{
         transform: "translate(-50%, 8px)",
       },
       onMouseleave: onHoverOut,
-      onMouseenter: onHover,
+      onMouseenter: () => onHover(state),
     },
     div(
       {
         class: "Popover-message Popover-message--top color-shadow-large",
         style: {
-          width: "auto",
+          // width: "auto",
           maxWidth: 350,
         },
       },
@@ -77,6 +91,7 @@ const annotationView: View<{
           ],
         })
       ),
+      categoriesSlot,
       ...(annotation.body
         ? [
             div({
@@ -101,6 +116,17 @@ export const annotationDisplay: Component<
     hideAnnotationDelayed: void;
   }
 > = () => (render) => {
+  const [categoriesSlot] = newSlot(
+    "categories",
+    multiSelect({ extraClass: "p-0 m-0 width-full" })
+  );
+
+  const annotationView = createAnnotationView({
+    categoriesSlot,
+    onHover: (state) => displayAnnotation(state),
+    onHoverOut: () => delayedHide(),
+  });
+
   const renderPopup = map(
     newStateMapper<AnnotationDisplayState, JsonHtml | undefined>({
       visible: (state) => {
@@ -108,12 +134,7 @@ export const annotationDisplay: Component<
         return annotationView({
           position,
           annotation,
-          onHover: () => {
-            displayAnnotation(state);
-          },
-          onHoverOut: () => {
-            delayedHide();
-          },
+          state,
         });
       },
       hidden: () => {
