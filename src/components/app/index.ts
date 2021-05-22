@@ -1,6 +1,8 @@
 import "./styles.css";
 import "./loading.css";
 
+import { ignore } from "linki";
+
 import {
   LinkedDataWithContent,
   processFileToContent,
@@ -35,8 +37,6 @@ import {
 } from "../../functions/store/local-store";
 import {
   currentDocumentUriProvider,
-  newUriWithFragment,
-  updateBrowserHistory,
   UriWithFragment,
 } from "../../functions/url-hijack";
 import {
@@ -55,17 +55,15 @@ import {
   pick,
   to,
 } from "../../libs/connections/mappers";
-import { HashName, HashUri } from "../../libs/hash";
+import { HashName } from "../../libs/hash";
 import { filterState } from "../../libs/named-state";
 import { measureAsyncTime } from "../../libs/performance";
-import { div, newSlot } from "../../libs/simple-ui/render";
+import { div, fragment, newSlot } from "../../libs/simple-ui/render";
 import { asyncLoader } from "../common/async-loader";
 import { loader } from "../common/loader";
 import { contentComponent } from "../content";
 import { fileDrop } from "../file-drop";
-import { fileNavigation } from "../navigation";
-import { searchBox } from "../navigation/search-box";
-import { profilePanel } from "../profile";
+import { navigation } from "../navigation";
 
 const defaultUri = "https://pl.wikipedia.org/wiki/Dedal_z_Sykionu";
 
@@ -158,11 +156,34 @@ export const App = asyncLoader(
       )
     );
 
-    const [profilePanelSlot, { updateStoreState, updateGdriveState }] = newSlot(
-      "profile",
-      profilePanel({
-        login: () => updateGdrive(["login"]),
-        logout: () => updateGdrive(["logout"]),
+    const loadUri = reduce<
+      UriWithFragment & { uriChanged: boolean },
+      UriWithFragment
+    >(
+      { uri: "", uriChanged: false },
+      (old, { uri, fragment }) => ({
+        uri,
+        fragment,
+        uriChanged: uri !== old.uri,
+      }),
+      split(
+        pick("uriChanged"),
+        ({ uri, fragment }) => {
+          setFragment(fragment);
+          loadResource(uri);
+        },
+        map(
+          pick("fragment"),
+          filter(defined, (it) => goToFragment(it))
+        )
+      )
+    );
+
+    const [navigationSlot, { updateStoreState, updateGdriveState }] = newSlot(
+      "navigation",
+      navigation({
+        updateGdrive,
+        loadUri,
       })
     );
 
@@ -178,13 +199,6 @@ export const App = asyncLoader(
       store.readResource
     );
 
-    const [contentNavSlot, { selectItem }] = newSlot(
-      "content-nav",
-      fileNavigation({
-        directoryIndex,
-      })
-    );
-
     const [contentSlot, { setCreator, displayContent, goToFragment }] = newSlot(
       "content-container",
       contentComponent({
@@ -192,7 +206,7 @@ export const App = asyncLoader(
         ldStoreWrite: store.writeLinkedData,
         ldStoreRead: store.readLinkedData,
         documentAnnotationsIndex,
-        onSave: (linkedData) => selectItem(linkedData["@id"] as HashUri),
+        onSave: ignore,
       })
     );
 
@@ -211,9 +225,6 @@ export const App = asyncLoader(
       loader({
         fetcher: contentFetcher,
         onLoaded: fork(
-          map(pick("linkedData"), (linkedData) =>
-            selectItem(linkedData["@id"] as HashUri)
-          ),
           displayContentWithFragment,
           map(to(true), setContentReady)
         ),
@@ -234,53 +245,17 @@ export const App = asyncLoader(
       })
     );
 
-    const loadUri = reduce<
-      UriWithFragment & { uriChanged: boolean },
-      UriWithFragment
-    >(
-      { uri: "", uriChanged: false },
-      (old, { uri, fragment }) => ({
-        uri,
-        fragment,
-        uriChanged: uri !== old.uri,
-      }),
-      split(
-        pick("uriChanged"),
-        ({ uri, fragment }) => {
-          setFragment(fragment);
-          loadResource(uri);
-        },
-        map(pick("fragment"), filter(defined, goToFragment))
-      )
-    );
-
     currentDocumentUriProvider({
       defaultUri,
     })(onClose, loadUri);
 
     render(
-      div(
-        {
-          onDragenter: mapTo(true, displayFileDrop),
-        },
-        fileDropSlot,
+      fragment(
+        navigationSlot,
         div(
-          {
-            id: "navigation",
-            onDisplay: () => {
-              updateGdrive(["load"]);
-            },
-          },
-          profilePanelSlot,
-          searchBox(
-            map(
-              (url) => newUriWithFragment(url.toString()),
-              fork(updateBrowserHistory, loadUri)
-            )
-          ),
-          contentNavSlot
-        ),
-        div({ id: "container" }, div({ class: "p-4" }, contentLoaderSlot))
+          { id: "container", onDragenter: mapTo(true, displayFileDrop) },
+          div({ class: "p-4" }, fileDropSlot, contentLoaderSlot)
+        )
       )
     );
   }

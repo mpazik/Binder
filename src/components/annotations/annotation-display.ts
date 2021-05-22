@@ -28,7 +28,7 @@ import {
   hasMetaKey,
   isKey,
 } from "../../libs/simple-ui/utils/funtions";
-import { moreActions } from "../common/more-acctions";
+import { moreActions } from "../common/drop-down";
 import { multiSelect } from "../common/multi-select";
 import { relativeDateOfAction } from "../common/relative-date";
 

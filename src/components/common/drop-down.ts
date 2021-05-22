@@ -1,4 +1,13 @@
-import { a, details, li, summary, ul, View } from "../../libs/simple-ui/render";
+import {
+  a,
+  details,
+  div,
+  li,
+  summary,
+  ul,
+  View,
+  ViewSetup,
+} from "../../libs/simple-ui/render";
 
 const moreIcon = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
@@ -17,6 +26,34 @@ export const moreActions: View<{ actions: Action[] }> = ({ actions }) =>
       role: "button",
       dangerouslySetInnerHTML: moreIcon,
     }),
+    ul(
+      { class: "dropdown-menu dropdown-menu-sw right-0" },
+      ...actions.map(({ label, handler }) =>
+        li(
+          a(
+            {
+              class: "dropdown-item",
+              onClick: handler,
+            },
+            label
+          )
+        )
+      )
+    )
+  );
+
+export const createDropDown: ViewSetup<{ actions: Action[] }, void> = ({
+  actions,
+}) => () =>
+  details(
+    { class: "dropdown details-reset details-overlay" },
+    summary(
+      {
+        class: "btn-octicon",
+        role: "button",
+      },
+      div({ class: "dropdown-caret" })
+    ),
     ul(
       { class: "dropdown-menu dropdown-menu-sw right-0" },
       ...actions.map(({ label, handler }) =>

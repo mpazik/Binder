@@ -32,6 +32,7 @@ type CustomElements = {
   };
   // eslint-disable-next-line @typescript-eslint/ban-types
   fragment: {};
+  dangerousHTML: {};
 };
 
 type Nodes = {
@@ -159,6 +160,13 @@ const convertToDom = (elem: JsonHtml): [Node, Slots] =>
         const node = document.createDocumentFragment();
         handleChildren(node, slots, children);
         return [node, slots];
+      }
+      if (tag === "dangerousHTML") {
+        const node = document.createElement("div");
+        node.innerHTML = (attrs as Attributes<Nodes, typeof tag>)[
+          "dangerouslySetInnerHTML" as keyof Attributes<Nodes, typeof tag>
+        ];
+        return [node.children[0], slots];
       }
 
       const node = document.createElement(tag);
@@ -322,6 +330,10 @@ export const article = newTagFactory<Nodes>("article");
 export const details = newTagFactory<Nodes>("details");
 export const summary = newTagFactory<Nodes>("summary");
 export const canvas = newTagFactory<Nodes>("canvas");
+export const dangerousHTML = (html: string): JsonHtml => [
+  "dangerousHTML",
+  { dangerouslySetInnerHTML: html },
+];
 export const fragment = (...children: JsonHtml[]): JsonHtml => [
   "fragment",
   {},
