@@ -113,6 +113,9 @@ export const multiSelect: Component<{ extraClass?: string }, {}> = ({
       onSelected: (s) => {
         changeCategories(["add", s]);
       },
+      onCreated: (s) => {
+        changeCategories(["add", s]);
+      },
     })
   );
 

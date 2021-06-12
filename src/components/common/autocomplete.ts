@@ -21,18 +21,16 @@ import {
   View,
   ViewSetup,
 } from "../../libs/simple-ui/render";
-import { getInputTarget, getTarget } from "../../libs/simple-ui/utils/funtions";
-
-const noItemsView: View = () =>
-  div(
-    {
-      class: "autocomplete-results",
-    },
-    div({ class: "p-2" }, "No options")
-  );
+import {
+  getInputTarget,
+  getTarget,
+  inputValue,
+  selectInputTarget,
+  trim,
+} from "../../libs/simple-ui/utils/funtions";
 
 export const createAutocompleteList: Component<
-  { onSelected: (s: string) => void; onCreated?: (s: string) => void },
+  { onSelected: (s: string) => void; onCreated: (s: string) => void },
   {
     renderList: string[];
     hideList: void;
@@ -43,11 +41,11 @@ export const createAutocompleteList: Component<
 > = ({ onSelected, onCreated }) => (render) => {
   const [selectHighlighted, setHighlighted] = link(
     valueWithState<string | undefined, string>(undefined),
-    ([highlighted, search]) => {
+    ([highlighted, inputValue]) => {
       if (highlighted) {
         onSelected(highlighted);
-      } else if (onCreated) {
-        onCreated(search);
+      } else {
+        onCreated(inputValue);
       }
     }
   );
@@ -82,8 +80,7 @@ export const createAutocompleteList: Component<
       map((suggestions) => {
         if (suggestions === undefined) return undefined;
         if (suggestions.length > 0) return suggestionsView({ suggestions });
-        if (onCreated) return undefined;
-        return noItemsView();
+        return undefined;
       }),
       render
     )
@@ -127,36 +124,37 @@ export const createAutocompleteList: Component<
 export const createAutocompleteInput: ViewSetup<{
   onInputDisplay: (input: HTMLInputElement) => void;
   onSearch: (text: string) => void;
-  onCategoryAdded: (category: string) => void;
-  hideSuggestions: () => void;
-  nextSuggestion: () => void;
-  previousSuggestion: () => void;
+  onTriggered: (value: string) => void;
+  hideList: () => void;
+  nextItem: () => void;
+  previousItem: () => void;
   placeholder?: string;
 }> = ({
   onInputDisplay,
   onSearch,
-  placeholder,
-  previousSuggestion,
-  nextSuggestion,
-  hideSuggestions,
-  onCategoryAdded,
+  placeholder = "",
+  previousItem,
+  nextItem,
+  hideList,
+  onTriggered,
 }) => {
-  const addCategory = (event: KeyboardEvent) =>
-    onCategoryAdded((event.target as HTMLInputElement).value.trim());
-
+  const getTrimmedValue = map(getInputTarget, inputValue, trim);
+  const trigger = link(getTrimmedValue, onTriggered);
   const keyHandlers: Map<string, (event: KeyboardEvent) => void> = new Map([
-    ["Enter", addCategory],
-    ["Tab", addCategory],
-    ["Escape", hideSuggestions],
-    ["ArrowDown", nextSuggestion],
-    ["ArrowUp", previousSuggestion],
+    ["Enter", trigger],
+    ["Tab", trigger],
+    ["Escape", hideList],
+    ["ArrowDown", nextItem],
+    ["ArrowUp", previousItem],
   ]);
 
   return () =>
     input({
       class:
         "form-control color-bg-primary shorter d-inline-block mx-1 p-0 border-0",
+      type: "text",
       onDisplay: link(map(getInputTarget), onInputDisplay),
+      onFocus: selectInputTarget,
       onKeydown: (event) => {
         const handler = keyHandlers.get(event.key);
         if (!handler) return;
@@ -164,12 +162,8 @@ export const createAutocompleteInput: ViewSetup<{
         event.stopPropagation();
         event.preventDefault();
       },
-      onInput: link(
-        map(getInputTarget, (input) => input.value.trim()),
-        debounce(300),
-        onSearch
-      ),
-      onBlur: hideSuggestions,
+      onInput: link(getTrimmedValue, debounce(300), onSearch),
+      onBlur: hideList,
       autocomplete: false,
       placeholder,
     });
@@ -179,10 +173,11 @@ export const creatAutocomplete: Component<
   {
     search: (term: string) => Promise<string[]>;
     onSelected: (selected: string) => void;
-    onCreated?: (created: string) => void;
+    onCreated: (created: string) => void;
+    placeholder?: string;
   },
   { focus: void }
-> = ({ search, onSelected, onCreated }) => (render) => {
+> = ({ search, onSelected, onCreated, placeholder }) => (render) => {
   const [
     suggestionsSlot,
     {
@@ -200,13 +195,11 @@ export const creatAutocomplete: Component<
         controlInput("reset");
         onSelected(item);
       },
-      onCreated: onCreated
-        ? (item) => {
-            hideList();
-            controlInput("reset");
-            onCreated(item);
-          }
-        : undefined,
+      onCreated: (item) => {
+        hideList();
+        controlInput("reset");
+        onCreated(item);
+      },
     })
   );
 
@@ -227,11 +220,11 @@ export const creatAutocomplete: Component<
       search(term)
         // todo handle loading state and stop searching
         .then((result) => renderList(result)),
-    onCategoryAdded: selectHighlighted,
-    hideSuggestions: hideList,
-    nextSuggestion: highlightNextItem,
-    previousSuggestion: highlightPreviousItem,
-    placeholder: "add category",
+    onTriggered: selectHighlighted,
+    hideList: hideList,
+    nextItem: highlightNextItem,
+    previousItem: highlightPreviousItem,
+    placeholder,
   });
 
   render(div(input(), suggestionsSlot));

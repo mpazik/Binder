@@ -184,6 +184,7 @@ export const App = asyncLoader(
       navigation({
         updateGdrive,
         loadUri,
+        directoryIndex,
       })
     );
 
@@ -238,9 +239,7 @@ export const App = asyncLoader(
         onFile: mapAwait(
           processFileToContent,
           fork(map(to(undefined), setFragment), displayFile),
-          (error) => {
-            console.error(error);
-          }
+          (error) => console.error(error)
         ),
       })
     );

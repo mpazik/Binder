@@ -6,6 +6,7 @@ import {
   storePut,
 } from "../../libs/indexeddb";
 import { getType } from "../../libs/linked-data";
+import { measureAsyncTime } from "../../libs/performance";
 import { Opaque } from "../../libs/types";
 
 import { Indexer, IndexRecord } from "./types";
@@ -30,16 +31,26 @@ Promise<DirectoryIndexDb> =>
 export const createDirectoryIndex = (
   directoryIndexDb: DirectoryIndexDb
 ): DirectoryIndex => {
-  return async () => {
-    const data = await storeGetAllWithKeys(directoryIndexDb);
-    return data.map(
-      ({ key, value }) =>
-        <DirectoryRecord>{
-          hash: key as HashName,
-          props: value,
-        }
-    );
-  };
+  return async ({ name, type }) =>
+    measureAsyncTime("search", async () => {
+      const data = await storeGetAllWithKeys(directoryIndexDb);
+      return data
+        .map(
+          ({ key, value }) =>
+            <DirectoryRecord>{
+              hash: key as HashName,
+              props: value,
+            }
+        )
+        .filter(
+          ({ props }) =>
+            (!name ||
+              props.name
+                .toLocaleLowerCase()
+                .includes(name.toLocaleLowerCase())) &&
+            (!type || props.type === type)
+        );
+    });
 };
 
 export const createDirectoryIndexer = (

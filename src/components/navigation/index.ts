@@ -22,6 +22,7 @@ import {
   div,
   h2,
   newSlot,
+  slot,
   span,
   summary,
   View,
@@ -110,9 +111,10 @@ export const navigation: Component<
   {
     updateGdrive: Callback<GDriveAction>;
     loadUri: Callback<UriWithFragment>;
+    directoryIndex: DirectoryIndex;
   },
   ProfilePanelControl
-> = ({ updateGdrive, loadUri }) => (render) => {
+> = ({ updateGdrive, loadUri, directoryIndex }) => (render) => {
   const [profilePanelSlot, profilePanelControl] = newSlot(
     "profile",
     profilePanel({
@@ -154,6 +156,17 @@ export const navigation: Component<
     lastPosition = newPosition;
   });
 
+  const searchBoxSlot = slot(
+    "search-box",
+    searchBox({
+      onSelected: link(
+        map(newUriWithFragment),
+        fork(updateBrowserHistory, loadUri)
+      ),
+      onSearch: (name) => directoryIndex({ name }),
+    })
+  );
+
   render(
     div(
       {
@@ -180,13 +193,8 @@ export const navigation: Component<
       div(
         { class: "flex-auto" },
         div(
-          { class: "mx-auto my-2", style: { "max-width": "500px" } },
-          searchBox({
-            onNewUrl: link(
-              map((url) => newUriWithFragment(url.toString())),
-              fork(updateBrowserHistory, loadUri)
-            ),
-          })
+          { class: "mx-auto my-2", style: { maxWidth: "500px" } },
+          searchBoxSlot
         )
       ),
       div(
