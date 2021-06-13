@@ -1,3 +1,4 @@
+import { CATEGORIES_ENABLED } from "../../config";
 import {
   Callback,
   delayed,
@@ -91,7 +92,7 @@ const createAnnotationView: ViewSetup<
           ],
         })
       ),
-      categoriesSlot,
+      ...(CATEGORIES_ENABLED ? [categoriesSlot] : []),
       ...(annotation.body
         ? [
             div({

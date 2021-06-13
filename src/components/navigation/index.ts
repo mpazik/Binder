@@ -1,5 +1,6 @@
 import { link, map, asyncMapWithErrorHandler } from "linki";
 
+import { DISPLAY_CONFIG_ENABLED } from "../../config";
 import { GDriveAction } from "../../functions/gdrive/controller";
 import {
   DirectoryIndex,
@@ -200,32 +201,42 @@ export const navigation: Component<
       div(
         { class: "flex-1 d-flex" },
         div({ class: "flex-1" }),
-        button({ class: "btn-octicon" }, dangerousHTML(zoomOut)),
-        button({ class: "btn-octicon" }, dangerousHTML(zoomIn)),
-        details(
-          { class: "dropdown details-reset details-overlay" },
-          summary(
-            {
-              class: "btn-octicon",
-              role: "button",
-            },
-            dangerousHTML(navigationIcon),
-            div({ class: "dropdown-caret" })
-          ),
-          div({ class: "dropdown-menu dropdown-menu-sw right-0" }, "something")
-        ),
-        details(
-          { class: "dropdown details-reset details-overlay" },
-          summary(
-            {
-              class: "btn-octicon",
-              role: "button",
-            },
-            dangerousHTML(typographyIcon),
-            div({ class: "dropdown-caret" })
-          ),
-          div({ class: "dropdown-menu dropdown-menu-sw right-0" }, "something")
-        )
+        ...(DISPLAY_CONFIG_ENABLED
+          ? [
+              button({ class: "btn-octicon" }, dangerousHTML(zoomOut)),
+              button({ class: "btn-octicon" }, dangerousHTML(zoomIn)),
+              details(
+                { class: "dropdown details-reset details-overlay" },
+                summary(
+                  {
+                    class: "btn-octicon",
+                    role: "button",
+                  },
+                  dangerousHTML(navigationIcon),
+                  div({ class: "dropdown-caret" })
+                ),
+                div(
+                  { class: "dropdown-menu dropdown-menu-sw right-0" },
+                  "something"
+                )
+              ),
+              details(
+                { class: "dropdown details-reset details-overlay" },
+                summary(
+                  {
+                    class: "btn-octicon",
+                    role: "button",
+                  },
+                  dangerousHTML(typographyIcon),
+                  div({ class: "dropdown-caret" })
+                ),
+                div(
+                  { class: "dropdown-menu dropdown-menu-sw right-0" },
+                  "something"
+                )
+              ),
+            ]
+          : [])
       ),
       profilePanelSlot
     )

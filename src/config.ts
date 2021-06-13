@@ -13,3 +13,6 @@ export { _GDRIVE_CLIENT_ID as GDRIVE_CLIENT_ID };
 declare const PROXY_SERVER: string;
 const _PROXY_SERVER = PROXY_SERVER;
 export { _PROXY_SERVER as PROXY_SERVER };
+
+export const CATEGORIES_ENABLED = false;
+export const DISPLAY_CONFIG_ENABLED = false;
