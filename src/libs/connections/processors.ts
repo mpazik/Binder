@@ -272,6 +272,12 @@ export const withMultiState = <S extends Tuple, V = void>(
 export const log = <T>(name: string, callback: Callback<T>): Callback<T> =>
   fork((value) => console.log(name, value), callback);
 
+export const debug = <T>(callback: Callback<T>): Callback<T> => (value) => {
+  // eslint-disable-next-line no-debugger
+  debugger;
+  callback(value);
+};
+
 export const onAnimationFrame = <T>(
   onClose: OnCloseRegister,
   push: Callback<T>

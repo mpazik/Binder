@@ -8,12 +8,15 @@ import {
   pick,
   to,
   passOnlyChanged,
+  withState,
+  valueWithState,
+  definedTuple,
 } from "linki";
 
 import { DocumentAnnotationsIndex } from "../../functions/indexes/document-annotations-index";
 import { LinkedDataStoreWrite } from "../../functions/store";
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
-import { nextTick, withMultiState, withState } from "../../libs/connections";
+import { nextTick, withMultiState } from "../../libs/connections";
 import { throwIfNull } from "../../libs/errors";
 import { HashUri } from "../../libs/hash";
 import { Component, div, newSlot } from "../../libs/simple-ui/render";
@@ -101,15 +104,10 @@ export const annotationsSupport: Component<
     undefined
   );
 
-  const [
-    saveKeptAnnotation,
-    keepAnnotationForSave,
-  ] = withState<AnnotationSaveArgs | null>(
-    link(filter(nonNull), (annotationToSave) => {
-      saveAnnotation(annotationToSave);
-      keepAnnotationForSave(null);
-    }),
-    null
+  const [saveKeptAnnotation, keepAnnotationForSave] = link(
+    withState<AnnotationSaveArgs | null>(null),
+    filter(nonNull),
+    fork(saveAnnotation, (): void => keepAnnotationForSave(null))
   );
 
   const [
@@ -236,24 +234,27 @@ export const annotationsSupport: Component<
     })
   );
 
-  const [
-    displayDocumentAnnotations,
-    setReferenceForAnnotationDisplay,
-  ] = withState<HashUri | undefined, AnnotationDisplayRequest>(
-    async (reference, { fragment }) => {
-      const annotationsHashUris = await documentAnnotationsIndex({
-        documentHashUri: throwIfNull(reference),
+  const [displayDocumentAnnotations, setReferenceForAnnotationDisplay] = link(
+    valueWithState<HashUri | undefined, AnnotationDisplayRequest>(undefined),
+    filter(definedTuple),
+    ([reference, { fragment }]) => {
+      const annotationsHashUris = documentAnnotationsIndex({
+        documentHashUri: reference,
         fragment: fragment?.value,
       });
-      annotationsHashUris.forEach((hashUri) => {
-        ldStoreRead(hashUri).then(
-          link(filter(nonNull), (annotation) => {
-            changeSelection(["display", (annotation as unknown) as Annotation]);
-          })
-        );
-      });
-    },
-    undefined
+      annotationsHashUris.then((uris) =>
+        uris.forEach((hashUri) => {
+          ldStoreRead(hashUri).then(
+            link(filter(nonNull), (annotation) => {
+              changeSelection([
+                "display",
+                (annotation as unknown) as Annotation,
+              ]);
+            })
+          );
+        })
+      );
+    }
   );
 
   // next tick to make sure current selection would be calculated for even handling
