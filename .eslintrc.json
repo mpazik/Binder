@@ -13,6 +13,7 @@
     "prettier"
   ],
   "rules": {
+    "@typescript-eslint/no-empty-function": "off",
     "unused-imports/no-unused-imports-ts": "warn",
     "unused-imports/no-unused-vars-ts": "warn",
     "import/order": [
