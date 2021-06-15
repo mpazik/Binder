@@ -67,6 +67,7 @@ const prepareEpubPage = async (
 
     const { uri, fragment } = newUriWithFragment(url);
     const path = uri === "" ? file : absolute(file, uri);
+    console.log(packageDoc);
     const manifestItem = packageDoc.querySelector(
       `manifest > item[href='${path}']`
     );
@@ -163,7 +164,7 @@ const openChapter = async (
 
 const openEpub = async (content: Blob): Promise<Epub> => {
   const zip: JSZip = throwIfNull(
-    await measureAsyncTime("read pdf metadata", () => JSZip.loadAsync(content))
+    await measureAsyncTime("read epub metadata", () => JSZip.loadAsync(content))
   ) as JSZip;
   const container = await getXmlFile(zip, "META-INF/container.xml");
   const rootFilePath = throwIfNull(
@@ -173,6 +174,7 @@ const openEpub = async (content: Blob): Promise<Epub> => {
       ?.getAttribute("full-path")
   );
   const packageDoc = await getXmlFile(zip, rootFilePath);
+  console.log("Epub package", packageDoc);
   return {
     rootFilePath,
     zip,
