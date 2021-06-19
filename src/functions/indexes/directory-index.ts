@@ -1,24 +1,24 @@
 import { HashName } from "../../libs/hash";
 import {
+  createStoreProvider,
+  defaultStoreName,
   openSingleStoreDb,
-  SingleStoreDb,
   storeGetAllWithKeys,
+  StoreProvider,
   storePut,
 } from "../../libs/indexeddb";
 import { getType } from "../../libs/linked-data";
 import { measureAsyncTime } from "../../libs/performance";
-import { Opaque } from "../../libs/types";
 
 import { Indexer, IndexRecord } from "./types";
 
 export type DirectoryProps = { type: string; name: string };
 export type DirectoryQuery = { type?: string; name?: string };
 export type DirectoryRecord = IndexRecord<DirectoryProps>;
-export type DirectoryIndexDb = Opaque<SingleStoreDb<DirectoryProps>>;
+export type DirectoryIndexStore = StoreProvider<DirectoryProps>;
 export type DirectoryIndex = (q: DirectoryQuery) => Promise<DirectoryRecord[]>;
 
-export const createDirectoryIndexDb = (): // localStoreDb: LocalStoreDb
-Promise<DirectoryIndexDb> =>
+export const createDirectoryIndexStore = (): Promise<DirectoryIndexStore> =>
   openSingleStoreDb("directory-index", undefined, () => {
     return Promise.resolve();
     // const indexer = createDirectoryIndexer(db as DirectoryIndexDb);
@@ -26,14 +26,14 @@ Promise<DirectoryIndexDb> =>
     // return measureAsyncTime("directory-indexing", async () =>
     //   linkedDataProvider((result) => indexer(result))
     // );
-  }) as Promise<DirectoryIndexDb>;
+  }).then((db) => createStoreProvider(db, defaultStoreName));
 
 export const createDirectoryIndex = (
-  directoryIndexDb: DirectoryIndexDb
+  store: DirectoryIndexStore
 ): DirectoryIndex => {
   return async ({ name, type }) =>
     measureAsyncTime("search", async () => {
-      const data = await storeGetAllWithKeys(directoryIndexDb);
+      const data = await storeGetAllWithKeys(store);
       return data
         .map(
           ({ key, value }) =>
@@ -53,15 +53,13 @@ export const createDirectoryIndex = (
     });
 };
 
-export const createDirectoryIndexer = (
-  directoryIndexDb: DirectoryIndexDb
-): Indexer => {
+export const createDirectoryIndexer = (store: DirectoryIndexStore): Indexer => {
   return async (ld) => {
     console.log("ld to index dirs", ld);
     const type = getType(ld);
     const name = ld["name"];
     if (!type || !name || typeof name != "string") return;
     const props: DirectoryProps = { name, type };
-    return storePut(directoryIndexDb, props, ld["@id"]).then(); // ignore storePut result
+    return storePut(store, props, ld["@id"]).then(); // ignore storePut result
   };
 };

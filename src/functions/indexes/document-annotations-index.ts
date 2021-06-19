@@ -4,13 +4,14 @@ import {
 } from "../../components/annotations/annotation";
 import { HashUri } from "../../libs/hash";
 import {
+  createStoreProvider,
+  defaultStoreName,
   openSingleStoreDb,
-  SingleStoreDb,
   storeGet,
+  StoreProvider,
   storePut,
 } from "../../libs/indexeddb";
 import { isTypeEqualTo } from "../../libs/linked-data";
-import { Opaque } from "../../libs/types";
 
 import { Indexer } from "./types";
 
@@ -18,29 +19,28 @@ export type DocumentAnnotationsQuery = {
   documentHashUri: HashUri;
   fragment?: string;
 };
-export type DocumentAnnotationsDb = Opaque<SingleStoreDb<HashUri[]>>;
+export type DocumentAnnotationsStore = StoreProvider<HashUri[]>;
 export type DocumentAnnotationsIndex = (
   q: DocumentAnnotationsQuery
 ) => Promise<HashUri[]>;
 
-export const createDocumentAnnotationsIndexDb = (): // localStoreDb: LocalStoreDb
-Promise<DocumentAnnotationsDb> =>
-  openSingleStoreDb("document-annotations-index", undefined) as Promise<
-    DocumentAnnotationsDb
-  >;
+export const createDocumentAnnotationsIndexStore = (): Promise<DocumentAnnotationsStore> =>
+  openSingleStoreDb("document-annotations-index", undefined).then((db) =>
+    createStoreProvider(db, defaultStoreName)
+  );
 
 const recordKey = (documentHashUri: HashUri, fragment?: string) =>
   fragment ? `${documentHashUri}:${fragment}` : documentHashUri;
 
 export const createDocumentAnnotationsIndex = (
-  annotationDb: DocumentAnnotationsDb
+  store: DocumentAnnotationsStore
 ): DocumentAnnotationsIndex => async ({ documentHashUri, fragment }) =>
-  storeGet<HashUri[]>(annotationDb, recordKey(documentHashUri, fragment)).then(
+  storeGet<HashUri[]>(store, recordKey(documentHashUri, fragment)).then(
     (annotations = [] as HashUri[]) => annotations
   );
 
 export const createDocumentAnnotationsIndexer = (
-  annotationDb: DocumentAnnotationsDb
+  store: DocumentAnnotationsStore
 ): Indexer => {
   return async (ld) => {
     if (!isTypeEqualTo(ld, "annotation")) return;
@@ -54,12 +54,12 @@ export const createDocumentAnnotationsIndexer = (
     const fragment = isFragmentSelector(selector) ? selector.value : undefined;
     const key: string = recordKey(source, fragment);
 
-    const documentAnnotations = await storeGet<HashUri[]>(annotationDb, key);
+    const documentAnnotations = await storeGet<HashUri[]>(store, key);
 
     if (documentAnnotations) {
-      await storePut(annotationDb, [...documentAnnotations, ld["@id"]], key);
+      await storePut(store, [...documentAnnotations, ld["@id"]], key);
     } else {
-      await storePut(annotationDb, [ld["@id"]], key);
+      await storePut(store, [ld["@id"]], key);
     }
     return;
   };

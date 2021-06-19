@@ -1,8 +1,8 @@
 import { Callback } from "../../libs/connections";
 import { passUndefined } from "../../libs/connections/mappers";
-import { throwIfNull } from "../../libs/errors";
 import { HashName, HashUri } from "../../libs/hash";
 import {
+  createStoreProvider,
   openDb,
   storeDelete,
   storeGet,
@@ -40,7 +40,7 @@ export type {
   ResourceStoreRead,
 } from "./local-store";
 
-type Index = {
+type Store = {
   readResource: ResourceStoreRead;
   writeResource: ResourceStoreWrite;
   readLinkedData: LinkedDataStoreRead;
@@ -53,19 +53,20 @@ export type BlobHashRecord = {
   hash: HashUri;
 };
 
-const syncRequiredStore = "sync-required" as StoreName;
-const syncPropsStore = "sync-props" as StoreName;
+export type Repository = string;
+
+const syncRequiredStoreName = "sync-required" as StoreName;
+const syncPropsStoreName = "sync-props" as StoreName;
 
 export type SyncDb = Opaque<IDBDatabase>;
 export const createSyncDb = (): Promise<SyncDb> =>
   openDb(
     "sync-db",
-    (event) => {
-      const db = (throwIfNull(event.target) as IDBRequest<IDBDatabase>).result;
-      db.createObjectStore(syncRequiredStore, {
+    (db) => {
+      db.createObjectStore(syncRequiredStoreName, {
         autoIncrement: true,
       });
-      db.createObjectStore(syncPropsStore);
+      db.createObjectStore(syncPropsStoreName);
     },
     1
   ) as Promise<SyncDb>;
@@ -94,7 +95,7 @@ export const createStore = (
   localStoreDb: LocalStoreDb,
   syncDb: SyncDb,
   handleNewState: Callback<StoreState>
-): Index => {
+): Store => {
   const localResourceStoreRead = createLocalResourceStoreRead(localStoreDb);
   const localResourceStoreWrite = createLocalResourceStoreWrite(localStoreDb);
   const localLinkedDataStoreRead = createLocalLinkedDataStoreRead(localStoreDb);
@@ -103,6 +104,14 @@ export const createStore = (
   );
   const localLinkedDataStoreIterate = createLocalLinkedDataStoreIterate(
     localStoreDb
+  );
+  const syncRequiredStore = createStoreProvider<BlobHashRecord>(
+    localStoreDb,
+    syncRequiredStoreName
+  );
+  const syncPropsStore = createStoreProvider<Date>(
+    localStoreDb,
+    syncPropsStoreName
   );
 
   const [remoteStoreRead, updateGdriveState] = createStatefulGDriveStoreRead();
@@ -113,7 +122,7 @@ export const createStore = (
     handleNewState(state);
     handleState(state, {
       downloading: async (config) => {
-        const since = await storeGet<Date>(syncDb, "last-sync", syncPropsStore);
+        const since = await storeGet<Date>(syncPropsStore, "last-sync");
         const downloader = newMissingLinkedDataDownloader(
           localLinkedDataStoreIterate,
           localLinkedDataStoreWrite,
@@ -122,7 +131,7 @@ export const createStore = (
         );
         downloader(since)
           .then(async (till) => {
-            await storePut<Date>(syncDb, till, "last-sync", syncPropsStore);
+            await storePut(syncPropsStore, till, "last-sync");
           })
           .then(() => updateState(["ready", config]));
       },
@@ -138,10 +147,7 @@ export const createStore = (
       state[0] === "uploading" || state[0] === "ready" ? state[1] : undefined;
     if (config === undefined) return;
 
-    const record = await storeGetFirst<BlobHashRecord>(
-      syncDb,
-      syncRequiredStore
-    );
+    const record = await storeGetFirst(syncRequiredStore);
     if (!record) {
       updateState(["ready", config]);
       return;
@@ -176,7 +182,7 @@ export const createStore = (
     try {
       await findOrCreateFileByHash(config, hash, blob, name);
       // check: unbound promise
-      await storeDelete(syncDb, key, syncRequiredStore);
+      await storeDelete(syncRequiredStore, key);
       uploadNext();
     } catch (e) {
       if (state[0] !== "uploading") {
@@ -197,15 +203,11 @@ export const createStore = (
   };
 
   const markForSync = async (hash: HashUri, name?: string) => {
-    await storePut<BlobHashRecord>(
-      syncDb,
-      {
-        hash,
-        name,
-      },
-      undefined,
-      syncRequiredStore
-    );
+    // there should be account to which we want to sync it
+    await storePut<BlobHashRecord>(syncRequiredStore, {
+      hash,
+      name,
+    });
     if (state[0] !== "ready") return;
     uploadNext();
   };

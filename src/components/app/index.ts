@@ -12,20 +12,20 @@ import { gdrive } from "../../functions/gdrive/controller";
 import { createCompositeIndexer } from "../../functions/indexes/composite-indexer";
 import {
   createDirectoryIndex,
-  createDirectoryIndexDb,
+  createDirectoryIndexStore,
   createDirectoryIndexer,
   DirectoryIndex,
 } from "../../functions/indexes/directory-index";
 import {
   createDocumentAnnotationsIndex,
-  createDocumentAnnotationsIndexDb,
+  createDocumentAnnotationsIndexStore,
   createDocumentAnnotationsIndexer,
   DocumentAnnotationsIndex,
 } from "../../functions/indexes/document-annotations-index";
 import { Indexer } from "../../functions/indexes/types";
 import {
   createUrlIndex,
-  createUrlIndexDb,
+  createUrlIndexStore,
   createUrlIndexer,
   UrlIndex,
 } from "../../functions/indexes/url-index";
@@ -83,9 +83,9 @@ const initServices = async (): Promise<{
     localStoreDb,
     synchDb,
   ] = await Promise.all([
-    createUrlIndexDb(),
-    createDirectoryIndexDb(),
-    createDocumentAnnotationsIndexDb(),
+    createUrlIndexStore(),
+    createDirectoryIndexStore(),
+    createDocumentAnnotationsIndexStore(),
     createLocalStoreDb(),
     createSyncDb(),
   ]);
@@ -200,6 +200,7 @@ export const App = asyncLoader(
       store.readResource
     );
 
+    // todo
     const [contentSlot, { setCreator, displayContent, goToFragment }] = newSlot(
       "content-container",
       contentComponent({

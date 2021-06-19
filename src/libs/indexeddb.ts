@@ -2,19 +2,22 @@ import { Opaque } from "./types";
 
 export const openDb = (
   dbName: string,
-  onupgradeneeded: (event: Event) => void,
+  onupgradeneeded: (db: IDBDatabase, oldVersion: number) => void,
   version: number
 ): Promise<IDBDatabase> =>
   new Promise((resolve, reject) => {
     const openReq = indexedDB.open(dbName, version);
     openReq.onerror = () => reject(openReq.error);
     openReq.onsuccess = () => resolve(openReq.result);
-    openReq.onupgradeneeded = onupgradeneeded;
+    openReq.onupgradeneeded = (event) => {
+      onupgradeneeded(openReq.result, event.oldVersion);
+    };
   });
 
 export type StoreName = Opaque<string>;
 export const defaultStoreName = "store" as StoreName;
 
+// eslint-disable-next-line unused-imports/no-unused-vars-ts,@typescript-eslint/no-unused-vars
 export type SingleStoreDb<T> = IDBDatabase;
 export type StoreDb = IDBDatabase;
 
@@ -39,8 +42,7 @@ export const openStoreDb = async (
   let promise: Promise<void> | undefined = undefined;
   const db = await openDb(
     dbName,
-    (event) => {
-      const db = (event.target as IDBRequest<IDBDatabase>)?.result;
+    (db) => {
       const objectStores = stores.map(({ name, params }) => {
         const objectStore = db.createObjectStore(name, params);
         return [name, objectStore] as [string, IDBObjectStore];
@@ -55,24 +57,17 @@ export const openStoreDb = async (
   return db;
 };
 
-export const getStore = (
-  db: IDBDatabase,
-  storeNames: string,
-  write = false
-): IDBObjectStore => {
-  return db
-    .transaction(storeNames, write ? "readwrite" : "readonly")
-    .objectStore(storeNames);
-};
+// eslint-disable-next-line unused-imports/no-unused-vars-ts,@typescript-eslint/no-unused-vars
+export type Store<T> = IDBObjectStore;
+export type StoreProvider<T> = (write: boolean | void) => Store<T>;
 
-export const getDefaultStore = <T>(
-  db: SingleStoreDb<T>,
-  write = false
-): IDBObjectStore => {
-  return db
-    .transaction(defaultStoreName, write ? "readwrite" : "readonly")
-    .objectStore(defaultStoreName);
-};
+export const createStoreProvider = <T>(
+  db: IDBDatabase,
+  storeName: string
+): StoreProvider<T> => (write) =>
+  db
+    .transaction(storeName, write ? "readwrite" : "readonly")
+    .objectStore(storeName);
 
 export const reqToPromise = <T>(request: IDBRequest<T>): Promise<T> =>
   new Promise((resolve, reject) => {
@@ -80,27 +75,23 @@ export const reqToPromise = <T>(request: IDBRequest<T>): Promise<T> =>
     request.onerror = reject;
   });
 
-export const storePut = <T>(
-  db: StoreDb,
-  value: T,
-  key?: IDBValidKey,
-  storeName: StoreName = defaultStoreName
-): Promise<IDBValidKey> =>
-  reqToPromise(getStore(db, storeName, true).put(value, key));
-
 export const storeGet = <T>(
-  db: StoreDb,
-  query: IDBValidKey | IDBKeyRange,
-  storeName: StoreName = defaultStoreName
-): Promise<T | undefined> => reqToPromise(getStore(db, storeName).get(query));
+  getStore: StoreProvider<T>,
+  query: IDBValidKey | IDBKeyRange
+): Promise<T | undefined> => reqToPromise(getStore().get(query));
+
+export const storePut = <T>(
+  getStore: StoreProvider<T>,
+  value: T,
+  key?: IDBValidKey
+): Promise<IDBValidKey> => reqToPromise(getStore(true).put(value, key));
 
 export const storeIterate = <T>(
-  db: StoreDb,
-  handler: (key: IDBValidKey) => void,
-  storeName: StoreName = defaultStoreName
+  getStore: StoreProvider<T>,
+  handler: (key: IDBValidKey) => void
 ): Promise<void> =>
   new Promise((resolve, reject) => {
-    const request = getStore(db, storeName).openCursor();
+    const request = getStore().openCursor();
     request.onerror = reject;
     request.onsuccess = function (event) {
       const cursor = (event.target as IDBRequest<IDBCursorWithValue | null>)
@@ -115,18 +106,15 @@ export const storeIterate = <T>(
   });
 
 export const storeGetAll = <T>(
-  db: StoreDb,
-  query?: IDBValidKey | IDBKeyRange,
-  storeName: StoreName = defaultStoreName
-): Promise<T[]> => reqToPromise(getStore(db, storeName).getAll(query));
+  getStore: StoreProvider<T>,
+  query?: IDBValidKey | IDBKeyRange
+): Promise<T[]> => reqToPromise(getStore().getAll(query));
 
 export const storeGetAllWithKeys = <T>(
-  db: StoreDb,
-  query?: IDBValidKey | IDBKeyRange,
-  storeName: StoreName = defaultStoreName
+  getStore: StoreProvider<T>
 ): Promise<{ key: IDBValidKey; value: T }[]> =>
   new Promise((resolve, reject) => {
-    const request = getStore(db, storeName).openCursor();
+    const request = getStore().openCursor();
     const data: { key: IDBValidKey; value: T }[] = [];
     request.onerror = reject;
     request.onsuccess = function (event) {
@@ -144,11 +132,10 @@ export const storeGetAllWithKeys = <T>(
   });
 
 export const storeGetFirst = <T>(
-  db: StoreDb,
-  storeName: string
+  getStore: StoreProvider<T>
 ): Promise<{ key: IDBValidKey; value: T } | undefined> =>
   new Promise((resolve, reject) => {
-    const request = getStore(db, storeName).openCursor();
+    const request = getStore().openCursor();
     request.onerror = reject;
     request.onsuccess = (event) => {
       const cursor = (event.target as IDBRequest<IDBCursorWithValue | null>)
@@ -162,12 +149,11 @@ export const storeGetFirst = <T>(
   });
 
 export const storeGetNext = <T>(
-  db: StoreDb,
-  storeName: string,
+  getStore: StoreProvider<T>,
   previous?: IDBValidKey
 ): Promise<{ key: IDBValidKey; value: T } | undefined> =>
   new Promise((resolve, reject) => {
-    const request = getStore(db, storeName).openCursor(
+    const request = getStore().openCursor(
       previous ? IDBKeyRange.lowerBound(previous, true) : undefined
     );
     request.onerror = reject;
@@ -182,14 +168,10 @@ export const storeGetNext = <T>(
     };
   });
 
-export const storeDelete = (
-  db: StoreDb,
-  query: IDBValidKey | IDBKeyRange,
-  storeName: StoreName = defaultStoreName
-): Promise<undefined> =>
-  reqToPromise(getStore(db, storeName, true).delete(query));
+export const storeDelete = <T>(
+  getStore: StoreProvider<T>,
+  query: IDBValidKey | IDBKeyRange
+): Promise<undefined> => reqToPromise(getStore(true).delete(query));
 
-export const storeClear = (
-  db: StoreDb,
-  storeName: StoreName = defaultStoreName
-): Promise<undefined> => reqToPromise(getStore(db, storeName, true).clear());
+export const storeClear = <T>(getStore: StoreProvider<T>): Promise<undefined> =>
+  reqToPromise(getStore(true).clear());

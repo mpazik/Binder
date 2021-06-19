@@ -1,6 +1,13 @@
 import { GDRIVE_APP_DIR_NAME } from "../../config";
 import { HashUri } from "../../libs/hash";
-import { openDb, storeGet, StoreName, storePut } from "../../libs/indexeddb";
+import {
+  createStoreProvider,
+  openDb,
+  storeGet,
+  StoreName,
+  StoreProvider,
+  storePut,
+} from "../../libs/indexeddb";
 
 import {
   GApi,
@@ -21,8 +28,11 @@ export type GoogleConfing = {
   localDb: GoogleDriveDb;
 };
 
-const indexFilesStore = "index-files" as StoreName;
 const dirFilesStore = "dir-files" as StoreName;
+
+const getDirFilesStoreProvider = (
+  localDb: GoogleDriveDb
+): StoreProvider<GDriveFileId> => createStoreProvider(localDb, dirFilesStore);
 
 const LINKED_DATA_DIR_NAME = "linked-data";
 
@@ -31,14 +41,11 @@ const getOrCreateDir = async (
   dirName: string,
   parent?: GDriveFileId
 ): Promise<GDriveFileId> => {
-  const localFileId = await storeGet<GDriveFileId>(
-    localDb,
-    dirName,
-    dirFilesStore
-  );
+  const dirFilesStore = getDirFilesStoreProvider(localDb);
+  const localFileId = await storeGet(dirFilesStore, dirName);
   if (localFileId) return localFileId;
   const fileId = await findOrCreateDir(authToken, dirName, parent);
-  await storePut(localDb, fileId, dirName, dirFilesStore);
+  await storePut(dirFilesStore, fileId, dirName);
   return fileId;
 };
 
@@ -67,9 +74,7 @@ export type GoogleDriveDb = IDBDatabase;
 export const openFileIdsDb = (): Promise<GoogleDriveDb> =>
   openDb(
     "google-drive-file-ids",
-    (event) => {
-      const db = (event.target as IDBRequest<IDBDatabase>)!.result;
-      db.createObjectStore(indexFilesStore);
+    (db) => {
       db.createObjectStore(dirFilesStore);
     },
     1

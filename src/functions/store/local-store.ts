@@ -7,25 +7,36 @@ import {
   hashUriScheme,
 } from "../../libs/hash";
 import {
+  createStoreProvider,
   openStoreDb,
   SingleStoreDb,
   storeGet,
   storeGetNext,
   storeIterate,
   StoreName,
+  StoreProvider,
   storePut,
 } from "../../libs/indexeddb";
 import { LinkedData, LinkedDataWithHashId } from "../../libs/linked-data";
 import { Opaque } from "../../libs/types";
+import { GoogleDriveDb } from "../gdrive/app-files";
 
 const resourcesStore = "resources" as StoreName;
-const linkedDateStore = "linked-data" as StoreName;
+const linkedDataStore = "linked-data" as StoreName;
+
+const getResourceStore = (localDb: GoogleDriveDb): StoreProvider<Blob> =>
+  createStoreProvider(localDb, resourcesStore);
+
+const getLinkedDataStore = (
+  localDb: GoogleDriveDb
+): StoreProvider<LinkedDataWithHashId> =>
+  createStoreProvider(localDb, linkedDataStore);
 
 export type LocalStoreDb = Opaque<SingleStoreDb<Blob>>;
 export const createLocalStoreDb = (): Promise<LocalStoreDb> =>
   openStoreDb("storage", [
     { name: resourcesStore },
-    { name: linkedDateStore },
+    { name: linkedDataStore },
   ]) as Promise<LocalStoreDb>;
 
 export type ResourceStoreRead = (hash: HashUri) => Promise<Blob | undefined>;
@@ -38,7 +49,7 @@ export const createLocalResourceStoreRead = (
   storageDb: LocalStoreDb
 ): ResourceStoreRead => {
   return async (hash: HashUri) => {
-    return storeGet(storageDb, hash, resourcesStore);
+    return storeGet(getResourceStore(storageDb), hash);
   };
 };
 
@@ -46,25 +57,26 @@ export const createLocalResourceStoreWrite = (
   storageDb: LocalStoreDb
 ): ResourceStoreWrite => async (blob: Blob) => {
   const hash = await hashBlob(blob);
-  await storePut(storageDb, blob, hash, resourcesStore);
+  await storePut(getResourceStore(storageDb), blob, hash);
   return hash;
 };
 
 export type LinkedDataStoreRead = (
   hash: HashUri
 ) => Promise<LinkedDataWithHashId | undefined>;
+
 export type LinkedDataStoreWrite = (
   jsonld: LinkedData
 ) => Promise<LinkedDataWithHashId>;
+
 export type LinkedDataStoreIterate = (
   handler: (hashUri: HashUri) => void
 ) => Promise<void>;
 
 export const createLocalLinkedDataStoreRead = (
   storageDb: LocalStoreDb
-): LinkedDataStoreRead => {
-  return async (hash: HashName) => storeGet(storageDb, hash, linkedDateStore);
-};
+): LinkedDataStoreRead => async (hash: HashName) =>
+  storeGet(getLinkedDataStore(storageDb), hash);
 
 export const createLocalLinkedDataStoreWrite = (
   storageDb: LocalStoreDb
@@ -82,7 +94,7 @@ export const createLocalLinkedDataStoreWrite = (
     throw new Error(`Filed ${oldId} is corrupted`);
   }
   linkedDataToHash["@id"] = hashUri;
-  await storePut(storageDb, linkedDataToHash, hashUri, linkedDateStore);
+  await storePut(getLinkedDataStore(storageDb), linkedDataToHash, hashUri);
   return linkedDataToHash as LinkedDataWithHashId;
 };
 
@@ -90,20 +102,18 @@ export const createLocalLinkedDataStoreIterate = (
   storageDb: LocalStoreDb
 ): LinkedDataStoreIterate => (handler) =>
   storeIterate(
-    storageDb,
-    handler as (hash: IDBValidKey) => void,
-    linkedDateStore
+    getLinkedDataStore(storageDb),
+    handler as (hash: IDBValidKey) => void
   );
 
 export const createLinkedDataProvider = (
-  localStoreDb: LocalStoreDb
+  storageDb: LocalStoreDb
 ): ((push: (ld: LinkedDataWithHashId) => Promise<void>) => Promise<void>) => {
   let lastHash: HashUri | undefined;
   return async (push) =>
     await asyncLoop(async () => {
       const result = await storeGetNext<LinkedDataWithHashId>(
-        localStoreDb,
-        linkedDateStore,
+        getLinkedDataStore(storageDb),
         lastHash
       );
       if (!result) {
