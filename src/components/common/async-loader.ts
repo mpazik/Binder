@@ -3,15 +3,18 @@ import {
   ComponentBody,
   div,
   h1,
-  p,
+  pre,
   span,
   View,
 } from "../../libs/simple-ui/render";
 
 export const loading: View = () => span("Loading...");
 
-const errorMessage: View<{ error: string }> = ({ error }) =>
-  div(h1(error), p(JSON.stringify(error)));
+const errorMessage: View<{ error: unknown }> = ({ error }) =>
+  div(
+    h1("Critical error"),
+    pre(error instanceof Error ? error.message : JSON.stringify(error))
+  );
 
 export const asyncLoader = <T extends unknown>(
   promise: Promise<T>,
@@ -20,5 +23,8 @@ export const asyncLoader = <T extends unknown>(
   render(loading());
   promise
     .then((value) => component(value)(render, onClose))
-    .catch((error) => errorMessage(error));
+    .catch((error) => {
+      console.error(error);
+      render(errorMessage({ error }));
+    });
 };

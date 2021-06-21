@@ -1,19 +1,26 @@
 import { Callback } from "../../libs/connections";
 import { passUndefined } from "../../libs/connections/mappers";
-import { HashName, HashUri } from "../../libs/hash";
 import {
-  createStoreProvider,
-  openDb,
+  computeLinkedDataWithHashId,
+  hashBlob,
+  HashName,
+  HashUri,
+} from "../../libs/hash";
+import {
   storeDelete,
   storeGet,
   storeGetFirst,
+  storeIterate,
   StoreName,
   storePut,
 } from "../../libs/indexeddb";
-import { jsonLdMimeType, LinkedDataWithHashId } from "../../libs/linked-data";
+import {
+  jsonLdMimeType,
+  LinkedData,
+  LinkedDataWithHashId,
+} from "../../libs/linked-data";
 import { handleState, mapState } from "../../libs/named-state";
 import { measureAsyncTime } from "../../libs/performance";
-import { Opaque } from "../../libs/types";
 import { GDriveConfig } from "../gdrive/app-files";
 import { GDriveState } from "../gdrive/controller";
 import { findOrCreateFileByHash } from "../gdrive/file";
@@ -21,18 +28,15 @@ import { Indexer } from "../indexes/types";
 
 import { createStatefulGDriveStoreRead } from "./gdrive-store-read";
 import {
-  createLocalLinkedDataStoreIterate,
-  createLocalLinkedDataStoreRead,
-  createLocalLinkedDataStoreWrite,
-  createLocalResourceStoreRead,
-  createLocalResourceStoreWrite,
+  getLinkedDataStore,
+  getResourceStore,
   LinkedDataStoreRead,
   LinkedDataStoreWrite,
-  LocalStoreDb,
   ResourceStoreRead,
   ResourceStoreWrite,
 } from "./local-store";
 import { newMissingLinkedDataDownloader } from "./missing-linked-data-downloader";
+import { registerRepositoryVersion, RepositoryDb } from "./repository";
 
 export type {
   ResourceStoreWrite,
@@ -53,23 +57,16 @@ export type BlobHashRecord = {
   hash: HashUri;
 };
 
-export type Repository = string;
-
 const syncRequiredStoreName = "sync-required" as StoreName;
 const syncPropsStoreName = "sync-props" as StoreName;
 
-export type SyncDb = Opaque<IDBDatabase>;
-export const createSyncDb = (): Promise<SyncDb> =>
-  openDb(
-    "sync-db",
-    (db) => {
-      db.createObjectStore(syncRequiredStoreName, {
-        autoIncrement: true,
-      });
-      db.createObjectStore(syncPropsStoreName);
-    },
-    1
-  ) as Promise<SyncDb>;
+registerRepositoryVersion({
+  version: 2,
+  stores: [
+    { name: syncRequiredStoreName, params: { autoIncrement: true } },
+    { name: syncPropsStoreName },
+  ],
+});
 
 export type StoreState =
   | ["idle"]
@@ -92,25 +89,27 @@ const linkedDataToBlob = (ld: LinkedDataWithHashId): Blob =>
 
 export const createStore = (
   indexLinkedData: Indexer,
-  localStoreDb: LocalStoreDb,
-  syncDb: SyncDb,
+  repositoryDb: RepositoryDb,
   handleNewState: Callback<StoreState>
 ): Store => {
-  const localResourceStoreRead = createLocalResourceStoreRead(localStoreDb);
-  const localResourceStoreWrite = createLocalResourceStoreWrite(localStoreDb);
-  const localLinkedDataStoreRead = createLocalLinkedDataStoreRead(localStoreDb);
-  const localLinkedDataStoreWrite = createLocalLinkedDataStoreWrite(
-    localStoreDb
-  );
-  const localLinkedDataStoreIterate = createLocalLinkedDataStoreIterate(
-    localStoreDb
-  );
-  const syncRequiredStore = createStoreProvider<BlobHashRecord>(
-    localStoreDb,
+  const resourceStore = getResourceStore(repositoryDb);
+  const putLocalResource = async (blob: Blob) => {
+    const hash = await hashBlob(blob);
+    await storePut(resourceStore, blob, hash);
+    return hash;
+  };
+
+  const linkedDataStore = getLinkedDataStore(repositoryDb);
+  const putLocalLinkedData = async (jsonld: LinkedData) => {
+    const linkedDataToHash = await computeLinkedDataWithHashId(jsonld);
+    await storePut(linkedDataStore, linkedDataToHash, linkedDataToHash["@id"]);
+    return linkedDataToHash;
+  };
+
+  const syncRequiredStore = repositoryDb.getStoreProvider<BlobHashRecord>(
     syncRequiredStoreName
   );
-  const syncPropsStore = createStoreProvider<Date>(
-    localStoreDb,
+  const syncPropsStore = repositoryDb.getStoreProvider<Date>(
     syncPropsStoreName
   );
 
@@ -124,8 +123,12 @@ export const createStore = (
       downloading: async (config) => {
         const since = await storeGet<Date>(syncPropsStore, "last-sync");
         const downloader = newMissingLinkedDataDownloader(
-          localLinkedDataStoreIterate,
-          localLinkedDataStoreWrite,
+          (handler) =>
+            storeIterate(
+              linkedDataStore,
+              handler as (hash: IDBValidKey) => void
+            ),
+          putLocalLinkedData,
           indexLinkedData,
           config
         );
@@ -159,8 +162,8 @@ export const createStore = (
     } = record;
 
     const blob: Blob | undefined =
-      (await localResourceStoreRead(hash)) ||
-      passUndefined(linkedDataToBlob)(await localLinkedDataStoreRead(hash));
+      (await storeGet(resourceStore, hash)) ||
+      passUndefined(linkedDataToBlob)(await storeGet(linkedDataStore, hash));
 
     if (!blob) {
       updateState([
@@ -204,7 +207,7 @@ export const createStore = (
 
   const markForSync = async (hash: HashUri, name?: string) => {
     // there should be account to which we want to sync it
-    await storePut<BlobHashRecord>(syncRequiredStore, {
+    await storePut(syncRequiredStore, {
       hash,
       name,
     });
@@ -215,26 +218,26 @@ export const createStore = (
   return {
     readResource: async (hash) => {
       return (
-        localResourceStoreRead(hash) ??
+        (await storeGet(resourceStore, hash)) ??
         (await measureAsyncTime("read remote resource store", async () => {
           const result = await remoteStoreRead(hash);
-          if (result) await localResourceStoreWrite(result);
+          if (result) await putLocalResource(result);
           return result;
         }))
       );
     },
     writeResource: async (blob, name): Promise<HashName> => {
-      const hash = await localResourceStoreWrite(blob);
+      const hash = await putLocalResource(blob);
       await markForSync(hash, name);
       return hash;
     },
-    readLinkedData: async (hash) => localLinkedDataStoreRead(hash),
+    readLinkedData: async (hash) => storeGet(linkedDataStore, hash),
     writeLinkedData: async (linkedData) => {
       if (Array.isArray(linkedData)) {
         throw new Error("Array linked data are not supported");
       }
 
-      const linkedDataWithHashId = await localLinkedDataStoreWrite(linkedData);
+      const linkedDataWithHashId = await putLocalLinkedData(linkedData);
       await markForSync(linkedDataWithHashId["@id"]);
       await indexLinkedData(linkedDataWithHashId);
       return linkedDataWithHashId;

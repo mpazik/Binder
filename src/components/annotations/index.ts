@@ -13,7 +13,7 @@ import {
   definedTuple,
 } from "linki";
 
-import { DocumentAnnotationsIndex } from "../../functions/indexes/document-annotations-index";
+import { AnnotationsIndex } from "../../functions/indexes/annotations-index";
 import { LinkedDataStoreWrite } from "../../functions/store";
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { nextTick, withMultiState } from "../../libs/connections";
@@ -64,7 +64,7 @@ export const annotationsSupport: Component<
   {
     ldStoreWrite: LinkedDataStoreWrite;
     ldStoreRead: LinkedDataStoreRead;
-    documentAnnotationsIndex: DocumentAnnotationsIndex;
+    documentAnnotationsIndex: AnnotationsIndex;
     requestDocumentSave: () => void;
   },
   {

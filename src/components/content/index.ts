@@ -1,6 +1,6 @@
 import { LinkedDataWithContent } from "../../functions/content-processors";
 import { createContentSaver } from "../../functions/content-saver";
-import { DocumentAnnotationsIndex } from "../../functions/indexes/document-annotations-index";
+import { AnnotationsIndex } from "../../functions/indexes/annotations-index";
 import {
   LinkedDataStoreWrite,
   ResourceStoreWrite,
@@ -33,7 +33,7 @@ export const contentComponent: Component<
     ldStoreWrite: LinkedDataStoreWrite;
     ldStoreRead: LinkedDataStoreRead;
     onSave: Consumer<LinkedDataWithHashId>;
-    documentAnnotationsIndex: DocumentAnnotationsIndex;
+    documentAnnotationsIndex: AnnotationsIndex;
   },
   {
     setCreator: string;

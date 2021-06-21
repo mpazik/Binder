@@ -9,6 +9,12 @@ import {
 } from "../../functions/content-processors";
 import { createProxyFetch, Fetch } from "../../functions/fetch-trough-proxy";
 import { gdrive } from "../../functions/gdrive/controller";
+import {
+  createAnnotationsIndex,
+  createAnnotationsIndexStore,
+  createAnnotationsIndexer,
+  AnnotationsIndex,
+} from "../../functions/indexes/annotations-index";
 import { createCompositeIndexer } from "../../functions/indexes/composite-indexer";
 import {
   createDirectoryIndex,
@@ -16,12 +22,6 @@ import {
   createDirectoryIndexer,
   DirectoryIndex,
 } from "../../functions/indexes/directory-index";
-import {
-  createDocumentAnnotationsIndex,
-  createDocumentAnnotationsIndexStore,
-  createDocumentAnnotationsIndexer,
-  DocumentAnnotationsIndex,
-} from "../../functions/indexes/document-annotations-index";
 import { Indexer } from "../../functions/indexes/types";
 import {
   createUrlIndex,
@@ -30,11 +30,8 @@ import {
   UrlIndex,
 } from "../../functions/indexes/url-index";
 import { createLinkedDataWithDocumentFetcher } from "../../functions/linked-data-fetcher";
-import { createStore, createSyncDb, SyncDb } from "../../functions/store";
-import {
-  createLocalStoreDb,
-  LocalStoreDb,
-} from "../../functions/store/local-store";
+import { createStore } from "../../functions/store";
+import { openRepository, RepositoryDb } from "../../functions/store/repository";
 import {
   currentDocumentUriProvider,
   UriWithFragment,
@@ -69,52 +66,37 @@ const defaultUri = "https://pl.wikipedia.org/wiki/Dedal_z_Sykionu";
 
 const initServices = async (): Promise<{
   directoryIndex: DirectoryIndex;
-  documentAnnotationsIndex: DocumentAnnotationsIndex;
+  documentAnnotationsIndex: AnnotationsIndex;
   fetchTroughProxy: Fetch;
   urlIndex: UrlIndex;
-  localStoreDb: LocalStoreDb;
-  synchDb: SyncDb;
+  repositoryDb: RepositoryDb;
   indexLinkedData: Indexer;
 }> => {
-  const [
-    urlIndexDb,
-    directoryIndexDb,
-    documentAnnotationsDb,
-    localStoreDb,
-    synchDb,
-  ] = await Promise.all([
-    createUrlIndexStore(),
-    createDirectoryIndexStore(),
-    createDocumentAnnotationsIndexStore(),
-    createLocalStoreDb(),
-    createSyncDb(),
-  ]);
-  const urlIndex = createUrlIndex(urlIndexDb);
-  const urlIndexer = createUrlIndexer(urlIndexDb);
+  const [repositoryDb] = await Promise.all([openRepository("first")]);
+  const urlIndexStore = createUrlIndexStore(repositoryDb);
+  const directoryIndexStore = createDirectoryIndexStore(repositoryDb);
+  const annotationsIndexStore = createAnnotationsIndexStore(repositoryDb);
+  const urlIndex = createUrlIndex(urlIndexStore);
+  const urlIndexer = createUrlIndexer(urlIndexStore);
 
-  const directoryIndex = createDirectoryIndex(directoryIndexDb);
-  const directoryIndexer = createDirectoryIndexer(directoryIndexDb);
+  const directoryIndex = createDirectoryIndex(directoryIndexStore);
+  const directoryIndexer = createDirectoryIndexer(directoryIndexStore);
 
-  const documentAnnotationsIndex = createDocumentAnnotationsIndex(
-    documentAnnotationsDb
-  );
-  const documentAnnotationsIndexer = createDocumentAnnotationsIndexer(
-    documentAnnotationsDb
-  );
+  const annotationsIndex = createAnnotationsIndex(annotationsIndexStore);
+  const annotationsIndexer = createAnnotationsIndexer(annotationsIndexStore);
 
   const indexLinkedData = createCompositeIndexer([
     urlIndexer,
     directoryIndexer,
-    documentAnnotationsIndexer,
+    annotationsIndexer,
   ]);
 
   return {
     fetchTroughProxy: await createProxyFetch(),
     directoryIndex,
-    documentAnnotationsIndex,
+    documentAnnotationsIndex: annotationsIndex,
     urlIndex,
-    localStoreDb,
-    synchDb,
+    repositoryDb,
     indexLinkedData,
   };
 };
@@ -126,9 +108,8 @@ export const App = asyncLoader(
     directoryIndex,
     documentAnnotationsIndex,
     urlIndex,
-    localStoreDb,
+    repositoryDb,
     indexLinkedData,
-    synchDb,
   }) => (render, onClose) => {
     const [setUserEmail, setContentReady] = combine<[string | null, boolean]>(
       filter(
@@ -141,7 +122,7 @@ export const App = asyncLoader(
       false
     );
 
-    const store = createStore(indexLinkedData, localStoreDb, synchDb, (s) =>
+    const store = createStore(indexLinkedData, repositoryDb, (s) =>
       updateStoreState(s)
     );
 
@@ -153,7 +134,8 @@ export const App = asyncLoader(
           map(pick("user"), map(pick("emailAddress"), setUserEmail))
         ),
         store.updateGdriveState
-      )
+      ),
+      repositoryDb
     );
 
     const loadUri = reduce<

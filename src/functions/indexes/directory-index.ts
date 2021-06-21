@@ -1,14 +1,14 @@
 import { HashName } from "../../libs/hash";
 import {
-  createStoreProvider,
-  defaultStoreName,
-  openSingleStoreDb,
   storeGetAllWithKeys,
+  StoreName,
   StoreProvider,
   storePut,
 } from "../../libs/indexeddb";
 import { getType } from "../../libs/linked-data";
 import { measureAsyncTime } from "../../libs/performance";
+import { createLinkedDataProvider } from "../store/local-store";
+import { registerRepositoryVersion, RepositoryDb } from "../store/repository";
 
 import { Indexer, IndexRecord } from "./types";
 
@@ -18,15 +18,26 @@ export type DirectoryRecord = IndexRecord<DirectoryProps>;
 export type DirectoryIndexStore = StoreProvider<DirectoryProps>;
 export type DirectoryIndex = (q: DirectoryQuery) => Promise<DirectoryRecord[]>;
 
-export const createDirectoryIndexStore = (): Promise<DirectoryIndexStore> =>
-  openSingleStoreDb("directory-index", undefined, () => {
-    return Promise.resolve();
-    // const indexer = createDirectoryIndexer(db as DirectoryIndexDb);
-    // const linkedDataProvider = createLinkedDataProvider(localStoreDb);
-    // return measureAsyncTime("directory-indexing", async () =>
-    //   linkedDataProvider((result) => indexer(result))
-    // );
-  }).then((db) => createStoreProvider(db, defaultStoreName));
+const directoryIndexStoreName = "directory-index" as StoreName;
+
+registerRepositoryVersion({
+  version: 4,
+  stores: [{ name: directoryIndexStoreName }],
+  afterUpdate: (repositoryDb) => {
+    const indexer = createDirectoryIndexer(
+      createDirectoryIndexStore(repositoryDb)
+    );
+    const linkedDataProvider = createLinkedDataProvider(repositoryDb);
+    return measureAsyncTime("directory-indexing", async () =>
+      linkedDataProvider((result) => indexer(result))
+    );
+  },
+});
+
+export const createDirectoryIndexStore = (
+  repositoryDb: RepositoryDb
+): DirectoryIndexStore =>
+  repositoryDb.getStoreProvider(directoryIndexStoreName);
 
 export const createDirectoryIndex = (
   store: DirectoryIndexStore
@@ -55,7 +66,6 @@ export const createDirectoryIndex = (
 
 export const createDirectoryIndexer = (store: DirectoryIndexStore): Indexer => {
   return async (ld) => {
-    console.log("ld to index dirs", ld);
     const type = getType(ld);
     const name = ld["name"];
     if (!type || !name || typeof name != "string") return;

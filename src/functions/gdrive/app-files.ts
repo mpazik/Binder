@@ -1,13 +1,13 @@
 import { GDRIVE_APP_DIR_NAME } from "../../config";
 import { HashUri } from "../../libs/hash";
 import {
-  createStoreProvider,
   openDb,
   storeGet,
   StoreName,
   StoreProvider,
   storePut,
 } from "../../libs/indexeddb";
+import { registerRepositoryVersion, RepositoryDb } from "../store/repository";
 
 import {
   GApi,
@@ -25,23 +25,29 @@ import {
 
 export type GoogleConfing = {
   authToken: GoogleAuthToken;
-  localDb: GoogleDriveDb;
+  repositoryDb: RepositoryDb;
 };
 
-const dirFilesStore = "dir-files" as StoreName;
+const dirFilesStoreName = "dir-files" as StoreName;
 
 const getDirFilesStoreProvider = (
-  localDb: GoogleDriveDb
-): StoreProvider<GDriveFileId> => createStoreProvider(localDb, dirFilesStore);
+  repositoryDb: RepositoryDb
+): StoreProvider<GDriveFileId> =>
+  repositoryDb.getStoreProvider(dirFilesStoreName);
+
+registerRepositoryVersion({
+  version: 6,
+  stores: [{ name: dirFilesStoreName }],
+});
 
 const LINKED_DATA_DIR_NAME = "linked-data";
 
 const getOrCreateDir = async (
-  { authToken, localDb }: GoogleConfing,
+  { authToken, repositoryDb }: GoogleConfing,
   dirName: string,
   parent?: GDriveFileId
 ): Promise<GDriveFileId> => {
-  const dirFilesStore = getDirFilesStoreProvider(localDb);
+  const dirFilesStore = getDirFilesStoreProvider(repositoryDb);
   const localFileId = await storeGet(dirFilesStore, dirName);
   if (localFileId) return localFileId;
   const fileId = await findOrCreateDir(authToken, dirName, parent);
@@ -75,7 +81,7 @@ export const openFileIdsDb = (): Promise<GoogleDriveDb> =>
   openDb(
     "google-drive-file-ids",
     (db) => {
-      db.createObjectStore(dirFilesStore);
+      db.createObjectStore(dirFilesStoreName);
     },
     1
   );
@@ -88,10 +94,12 @@ export type GDriveConfig = {
   token: GoogleAuthToken;
 };
 
-const createConfig = async (gapi: GApi): Promise<GDriveConfig> => {
+const createConfig = async (
+  gapi: GApi,
+  repositoryDb: RepositoryDb
+): Promise<GDriveConfig> => {
   const token = gapi.auth.getToken().access_token as GoogleAuthToken;
-  const localDb = await openFileIdsDb();
-  const cfg = { authToken: token, localDb };
+  const cfg = { authToken: token, repositoryDb };
   const app = await getAppDir(cfg);
   const [linkedData] = await Promise.all([getLinkedDataDir(cfg, app)]);
   return {
@@ -110,11 +118,14 @@ export type GDriveProfile = {
   storageQuota: GDriveQuota;
 };
 
-export const createProfile = async (gapi: GApi): Promise<GDriveProfile> => {
+export const createProfile = async (
+  gapi: GApi,
+  repositoryDb: RepositoryDb
+): Promise<GDriveProfile> => {
   const profile = await getUserProfile(gapi);
   return {
     gapi,
-    config: await createConfig(gapi),
+    config: await createConfig(gapi, repositoryDb),
     ...profile,
   };
 };

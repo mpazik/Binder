@@ -1,0 +1,85 @@
+import {
+  createStoreProvider,
+  openDb,
+  StoreProvider,
+} from "../../libs/indexeddb";
+
+export type RepositoryDb = {
+  getStoreProvider<T>(name: string): StoreProvider<T>;
+};
+
+type AfterUpdateHook = (repositoryDb: RepositoryDb) => Promise<void>;
+
+type RepositoryVersionUpdate = {
+  version: number;
+  stores: { name: string; params?: IDBObjectStoreParameters }[];
+  afterUpdate?: AfterUpdateHook;
+};
+
+const updates: RepositoryVersionUpdate[] = [];
+
+export const registerRepositoryVersion = (
+  update: RepositoryVersionUpdate
+): void => {
+  const version = update.version;
+  if (updates[version]) {
+    throw new Error(
+      `Repository update for version "${version}" was already defined`
+    );
+  }
+  updates[version] = update;
+};
+
+export type RepositoryId = string;
+
+export const openRepository = async (
+  repositoryId: RepositoryId
+): Promise<RepositoryDb> => {
+  // validate updates
+  if (updates.length === 0) {
+    throw new Error(`There were no updates for repository`);
+  }
+  // we start from 1 so version 0 is undefined
+  for (let version = 1; version < updates.length; version++) {
+    if (updates[version] === undefined) {
+      throw new Error(
+        `Repository update for version "${version}" was not defined`
+      );
+    }
+  }
+  const afterCreationHooks: AfterUpdateHook[] = [];
+
+  const currentVersion = updates.length - 1; // remove version 0 from total
+  const db = await openDb(
+    repositoryId,
+    (db, oldVersion) => {
+      for (
+        let processingVersion = oldVersion + 1;
+        processingVersion <= currentVersion;
+        processingVersion++
+      ) {
+        console.log(
+          `Processing repository update number "${processingVersion}"`
+        );
+        const { stores, afterUpdate } = updates[processingVersion];
+        stores.forEach(({ name, params }) => {
+          db.createObjectStore(name, params);
+        });
+        if (afterUpdate) {
+          afterCreationHooks.push(afterUpdate);
+        }
+      }
+    },
+    currentVersion
+  );
+
+  const repo: RepositoryDb = {
+    getStoreProvider: <T>(name: string) => createStoreProvider<T>(db, name),
+  };
+
+  for (const hook of afterCreationHooks) {
+    await hook(repo);
+  }
+
+  return repo;
+};

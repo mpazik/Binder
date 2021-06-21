@@ -317,6 +317,7 @@ export const input = newTagFactory<Nodes>("input");
 export const header = newTagFactory<Nodes>("header");
 export const span = newTagFactory<Nodes>("span");
 export const p = newTagFactory<Nodes>("p");
+export const pre = newTagFactory<Nodes>("pre");
 export const button = newTagFactory<Nodes>("button");
 export const section = newTagFactory<Nodes>("section");
 export const footer = newTagFactory<Nodes>("footer");

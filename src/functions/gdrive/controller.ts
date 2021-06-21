@@ -1,6 +1,7 @@
 import { Callback, fork } from "../../libs/connections";
 import { filter, defined } from "../../libs/connections/filters";
 import { mapState, newStateMachine } from "../../libs/named-state";
+import { RepositoryDb } from "../store/repository";
 
 import { createProfile, GDriveProfile } from "./app-files";
 import { GApi, initializeGoogleDrive, signIn, signOut } from "./auth";
@@ -35,7 +36,8 @@ const handleError = (e: Error | unknown): GDriveAction => [
 ];
 
 export const gdrive = (
-  callback: Callback<GDriveState>
+  callback: Callback<GDriveState>,
+  repositoryDb: RepositoryDb
 ): Callback<GDriveAction> => {
   const stateMachine = newStateMachine<GDriveState, GDriveAction>(
     initGdriveState,
@@ -89,7 +91,7 @@ export const gdrive = (
               .then<GDriveAction>(() => ["retrieveProfile", gapi])
               .catch(handleError),
           profileRetrieving: (gapi) =>
-            createProfile(gapi)
+            createProfile(gapi, repositoryDb)
               .then<GDriveAction>((profile) => ["loggedIn", profile])
               .catch(handleError),
           logged: () => undefined,

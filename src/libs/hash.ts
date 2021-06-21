@@ -1,4 +1,8 @@
-import { LinkedData, normalizeLinkedData } from "./linked-data";
+import {
+  LinkedData,
+  LinkedDataWithHashId,
+  normalizeLinkedData,
+} from "./linked-data";
 import { Opaque } from "./types";
 
 type Hash = ArrayBuffer;
@@ -56,4 +60,25 @@ export const hashLinkedData = async (
 ): Promise<HashUri> => {
   const normalized = await normalizeLinkedData(data);
   return referenceToHashUri(await computeHash(normalized, algorithm));
+};
+
+export const computeLinkedDataWithHashId = async (
+  data: LinkedData,
+  algorithm: HashingAlgorithm = "sha-256"
+): Promise<LinkedDataWithHashId> => {
+  // copy linked data to not modify passed property
+  const { ...linkedDataToHash } = data;
+  const oldId = linkedDataToHash["@id"];
+  if (oldId && !oldId.startsWith(hashUriScheme)) {
+    throw new Error(
+      "Linked data already have hash uri Id, saving operation would remove it"
+    );
+  }
+  delete linkedDataToHash["@id"]; // remove id as we would replace it
+  const hashUri = await hashLinkedData(linkedDataToHash, algorithm);
+  if (oldId && oldId !== hashUri) {
+    throw new Error(`Filed ${oldId} is corrupted`);
+  }
+  linkedDataToHash["@id"] = hashUri;
+  return linkedDataToHash as LinkedDataWithHashId;
 };

@@ -133,7 +133,7 @@ type HTMLElementTagNameMap = {
   p: HTMLElement;
   // param: HTMLParamElement;
   // picture: HTMLPictureElement;
-  // pre: HTMLPreElement;
+  pre: HTMLElement;
   // progress: HTMLProgressElement;
   // q: HTMLQuoteElement;
   // rp: HTMLElement;
