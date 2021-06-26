@@ -64,7 +64,7 @@ export const annotationsSupport: Component<
   {
     ldStoreWrite: LinkedDataStoreWrite;
     ldStoreRead: LinkedDataStoreRead;
-    documentAnnotationsIndex: AnnotationsIndex;
+    annotationsIndex: AnnotationsIndex;
     requestDocumentSave: () => void;
   },
   {
@@ -73,12 +73,10 @@ export const annotationsSupport: Component<
     setContainer: HTMLElement;
     setReference: HashUri | undefined;
   }
-> = ({
-  ldStoreWrite,
-  ldStoreRead,
-  requestDocumentSave,
-  documentAnnotationsIndex,
-}) => (render, onClose) => {
+> = ({ ldStoreWrite, ldStoreRead, requestDocumentSave, annotationsIndex }) => (
+  render,
+  onClose
+) => {
   const [saveAnnotation, [setCreator, setReference]] = withMultiState<
     [string, HashUri | undefined],
     AnnotationSaveArgs
@@ -238,7 +236,7 @@ export const annotationsSupport: Component<
     valueWithState<HashUri | undefined, AnnotationDisplayRequest>(undefined),
     filter(definedTuple),
     ([reference, { fragment }]) => {
-      const annotationsHashUris = documentAnnotationsIndex({
+      const annotationsHashUris = annotationsIndex({
         documentHashUri: reference,
         fragment: fragment?.value,
       });

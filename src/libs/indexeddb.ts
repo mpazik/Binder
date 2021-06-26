@@ -75,6 +75,14 @@ export const reqToPromise = <T>(request: IDBRequest<T>): Promise<T> =>
     request.onerror = reject;
   });
 
+export const transactionToPromise = (
+  transaction: IDBTransaction
+): Promise<void> =>
+  new Promise((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = reject;
+  });
+
 export const storeGet = <T>(
   getStore: StoreProvider<T>,
   query: IDBValidKey | IDBKeyRange

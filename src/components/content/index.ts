@@ -33,20 +33,16 @@ export const contentComponent: Component<
     ldStoreWrite: LinkedDataStoreWrite;
     ldStoreRead: LinkedDataStoreRead;
     onSave: Consumer<LinkedDataWithHashId>;
-    documentAnnotationsIndex: AnnotationsIndex;
+    annotationsIndex: AnnotationsIndex;
   },
   {
     setCreator: string;
     displayContent: LinkedDataWithContentAndFragment;
     goToFragment: string;
   }
-> = ({
-  storeWrite,
-  ldStoreWrite,
-  ldStoreRead,
-  onSave,
-  documentAnnotationsIndex,
-}) => (render) => {
+> = ({ storeWrite, ldStoreWrite, ldStoreRead, onSave, annotationsIndex }) => (
+  render
+) => {
   const contentSaver = createContentSaver(storeWrite, ldStoreWrite);
   const storeData = (data: LinkedDataWithContent, retry: () => void) => {
     try {
@@ -98,7 +94,7 @@ export const contentComponent: Component<
     annotationsSupport({
       ldStoreWrite,
       ldStoreRead,
-      documentAnnotationsIndex,
+      annotationsIndex,
       requestDocumentSave: saveContent,
     })
   );

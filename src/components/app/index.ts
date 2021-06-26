@@ -9,40 +9,38 @@ import {
 } from "../../functions/content-processors";
 import { createProxyFetch, Fetch } from "../../functions/fetch-trough-proxy";
 import { gdrive } from "../../functions/gdrive/controller";
+import { getLastAccount, openGlobalDb } from "../../functions/global-db";
 import {
-  createAnnotationsIndex,
-  createAnnotationsIndexStore,
-  createAnnotationsIndexer,
   AnnotationsIndex,
+  createAnnotationsIndex,
+  createAnnotationsIndexer,
+  createAnnotationsIndexStore,
 } from "../../functions/indexes/annotations-index";
 import { createCompositeIndexer } from "../../functions/indexes/composite-indexer";
 import {
   createDirectoryIndex,
-  createDirectoryIndexStore,
   createDirectoryIndexer,
+  createDirectoryIndexStore,
   DirectoryIndex,
 } from "../../functions/indexes/directory-index";
 import { Indexer } from "../../functions/indexes/types";
 import {
   createUrlIndex,
-  createUrlIndexStore,
   createUrlIndexer,
+  createUrlIndexStore,
   UrlIndex,
 } from "../../functions/indexes/url-index";
-import { createLinkedDataWithDocumentFetcher } from "../../functions/linked-data-fetcher";
+import {
+  createLinkedDataWithDocumentFetcher,
+  LinkedDataWithContentFetcher,
+} from "../../functions/linked-data-fetcher";
 import { createStore } from "../../functions/store";
 import { openRepository, RepositoryDb } from "../../functions/store/repository";
 import {
   currentDocumentUriProvider,
   UriWithFragment,
 } from "../../functions/url-hijack";
-import {
-  combine,
-  fork,
-  reduce,
-  split,
-  withMultiState,
-} from "../../libs/connections";
+import { combine, fork, reduce, split } from "../../libs/connections";
 import { defined, filter } from "../../libs/connections/filters";
 import {
   head,
@@ -66,7 +64,7 @@ const defaultUri = "https://pl.wikipedia.org/wiki/Dedal_z_Sykionu";
 
 const initServices = async (): Promise<{
   directoryIndex: DirectoryIndex;
-  documentAnnotationsIndex: AnnotationsIndex;
+  annotationsIndex: AnnotationsIndex;
   fetchTroughProxy: Fetch;
   urlIndex: UrlIndex;
   repositoryDb: RepositoryDb;
@@ -92,21 +90,36 @@ const initServices = async (): Promise<{
   ]);
 
   return {
-    fetchTroughProxy: await createProxyFetch(),
+    fetchTroughProxy,
     directoryIndex,
-    documentAnnotationsIndex: annotationsIndex,
+    annotationsIndex,
     urlIndex,
     repositoryDb,
     indexLinkedData,
   };
 };
 
+type LinkedDataWithContentFetcherPassingUri = (
+  request: UriWithFragment,
+  signal?: AbortSignal
+) => Promise<LinkedDataWithContent>;
+
+const createContentFetcherPassingUri = (
+  contentFetcher: LinkedDataWithContentFetcher
+): LinkedDataWithContentFetcherPassingUri => async (
+  { fragment, uri },
+  signal?
+) => ({
+  fragment,
+  ...(await contentFetcher(uri, signal)),
+});
+
 export const App = asyncLoader(
   measureAsyncTime("init", () => initServices()),
   ({
     fetchTroughProxy,
     directoryIndex,
-    documentAnnotationsIndex,
+    annotationsIndex,
     urlIndex,
     repositoryDb,
     indexLinkedData,
@@ -150,10 +163,7 @@ export const App = asyncLoader(
       }),
       split(
         pick("uriChanged"),
-        ({ uri, fragment }) => {
-          setFragment(fragment);
-          loadResource(uri);
-        },
+        (it) => loadResource(it),
         map(
           pick("fragment"),
           filter(defined, (it) => goToFragment(it))
@@ -170,36 +180,30 @@ export const App = asyncLoader(
       })
     );
 
-    const contentFetcher = createLinkedDataWithDocumentFetcher(
-      async (uri: string): Promise<HashName | undefined> => {
-        const result = await urlIndex({ url: uri });
-        if (result.length > 0) {
-          return result[0].hash;
-        }
-      },
-      fetchTroughProxy,
-      store.readLinkedData,
-      store.readResource
+    const contentFetcherPassingUri = createContentFetcherPassingUri(
+      createLinkedDataWithDocumentFetcher(
+        async (uri: string): Promise<HashName | undefined> => {
+          const result = await urlIndex({ url: uri });
+          if (result.length > 0) {
+            return result[0].hash;
+          }
+        },
+        fetchTroughProxy,
+        store.readLinkedData,
+        store.readResource
+      )
     );
 
-    // todo
     const [contentSlot, { setCreator, displayContent, goToFragment }] = newSlot(
       "content-container",
       contentComponent({
         storeWrite: store.writeResource,
         ldStoreWrite: store.writeLinkedData,
         ldStoreRead: store.readLinkedData,
-        documentAnnotationsIndex,
+        annotationsIndex: annotationsIndex,
         onSave: ignore,
       })
     );
-
-    const [displayContentWithFragment, [setFragment]] = withMultiState<
-      [string | undefined],
-      LinkedDataWithContent
-    >(([fragment], content) => {
-      displayContent({ fragment, ...content });
-    }, undefined);
 
     const [
       contentLoaderSlot,
@@ -207,11 +211,8 @@ export const App = asyncLoader(
     ] = newSlot(
       "content-loader",
       loader({
-        fetcher: contentFetcher,
-        onLoaded: fork(
-          displayContentWithFragment,
-          map(to(true), setContentReady)
-        ),
+        fetcher: contentFetcherPassingUri,
+        onLoaded: fork(displayContent, map(to(true), setContentReady)),
         contentSlot,
       })
     );
@@ -219,10 +220,8 @@ export const App = asyncLoader(
     const [fileDropSlot, { displayFileDrop }] = newSlot(
       "file-drop",
       fileDrop({
-        onFile: mapAwait(
-          processFileToContent,
-          fork(map(to(undefined), setFragment), displayFile),
-          (error) => console.error(error)
+        onFile: mapAwait(processFileToContent, displayFile, (error) =>
+          console.error(error)
         ),
       })
     );
