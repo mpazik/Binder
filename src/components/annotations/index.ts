@@ -64,12 +64,12 @@ export const annotationsSupport: Component<
   {
     ldStoreWrite: LinkedDataStoreWrite;
     ldStoreRead: LinkedDataStoreRead;
-    annotationsIndex: AnnotationsIndex;
+    annotationsIndex: AnnotationsIndex["search"];
     requestDocumentSave: () => void;
   },
   {
     displayDocumentAnnotations: AnnotationDisplayRequest;
-    setCreator: string;
+    setCreator: string | undefined;
     setContainer: HTMLElement;
     setReference: HashUri | undefined;
   }
@@ -78,7 +78,7 @@ export const annotationsSupport: Component<
   onClose
 ) => {
   const [saveAnnotation, [setCreator, setReference]] = withMultiState<
-    [string, HashUri | undefined],
+    [string | undefined, HashUri | undefined],
     AnnotationSaveArgs
   >(
     ([creator, reference], annotationSaveArgs) => {
@@ -92,7 +92,7 @@ export const annotationsSupport: Component<
         reference,
         selector,
         content,
-        creator ?? undefined
+        creator
       );
       ldStoreWrite(annotation).then(() => {
         changeSelection(["display", annotation]);
@@ -237,11 +237,11 @@ export const annotationsSupport: Component<
     filter(definedTuple),
     ([reference, { fragment }]) => {
       const annotationsHashUris = annotationsIndex({
-        documentHashUri: reference,
+        hash: reference,
         fragment: fragment?.value,
       });
-      annotationsHashUris.then((uris) =>
-        uris.forEach((hashUri) => {
+      annotationsHashUris.then((docsUris) =>
+        docsUris[0].props.forEach((hashUri) => {
           ldStoreRead(hashUri).then(
             link(filter(nonNull), (annotation) => {
               changeSelection([
@@ -274,7 +274,7 @@ export const annotationsSupport: Component<
       setContainerForToolbar,
       link(map(to(undefined)), setTextLayerForSelector)
     ),
-    setCreator: setCreator,
+    setCreator,
     displayDocumentAnnotations: fork(
       link(map(pick("fragment")), setFragmentForToolbar),
       link(map(pick("textLayer")), setTextLayerForSelector),

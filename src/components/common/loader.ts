@@ -127,8 +127,8 @@ const loaderView = <C, R, V extends Prop>({
 export const loaderWithContext = <C, R, V extends Prop>({
   fetcher,
   onLoaded,
-  errorView = defaultErrorView,
   contentSlot,
+  errorView = defaultErrorView,
 }: {
   fetcher: (context: C, request: R, s: AbortSignal) => Promise<V>;
   onLoaded: Callback<V>;

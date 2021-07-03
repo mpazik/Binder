@@ -47,7 +47,8 @@ export const createStatefulGDriveStoreRead = (): [
         idle: () => ["idle"],
         loading: () => ["idle"],
         error: () => ["idle"],
-        ready: () => ["idle"],
+        disconnected: () => ["idle"],
+        signedOut: () => ["idle"],
         loggingIn: () => (state[0] === "loading" ? state : ["loading", []]),
         profileRetrieving: () =>
           state[0] === "loading" ? state : ["loading", []],

@@ -1,4 +1,4 @@
-import { HashName } from "../../libs/hash";
+import { HashUri } from "../../libs/hash";
 import {
   storeGet,
   StoreName,
@@ -8,40 +8,25 @@ import {
 import { findUrl, isTypeEqualTo } from "../../libs/linked-data";
 import { measureAsyncTime } from "../../libs/performance";
 import { createLinkedDataProvider } from "../store/local-store";
-import { registerRepositoryVersion, RepositoryDb } from "../store/repository";
+import { registerRepositoryVersion } from "../store/repository";
 
-import { Index, Indexer } from "./types";
+import { createDynamicIndex2, DynamicRepoIndex } from "./dynamic-repo-index";
+import { UpdateIndex } from "./types";
 
 export type UrlQuery = { url: string };
-export type UrlIndexStore = StoreProvider<HashName>;
-export type UrlIndex = Index<UrlQuery, string>;
+export type UrlIndexStore = StoreProvider<string>;
+export type UrlIndex = DynamicRepoIndex<UrlQuery, string>;
 
 const urlIndexStoreName = "url-index" as StoreName;
 
-registerRepositoryVersion({
-  version: 3,
-  stores: [{ name: urlIndexStoreName }],
-  afterUpdate: (repositoryDb) => {
-    const indexer = createUrlIndexer(createUrlIndexStore(repositoryDb));
-    const linkedDataProvider = createLinkedDataProvider(repositoryDb);
-    return measureAsyncTime("url-indexing", async () =>
-      linkedDataProvider((result) => indexer(result))
-    );
-  },
-});
-
-export const createUrlIndexStore = (
-  repositoryDb: RepositoryDb
-): UrlIndexStore => repositoryDb.getStoreProvider(urlIndexStoreName);
-
-export const createUrlIndex = (
+const createSearchUrlIndex = (
   urlIndexDStore: UrlIndexStore
-): UrlIndex => async ({ url }) =>
+): UrlIndex["search"] => async ({ url }) =>
   storeGet(urlIndexDStore, url).then((hash) =>
-    hash ? [{ props: url, hash }] : []
+    hash ? [{ props: url, hash: hash as HashUri }] : []
   );
 
-export const createUrlIndexer = (urlIndexStore: UrlIndexStore): Indexer => {
+const createUrlIndexer = (urlIndexStore: UrlIndexStore): UpdateIndex => {
   return async (ld) => {
     if (!isTypeEqualTo(ld, "article")) return;
     const url = findUrl(ld);
@@ -49,3 +34,24 @@ export const createUrlIndexer = (urlIndexStore: UrlIndexStore): Indexer => {
     return storePut(urlIndexStore, ld["@id"], url).then(); // ignore storePut result
   };
 };
+
+export const createUriIndex = (): UrlIndex =>
+  createDynamicIndex2(
+    urlIndexStoreName,
+    createSearchUrlIndex,
+    createUrlIndexer
+  );
+
+registerRepositoryVersion({
+  version: 3,
+  stores: [{ name: urlIndexStoreName }],
+  afterUpdate: (repositoryDb) => {
+    const indexer = createUrlIndexer(
+      repositoryDb.getStoreProvider(urlIndexStoreName)
+    );
+    const linkedDataProvider = createLinkedDataProvider(repositoryDb);
+    return measureAsyncTime("url-indexing", async () =>
+      linkedDataProvider((result) => indexer(result))
+    );
+  },
+});

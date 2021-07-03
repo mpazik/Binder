@@ -33,10 +33,10 @@ export const contentComponent: Component<
     ldStoreWrite: LinkedDataStoreWrite;
     ldStoreRead: LinkedDataStoreRead;
     onSave: Consumer<LinkedDataWithHashId>;
-    annotationsIndex: AnnotationsIndex;
+    annotationsIndex: AnnotationsIndex["search"];
   },
   {
-    setCreator: string;
+    setCreator: string | undefined;
     displayContent: LinkedDataWithContentAndFragment;
     goToFragment: string;
   }

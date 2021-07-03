@@ -52,6 +52,13 @@ const accountIcon = `
     <path fill-rule="evenodd" d="M12 2.5a5.5 5.5 0 00-3.096 10.047 9.005 9.005 0 00-5.9 8.18.75.75 0 001.5.045 7.5 7.5 0 0114.993 0 .75.75 0 101.499-.044 9.005 9.005 0 00-5.9-8.181A5.5 5.5 0 0012 2.5zM8 8a4 4 0 118 0 4 4 0 01-8 0z"></path>
 </svg>`;
 
+const cloudOffIcon = `
+<svg xmlns="http://www.w3.org/2000/svg" class="v-align-middle octicon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <line x1="3" y1="3" x2="21" y2="21"></line>
+   <path d="M18 18h-11c-2.598 0 -4.705 -2.015 -4.705 -4.5s2.107 -4.5 4.705 -4.5c.112 -.5 .305 -.973 .568 -1.408m2.094 -1.948c.329 -.174 .68 -.319 1.05 -.43c1.9 -.576 3.997 -.194 5.5 1c1.503 1.192 2.185 3.017 1.788 4.786h1a3.5 3.5 0 0 1 2.212 6.212"></path>
+</svg>`;
+
 type ProfileState =
   | GDriveState
   | ["uploading", GDriveProfile]
@@ -92,14 +99,31 @@ export const createProfileView: ViewSetup<
     loggingOut: () => loading(),
     loggingIn: () => loading(),
     profileRetrieving: () => loading(),
-    ready: () =>
+    signedOut: () =>
       dropdownMenu({
-        title: "Sign in",
+        icon: cloudOffIcon,
         children: [
           li(
             { class: "px-4 py-2", style: { width: "200px" } },
-            a({ type: "button", onClick: login }, "Sign In"),
+            a(
+              { type: "button", onClick: login, style: { cursor: "pointer" } },
+              "Sign In"
+            ),
             " to your cloud storage provider to synchronize your data"
+          ),
+        ],
+      }),
+    disconnected: () =>
+      dropdownMenu({
+        icon: cloudOffIcon,
+        children: [
+          li(
+            { class: "px-4 py-2", style: { width: "200px" } },
+            a(
+              { type: "button", onClick: login, style: { cursor: "pointer" } },
+              "Sign In"
+            ),
+            " you cloud storage session expired, please login it again"
           ),
         ],
       }),

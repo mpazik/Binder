@@ -5,6 +5,11 @@ export type IndexRecord<T> = { props: T; hash: HashUri };
 export type IndexingStrategy<T> = (
   linkedData: LinkedDataWithHashId
 ) => Promise<T>;
-export type Index<Q, T> = (q: Q) => Promise<IndexRecord<T>[]>;
 
-export type Indexer = (ld: LinkedDataWithHashId) => Promise<void>;
+export type SearchIndex<Q, T> = (q: Q) => Promise<IndexRecord<T>[]>;
+export type UpdateIndex = (ld: LinkedDataWithHashId) => Promise<void>;
+
+export type Index<Q, T> = {
+  search: SearchIndex<Q, T>;
+  update: UpdateIndex;
+};

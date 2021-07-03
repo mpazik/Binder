@@ -1,11 +1,9 @@
-import { link, map, asyncMapWithErrorHandler } from "linki";
+import { link, map } from "linki";
 
 import { DISPLAY_CONFIG_ENABLED } from "../../config";
+import { GDriveLoadingProfile } from "../../functions/gdrive/app-files";
 import { GDriveAction } from "../../functions/gdrive/controller";
-import {
-  DirectoryIndex,
-  DirectoryRecord,
-} from "../../functions/indexes/directory-index";
+import { DirectoryIndex } from "../../functions/indexes/directory-index";
 import {
   newUriWithFragment,
   updateBrowserHistory,
@@ -13,9 +11,7 @@ import {
 } from "../../functions/url-hijack";
 import { Callback, fork } from "../../libs/connections";
 import { throwIfNull } from "../../libs/errors";
-import { HashUri } from "../../libs/hash";
 import {
-  a,
   button,
   Component,
   dangerousHTML,
@@ -26,52 +22,10 @@ import {
   slot,
   span,
   summary,
-  View,
 } from "../../libs/simple-ui/render";
 
 import { profilePanel, ProfilePanelControl } from "./profile";
 import { searchBox } from "./search-box";
-
-const fileNavigationList: View<{
-  list: DirectoryRecord[];
-  current?: HashUri;
-}> = ({ list, current }) => [
-  "nav",
-  { class: "menu" },
-  ...list.map(({ props: { name }, hash }) =>
-    a(
-      {
-        class: "menu-item",
-        href: hash,
-        ...(hash === current ? { "aria-current": "page" } : {}),
-      },
-      name
-    )
-  ),
-];
-
-export const fileNavigation: Component<
-  {
-    directoryIndex: DirectoryIndex;
-  },
-  { selectItem: HashUri | undefined }
-> = ({ directoryIndex }) => (render) => {
-  const renderNavigation: Callback<HashUri | undefined> = link(
-    asyncMapWithErrorHandler(
-      (hashUri) =>
-        directoryIndex({}).then((list) => ({ list, current: hashUri })),
-      (e) => console.error(e)
-    ),
-    map(fileNavigationList),
-    render
-  );
-
-  renderNavigation(undefined);
-
-  return {
-    selectItem: renderNavigation,
-  };
-};
 
 const typographyIcon = `
 <svg xmlns="http://www.w3.org/2000/svg" class="octicon v-align-middle" viewBox="0 0 24 24" width="24" height="24">
@@ -112,10 +66,11 @@ export const navigation: Component<
   {
     updateGdrive: Callback<GDriveAction>;
     loadUri: Callback<UriWithFragment>;
-    directoryIndex: DirectoryIndex;
+    directoryIndex: DirectoryIndex["search"];
+    initProfile: GDriveLoadingProfile;
   },
   ProfilePanelControl
-> = ({ updateGdrive, loadUri, directoryIndex }) => (render) => {
+> = ({ updateGdrive, loadUri, directoryIndex, initProfile }) => (render) => {
   const [profilePanelSlot, profilePanelControl] = newSlot(
     "profile",
     profilePanel({
@@ -180,7 +135,7 @@ export const navigation: Component<
         },
         onDisplay: fork(
           (e) => (nav = e.target as HTMLElement),
-          () => updateGdrive(["load"])
+          () => updateGdrive(["load", initProfile])
         ),
       },
       div(

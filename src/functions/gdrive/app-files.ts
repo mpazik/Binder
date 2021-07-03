@@ -94,7 +94,7 @@ export type GDriveConfig = {
   token: GoogleAuthToken;
 };
 
-const createConfig = async (
+export const createGDriveConfig = async (
   gapi: GApi,
   repositoryDb: RepositoryDb
 ): Promise<GDriveConfig> => {
@@ -111,21 +111,35 @@ const createConfig = async (
   };
 };
 
-export type GDriveProfile = {
-  config: GDriveConfig;
+export type GDriveLoadingProfile = {
+  repository: RepositoryDb;
+  user: GDriveUser | undefined;
+};
+
+export type GDriveLoggedOurProfile = {
+  repository: RepositoryDb;
   gapi: GApi;
+};
+
+// we use the last user account but there is no access to the internet right now
+export type GDriveDisconnectedProfile = GDriveLoggedOurProfile & {
   user: GDriveUser;
+};
+
+export type GDriveProfile = GDriveDisconnectedProfile & {
+  config: GDriveConfig;
   storageQuota: GDriveQuota;
 };
 
 export const createProfile = async (
   gapi: GApi,
-  repositoryDb: RepositoryDb
+  repository: RepositoryDb
 ): Promise<GDriveProfile> => {
   const profile = await getUserProfile(gapi);
   return {
     gapi,
-    config: await createConfig(gapi, repositoryDb),
+    config: await createGDriveConfig(gapi, repository),
+    repository,
     ...profile,
   };
 };

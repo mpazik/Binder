@@ -3,6 +3,7 @@ import {
   openDb,
   StoreProvider,
 } from "../../libs/indexeddb";
+import { DriverAccount } from "../global-db";
 
 export type RepositoryDb = {
   getStoreProvider<T>(name: string): StoreProvider<T>;
@@ -73,6 +74,7 @@ export const openRepository = async (
     currentVersion
   );
 
+  // export close method and is closing?
   const repo: RepositoryDb = {
     getStoreProvider: <T>(name: string) => createStoreProvider<T>(db, name),
   };
@@ -83,3 +85,16 @@ export const openRepository = async (
 
   return repo;
 };
+
+export type UnclaimedRepositoryDb = RepositoryDb;
+const unclaimedRepositoryName = "unclaimed";
+
+export const openUnclaimedRepository = (): Promise<UnclaimedRepositoryDb> =>
+  openRepository(unclaimedRepositoryName);
+
+const getAccountRepositoryName = ({ driver, email }: DriverAccount): string =>
+  `${driver}-${email}`;
+
+export const openAccountRepository = (
+  account: DriverAccount
+): Promise<RepositoryDb> => openRepository(getAccountRepositoryName(account));

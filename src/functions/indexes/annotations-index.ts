@@ -10,41 +10,35 @@ import {
   storePut,
 } from "../../libs/indexeddb";
 import { isTypeEqualTo } from "../../libs/linked-data";
-import { registerRepositoryVersion, RepositoryDb } from "../store/repository";
+import { registerRepositoryVersion } from "../store/repository";
 
-import { Indexer } from "./types";
+import { createDynamicIndex2, DynamicRepoIndex } from "./dynamic-repo-index";
+import { UpdateIndex } from "./types";
 
 export type DocumentAnnotationsQuery = {
-  documentHashUri: HashUri;
+  hash: HashUri;
   fragment?: string;
 };
 export type AnnotationsStore = StoreProvider<HashUri[]>;
-export type AnnotationsIndex = (
-  q: DocumentAnnotationsQuery
-) => Promise<HashUri[]>;
+export type AnnotationsIndex = DynamicRepoIndex<
+  DocumentAnnotationsQuery,
+  HashUri[]
+>;
 
 const annotationsIndexStoreName = "annotations-index" as StoreName;
-
-registerRepositoryVersion({
-  version: 5,
-  stores: [{ name: annotationsIndexStoreName }],
-});
-
-export const createAnnotationsIndexStore = (
-  repositoryDb: RepositoryDb
-): AnnotationsStore => repositoryDb.getStoreProvider(annotationsIndexStoreName);
 
 const recordKey = (documentHashUri: HashUri, fragment?: string) =>
   fragment ? `${documentHashUri}:${fragment}` : documentHashUri;
 
-export const createAnnotationsIndex = (
+export const createSearchAnnotationsIndex = (
   store: AnnotationsStore
-): AnnotationsIndex => async ({ documentHashUri, fragment }) =>
-  storeGet<HashUri[]>(store, recordKey(documentHashUri, fragment)).then(
-    (annotations = [] as HashUri[]) => annotations
-  );
+): AnnotationsIndex["search"] => async ({ hash, fragment }) =>
+  storeGet<HashUri[]>(
+    store,
+    recordKey(hash, fragment)
+  ).then((annotations = [] as HashUri[]) => [{ props: annotations, hash }]);
 
-export const createAnnotationsIndexer = (store: AnnotationsStore): Indexer => {
+const createAnnotationsIndexer = (store: AnnotationsStore): UpdateIndex => {
   return async (ld) => {
     if (!isTypeEqualTo(ld, "annotation")) return;
     const annotation = (ld as unknown) as Annotation;
@@ -67,3 +61,15 @@ export const createAnnotationsIndexer = (store: AnnotationsStore): Indexer => {
     return;
   };
 };
+
+export const createAnnotationsIndex = (): AnnotationsIndex =>
+  createDynamicIndex2(
+    annotationsIndexStoreName,
+    createSearchAnnotationsIndex,
+    createAnnotationsIndexer
+  );
+
+registerRepositoryVersion({
+  version: 5,
+  stores: [{ name: annotationsIndexStoreName }],
+});

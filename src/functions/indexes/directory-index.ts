@@ -8,40 +8,22 @@ import {
 import { getType } from "../../libs/linked-data";
 import { measureAsyncTime } from "../../libs/performance";
 import { createLinkedDataProvider } from "../store/local-store";
-import { registerRepositoryVersion, RepositoryDb } from "../store/repository";
+import { registerRepositoryVersion } from "../store/repository";
 
-import { Indexer, IndexRecord } from "./types";
+import { createDynamicIndex, DynamicRepoIndex } from "./dynamic-repo-index";
+import { IndexRecord } from "./types";
 
 export type DirectoryProps = { type: string; name: string };
 export type DirectoryQuery = { type?: string; name?: string };
 export type DirectoryRecord = IndexRecord<DirectoryProps>;
 export type DirectoryIndexStore = StoreProvider<DirectoryProps>;
-export type DirectoryIndex = (q: DirectoryQuery) => Promise<DirectoryRecord[]>;
+export type DirectoryIndex = DynamicRepoIndex<DirectoryQuery, DirectoryProps>;
 
 const directoryIndexStoreName = "directory-index" as StoreName;
 
-registerRepositoryVersion({
-  version: 4,
-  stores: [{ name: directoryIndexStoreName }],
-  afterUpdate: (repositoryDb) => {
-    const indexer = createDirectoryIndexer(
-      createDirectoryIndexStore(repositoryDb)
-    );
-    const linkedDataProvider = createLinkedDataProvider(repositoryDb);
-    return measureAsyncTime("directory-indexing", async () =>
-      linkedDataProvider((result) => indexer(result))
-    );
-  },
-});
-
-export const createDirectoryIndexStore = (
-  repositoryDb: RepositoryDb
-): DirectoryIndexStore =>
-  repositoryDb.getStoreProvider(directoryIndexStoreName);
-
-export const createDirectoryIndex = (
+const createSearchDirectoryIndex = (
   store: DirectoryIndexStore
-): DirectoryIndex => {
+): DirectoryIndex["search"] => {
   return async ({ name, type }) =>
     measureAsyncTime("search", async () => {
       const data = await storeGetAllWithKeys(store);
@@ -64,7 +46,9 @@ export const createDirectoryIndex = (
     });
 };
 
-export const createDirectoryIndexer = (store: DirectoryIndexStore): Indexer => {
+export const createDirectoryIndexer = (
+  store: DirectoryIndexStore
+): DirectoryIndex["update"] => {
   return async (ld) => {
     const type = getType(ld);
     const name = ld["name"];
@@ -73,3 +57,26 @@ export const createDirectoryIndexer = (store: DirectoryIndexStore): Indexer => {
     return storePut(store, props, ld["@id"]).then(); // ignore storePut result
   };
 };
+
+export const createDirectoryIndex = (): DirectoryIndex =>
+  createDynamicIndex((repositoryDb) => {
+    const store = repositoryDb.getStoreProvider(directoryIndexStoreName);
+    return {
+      search: createSearchDirectoryIndex(store),
+      update: createDirectoryIndexer(store),
+    };
+  });
+
+registerRepositoryVersion({
+  version: 4,
+  stores: [{ name: directoryIndexStoreName }],
+  afterUpdate: (repositoryDb) => {
+    const indexer = createDirectoryIndexer(
+      repositoryDb.getStoreProvider(directoryIndexStoreName)
+    );
+    const linkedDataProvider = createLinkedDataProvider(repositoryDb);
+    return measureAsyncTime("directory-indexing", async () =>
+      linkedDataProvider((result) => indexer(result))
+    );
+  },
+});

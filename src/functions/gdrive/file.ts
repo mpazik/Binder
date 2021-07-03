@@ -76,7 +76,7 @@ export const findFiles = async (
   authToken: GoogleAuthToken,
   query: string
 ): Promise<GDriveFile[]> => {
-  const fields = encodeURI(`files(id, appProperties)`);
+  const fields = encodeURI(`files(id, appProperties, name)`);
   const data = (await fetch(
     `https://www.googleapis.com/drive/v3/files?q=${query}&fields=${fields}`,
     {

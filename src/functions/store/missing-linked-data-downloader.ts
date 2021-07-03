@@ -1,14 +1,14 @@
 import { asyncPool } from "../../libs/async-pool";
 import { GDriveConfig, getContent } from "../gdrive/app-files";
 import { listFiles } from "../gdrive/file";
-import { Indexer } from "../indexes/types";
+import { UpdateIndex } from "../indexes/types";
 
 import { LinkedDataStoreIterate, LinkedDataStoreWrite } from "./local-store";
 
 export const newMissingLinkedDataDownloader = (
   storeIterate: LinkedDataStoreIterate,
   storeWrite: LinkedDataStoreWrite,
-  index: Indexer,
+  index: UpdateIndex,
   config: GDriveConfig
 ) => async (since?: Date): Promise<Date> => {
   const till = new Date();

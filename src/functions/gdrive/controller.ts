@@ -1,31 +1,54 @@
 import { Callback, fork } from "../../libs/connections";
-import { filter, defined } from "../../libs/connections/filters";
+import { defined, filter } from "../../libs/connections/filters";
 import { mapState, newStateMachine } from "../../libs/named-state";
-import { RepositoryDb } from "../store/repository";
+import {
+  clearLastLogin,
+  DriverAccount,
+  GlobalDb,
+  setLastConnected,
+  setLastLogin,
+} from "../global-db";
+import {
+  openAccountRepository,
+  UnclaimedRepositoryDb,
+} from "../store/repository";
 
-import { createProfile, GDriveProfile } from "./app-files";
-import { GApi, initializeGoogleDrive, signIn, signOut } from "./auth";
+import {
+  createGDriveConfig,
+  GDriveDisconnectedProfile,
+  GDriveLoadingProfile,
+  GDriveLoggedOurProfile,
+  GDriveProfile,
+} from "./app-files";
+import {
+  GApi,
+  getUserProfile,
+  initializeGoogleDrive,
+  signIn,
+  signOut,
+} from "./auth";
 
 export type GDriveAction =
-  | ["load"]
+  | ["load", GDriveLoadingProfile]
   | ["initialize", GApi]
   | ["login"]
-  | ["retrieveProfile", GApi]
+  | ["retrieveProfile"]
   | ["logout"]
-  | ["loggedOut", GApi]
+  | ["loggedOut"]
   | ["loggedIn", GDriveProfile]
   | ["fail", string]
   | ["push"];
 
 export type GDriveState =
   | ["idle"]
-  | ["loading"]
-  | ["ready", GApi]
-  | ["loggingIn", GApi]
-  | ["profileRetrieving", GApi]
+  | ["loading", GDriveLoadingProfile]
+  | ["disconnected", GDriveDisconnectedProfile]
+  | ["signedOut", GDriveLoggedOurProfile]
+  | ["loggingIn", GDriveLoggedOurProfile]
+  | ["profileRetrieving", GDriveLoggedOurProfile & { alreadyLogged: boolean }]
   | ["logged", GDriveProfile]
   | ["error", string]
-  | ["loggingOut", GApi];
+  | ["loggingOut", GDriveLoggedOurProfile];
 
 export const initGdriveState: GDriveState = ["idle"];
 
@@ -35,40 +58,62 @@ const handleError = (e: Error | unknown): GDriveAction => [
     "Unknown Error: " + JSON.stringify(e),
 ];
 
+// this become more than just gdrive. It controls the current repository
 export const gdrive = (
   callback: Callback<GDriveState>,
-  repositoryDb: RepositoryDb
+  globalDb: GlobalDb,
+  unclaimedRepository: UnclaimedRepositoryDb
 ): Callback<GDriveAction> => {
   const stateMachine = newStateMachine<GDriveState, GDriveAction>(
     initGdriveState,
     {
       idle: {
-        load: () => ["loading"],
+        load: (loadingProfile) => ["loading", loadingProfile],
       },
       loading: {
-        initialize: (gapi) => {
+        initialize: (gapi, { repository, user }) => {
           return gapi.auth2.getAuthInstance().isSignedIn.get()
-            ? ["profileRetrieving", gapi]
-            : ["ready", gapi];
+            ? ["profileRetrieving", { gapi, repository, alreadyLogged: true }]
+            : user
+            ? [
+                "disconnected",
+                {
+                  gapi,
+                  user,
+                  repository,
+                },
+              ]
+            : ["signedOut", { gapi, repository }];
         },
         fail: (reason) => ["error", reason],
       },
       loggingIn: {
-        retrieveProfile: (profile) => ["profileRetrieving", profile],
+        retrieveProfile: (_, context) => [
+          "profileRetrieving",
+          { ...context, alreadyLogged: false },
+        ],
       },
       profileRetrieving: {
         loggedIn: (profile) => ["logged", profile],
         fail: (reason) => ["error", reason],
       },
       logged: {
-        logout: (_, profile) => ["loggingOut", profile.gapi],
+        logout: (_, { gapi }) => [
+          "loggingOut",
+          { gapi, repository: unclaimedRepository },
+        ],
       },
       loggingOut: {
-        loggedOut: (gapi) => ["ready", gapi],
+        loggedOut: (_, profile) => ["signedOut", profile],
       },
-      ready: {
-        login: (_, gapi) => {
-          return ["loggingIn", gapi];
+      disconnected: {
+        login: (_, profile) => {
+          return ["loggingIn", profile];
+        },
+      },
+      signedOut: {
+        login: (_, profile) => {
+          return ["loggingIn", profile];
         },
       },
       error: {},
@@ -86,20 +131,46 @@ export const gdrive = (
             initializeGoogleDrive()
               .then<GDriveAction>((gapi) => ["initialize", gapi])
               .catch(handleError),
-          loggingIn: (gapi) =>
+          loggingIn: ({ gapi }) =>
             signIn(gapi)
-              .then<GDriveAction>(() => ["retrieveProfile", gapi])
+              .then<GDriveAction>(() => ["retrieveProfile"])
               .catch(handleError),
-          profileRetrieving: (gapi) =>
-            createProfile(gapi, repositoryDb)
-              .then<GDriveAction>((profile) => ["loggedIn", profile])
-              .catch(handleError),
+          profileRetrieving: async ({ gapi, repository, alreadyLogged }) => {
+            try {
+              const profile = await getUserProfile(gapi);
+              const account: DriverAccount = {
+                driver: "gdrive",
+                name: profile.user.displayName,
+                email: profile.user.emailAddress,
+              };
+              if (alreadyLogged) {
+                await setLastConnected(globalDb);
+              } else {
+                await setLastLogin(globalDb, account);
+              }
+              return [
+                "loggedIn",
+                {
+                  gapi,
+                  repository: alreadyLogged
+                    ? repository
+                    : await openAccountRepository(account),
+                  config: await createGDriveConfig(gapi, repository),
+                  ...profile,
+                },
+              ];
+            } catch (error) {
+              return handleError(error);
+            }
+          },
           logged: () => undefined,
-          loggingOut: (gapi) =>
+          loggingOut: ({ gapi }) =>
             signOut(gapi)
-              .then<GDriveAction>(() => ["loggedOut", gapi])
+              .then(() => clearLastLogin(globalDb))
+              .then<GDriveAction>(() => ["loggedOut"])
               .catch(handleError),
-          ready: () => undefined,
+          disconnected: () => undefined,
+          signedOut: () => undefined,
           error: () => undefined,
         })
       );

@@ -12,6 +12,7 @@ import {
   storeGetFirst,
   storeIterate,
   StoreName,
+  StoreProvider,
   storePut,
 } from "../../libs/indexeddb";
 import {
@@ -24,7 +25,7 @@ import { measureAsyncTime } from "../../libs/performance";
 import { GDriveConfig } from "../gdrive/app-files";
 import { GDriveState } from "../gdrive/controller";
 import { findOrCreateFileByHash } from "../gdrive/file";
-import { Indexer } from "../indexes/types";
+import { UpdateIndex } from "../indexes/types";
 
 import { createStatefulGDriveStoreRead } from "./gdrive-store-read";
 import {
@@ -44,12 +45,13 @@ export type {
   ResourceStoreRead,
 } from "./local-store";
 
-type Store = {
+export type Store = {
   readResource: ResourceStoreRead;
   writeResource: ResourceStoreWrite;
   readLinkedData: LinkedDataStoreRead;
   writeLinkedData: LinkedDataStoreWrite;
   updateGdriveState: (gdrive: GDriveState) => void;
+  switchRepo: (db: RepositoryDb) => void;
 };
 
 export type BlobHashRecord = {
@@ -88,30 +90,26 @@ const linkedDataToBlob = (ld: LinkedDataWithHashId): Blob =>
   });
 
 export const createStore = (
-  indexLinkedData: Indexer,
-  repositoryDb: RepositoryDb,
+  indexLinkedData: UpdateIndex,
   handleNewState: Callback<StoreState>
 ): Store => {
-  const resourceStore = getResourceStore(repositoryDb);
+  // pass unclaimedDb
+  let resourceStore: StoreProvider<Blob>;
+  let linkedDataStore: StoreProvider<LinkedDataWithHashId>;
+  let syncRequiredStore: StoreProvider<BlobHashRecord>;
+  let syncPropsStore: StoreProvider<Date>;
+
   const putLocalResource = async (blob: Blob) => {
     const hash = await hashBlob(blob);
     await storePut(resourceStore, blob, hash);
     return hash;
   };
 
-  const linkedDataStore = getLinkedDataStore(repositoryDb);
   const putLocalLinkedData = async (jsonld: LinkedData) => {
     const linkedDataToHash = await computeLinkedDataWithHashId(jsonld);
     await storePut(linkedDataStore, linkedDataToHash, linkedDataToHash["@id"]);
     return linkedDataToHash;
   };
-
-  const syncRequiredStore = repositoryDb.getStoreProvider<BlobHashRecord>(
-    syncRequiredStoreName
-  );
-  const syncPropsStore = repositoryDb.getStoreProvider<Date>(
-    syncPropsStoreName
-  );
 
   const [remoteStoreRead, updateGdriveState] = createStatefulGDriveStoreRead();
   let state: StoreState = ["idle"];
@@ -122,6 +120,7 @@ export const createStore = (
     handleState(state, {
       downloading: async (config) => {
         const since = await storeGet<Date>(syncPropsStore, "last-sync");
+        // todo if repo changed stop syncing
         const downloader = newMissingLinkedDataDownloader(
           (handler) =>
             storeIterate(
@@ -143,6 +142,7 @@ export const createStore = (
 
   const uploadNext = () => {
     // call outside as we don't want to catch here uploadNext errors
+    // todo if repo changed stop syncing
     setImmediate(() => uploadNextInt());
   };
   const uploadNextInt = async () => {
@@ -248,7 +248,8 @@ export const createStore = (
         mapState(gdrive, {
           idle: () => ["idle"],
           loading: () => ["idle"],
-          ready: () => ["idle"],
+          signedOut: () => ["idle"],
+          disconnected: () => ["idle"],
           loggingIn: () => ["idle"],
           profileRetrieving: () => ["idle"],
           logged: ({ config }) => {
@@ -258,6 +259,14 @@ export const createStore = (
           error: () => ["idle"],
         })
       );
+    },
+    switchRepo: (repositoryDb) => {
+      resourceStore = getResourceStore(repositoryDb);
+      linkedDataStore = getLinkedDataStore(repositoryDb);
+      syncRequiredStore = repositoryDb.getStoreProvider<BlobHashRecord>(
+        syncRequiredStoreName
+      );
+      syncPropsStore = repositoryDb.getStoreProvider<Date>(syncPropsStoreName);
     },
   };
 };

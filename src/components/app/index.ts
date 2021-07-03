@@ -9,49 +9,35 @@ import {
 } from "../../functions/content-processors";
 import { createProxyFetch, Fetch } from "../../functions/fetch-trough-proxy";
 import { gdrive } from "../../functions/gdrive/controller";
-import { getLastAccount, openGlobalDb } from "../../functions/global-db";
 import {
-  AnnotationsIndex,
-  createAnnotationsIndex,
-  createAnnotationsIndexer,
-  createAnnotationsIndexStore,
-} from "../../functions/indexes/annotations-index";
+  DriverAccount,
+  getLastLogin,
+  GlobalDb,
+  openGlobalDb,
+} from "../../functions/global-db";
+import { createAnnotationsIndex } from "../../functions/indexes/annotations-index";
 import { createCompositeIndexer } from "../../functions/indexes/composite-indexer";
-import {
-  createDirectoryIndex,
-  createDirectoryIndexer,
-  createDirectoryIndexStore,
-  DirectoryIndex,
-} from "../../functions/indexes/directory-index";
-import { Indexer } from "../../functions/indexes/types";
-import {
-  createUrlIndex,
-  createUrlIndexer,
-  createUrlIndexStore,
-  UrlIndex,
-} from "../../functions/indexes/url-index";
+import { createDirectoryIndex } from "../../functions/indexes/directory-index";
+import { createUriIndex } from "../../functions/indexes/url-index";
 import {
   createLinkedDataWithDocumentFetcher,
   LinkedDataWithContentFetcher,
 } from "../../functions/linked-data-fetcher";
 import { createStore } from "../../functions/store";
-import { openRepository, RepositoryDb } from "../../functions/store/repository";
+import {
+  openAccountRepository,
+  openUnclaimedRepository,
+  RepositoryDb,
+  UnclaimedRepositoryDb,
+} from "../../functions/store/repository";
 import {
   currentDocumentUriProvider,
   UriWithFragment,
 } from "../../functions/url-hijack";
-import { combine, fork, reduce, split } from "../../libs/connections";
+import { fork, passOnlyChanged, reduce, split } from "../../libs/connections";
 import { defined, filter } from "../../libs/connections/filters";
-import {
-  head,
-  map,
-  mapAwait,
-  mapTo,
-  pick,
-  to,
-} from "../../libs/connections/mappers";
+import { map, mapAwait, mapTo, pick } from "../../libs/connections/mappers";
 import { HashName } from "../../libs/hash";
-import { filterState } from "../../libs/named-state";
 import { measureAsyncTime } from "../../libs/performance";
 import { div, fragment, newSlot } from "../../libs/simple-ui/render";
 import { asyncLoader } from "../common/async-loader";
@@ -63,39 +49,28 @@ import { navigation } from "../navigation";
 const defaultUri = "https://pl.wikipedia.org/wiki/Dedal_z_Sykionu";
 
 const initServices = async (): Promise<{
-  directoryIndex: DirectoryIndex;
-  annotationsIndex: AnnotationsIndex;
   fetchTroughProxy: Fetch;
-  urlIndex: UrlIndex;
-  repositoryDb: RepositoryDb;
-  indexLinkedData: Indexer;
+  globalDb: GlobalDb;
+  unclaimedRepository: UnclaimedRepositoryDb;
+  lastLogin: DriverAccount | undefined;
+  lastLoginRepo: RepositoryDb | undefined;
 }> => {
-  const [repositoryDb] = await Promise.all([openRepository("first")]);
-  const urlIndexStore = createUrlIndexStore(repositoryDb);
-  const directoryIndexStore = createDirectoryIndexStore(repositoryDb);
-  const annotationsIndexStore = createAnnotationsIndexStore(repositoryDb);
-  const urlIndex = createUrlIndex(urlIndexStore);
-  const urlIndexer = createUrlIndexer(urlIndexStore);
-
-  const directoryIndex = createDirectoryIndex(directoryIndexStore);
-  const directoryIndexer = createDirectoryIndexer(directoryIndexStore);
-
-  const annotationsIndex = createAnnotationsIndex(annotationsIndexStore);
-  const annotationsIndexer = createAnnotationsIndexer(annotationsIndexStore);
-
-  const indexLinkedData = createCompositeIndexer([
-    urlIndexer,
-    directoryIndexer,
-    annotationsIndexer,
+  const [globalDb, fetchTroughProxy, unclaimedRepository] = await Promise.all([
+    openGlobalDb(),
+    createProxyFetch(),
+    openUnclaimedRepository(),
   ]);
+  const lastLogin = await getLastLogin(globalDb);
+  const lastLoginRepo = lastLogin
+    ? await openAccountRepository(lastLogin)
+    : undefined;
 
   return {
     fetchTroughProxy,
-    directoryIndex,
-    annotationsIndex,
-    urlIndex,
-    repositoryDb,
-    indexLinkedData,
+    globalDb,
+    unclaimedRepository,
+    lastLogin,
+    lastLoginRepo,
   };
 };
 
@@ -118,37 +93,66 @@ export const App = asyncLoader(
   measureAsyncTime("init", () => initServices()),
   ({
     fetchTroughProxy,
-    directoryIndex,
-    annotationsIndex,
-    urlIndex,
-    repositoryDb,
-    indexLinkedData,
+    globalDb,
+    unclaimedRepository,
+    lastLogin,
+    lastLoginRepo,
   }) => (render, onClose) => {
-    const [setUserEmail, setContentReady] = combine<[string | null, boolean]>(
-      filter(
-        (v): v is [string, true] => Boolean(v[0] && v[1]),
-        map(head, (user) => {
-          setCreator(user);
-        })
-      ),
-      null,
-      false
+    const urlIndex = createUriIndex();
+    const directoryIndex = createDirectoryIndex();
+    const annotationsIndex = createAnnotationsIndex();
+    const indexLinkedData = createCompositeIndexer([
+      urlIndex.update,
+      directoryIndex.update,
+      annotationsIndex.update,
+    ]);
+    const store = createStore(
+      indexLinkedData,
+      fork(
+        (state) => console.log("store - ", state),
+        (s) => updateStoreState(s)
+      )
     );
-
-    const store = createStore(indexLinkedData, repositoryDb, (s) =>
-      updateStoreState(s)
+    const updateRepo = fork(
+      () => console.log("switching repo"),
+      store.switchRepo,
+      urlIndex.switchRepo,
+      directoryIndex.switchRepo,
+      annotationsIndex.switchRepo
     );
+    const initRepo = lastLoginRepo ?? unclaimedRepository;
+    updateRepo(initRepo);
 
     const updateGdrive = gdrive(
       fork(
+        (state) => console.log("gdrive - ", state),
         (s) => updateGdriveState(s),
-        filterState(
-          "logged",
-          map(pick("user"), map(pick("emailAddress"), setUserEmail))
+        map(
+          (state) => {
+            if (state[0] === "logged" || state[0] === "disconnected") {
+              console.log("switching user", state[1].user);
+              return state[1].user.emailAddress;
+            }
+            return undefined;
+          },
+          filter(defined, (it) => setCreator(it))
         ),
-        store.updateGdriveState
+        store.updateGdriveState,
+        map((state) => {
+          if (
+            state[0] === "loading" ||
+            state[0] === "logged" ||
+            state[0] === "loggingIn" ||
+            state[0] === "disconnected" ||
+            state[0] === "signedOut"
+          ) {
+            return state[1].repository;
+          }
+          return undefined;
+        }, passOnlyChanged(filter(defined, updateRepo)))
       ),
-      repositoryDb
+      globalDb,
+      unclaimedRepository
     );
 
     const loadUri = reduce<
@@ -175,15 +179,24 @@ export const App = asyncLoader(
       "navigation",
       navigation({
         updateGdrive,
+        initProfile: {
+          repository: initRepo,
+          user: lastLogin
+            ? {
+                emailAddress: lastLogin.email,
+                displayName: lastLogin.name,
+              }
+            : undefined,
+        },
         loadUri,
-        directoryIndex,
+        directoryIndex: directoryIndex.search,
       })
     );
 
     const contentFetcherPassingUri = createContentFetcherPassingUri(
       createLinkedDataWithDocumentFetcher(
         async (uri: string): Promise<HashName | undefined> => {
-          const result = await urlIndex({ url: uri });
+          const result = await urlIndex.search({ url: uri });
           if (result.length > 0) {
             return result[0].hash;
           }
@@ -200,7 +213,7 @@ export const App = asyncLoader(
         storeWrite: store.writeResource,
         ldStoreWrite: store.writeLinkedData,
         ldStoreRead: store.readLinkedData,
-        annotationsIndex: annotationsIndex,
+        annotationsIndex: annotationsIndex.search,
         onSave: ignore,
       })
     );
@@ -212,7 +225,7 @@ export const App = asyncLoader(
       "content-loader",
       loader({
         fetcher: contentFetcherPassingUri,
-        onLoaded: fork(displayContent, map(to(true), setContentReady)),
+        onLoaded: displayContent,
         contentSlot,
       })
     );
