@@ -1,7 +1,20 @@
 import "./styles.css";
 import "./loading.css";
 
-import { ignore } from "linki";
+import {
+  asyncMapWithErrorHandler,
+  defined,
+  filter,
+  fork,
+  ignore,
+  link,
+  map,
+  passOnlyChanged,
+  pick,
+  reduce,
+  split,
+  to,
+} from "linki";
 
 import {
   LinkedDataWithContent,
@@ -34,9 +47,6 @@ import {
   currentDocumentUriProvider,
   UriWithFragment,
 } from "../../functions/url-hijack";
-import { fork, passOnlyChanged, reduce, split } from "../../libs/connections";
-import { defined, filter } from "../../libs/connections/filters";
-import { map, mapAwait, mapTo, pick } from "../../libs/connections/mappers";
 import { HashName } from "../../libs/hash";
 import { measureAsyncTime } from "../../libs/performance";
 import { div, fragment, newSlot } from "../../libs/simple-ui/render";
@@ -127,52 +137,58 @@ export const App = asyncLoader(
       fork(
         (state) => console.log("gdrive - ", state),
         (s) => updateGdriveState(s),
-        map(
-          (state) => {
+        link(
+          map((state) => {
             if (state[0] === "logged" || state[0] === "disconnected") {
               console.log("switching user", state[1].user);
               return state[1].user.emailAddress;
             }
             return undefined;
-          },
-          filter(defined, (it) => setCreator(it))
+          }),
+          filter(defined),
+          (it) => setCreator(it)
         ),
         store.updateGdriveState,
-        map((state) => {
-          if (
-            state[0] === "loading" ||
-            state[0] === "logged" ||
-            state[0] === "loggingIn" ||
-            state[0] === "disconnected" ||
-            state[0] === "signedOut"
-          ) {
-            return state[1].repository;
-          }
-          return undefined;
-        }, passOnlyChanged(filter(defined, updateRepo)))
+        link(
+          map((state) => {
+            if (
+              state[0] === "loading" ||
+              state[0] === "logged" ||
+              state[0] === "loggingIn" ||
+              state[0] === "disconnected" ||
+              state[0] === "signedOut"
+            ) {
+              return state[1].repository;
+            }
+            return undefined;
+          }),
+          passOnlyChanged(),
+          filter(defined),
+          passOnlyChanged<RepositoryDb>(initRepo),
+          updateRepo
+        )
       ),
       globalDb,
       unclaimedRepository
     );
 
-    const loadUri = reduce<
-      UriWithFragment & { uriChanged: boolean },
-      UriWithFragment
-    >(
-      { uri: "", uriChanged: false },
-      (old, { uri, fragment }) => ({
-        uri,
-        fragment,
-        uriChanged: uri !== old.uri,
-      }),
-      split(
-        pick("uriChanged"),
-        (it) => loadResource(it),
-        map(
-          pick("fragment"),
-          filter(defined, (it) => goToFragment(it))
-        )
-      )
+    const loadUri = link(
+      reduce<UriWithFragment & { uriChanged: boolean }, UriWithFragment>(
+        (old, { uri, fragment }) => ({
+          uri,
+          fragment,
+          uriChanged: uri !== old.uri,
+        }),
+        { uri: "", uriChanged: false }
+      ),
+      link(split(pick("uriChanged")), [
+        (it: UriWithFragment) => loadResource(it),
+        link(
+          map<UriWithFragment, string | undefined>(pick("fragment")),
+          filter(defined),
+          (it) => goToFragment(it)
+        ),
+      ])
     );
 
     const [navigationSlot, { updateStoreState, updateGdriveState }] = newSlot(
@@ -233,8 +249,11 @@ export const App = asyncLoader(
     const [fileDropSlot, { displayFileDrop }] = newSlot(
       "file-drop",
       fileDrop({
-        onFile: mapAwait(processFileToContent, displayFile, (error) =>
-          console.error(error)
+        onFile: link(
+          asyncMapWithErrorHandler(processFileToContent, (error) =>
+            console.error(error)
+          ),
+          displayFile
         ),
       })
     );
@@ -247,7 +266,10 @@ export const App = asyncLoader(
       fragment(
         navigationSlot,
         div(
-          { id: "container", onDragenter: mapTo(true, displayFileDrop) },
+          {
+            id: "container",
+            onDragenter: link(map(to<true>(true)), displayFileDrop),
+          },
           div({ class: "p-4" }, fileDropSlot, contentLoaderSlot)
         )
       )

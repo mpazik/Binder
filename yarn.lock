@@ -5408,10 +5408,10 @@ lines-and-columns@^1.1.6:
   resolved "https://registry.yarnpkg.com/lines-and-columns/-/lines-and-columns-1.1.6.tgz"
   integrity sha1-HADHQ7QzzQpOgHWPe2SldEDZ/wA=
 
-linki@^0.0.4:
-  version "0.0.4"
-  resolved "https://registry.yarnpkg.com/linki/-/linki-0.0.4.tgz#12d82c42b6ffa26969cad8b2f097d76585ebefb4"
-  integrity sha512-ZqaKsHc6cJAsMwqsQUu7EYciRprrm0m0eFMnsgNFjsiKTAhtIkVEk18oZ2JC9O4FIJOLR8OwtSRY99WsKa+vTg==
+linki@^0.0.6:
+  version "0.0.6"
+  resolved "https://registry.yarnpkg.com/linki/-/linki-0.0.6.tgz#7b0feb7f1535c56e8f764ef342f45549d59348f9"
+  integrity sha512-ekaLlQ2WSYzNQsmDWUfvK7GEZTy5XuVymLPkoYo69jfCKYWzXMaZg+jNp+BUwnufa9PeEvXwWO4IaCEyR6lC5g==
 
 load-json-file@^2.0.0:
   version "2.0.0"
