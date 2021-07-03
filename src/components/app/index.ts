@@ -11,6 +11,7 @@ import {
   map,
   passOnlyChanged,
   pick,
+  pipe,
   reduce,
   split,
   to,
@@ -20,6 +21,7 @@ import {
   LinkedDataWithContent,
   processFileToContent,
 } from "../../functions/content-processors";
+import { createContentSaver } from "../../functions/content-saver";
 import { createProxyFetch, Fetch } from "../../functions/fetch-trough-proxy";
 import { gdrive } from "../../functions/gdrive/controller";
 import {
@@ -45,6 +47,8 @@ import {
 } from "../../functions/store/repository";
 import {
   currentDocumentUriProvider,
+  newUriWithFragment,
+  updateBrowserHistory,
   UriWithFragment,
 } from "../../functions/url-hijack";
 import { stateProvider } from "../../libs/connections";
@@ -226,10 +230,14 @@ export const App = asyncLoader(
       )
     );
 
+    const contentSaver = createContentSaver(
+      store.writeResource,
+      store.writeLinkedData
+    );
     const [contentSlot, { displayContent, goToFragment }] = newSlot(
       "content-container",
       contentComponent({
-        storeWrite: store.writeResource,
+        contentSaver,
         ldStoreWrite: store.writeLinkedData,
         ldStoreRead: store.readLinkedData,
         annotationsIndex: annotationsIndex.search,
@@ -254,10 +262,17 @@ export const App = asyncLoader(
       "file-drop",
       fileDrop({
         onFile: link(
-          asyncMapWithErrorHandler(processFileToContent, (error) =>
-            console.error(error)
+          asyncMapWithErrorHandler(
+            (it) => processFileToContent(it).then(contentSaver),
+            (error) => console.error(error)
           ),
-          displayFile
+          fork(
+            link(
+              map(pipe(pick("linkedData"), pick("@id"), newUriWithFragment)),
+              updateBrowserHistory
+            ),
+            (it) => displayFile(it)
+          )
         ),
       })
     );

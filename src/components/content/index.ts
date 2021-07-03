@@ -1,10 +1,7 @@
 import { LinkedDataWithContent } from "../../functions/content-processors";
-import { createContentSaver } from "../../functions/content-saver";
+import { ContentSaver } from "../../functions/content-saver";
 import { AnnotationsIndex } from "../../functions/indexes/annotations-index";
-import {
-  LinkedDataStoreWrite,
-  ResourceStoreWrite,
-} from "../../functions/store";
+import { LinkedDataStoreWrite } from "../../functions/store";
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { Consumer, fork, splitMap, withState } from "../../libs/connections";
 import { map, pick, pipe } from "../../libs/connections/mappers";
@@ -29,7 +26,7 @@ const isNew = (linkedData: LinkedData) => !findHashUri(linkedData);
 
 export const contentComponent: Component<
   {
-    storeWrite: ResourceStoreWrite;
+    contentSaver: ContentSaver;
     ldStoreWrite: LinkedDataStoreWrite;
     ldStoreRead: LinkedDataStoreRead;
     onSave: Consumer<LinkedDataWithHashId>;
@@ -41,14 +38,13 @@ export const contentComponent: Component<
     goToFragment: string;
   }
 > = ({
-  storeWrite,
+  contentSaver,
   ldStoreWrite,
   ldStoreRead,
   onSave,
   annotationsIndex,
   creatorProvider,
 }) => (render) => {
-  const contentSaver = createContentSaver(storeWrite, ldStoreWrite);
   const storeData = (data: LinkedDataWithContent, retry: () => void) => {
     try {
       updateSaveBar(["saving"]);
