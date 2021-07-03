@@ -66,41 +66,40 @@ export const annotationsSupport: Component<
     ldStoreRead: LinkedDataStoreRead;
     annotationsIndex: AnnotationsIndex["search"];
     requestDocumentSave: () => void;
+    creatorProvider: () => string | undefined;
   },
   {
     displayDocumentAnnotations: AnnotationDisplayRequest;
-    setCreator: string | undefined;
     setContainer: HTMLElement;
     setReference: HashUri | undefined;
   }
-> = ({ ldStoreWrite, ldStoreRead, requestDocumentSave, annotationsIndex }) => (
-  render,
-  onClose
-) => {
-  const [saveAnnotation, [setCreator, setReference]] = withMultiState<
-    [string | undefined, HashUri | undefined],
+> = ({
+  ldStoreWrite,
+  ldStoreRead,
+  requestDocumentSave,
+  annotationsIndex,
+  creatorProvider,
+}) => (render, onClose) => {
+  const [saveAnnotation, [setReference]] = withMultiState<
+    [HashUri | undefined],
     AnnotationSaveArgs
-  >(
-    ([creator, reference], annotationSaveArgs) => {
-      if (!reference) {
-        keepAnnotationForSave(annotationSaveArgs);
-        requestDocumentSave();
-        return;
-      }
-      const { selector, content } = annotationSaveArgs;
-      const annotation = createAnnotation(
-        reference,
-        selector,
-        content,
-        creator
-      );
-      ldStoreWrite(annotation).then(() => {
-        changeSelection(["display", annotation]);
-      });
-    },
-    undefined,
-    undefined
-  );
+  >(([reference], annotationSaveArgs) => {
+    if (!reference) {
+      keepAnnotationForSave(annotationSaveArgs);
+      requestDocumentSave();
+      return;
+    }
+    const { selector, content } = annotationSaveArgs;
+    const annotation = createAnnotation(
+      reference,
+      selector,
+      content,
+      creatorProvider()
+    );
+    ldStoreWrite(annotation).then(() => {
+      changeSelection(["display", annotation]);
+    });
+  }, undefined);
 
   const [saveKeptAnnotation, keepAnnotationForSave] = link(
     withState<AnnotationSaveArgs | null>(null),
@@ -274,7 +273,6 @@ export const annotationsSupport: Component<
       setContainerForToolbar,
       link(map(to(undefined)), setTextLayerForSelector)
     ),
-    setCreator,
     displayDocumentAnnotations: fork(
       link(map(pick("fragment")), setFragmentForToolbar),
       link(map(pick("textLayer")), setTextLayerForSelector),

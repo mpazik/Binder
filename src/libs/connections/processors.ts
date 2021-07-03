@@ -269,6 +269,11 @@ export const withMultiState = <S extends Tuple, V = void>(
   ];
 };
 
+export const stateProvider = <T>(init?: T): [() => T, (value: T) => void] => {
+  let state = init;
+  return [() => throwIfUndefined(state), (v) => (state = v)];
+};
+
 export const log = <T>(name: string, callback: Callback<T>): Callback<T> =>
   fork((value) => console.log(name, value), callback);
 

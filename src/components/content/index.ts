@@ -34,15 +34,20 @@ export const contentComponent: Component<
     ldStoreRead: LinkedDataStoreRead;
     onSave: Consumer<LinkedDataWithHashId>;
     annotationsIndex: AnnotationsIndex["search"];
+    creatorProvider: () => string | undefined;
   },
   {
-    setCreator: string | undefined;
     displayContent: LinkedDataWithContentAndFragment;
     goToFragment: string;
   }
-> = ({ storeWrite, ldStoreWrite, ldStoreRead, onSave, annotationsIndex }) => (
-  render
-) => {
+> = ({
+  storeWrite,
+  ldStoreWrite,
+  ldStoreRead,
+  onSave,
+  annotationsIndex,
+  creatorProvider,
+}) => (render) => {
   const contentSaver = createContentSaver(storeWrite, ldStoreWrite);
   const storeData = (data: LinkedDataWithContent, retry: () => void) => {
     try {
@@ -88,7 +93,7 @@ export const contentComponent: Component<
 
   const [
     annotationSupportSlot,
-    { displayDocumentAnnotations, setCreator, setReference, setContainer },
+    { displayDocumentAnnotations, setReference, setContainer },
   ] = newSlot(
     "annotation-support",
     annotationsSupport({
@@ -96,6 +101,7 @@ export const contentComponent: Component<
       ldStoreRead,
       annotationsIndex,
       requestDocumentSave: saveContent,
+      creatorProvider,
     })
   );
 
@@ -130,7 +136,6 @@ export const contentComponent: Component<
   );
 
   return {
-    setCreator,
     displayContent: fork(
       displayContent,
       setContextForSave,

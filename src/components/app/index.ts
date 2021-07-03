@@ -47,6 +47,7 @@ import {
   currentDocumentUriProvider,
   UriWithFragment,
 } from "../../functions/url-hijack";
+import { stateProvider } from "../../libs/connections";
 import { HashName } from "../../libs/hash";
 import { measureAsyncTime } from "../../libs/performance";
 import { div, fragment, newSlot } from "../../libs/simple-ui/render";
@@ -133,6 +134,9 @@ export const App = asyncLoader(
     const initRepo = lastLoginRepo ?? unclaimedRepository;
     updateRepo(initRepo);
 
+    // todo this should be different
+    const [creatorProvider, setCreator] = stateProvider(lastLogin?.email);
+
     const updateGdrive = gdrive(
       fork(
         (state) => console.log("gdrive - ", state),
@@ -146,7 +150,7 @@ export const App = asyncLoader(
             return undefined;
           }),
           filter(defined),
-          (it) => setCreator(it)
+          setCreator
         ),
         store.updateGdriveState,
         link(
@@ -162,7 +166,6 @@ export const App = asyncLoader(
             }
             return undefined;
           }),
-          passOnlyChanged(),
           filter(defined),
           passOnlyChanged<RepositoryDb>(initRepo),
           updateRepo
@@ -223,7 +226,7 @@ export const App = asyncLoader(
       )
     );
 
-    const [contentSlot, { setCreator, displayContent, goToFragment }] = newSlot(
+    const [contentSlot, { displayContent, goToFragment }] = newSlot(
       "content-container",
       contentComponent({
         storeWrite: store.writeResource,
@@ -231,6 +234,7 @@ export const App = asyncLoader(
         ldStoreRead: store.readLinkedData,
         annotationsIndex: annotationsIndex.search,
         onSave: ignore,
+        creatorProvider,
       })
     );
 
