@@ -81,31 +81,45 @@ export const navigation: Component<
 
   let nav: HTMLElement;
   let lastPosition = window.pageYOffset;
-  let directionDown = true;
+  let directionWasUp = false;
   document.addEventListener("scroll", () => {
     const newPosition = window.pageYOffset;
-    if (newPosition > lastPosition) {
-      if (!directionDown) {
-        directionDown = true;
-        const navChecked = throwIfNull(nav);
-        if (navChecked.style.position === "fixed") {
-          navChecked.style.top = `${newPosition}px`;
-          navChecked.style.position = "absolute";
-        }
-      }
-    } else {
+    const goingUp = newPosition < lastPosition;
+    if (goingUp) {
       const navChecked = throwIfNull(nav);
-      if (directionDown) {
-        directionDown = false;
-        if (navChecked.getBoundingClientRect().bottom < 0) {
+      if (directionWasUp) {
+        // continue going up
+        if (navChecked.style.position === "absolute") {
+          if (navChecked.getBoundingClientRect().top > 0) {
+            // navigation fully uncovered
+            navChecked.style.top = `0px`;
+            navChecked.style.position = "fixed";
+          }
+        }
+      } else {
+        // switched direction to go up
+        directionWasUp = true;
+        if (
+          // navigation not on the screen
+          navChecked.getBoundingClientRect().bottom < 0 ||
+          // or in the middle of the screen due to scroll jump
+          navChecked.getBoundingClientRect().top > 0
+        ) {
+          // move navigation to on the top of the screen
           navChecked.style.top = `${
             newPosition - navChecked.getBoundingClientRect().height
           }px`;
         }
-      } else if (navChecked.style.position === "absolute") {
-        if (navChecked.getBoundingClientRect().top > 0) {
-          navChecked.style.top = `0px`;
-          navChecked.style.position = "fixed";
+      }
+    } else {
+      if (directionWasUp) {
+        // switched direction to go down
+        directionWasUp = false;
+        const navChecked = throwIfNull(nav);
+        if (navChecked.style.position === "fixed") {
+          // unpin nav
+          navChecked.style.top = `${newPosition}px`;
+          navChecked.style.position = "absolute";
         }
       }
     }
