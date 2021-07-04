@@ -1,4 +1,5 @@
-import { map } from "../../libs/connections/mappers";
+import { fork, link, map } from "linki";
+
 import { newStateOptionalMapper } from "../../libs/named-state";
 import {
   button,
@@ -30,12 +31,12 @@ const editBar = ({
 }) =>
   div(
     popup
-      ? barProps
-      : {
+      ? {
           ...barProps,
           class: `${barProps.class} anim-fade-up`,
           style: { "animation-delay": "0s" },
-        },
+        }
+      : barProps,
     span({ class: "flex-1 f4" }, message),
     ...controls
   );
@@ -97,6 +98,6 @@ export const saveBar: Component<
   { updateSaveBar: EditBarState }
 > = ({ onSave }) => (render) => {
   return {
-    updateSaveBar: map(createSaveBarView({ onSave }), render),
+    updateSaveBar: fork(link(map(createSaveBarView({ onSave })), render)),
   };
 };
