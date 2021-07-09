@@ -1,12 +1,10 @@
 import { HashUri } from "../../libs/hash";
-import { jsonldFileExtension, jsonLdMimeType } from "../../libs/linked-data";
 import { Opaque } from "../../libs/types";
 
-import { GDriveConfig } from "./app-files";
 import { GoogleAuthToken } from "./auth";
 
 export type GDriveFileId = Opaque<string>;
-export type GDriveFile = { fileId: GDriveFileId; hashUri: HashUri };
+export type GDriveFile = { fileId: GDriveFileId; hashUri?: HashUri };
 export type Metadata = {
   name: string;
   mimeType: string;
@@ -57,11 +55,11 @@ export const createDir = (
 export const getFileContent = (
   authToken: string,
   fileId: GDriveFileId
-): Promise<Blob> =>
+): Promise<Response> =>
   fetch(`https://www.googleapis.com/drive/v2/files/${fileId}?alt=media`, {
     method: "GET",
     headers: new Headers({ Authorization: "Bearer " + authToken }),
-  }).then((it) => it.blob());
+  });
 
 export const getFileMetadata = (
   authToken: string,
@@ -84,14 +82,15 @@ export const findFiles = async (
       headers: new Headers({ Authorization: "Bearer " + authToken }),
     }
   ).then((it) => it.json())) as {
-    files: { id: GDriveFileId; appProperties?: { hashLink: HashUri } }[];
+    files: {
+      id: GDriveFileId;
+      appProperties?: { hashLink?: HashUri };
+    }[];
   };
-  return data.files
-    .filter((it) => Boolean(it.appProperties?.hashLink))
-    .map((it) => ({
-      fileId: it.id,
-      hashUri: it.appProperties!.hashLink,
-    }));
+  return data.files.map((it) => ({
+    fileId: it.id,
+    hashUri: it.appProperties?.hashLink,
+  }));
 };
 
 export const findFileIds = async (
@@ -154,13 +153,6 @@ export const findByName = async (
   return findFiles(authToken, query);
 };
 
-const singleFileExpectedError = (hash: string, files: GDriveFile[]) =>
-  new Error(
-    `Expected to have a single file for hash ${hash} but found ${JSON.stringify(
-      files
-    )}`
-  );
-
 export const findByHash = async (
   authToken: GoogleAuthToken,
   dirs: GDriveFileId[],
@@ -169,13 +161,19 @@ export const findByHash = async (
   const query = encodeURI(
     [
       "trashed=false",
+      `appProperties has { key='binder' and value='true' }`,
       `appProperties has { key='hashLink' and value='${hash}' }`,
       `(${dirs.map((dir) => `'${dir}' in parents`).join(" or ")})`,
     ].join(" and ")
   );
   const files = await findFiles(authToken, query);
   if (files.length > 1) {
-    throw singleFileExpectedError(hash, files);
+    console.error(
+      `Expected to have a single file for hash ${hash} but found ${JSON.stringify(
+        files
+      )}`
+    );
+    return files[0];
   }
   if (files.length > 0) {
     return files[0];
@@ -190,6 +188,7 @@ export const listFiles = async (
   const query = encodeURI(
     [
       "trashed=false",
+      `appProperties has { key='binder' and value='true' }`,
       `'${parent}' in parents`,
       ...(modifiedSince
         ? [`modifiedTime > '${modifiedSince.toISOString()}'`]
@@ -197,42 +196,6 @@ export const listFiles = async (
     ].join(" and ")
   );
   return findFiles(authToken, query);
-};
-
-const mimeToExtension = new Map([
-  ["application/ld+json", jsonldFileExtension],
-  ["text/html", "html"],
-]);
-
-const getFileName = (hash: string, mimeType: string, name?: string) => {
-  const extension = mimeToExtension.get(mimeType);
-  return (name ? name : hash) + (extension ? "." + extension : "");
-};
-
-export const findOrCreateFileByHash = async (
-  { token, dirs }: GDriveConfig,
-  hash: HashUri,
-  blob: Blob,
-  name?: string
-): Promise<GDriveFile> => {
-  const parent = blob.type === jsonLdMimeType ? dirs.linkedData : dirs.app;
-  const file = await findByHash(token, [parent], hash);
-  if (file) {
-    return file;
-  }
-  return {
-    fileId: await createFile(
-      token,
-      {
-        name: getFileName(hash, blob.type, name),
-        mimeType: blob.type,
-        parents: [parent],
-        appProperties: { hashLink: hash },
-      },
-      blob
-    ),
-    hashUri: hash,
-  };
 };
 
 export const updateFile = async (

@@ -65,17 +65,21 @@ const binderLogo = `
 export const navigation: Component<
   {
     updateGdrive: Callback<GDriveAction>;
+    upload: () => void;
     loadUri: Callback<UriWithFragment>;
     directoryIndex: DirectoryIndex["search"];
     initProfile: GDriveLoadingProfile;
   },
   ProfilePanelControl
-> = ({ updateGdrive, loadUri, directoryIndex, initProfile }) => (render) => {
+> = ({ updateGdrive, upload, loadUri, directoryIndex, initProfile }) => (
+  render
+) => {
   const [profilePanelSlot, profilePanelControl] = newSlot(
     "profile",
     profilePanel({
       login: () => updateGdrive(["login"]),
       logout: () => updateGdrive(["logout"]),
+      upload,
     })
   );
 

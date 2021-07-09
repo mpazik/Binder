@@ -72,7 +72,7 @@ export const getContent = async (
   if (!file) {
     throw new Error(`Did not find a file for hash ${hash}`);
   }
-  return getFileContent(token, file.fileId);
+  return getFileContent(token, file.fileId).then((it) => it.blob());
 };
 
 export type GoogleDriveDb = IDBDatabase;

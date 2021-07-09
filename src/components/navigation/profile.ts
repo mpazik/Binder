@@ -7,7 +7,9 @@ import { map } from "../../libs/connections/mappers";
 import { newStateMapper } from "../../libs/named-state";
 import {
   a,
+  button,
   Component,
+  dangerousHTML,
   div,
   JsonHtml,
   li,
@@ -28,18 +30,6 @@ const gdriveLogoIcon = `
 </svg>
 `;
 
-const uploadIcon = `
-<svg xmlns="http://www.w3.org/2000/svg" class="v-align-middle" viewBox="0 0 24 24" width="24" height="24" role="img">
-  <title>uploading...</title>
-  <path d="M4.97 12.97a.75.75 0 101.06 1.06L11 9.06v12.19a.75.75 0 001.5 0V9.06l4.97 4.97a.75.75 0 101.06-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25zM4.75 3.5a.75.75 0 010-1.5h14.5a.75.75 0 010 1.5H4.75z"/>
-</svg>`;
-
-const downloadIcon = `
-<svg xmlns="http://www.w3.org/2000/svg" class="v-align-middle" viewBox="0 0 24 24" width="24" height="24" role="img">
-  <title>downloading...</title>
-  <path d="M4.97 11.03a.75.75 0 111.06-1.06L11 14.94V2.75a.75.75 0 011.5 0v12.19l4.97-4.97a.75.75 0 111.06 1.06l-6.25 6.25a.75.75 0 01-1.06 0l-6.25-6.25zm-.22 9.47a.75.75 0 000 1.5h14.5a.75.75 0 000-1.5H4.75z"/>
-</svg>`;
-
 const errorIcon = `
 <svg xmlns="http://www.w3.org/2000/svg" class="v-align-middle" fill="var(--color-icon-danger)" viewBox="0 0 24 24" width="24" height="24">
   <title>Error :(</title>
@@ -48,20 +38,51 @@ const errorIcon = `
 </svg>`;
 
 const accountIcon = `
-<svg xmlns="http://www.w3.org/2000/svg" class="v-align-middle" viewBox="0 0 24 24" width="24" height="24" >
-    <path fill-rule="evenodd" d="M12 2.5a5.5 5.5 0 00-3.096 10.047 9.005 9.005 0 00-5.9 8.18.75.75 0 001.5.045 7.5 7.5 0 0114.993 0 .75.75 0 101.499-.044 9.005 9.005 0 00-5.9-8.181A5.5 5.5 0 0012 2.5zM8 8a4 4 0 118 0 4 4 0 01-8 0z"></path>
+<svg xmlns="http://www.w3.org/2000/svg" class="v-align-middle" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <circle cx="12" cy="7" r="4"></circle>
+   <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"></path>
 </svg>`;
 
 const cloudOffIcon = `
 <svg xmlns="http://www.w3.org/2000/svg" class="v-align-middle" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <title>Logged out, can not synchronise data</title>
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
    <line x1="3" y1="3" x2="21" y2="21"></line>
    <path d="M18 18h-11c-2.598 0 -4.705 -2.015 -4.705 -4.5s2.107 -4.5 4.705 -4.5c.112 -.5 .305 -.973 .568 -1.408m2.094 -1.948c.329 -.174 .68 -.319 1.05 -.43c1.9 -.576 3.997 -.194 5.5 1c1.503 1.192 2.185 3.017 1.788 4.786h1a3.5 3.5 0 0 1 2.212 6.212"></path>
 </svg>`;
 
+const cloudDownloadIcon = `
+<svg xmlns="http://www.w3.org/2000/svg" class="v-align-middle" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <title>Downloading data from your account</title>
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <path d="M19 18a3.5 3.5 0 0 0 0 -7h-1a5 4.5 0 0 0 -11 -2a4.6 4.4 0 0 0 -2.1 8.4"></path>
+   <line x1="12" y1="13" x2="12" y2="22"></line>
+   <polyline points="9 19 12 22 15 19"></polyline>
+</svg>`;
+
+const cloudUploadIcon = `
+<svg xmlns="http://www.w3.org/2000/svg" class="v-align-middle" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <title>Uploading data to your account</title>
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <path d="M7 18a4.6 4.4 0 0 1 0 -9a5 4.5 0 0 1 11 2h1a3.5 3.5 0 0 1 0 7h-1"></path>
+   <polyline points="9 15 12 12 15 15"></polyline>
+   <line x1="12" y1="12" x2="12" y2="21"></line>
+</svg>`;
+
+const uploadIcon = `
+<svg xmlns="http://www.w3.org/2000/svg" class="v-align-middle" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <title>Upload data to your account</title>
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"></path>
+   <polyline points="7 9 12 4 17 9"></polyline>
+   <line x1="12" y1="4" x2="12" y2="16"></line>
+</svg>`;
+
 type ProfileState =
   | GDriveState
   | ["uploading", GDriveProfile]
+  | ["upload-needed", GDriveProfile]
   | ["downloading", GDriveProfile]
   | ["error", string];
 
@@ -90,9 +111,9 @@ const profileStatusItem: View<string> = (status: string) =>
   );
 
 export const createProfileView: ViewSetup<
-  { login: () => void; logout: () => void },
+  { login: () => void; logout: () => void; upload: () => void },
   ProfileState
-> = ({ login, logout }) =>
+> = ({ login, logout, upload }) =>
   newStateMapper<ProfileState, JsonHtml>({
     idle: () => loading(),
     loading: () => loading(),
@@ -136,9 +157,14 @@ export const createProfileView: ViewSetup<
           dropdownItem({ onClick: logout, text: "Logout" }),
         ],
       }),
+    "upload-needed": () =>
+      button(
+        { class: "btn-octicon", onClick: upload },
+        dangerousHTML(uploadIcon)
+      ),
     uploading: (profile) =>
       dropdownMenu({
-        icon: uploadIcon,
+        icon: cloudUploadIcon,
         children: [
           profileStatusItem("uploading"),
           profileItem(profile),
@@ -148,7 +174,7 @@ export const createProfileView: ViewSetup<
       }),
     downloading: (profile) =>
       dropdownMenu({
-        icon: downloadIcon,
+        icon: cloudDownloadIcon,
         children: [
           profileStatusItem("downloading"),
           profileItem(profile),
@@ -182,14 +208,11 @@ export type ProfilePanelControl = {
 };
 
 export const profilePanel: Component<
-  { login: () => void; logout: () => void },
+  { login: () => void; logout: () => void; upload: () => void },
   ProfilePanelControl
-> = ({ logout, login }) => (render) => {
+> = (props) => (render) => {
   const renderProfileContainer = render;
-  const renderProfile = map(
-    createProfileView({ logout, login }),
-    renderProfileContainer
-  );
+  const renderProfile = map(createProfileView(props), renderProfileContainer);
   const [gdriveStateForProfile, storeStateForProfile] = combine<
     [GDriveState, StoreState]
   >(
@@ -205,6 +228,8 @@ export const profilePanel: Component<
               return ["downloading", profile] as ProfileState;
             } else if (storeState[0] === "error") {
               return ["error", storeState[1].error.message] as ProfileState;
+            } else if (storeState[0] === "update-needed") {
+              return ["upload-needed", profile] as ProfileState;
             }
           } else if (gdriveState[0] === "error") {
             return ["error", gdriveState[1]] as ProfileState;

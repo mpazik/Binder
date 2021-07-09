@@ -1,5 +1,4 @@
 import { Callback } from "../../libs/connections";
-import { passUndefined } from "../../libs/connections/mappers";
 import {
   computeLinkedDataWithHashId,
   hashBlob,
@@ -7,26 +6,21 @@ import {
   HashUri,
 } from "../../libs/hash";
 import {
-  storeDelete,
   storeGet,
   storeGetFirst,
-  storeIterate,
   StoreName,
   StoreProvider,
   storePut,
 } from "../../libs/indexeddb";
-import {
-  jsonLdMimeType,
-  LinkedData,
-  LinkedDataWithHashId,
-} from "../../libs/linked-data";
+import { LinkedData, LinkedDataWithHashId } from "../../libs/linked-data";
 import { handleState, mapState } from "../../libs/named-state";
 import { measureAsyncTime } from "../../libs/performance";
 import { GDriveConfig } from "../gdrive/app-files";
 import { GDriveState } from "../gdrive/controller";
-import { findOrCreateFileByHash } from "../gdrive/file";
 import { UpdateIndex } from "../indexes/types";
 
+import { downloadNewData } from "./data-download";
+import { uploadDataToSync } from "./data-upload";
 import { createStatefulGDriveStoreRead } from "./gdrive-store-read";
 import {
   getLinkedDataStore,
@@ -36,7 +30,6 @@ import {
   ResourceStoreRead,
   ResourceStoreWrite,
 } from "./local-store";
-import { newMissingLinkedDataDownloader } from "./missing-linked-data-downloader";
 import { registerRepositoryVersion, RepositoryDb } from "./repository";
 
 export type {
@@ -52,11 +45,13 @@ export type Store = {
   writeLinkedData: LinkedDataStoreWrite;
   updateGdriveState: (gdrive: GDriveState) => void;
   switchRepo: (db: RepositoryDb) => void;
+  upload: () => void;
 };
 
-export type BlobHashRecord = {
+export type SyncRecord = {
   name?: string;
   hash: HashUri;
+  ld: boolean;
 };
 
 const syncRequiredStoreName = "sync-required" as StoreName;
@@ -79,15 +74,11 @@ export type StoreState =
       {
         config: GDriveConfig;
         error: { code: string; message: string };
-        recordKey: IDBValidKey;
       }
     ]
-  | ["ready", GDriveConfig];
-
-const linkedDataToBlob = (ld: LinkedDataWithHashId): Blob =>
-  new Blob([JSON.stringify(ld)], {
-    type: jsonLdMimeType,
-  });
+  | ["ready", GDriveConfig]
+  | ["update-needed", GDriveConfig]
+  | ["loaded", GDriveConfig];
 
 export const createStore = (
   indexLinkedData: UpdateIndex,
@@ -96,7 +87,7 @@ export const createStore = (
   // pass unclaimedDb
   let resourceStore: StoreProvider<Blob>;
   let linkedDataStore: StoreProvider<LinkedDataWithHashId>;
-  let syncRequiredStore: StoreProvider<BlobHashRecord>;
+  let syncRequiredStore: StoreProvider<SyncRecord>;
   let syncPropsStore: StoreProvider<Date>;
 
   const putLocalResource = async (blob: Blob) => {
@@ -119,103 +110,88 @@ export const createStore = (
     handleNewState(state);
     handleState(state, {
       downloading: async (config) => {
-        const since = await storeGet<Date>(syncPropsStore, "last-sync");
-        // todo if repo changed stop syncing
-        const downloader = newMissingLinkedDataDownloader(
-          (handler) =>
-            storeIterate(
-              linkedDataStore,
-              handler as (hash: IDBValidKey) => void
-            ),
-          putLocalLinkedData,
+        downloadNewData(
+          linkedDataStore,
+          syncPropsStore,
           indexLinkedData,
           config
-        );
-        downloader(since)
-          .then(async (till) => {
-            await storePut(syncPropsStore, till, "last-sync");
-          })
-          .then(() => updateState(["ready", config]));
+        )
+          .then(() => updateState(["ready", config]))
+          .catch((error) => {
+            if (state[0] !== "downloading") {
+              console.error("unexpected store state change");
+            }
+            console.error("Error downloading files from google drive", error);
+            updateState([
+              "error",
+              {
+                config,
+                error: {
+                  code: "sync-error-upload",
+                  message: "Error downloading files from google drive",
+                },
+              },
+            ]);
+          });
+      },
+      ready: async (config) => {
+        const data = await storeGetFirst(syncRequiredStore);
+        console.log(data);
+        if (data !== undefined) {
+          updateState(["update-needed", config]);
+        }
+      },
+      uploading: async (config) => {
+        uploadDataToSync(
+          resourceStore,
+          linkedDataStore,
+          syncRequiredStore,
+          config
+        )
+          .then(() => updateState(["ready", config]))
+          .catch(() => {
+            if (state[0] !== "uploading") {
+              console.error("unexpected store state change");
+            }
+            updateState([
+              "error",
+              {
+                config,
+                error: {
+                  code: "sync-error-upload",
+                  message: "Error uploading files to google drive",
+                },
+              },
+            ]);
+          });
       },
     });
   };
 
-  const uploadNext = () => {
-    // call outside as we don't want to catch here uploadNext errors
-    // todo if repo changed stop syncing
-    setImmediate(() => uploadNextInt());
-  };
-  const uploadNextInt = async () => {
-    const config: GDriveConfig | undefined =
-      state[0] === "uploading" || state[0] === "ready" ? state[1] : undefined;
-    if (config === undefined) return;
-
-    const record = await storeGetFirst(syncRequiredStore);
-    if (!record) {
-      updateState(["ready", config]);
-      return;
-    }
-
-    const {
-      key,
-      value: { hash, name },
-    } = record;
-
-    const blob: Blob | undefined =
-      (await storeGet(resourceStore, hash)) ||
-      passUndefined(linkedDataToBlob)(await storeGet(linkedDataStore, hash));
-
-    if (!blob) {
-      updateState([
-        "error",
-        {
-          config,
-          recordKey: key,
-          error: {
-            code: "sync-error-read",
-            message: `Error reading file from local store for upload 
-  File hash:${key}`,
-          },
-        },
-      ]);
-      return;
-    }
-
-    updateState(["uploading", config]);
-    try {
-      await findOrCreateFileByHash(config, hash, blob, name);
-      // check: unbound promise
-      await storeDelete(syncRequiredStore, key);
-      uploadNext();
-    } catch (e) {
-      if (state[0] !== "uploading") {
-        console.error("unexpected store state change");
-      }
-      updateState([
-        "error",
-        {
-          config,
-          recordKey: key,
-          error: {
-            code: "sync-error-upload",
-            message: "Error saving file to google drive",
-          },
-        },
-      ]);
-    }
-  };
-
-  const markForSync = async (hash: HashUri, name?: string) => {
-    // there should be account to which we want to sync it
+  const markForSync = async (
+    hash: HashUri,
+    linkedData: boolean,
+    name?: string
+  ) => {
     await storePut(syncRequiredStore, {
       hash,
       name,
+      ld: linkedData,
     });
     if (state[0] !== "ready") return;
-    uploadNext();
+    updateState(["update-needed", state[1]]);
   };
 
   return {
+    upload: () => {
+      if (state[0] !== "update-needed") {
+        console.error(
+          "Can not upload data when store connection with the drive is not ready"
+        );
+        return;
+      }
+      updateState(["uploading", state[1]]);
+    },
     readResource: async (hash) => {
       return (
         (await storeGet(resourceStore, hash)) ??
@@ -228,7 +204,7 @@ export const createStore = (
     },
     writeResource: async (blob, name): Promise<HashName> => {
       const hash = await putLocalResource(blob);
-      await markForSync(hash, name);
+      await markForSync(hash, false, name);
       return hash;
     },
     readLinkedData: async (hash) => storeGet(linkedDataStore, hash),
@@ -238,7 +214,7 @@ export const createStore = (
       }
 
       const linkedDataWithHashId = await putLocalLinkedData(linkedData);
-      await markForSync(linkedDataWithHashId["@id"]);
+      await markForSync(linkedDataWithHashId["@id"], true);
       await indexLinkedData(linkedDataWithHashId);
       return linkedDataWithHashId;
     },
@@ -263,7 +239,7 @@ export const createStore = (
     switchRepo: (repositoryDb) => {
       resourceStore = getResourceStore(repositoryDb);
       linkedDataStore = getLinkedDataStore(repositoryDb);
-      syncRequiredStore = repositoryDb.getStoreProvider<BlobHashRecord>(
+      syncRequiredStore = repositoryDb.getStoreProvider<SyncRecord>(
         syncRequiredStoreName
       );
       syncPropsStore = repositoryDb.getStoreProvider<Date>(syncPropsStoreName);

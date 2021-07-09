@@ -18,7 +18,7 @@ export const createGDriveStoreRead = (
   if (!file) {
     throw new Error(`Did not find a file for hash ${hash}`);
   }
-  return getFileContent(authToken, file.fileId);
+  return getFileContent(authToken, file.fileId).then((it) => it.blob());
 };
 
 type GDriveStoreState =

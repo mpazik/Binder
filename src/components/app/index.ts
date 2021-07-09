@@ -202,6 +202,7 @@ export const App = asyncLoader(
       "navigation",
       navigation({
         updateGdrive,
+        upload: store.upload,
         initProfile: {
           repository: initRepo,
           user: lastLogin
