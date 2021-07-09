@@ -66,12 +66,13 @@ export const navigation: Component<
   {
     updateGdrive: Callback<GDriveAction>;
     upload: () => void;
+    merge: () => void;
     loadUri: Callback<UriWithFragment>;
     directoryIndex: DirectoryIndex["search"];
     initProfile: GDriveLoadingProfile;
   },
   ProfilePanelControl
-> = ({ updateGdrive, upload, loadUri, directoryIndex, initProfile }) => (
+> = ({ updateGdrive, upload, merge, loadUri, directoryIndex, initProfile }) => (
   render
 ) => {
   const [profilePanelSlot, profilePanelControl] = newSlot(
@@ -80,6 +81,7 @@ export const navigation: Component<
       login: () => updateGdrive(["login"]),
       logout: () => updateGdrive(["logout"]),
       upload,
+      merge,
     })
   );
 

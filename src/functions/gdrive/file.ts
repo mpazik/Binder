@@ -4,12 +4,16 @@ import { Opaque } from "../../libs/types";
 import { GoogleAuthToken } from "./auth";
 
 export type GDriveFileId = Opaque<string>;
-export type GDriveFile = { fileId: GDriveFileId; hashUri?: HashUri };
+export type GDriveFile = {
+  fileId: GDriveFileId;
+  hashUri?: HashUri;
+  name: string;
+};
 export type Metadata = {
   name: string;
   mimeType: string;
   parents?: GDriveFileId[];
-  modifiedDate?: string;
+  createdTime?: string;
   appProperties?: { [key: string]: string };
 };
 
@@ -74,7 +78,7 @@ export const findFiles = async (
   authToken: GoogleAuthToken,
   query: string
 ): Promise<GDriveFile[]> => {
-  const fields = encodeURI(`files(id, appProperties, name)`);
+  const fields = encodeURI(`files(id, appProperties, name, createdTime)`);
   const data = (await fetch(
     `https://www.googleapis.com/drive/v3/files?q=${query}&fields=${fields}`,
     {
@@ -85,11 +89,13 @@ export const findFiles = async (
     files: {
       id: GDriveFileId;
       appProperties?: { hashLink?: HashUri };
+      name: string;
     }[];
   };
   return data.files.map((it) => ({
     fileId: it.id,
     hashUri: it.appProperties?.hashLink,
+    name: it.name,
   }));
 };
 
@@ -161,7 +167,7 @@ export const findByHash = async (
   const query = encodeURI(
     [
       "trashed=false",
-      `appProperties has { key='binder' and value='true' }`,
+      `appProperties has { key='binder' and value='true' }`, // only created by binder, list returns all the files but we can download only created by binder
       `appProperties has { key='hashLink' and value='${hash}' }`,
       `(${dirs.map((dir) => `'${dir}' in parents`).join(" or ")})`,
     ].join(" and ")
@@ -180,19 +186,35 @@ export const findByHash = async (
   }
 };
 
-export const listFiles = async (
+export const listFilesCreatedSince = async (
   parent: GDriveFileId,
   authToken: GoogleAuthToken,
-  modifiedSince?: Date
+  createdSince?: Date
 ): Promise<GDriveFile[]> => {
   const query = encodeURI(
     [
       "trashed=false",
-      `appProperties has { key='binder' and value='true' }`,
+      `appProperties has { key='binder' and value='true' }`, // only created by binder
       `'${parent}' in parents`,
-      ...(modifiedSince
-        ? [`modifiedTime > '${modifiedSince.toISOString()}'`]
+      ...(createdSince
+        ? [`createdTime > '${createdSince.toISOString()}'`]
         : []),
+    ].join(" and ")
+  );
+  return findFiles(authToken, query);
+};
+
+export const listFilesCreatedUntil = async (
+  parent: GDriveFileId,
+  authToken: GoogleAuthToken,
+  createdUntil: Date
+): Promise<GDriveFile[]> => {
+  const query = encodeURI(
+    [
+      "trashed=false",
+      `appProperties has { key='binder' and value='true' }`, // only created by binder
+      `'${parent}' in parents`,
+      `createdTime < '${createdUntil.toISOString()}'`,
     ].join(" and ")
   );
   return findFiles(authToken, query);
@@ -207,4 +229,22 @@ export const updateFile = async (
     method: "PUT",
     headers: new Headers({ Authorization: "Bearer " + authToken }),
     body: blob,
+  });
+
+export const deleteFile = async (
+  fileId: GDriveFileId,
+  authToken: GoogleAuthToken
+): Promise<Response> =>
+  await fetch(`https://www.googleapis.com/drive/v2/files/${fileId}`, {
+    method: "DELETE",
+    headers: new Headers({ Authorization: "Bearer " + authToken }),
+  });
+
+export const trashFile = async (
+  fileId: GDriveFileId,
+  authToken: GoogleAuthToken
+): Promise<Response> =>
+  await fetch(`https://www.googleapis.com/drive/v2/files/${fileId}/trash`, {
+    method: "POST",
+    headers: new Headers({ Authorization: "Bearer " + authToken }),
   });

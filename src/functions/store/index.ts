@@ -20,7 +20,7 @@ import { GDriveState } from "../gdrive/controller";
 import { UpdateIndex } from "../indexes/types";
 
 import { downloadNewData } from "./data-download";
-import { uploadDataToSync } from "./data-upload";
+import { mergeRemoteData, uploadDataToSync } from "./data-upload";
 import { createStatefulGDriveStoreRead } from "./gdrive-store-read";
 import {
   getLinkedDataStore,
@@ -46,6 +46,7 @@ export type Store = {
   updateGdriveState: (gdrive: GDriveState) => void;
   switchRepo: (db: RepositoryDb) => void;
   upload: () => void;
+  merge: () => void;
 };
 
 export type SyncRecord = {
@@ -68,6 +69,7 @@ registerRepositoryVersion({
 export type StoreState =
   | ["idle"]
   | ["uploading", GDriveConfig]
+  | ["merging", GDriveConfig]
   | ["downloading", GDriveConfig]
   | [
       "error",
@@ -108,62 +110,91 @@ export const createStore = (
   const updateState = (newState: StoreState) => {
     state = newState;
     handleNewState(state);
+
+    const handleError = (
+      handlingState: StoreState[0],
+      config: GDriveConfig,
+      message: string,
+      e: unknown
+    ) => {
+      if (state[0] !== handlingState) {
+        console.error(`unexpected store state change from "${handlingState}"`);
+      }
+      console.error(message, e);
+      updateState([
+        "error",
+        {
+          config,
+          error: {
+            code: `sync-error-${handlingState}`,
+            message: message,
+          },
+        },
+      ]);
+    };
+
     handleState(state, {
       downloading: async (config) => {
-        downloadNewData(
-          linkedDataStore,
-          syncPropsStore,
-          indexLinkedData,
-          config
-        )
-          .then(() => updateState(["ready", config]))
-          .catch((error) => {
-            if (state[0] !== "downloading") {
-              console.error("unexpected store state change");
-            }
-            console.error("Error downloading files from google drive", error);
-            updateState([
-              "error",
-              {
-                config,
-                error: {
-                  code: "sync-error-upload",
-                  message: "Error downloading files from google drive",
-                },
-              },
-            ]);
-          });
+        try {
+          await downloadNewData(
+            linkedDataStore,
+            syncPropsStore,
+            indexLinkedData,
+            config
+          );
+          updateState(["ready", config]);
+        } catch (e) {
+          handleError(
+            "downloading",
+            config,
+            "rror downloading files from google drive",
+            e
+          );
+        }
       },
       ready: async (config) => {
+        // check if there is anything to upload
         const data = await storeGetFirst(syncRequiredStore);
-        console.log(data);
         if (data !== undefined) {
           updateState(["update-needed", config]);
         }
       },
       uploading: async (config) => {
-        uploadDataToSync(
-          resourceStore,
-          linkedDataStore,
-          syncRequiredStore,
-          config
-        )
-          .then(() => updateState(["ready", config]))
-          .catch(() => {
-            if (state[0] !== "uploading") {
-              console.error("unexpected store state change");
-            }
-            updateState([
-              "error",
-              {
-                config,
-                error: {
-                  code: "sync-error-upload",
-                  message: "Error uploading files to google drive",
-                },
-              },
-            ]);
-          });
+        try {
+          await uploadDataToSync(
+            resourceStore,
+            linkedDataStore,
+            syncRequiredStore,
+            config
+          );
+          updateState(["ready", config]);
+        } catch (e) {
+          handleError(
+            "uploading",
+            config,
+            "Error uploading files to google drive",
+            e
+          );
+        }
+      },
+      merging: async (config) => {
+        try {
+          await downloadNewData(
+            linkedDataStore,
+            syncPropsStore,
+            indexLinkedData,
+            config
+          );
+          await mergeRemoteData(linkedDataStore, syncPropsStore, config);
+          updateState(["ready", config]);
+        } catch (e) {
+          handleError(
+            "merging",
+            config,
+            "Error merging files on google drive",
+            e
+          );
+        }
       },
     });
   };
@@ -191,6 +222,15 @@ export const createStore = (
         return;
       }
       updateState(["uploading", state[1]]);
+    },
+    merge: () => {
+      if (state[0] !== "update-needed" && state[0] !== "ready") {
+        console.error(
+          "Can not upload data when store connection with the drive is not ready"
+        );
+        return;
+      }
+      updateState(["merging", state[1]]);
     },
     readResource: async (hash) => {
       return (

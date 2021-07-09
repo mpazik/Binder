@@ -110,10 +110,19 @@ const profileStatusItem: View<string> = (status: string) =>
     span({ class: "AnimatedEllipsis" })
   );
 
-export const createProfileView: ViewSetup<
-  { login: () => void; logout: () => void; upload: () => void },
-  ProfileState
-> = ({ login, logout, upload }) =>
+type ProfileActions = {
+  login: () => void;
+  logout: () => void;
+  upload: () => void;
+  merge: () => void;
+};
+
+export const createProfileView: ViewSetup<ProfileActions, ProfileState> = ({
+  login,
+  logout,
+  upload,
+  merge,
+}) =>
   newStateMapper<ProfileState, JsonHtml>({
     idle: () => loading(),
     loading: () => loading(),
@@ -154,6 +163,7 @@ export const createProfileView: ViewSetup<
         children: [
           profileItem(profile),
           dropdownItem({ onClick: () => {}, text: "Storage settings" }),
+          dropdownItem({ onClick: merge, text: "Merge data on drive" }),
           dropdownItem({ onClick: logout, text: "Logout" }),
         ],
       }),
@@ -207,10 +217,9 @@ export type ProfilePanelControl = {
   updateGdriveState: GDriveState;
 };
 
-export const profilePanel: Component<
-  { login: () => void; logout: () => void; upload: () => void },
-  ProfilePanelControl
-> = (props) => (render) => {
+export const profilePanel: Component<ProfileActions, ProfilePanelControl> = (
+  props
+) => (render) => {
   const renderProfileContainer = render;
   const renderProfile = map(createProfileView(props), renderProfileContainer);
   const [gdriveStateForProfile, storeStateForProfile] = combine<
@@ -222,7 +231,7 @@ export const profilePanel: Component<
         const state: ProfileState = (() => {
           if (gdriveState[0] === "logged") {
             const profile = gdriveState[1];
-            if (storeState[0] === "uploading") {
+            if (storeState[0] === "uploading" || storeState[0] === "merging") {
               return ["uploading", profile] as ProfileState;
             } else if (storeState[0] === "downloading") {
               return ["downloading", profile] as ProfileState;

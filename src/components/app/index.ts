@@ -203,6 +203,7 @@ export const App = asyncLoader(
       navigation({
         updateGdrive,
         upload: store.upload,
+        merge: store.merge,
         initProfile: {
           repository: initRepo,
           user: lastLogin

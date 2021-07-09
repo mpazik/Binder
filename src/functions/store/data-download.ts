@@ -4,10 +4,8 @@ import { asyncPool } from "../../libs/async-pool";
 import { storeGet, StoreProvider, storePut } from "../../libs/indexeddb";
 import { LinkedData, LinkedDataWithHashId } from "../../libs/linked-data";
 import { GDriveConfig } from "../gdrive/app-files";
-import { getFileContent, listFiles } from "../gdrive/file";
+import { getFileContent, listFilesCreatedSince } from "../gdrive/file";
 import { UpdateIndex } from "../indexes/types";
-
-import has = Reflect.has;
 
 type LinkedDataFile = LinkedDataWithHashId | LinkedDataWithHashId[];
 
@@ -17,20 +15,18 @@ export const downloadNewData = async (
   index: UpdateIndex,
   config: GDriveConfig
 ): Promise<void> => {
-  const since = await storeGet<Date>(syncPropsStore, "last-sync");
-  const till = new Date();
-  const fileModifiedSinceLastCheck = await listFiles(
+  const currentSync = new Date();
+  const lastSync = await storeGet<Date>(syncPropsStore, "last-sync");
+  const fileModifiedSinceLastCheck = await listFilesCreatedSince(
     config.dirs.linkedData,
     config.token,
-    since
+    lastSync
   );
 
   const saveLinkedData = async (data: LinkedDataWithHashId) => {
     const hash = data["@id"];
-    console.log("trying to save linked data", hash);
     const existing = await storeGet(linkedDataStore, hash);
     if (existing !== undefined) return;
-    console.log("saving linked data", hash);
     await storePut(linkedDataStore, data, hash);
     await index(data);
   };
@@ -62,5 +58,5 @@ export const downloadNewData = async (
       }
     }
   });
-  await storePut(syncPropsStore, till, "last-sync");
+  await storePut(syncPropsStore, currentSync, "last-sync");
 };

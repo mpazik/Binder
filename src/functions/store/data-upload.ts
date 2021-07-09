@@ -5,12 +5,18 @@ import { HashUri } from "../../libs/hash";
 import {
   storeDelete,
   storeGet,
+  storeGetAll,
   storeGetAllWithKeys,
   StoreProvider,
 } from "../../libs/indexeddb";
 import { jsonldFileExtension, LinkedData } from "../../libs/linked-data";
 import { GDriveConfig } from "../gdrive/app-files";
-import { createFile, GDriveFileId } from "../gdrive/file";
+import {
+  createFile,
+  GDriveFileId,
+  listFilesCreatedUntil,
+  trashFile,
+} from "../gdrive/file";
 
 import { SyncRecord } from "./index";
 
@@ -47,7 +53,28 @@ const compressToZip = async (
 ): Promise<Blob> => {
   const zip = new JSZip.default();
   zip.file(name + ".jsonld", JSON.stringify(linkedDataList));
-  return await zip.generateAsync({ type: "blob" });
+  return await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
+};
+
+const createZipFile = async (
+  linkedDataList: LinkedData[],
+  config: GDriveConfig,
+  createdTime?: string
+): Promise<void> => {
+  const name = new Date().toISOString();
+  const file = await compressToZip(name, linkedDataList);
+
+  await createFile(
+    config.token,
+    {
+      name: name + ".zip",
+      mimeType: "zip",
+      parents: [config.dirs.linkedData],
+      appProperties: { binder: "true" },
+      createdTime,
+    },
+    file
+  );
 };
 
 // Uploads data needed to be synced and cleans the sync marker once it is successful
@@ -93,21 +120,40 @@ export const uploadDataToSync = async (
     (it) => it !== undefined
   ) as LinkedData[];
 
-  const name = new Date().toISOString();
-  const file = await compressToZip(name, linkedDataList);
-
-  await createFile(
-    config.token,
-    {
-      name: name + ".zip",
-      mimeType: "zip",
-      parents: [config.dirs.linkedData],
-      appProperties: { binder: "true" },
-    },
-    file
-  );
-
+  await createZipFile(linkedDataList, config);
   await asyncPool(5, linkedDataRecords, async ({ key }) => {
     await storeDelete(syncRequiredStore, key);
+  });
+};
+
+// Compress all the data stored locally as a single archive and uploads it
+// then it would remove all old archives to the synchronisation point
+export const mergeRemoteData = async (
+  linkedDataStore: StoreProvider<LinkedData>,
+  syncPropsStore: StoreProvider<Date>,
+  config: GDriveConfig
+): Promise<void> => {
+  const lastSync = await storeGet<Date>(syncPropsStore, "last-sync");
+  console.log("Merge modified since", lastSync);
+  if (!lastSync) return;
+
+  // this will be bottle neck at some point, we won't be able to load all of the data
+  // later we could have to types of zip files, permanent and not
+  // not permanent hashes would be once that come from zip bellow chunk size limit
+  // then we would only compress non permanent zip files
+
+  const allData = await storeGetAll(linkedDataStore);
+
+  await createZipFile(allData, config, lastSync.toISOString());
+
+  const fileModifiedUntilLastCheck = await listFilesCreatedUntil(
+    config.dirs.linkedData,
+    config.token,
+    lastSync
+  );
+
+  await asyncPool(5, fileModifiedUntilLastCheck, async ({ fileId, name }) => {
+    console.log("Deleteing", name);
+    await trashFile(fileId, config.token);
   });
 };
