@@ -1,7 +1,7 @@
 import { asyncLoop } from "../../libs/async-pool";
 import { HashUri } from "../../libs/hash";
 import { storeGetNext, StoreName, StoreProvider } from "../../libs/indexeddb";
-import { LinkedData, LinkedDataWithHashId } from "../../libs/linked-data";
+import { LinkedData, LinkedDataWithHashId } from "../../libs/jsonld-format";
 
 import { registerRepositoryVersion, RepositoryDb } from "./repository";
 
@@ -35,6 +35,10 @@ export type LinkedDataStoreRead = (
 export type LinkedDataStoreWrite = (
   jsonld: LinkedData
 ) => Promise<LinkedDataWithHashId>;
+
+export type ExternalLinkedDataStoreWrite = (
+  jsonld: LinkedDataWithHashId
+) => Promise<void>;
 
 export type LinkedDataStoreIterate = (
   handler: (hashUri: HashUri) => void

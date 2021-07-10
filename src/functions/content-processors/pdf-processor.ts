@@ -3,8 +3,8 @@ import * as pdfjsLib from "pdfjs-dist";
 import { defined2 } from "../../libs/connections/filters";
 import { branch } from "../../libs/connections/mappers";
 import { throwIfUndefined } from "../../libs/errors";
+import { LinkedData } from "../../libs/jsonld-format";
 import { createCreativeWork, pdfMediaType } from "../../libs/ld-schemas";
-import { LinkedData } from "../../libs/linked-data";
 import { measureAsyncTime } from "../../libs/performance";
 
 import type { ContentProcessor } from "./types";

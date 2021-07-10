@@ -14,13 +14,13 @@ import {
 import { and, defined, filter } from "../../libs/connections/filters";
 import { map, passUndefined, pick, pipe } from "../../libs/connections/mappers";
 import { throwIfUndefined } from "../../libs/errors";
+import { LinkedData } from "../../libs/jsonld-format";
 import {
   epubMediaType,
   getEncoding,
   htmlMediaType,
   pdfMediaType,
 } from "../../libs/ld-schemas";
-import { LinkedData } from "../../libs/linked-data";
 import {
   Component,
   div,

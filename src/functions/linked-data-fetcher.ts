@@ -1,7 +1,7 @@
 import { throwIfNull } from "../libs/errors";
 import { HashName, isHashUri } from "../libs/hash";
-import { findHashUri, LinkedData } from "../libs/linked-data";
-import { measureAsyncTime } from "../libs/performance";
+import { LinkedData } from "../libs/jsonld-format";
+import { findHashUri } from "../libs/linked-data";
 
 import {
   LinkedDataWithContent,

@@ -2,7 +2,8 @@ import { URL } from "schema-dts";
 
 import { link, map } from "../../../../linki";
 import { CATEGORIES_ENABLED } from "../../config";
-import { findUrl, LinkedData } from "../../libs/linked-data";
+import { LinkedData } from "../../libs/jsonld-format";
+import { findUrl } from "../../libs/linked-data";
 import {
   a,
   Component,

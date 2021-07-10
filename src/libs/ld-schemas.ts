@@ -1,6 +1,6 @@
 import { Article, CreativeWork, WithContext } from "schema-dts";
 
-import { LinkedData } from "./linked-data";
+import { LinkedData } from "./jsonld-format";
 
 export type EncodingFormat = "text/html" | "application/pdf" | string;
 export const htmlMediaType = "text/html";

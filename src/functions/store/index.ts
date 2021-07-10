@@ -12,17 +12,25 @@ import {
   StoreProvider,
   storePut,
 } from "../../libs/indexeddb";
-import { LinkedData, LinkedDataWithHashId } from "../../libs/linked-data";
+import { LinkedData, LinkedDataWithHashId } from "../../libs/jsonld-format";
 import { handleState, mapState } from "../../libs/named-state";
 import { measureAsyncTime } from "../../libs/performance";
 import { GDriveConfig } from "../gdrive/app-files";
 import { GDriveState } from "../gdrive/controller";
+import {
+  GDriveFileId,
+  getFileContent,
+  listFilesCreatedSince,
+} from "../gdrive/file";
 import { UpdateIndex } from "../indexes/types";
 
-import { downloadNewData } from "./data-download";
+import { createDataDownloader } from "./data-download";
 import { mergeRemoteData, uploadDataToSync } from "./data-upload";
+import { newExecutionTimeSaver } from "./execution-time-saver";
 import { createStatefulGDriveStoreRead } from "./gdrive-store-read";
+import { extractLinkedDataFromResponse } from "./link-data-response-extractor";
 import {
+  ExternalLinkedDataStoreWrite,
   getLinkedDataStore,
   getResourceStore,
   LinkedDataStoreRead,
@@ -91,6 +99,11 @@ export const createStore = (
   let linkedDataStore: StoreProvider<LinkedDataWithHashId>;
   let syncRequiredStore: StoreProvider<SyncRecord>;
   let syncPropsStore: StoreProvider<Date>;
+  const downloadSyncTimeSaver = newExecutionTimeSaver(
+    () => new Date(),
+    () => storeGet<Date>(syncPropsStore, "last-sync"),
+    (date) => storePut<Date>(syncPropsStore, date, "last-sync").then(() => {})
+  );
 
   const putLocalResource = async (blob: Blob) => {
     const hash = await hashBlob(blob);
@@ -102,6 +115,17 @@ export const createStore = (
     const linkedDataToHash = await computeLinkedDataWithHashId(jsonld);
     await storePut(linkedDataStore, linkedDataToHash, linkedDataToHash["@id"]);
     return linkedDataToHash;
+  };
+
+  const saveExternalLinkedData: ExternalLinkedDataStoreWrite = async (
+    data: LinkedDataWithHashId
+  ) => {
+    const hash = data["@id"];
+    // check for duplicates
+    const existing = await storeGet(linkedDataStore, hash);
+    if (existing !== undefined) return;
+    await storePut(linkedDataStore, data, hash);
+    await indexLinkedData(data);
   };
 
   const [remoteStoreRead, updateGdriveState] = createStatefulGDriveStoreRead();
@@ -135,19 +159,29 @@ export const createStore = (
 
     handleState(state, {
       downloading: async (config) => {
-        try {
-          await downloadNewData(
-            linkedDataStore,
-            syncPropsStore,
-            indexLinkedData,
-            config
+        const downloadData = () =>
+          downloadSyncTimeSaver(
+            createDataDownloader<GDriveFileId>(
+              (since) =>
+                listFilesCreatedSince(
+                  config.dirs.linkedData,
+                  config.token,
+                  since
+                ).then((it) => it.map((i) => i.fileId)),
+              (fileId) => getFileContent(config.token, fileId),
+              saveExternalLinkedData,
+              extractLinkedDataFromResponse
+            )
           );
+
+        try {
+          await downloadData();
           updateState(["ready", config]);
         } catch (e) {
           handleError(
             "downloading",
             config,
-            "rror downloading files from google drive",
+            "Error downloading files from google drive",
             e
           );
         }
@@ -178,13 +212,22 @@ export const createStore = (
         }
       },
       merging: async (config) => {
-        try {
-          await downloadNewData(
-            linkedDataStore,
-            syncPropsStore,
-            indexLinkedData,
-            config
+        const downloadData = () =>
+          downloadSyncTimeSaver(
+            createDataDownloader<GDriveFileId>(
+              (since) =>
+                listFilesCreatedSince(
+                  config.dirs.linkedData,
+                  config.token,
+                  since
+                ).then((it) => it.map((i) => i.fileId)),
+              (fileId) => getFileContent(config.token, fileId),
+              saveExternalLinkedData,
+              extractLinkedDataFromResponse
+            )
           );
+        try {
+          await downloadData();
           await mergeRemoteData(linkedDataStore, syncPropsStore, config);
           updateState(["ready", config]);
         } catch (e) {

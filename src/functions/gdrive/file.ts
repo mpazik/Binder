@@ -7,7 +7,6 @@ export type GDriveFileId = Opaque<string>;
 export type GDriveFile = {
   fileId: GDriveFileId;
   hashUri?: HashUri;
-  name: string;
 };
 export type Metadata = {
   name: string;

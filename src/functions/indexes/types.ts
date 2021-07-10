@@ -1,5 +1,5 @@
 import { HashUri } from "../../libs/hash";
-import { LinkedDataWithHashId } from "../../libs/linked-data";
+import { LinkedDataWithHashId } from "../../libs/jsonld-format";
 
 export type IndexRecord<T> = { props: T; hash: HashUri };
 export type IndexingStrategy<T> = (

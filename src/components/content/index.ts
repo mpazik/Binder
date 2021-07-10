@@ -6,11 +6,8 @@ import { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { Consumer, fork, splitMap, withState } from "../../libs/connections";
 import { map, pick, pipe } from "../../libs/connections/mappers";
 import { throwIfNull2 } from "../../libs/errors";
-import {
-  findHashUri,
-  LinkedData,
-  LinkedDataWithHashId,
-} from "../../libs/linked-data";
+import { LinkedData, LinkedDataWithHashId } from "../../libs/jsonld-format";
+import { findHashUri } from "../../libs/linked-data";
 import { Component, div, newSlot } from "../../libs/simple-ui/render";
 import { getTarget } from "../../libs/simple-ui/utils/funtions";
 import { annotationsSupport } from "../annotations";

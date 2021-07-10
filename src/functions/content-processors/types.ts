@@ -1,4 +1,4 @@
-import { LinkedData, LinkedDataWithHashId } from "../../libs/linked-data";
+import { LinkedData, LinkedDataWithHashId } from "../../libs/jsonld-format";
 
 export type LinkedDataWithContent = {
   content: Blob;

@@ -1,5 +1,3 @@
-import * as JSZip from "jszip";
-
 import { asyncPool } from "../../libs/async-pool";
 import { HashUri } from "../../libs/hash";
 import {
@@ -9,7 +7,12 @@ import {
   storeGetAllWithKeys,
   StoreProvider,
 } from "../../libs/indexeddb";
-import { jsonldFileExtension, LinkedData } from "../../libs/linked-data";
+import {
+  jsonldFileExtension,
+  jsonLdMimeType,
+  LinkedData,
+} from "../../libs/jsonld-format";
+import { createZip } from "../../libs/zip";
 import { GDriveConfig } from "../gdrive/app-files";
 import {
   createFile,
@@ -21,7 +24,7 @@ import {
 import { SyncRecord } from "./index";
 
 const mimeToExtension = new Map([
-  ["application/ld+json", jsonldFileExtension],
+  [jsonLdMimeType, jsonldFileExtension],
   ["text/html", "html"],
 ]);
 
@@ -47,14 +50,11 @@ const createResourceFile = async (
     blob
   );
 
-const compressToZip = async (
+export const compressLinkedDataToZip = async (
   name: string,
   linkedDataList: LinkedData[]
-): Promise<Blob> => {
-  const zip = new JSZip.default();
-  zip.file(name + ".jsonld", JSON.stringify(linkedDataList));
-  return await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
-};
+): Promise<Blob> =>
+  createZip([name + ".jsonld", JSON.stringify(linkedDataList)]);
 
 const createZipFile = async (
   linkedDataList: LinkedData[],
@@ -62,7 +62,7 @@ const createZipFile = async (
   createdTime?: string
 ): Promise<void> => {
   const name = new Date().toISOString();
-  const file = await compressToZip(name, linkedDataList);
+  const file = await compressLinkedDataToZip(name, linkedDataList);
 
   await createFile(
     config.token,
@@ -152,8 +152,7 @@ export const mergeRemoteData = async (
     lastSync
   );
 
-  await asyncPool(5, fileModifiedUntilLastCheck, async ({ fileId, name }) => {
-    console.log("Deleteing", name);
+  await asyncPool(5, fileModifiedUntilLastCheck, async ({ fileId }) => {
     await trashFile(fileId, config.token);
   });
 };

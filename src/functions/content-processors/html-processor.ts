@@ -2,8 +2,8 @@ import { Readability } from "@mozilla/readability";
 import * as pdfjsLib from "pdfjs-dist";
 
 import { throwIfNull } from "../../libs/errors";
+import { LinkedData } from "../../libs/jsonld-format";
 import { htmlMediaType, createArticle } from "../../libs/ld-schemas";
-import { LinkedData } from "../../libs/linked-data";
 import { measureTime } from "../../libs/performance";
 import { documentToBlob } from "../content-saver";
 

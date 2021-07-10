@@ -1,8 +1,5 @@
-import {
-  LinkedData,
-  LinkedDataWithHashId,
-  normalizeLinkedData,
-} from "./linked-data";
+import { LinkedData, LinkedDataWithHashId } from "./jsonld-format";
+import { normalizeLinkedData } from "./linked-data";
 import { Opaque } from "./types";
 
 type Hash = ArrayBuffer;
@@ -58,7 +55,9 @@ export const hashLinkedData = async (
   data: LinkedData,
   algorithm: HashingAlgorithm = "sha-256"
 ): Promise<HashUri> => {
-  const normalized = await normalizeLinkedData(data);
+  const { "@id": id, ...rest } = data;
+  console.log(rest);
+  const normalized = await normalizeLinkedData(rest);
   return referenceToHashUri(await computeHash(normalized, algorithm));
 };
 
