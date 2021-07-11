@@ -1,9 +1,13 @@
 import { removeItem } from "../../../binder-prototype-gdrive-sync/src/libs/arrays";
 
+// 6 is average number of simultaneous persistent connections per host
+// https://stackoverflow.com/questions/985431/max-parallel-http-connections-in-a-browser
+export const browserHostConnectionsLimit = 6;
+
 export const asyncPool = async <T, S>(
-  poolLimit: number,
   array: T[],
-  iteratorFn: (a: T) => Promise<S>
+  iteratorFn: (a: T) => Promise<S>,
+  poolLimit: number = browserHostConnectionsLimit
 ): Promise<S[]> => {
   const returned: Promise<S>[] = [];
   const executing: Promise<void>[] = [];

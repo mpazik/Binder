@@ -6,7 +6,10 @@ import {
   HashUri,
 } from "../../libs/hash";
 import {
+  storeDelete,
   storeGet,
+  storeGetAll,
+  storeGetAllWithKeys,
   storeGetFirst,
   StoreName,
   StoreProvider,
@@ -15,17 +18,18 @@ import {
 import { LinkedData, LinkedDataWithHashId } from "../../libs/jsonld-format";
 import { handleState, mapState } from "../../libs/named-state";
 import { measureAsyncTime } from "../../libs/performance";
+import { createGDrive } from "../gdrive";
 import { GDriveConfig } from "../gdrive/app-files";
 import { GDriveState } from "../gdrive/controller";
-import {
-  GDriveFileId,
-  getFileContent,
-  listFilesCreatedSince,
-} from "../gdrive/file";
+import { GDriveFileId } from "../gdrive/file";
 import { UpdateIndex } from "../indexes/types";
 
 import { createDataDownloader } from "./data-download";
-import { mergeRemoteData, uploadDataToSync } from "./data-upload";
+import {
+  createDataUploader,
+  createLinkedDataUploader,
+  createResourceUploader,
+} from "./data-upload";
 import { newExecutionTimeSaver } from "./execution-time-saver";
 import { createStatefulGDriveStoreRead } from "./gdrive-store-read";
 import { extractLinkedDataFromResponse } from "./link-data-response-extractor";
@@ -54,7 +58,6 @@ export type Store = {
   updateGdriveState: (gdrive: GDriveState) => void;
   switchRepo: (db: RepositoryDb) => void;
   upload: () => void;
-  merge: () => void;
 };
 
 export type SyncRecord = {
@@ -74,21 +77,25 @@ registerRepositoryVersion({
   ],
 });
 
+interface StoreSync {
+  uploadData: () => Promise<void>;
+  downloadData: () => Promise<void>;
+}
+
 export type StoreState =
   | ["idle"]
-  | ["uploading", GDriveConfig]
-  | ["merging", GDriveConfig]
-  | ["downloading", GDriveConfig]
+  | ["uploading", StoreSync]
+  | ["downloading", StoreSync]
   | [
       "error",
       {
-        config: GDriveConfig;
+        setup: StoreSync;
         error: { code: string; message: string };
       }
     ]
-  | ["ready", GDriveConfig]
-  | ["update-needed", GDriveConfig]
-  | ["loaded", GDriveConfig];
+  | ["ready", StoreSync]
+  | ["update-needed", StoreSync]
+  | ["loaded", StoreSync];
 
 export const createStore = (
   indexLinkedData: UpdateIndex,
@@ -99,9 +106,10 @@ export const createStore = (
   let linkedDataStore: StoreProvider<LinkedDataWithHashId>;
   let syncRequiredStore: StoreProvider<SyncRecord>;
   let syncPropsStore: StoreProvider<Date>;
+  const getLastSyncTime = () => storeGet<Date>(syncPropsStore, "last-sync");
   const downloadSyncTimeSaver = newExecutionTimeSaver(
     () => new Date(),
-    () => storeGet<Date>(syncPropsStore, "last-sync"),
+    getLastSyncTime,
     (date) => storePut<Date>(syncPropsStore, date, "last-sync").then(() => {})
   );
 
@@ -131,13 +139,48 @@ export const createStore = (
   const [remoteStoreRead, updateGdriveState] = createStatefulGDriveStoreRead();
   let state: StoreState = ["idle"];
 
+  const setupStoreSync = (config: GDriveConfig): StoreSync => {
+    const remoteDrive = createGDrive(config);
+    return {
+      downloadData: () =>
+        downloadSyncTimeSaver(
+          createDataDownloader<GDriveFileId>(
+            remoteDrive.listLinkedDataCreatedSince,
+            remoteDrive.downloadLinkedData,
+            saveExternalLinkedData,
+            extractLinkedDataFromResponse
+          )
+        ),
+      uploadData: createDataUploader<IDBValidKey>(
+        createResourceUploader(
+          (hash) => storeGet(resourceStore, hash),
+          remoteDrive.uploadResourceFile,
+          remoteDrive.areResourcesUploaded
+        ),
+        createLinkedDataUploader(
+          (hash) => storeGet(linkedDataStore, hash),
+          () => storeGetAll(linkedDataStore),
+          remoteDrive.uploadLinkedData,
+          remoteDrive.listLinkedDataCreatedUntil,
+          remoteDrive.deleteFile,
+          getLastSyncTime
+        ),
+        () =>
+          storeGetAllWithKeys<SyncRecord>(syncRequiredStore).then((it) =>
+            it.map((item) => [item.key, item.value])
+          ),
+        (key) => storeDelete(syncRequiredStore, key)
+      ),
+    };
+  };
+
   const updateState = (newState: StoreState) => {
     state = newState;
     handleNewState(state);
 
     const handleError = (
       handlingState: StoreState[0],
-      config: GDriveConfig,
+      setup: StoreSync,
       message: string,
       e: unknown
     ) => {
@@ -148,7 +191,7 @@ export const createStore = (
       updateState([
         "error",
         {
-          config,
+          setup,
           error: {
             code: `sync-error-${handlingState}`,
             message: message,
@@ -158,83 +201,35 @@ export const createStore = (
     };
 
     handleState(state, {
-      downloading: async (config) => {
-        const downloadData = () =>
-          downloadSyncTimeSaver(
-            createDataDownloader<GDriveFileId>(
-              (since) =>
-                listFilesCreatedSince(
-                  config.dirs.linkedData,
-                  config.token,
-                  since
-                ).then((it) => it.map((i) => i.fileId)),
-              (fileId) => getFileContent(config.token, fileId),
-              saveExternalLinkedData,
-              extractLinkedDataFromResponse
-            )
-          );
-
+      downloading: async (storeSync) => {
         try {
-          await downloadData();
-          updateState(["ready", config]);
+          await downloadSyncTimeSaver(storeSync.downloadData);
+          updateState(["ready", storeSync]);
         } catch (e) {
           handleError(
             "downloading",
-            config,
+            storeSync,
             "Error downloading files from google drive",
             e
           );
         }
       },
-      ready: async (config) => {
+      ready: async (storeSync) => {
         // check if there is anything to upload
         const data = await storeGetFirst(syncRequiredStore);
         if (data !== undefined) {
-          updateState(["update-needed", config]);
+          updateState(["update-needed", storeSync]);
         }
       },
-      uploading: async (config) => {
+      uploading: async (storeSync) => {
         try {
-          await uploadDataToSync(
-            resourceStore,
-            linkedDataStore,
-            syncRequiredStore,
-            config
-          );
-          updateState(["ready", config]);
+          await storeSync.uploadData();
+          updateState(["ready", storeSync]);
         } catch (e) {
           handleError(
             "uploading",
-            config,
+            storeSync,
             "Error uploading files to google drive",
-            e
-          );
-        }
-      },
-      merging: async (config) => {
-        const downloadData = () =>
-          downloadSyncTimeSaver(
-            createDataDownloader<GDriveFileId>(
-              (since) =>
-                listFilesCreatedSince(
-                  config.dirs.linkedData,
-                  config.token,
-                  since
-                ).then((it) => it.map((i) => i.fileId)),
-              (fileId) => getFileContent(config.token, fileId),
-              saveExternalLinkedData,
-              extractLinkedDataFromResponse
-            )
-          );
-        try {
-          await downloadData();
-          await mergeRemoteData(linkedDataStore, syncPropsStore, config);
-          updateState(["ready", config]);
-        } catch (e) {
-          handleError(
-            "merging",
-            config,
-            "Error merging files on google drive",
             e
           );
         }
@@ -265,15 +260,6 @@ export const createStore = (
         return;
       }
       updateState(["uploading", state[1]]);
-    },
-    merge: () => {
-      if (state[0] !== "update-needed" && state[0] !== "ready") {
-        console.error(
-          "Can not upload data when store connection with the drive is not ready"
-        );
-        return;
-      }
-      updateState(["merging", state[1]]);
     },
     readResource: async (hash) => {
       return (
@@ -312,7 +298,7 @@ export const createStore = (
           loggingIn: () => ["idle"],
           profileRetrieving: () => ["idle"],
           logged: ({ config }) => {
-            return ["downloading", config];
+            return ["downloading", setupStoreSync(config)];
           },
           loggingOut: () => ["idle"],
           error: () => ["idle"],
@@ -320,6 +306,12 @@ export const createStore = (
       );
     },
     switchRepo: (repositoryDb) => {
+      // if repo is unclaimed
+      // if it is flag
+      // if flag is true go trough each
+      // const oldResourceStore = resourceStore
+      // const oldLinkedDataStore = linkedDataStore
+      // const oldSyncRequiredStore = syncRequiredStore
       resourceStore = getResourceStore(repositoryDb);
       linkedDataStore = getLinkedDataStore(repositoryDb);
       syncRequiredStore = repositoryDb.getStoreProvider<SyncRecord>(

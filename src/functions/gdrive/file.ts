@@ -77,7 +77,7 @@ export const findFiles = async (
   authToken: GoogleAuthToken,
   query: string
 ): Promise<GDriveFile[]> => {
-  const fields = encodeURI(`files(id, appProperties, name, createdTime)`);
+  const fields = encodeURI(`files(id, appProperties, name)`);
   const data = (await fetch(
     `https://www.googleapis.com/drive/v3/files?q=${query}&fields=${fields}`,
     {
@@ -183,40 +183,6 @@ export const findByHash = async (
   if (files.length > 0) {
     return files[0];
   }
-};
-
-export const listFilesCreatedSince = async (
-  parent: GDriveFileId,
-  authToken: GoogleAuthToken,
-  createdSince?: Date
-): Promise<GDriveFile[]> => {
-  const query = encodeURI(
-    [
-      "trashed=false",
-      `appProperties has { key='binder' and value='true' }`, // only created by binder
-      `'${parent}' in parents`,
-      ...(createdSince
-        ? [`createdTime > '${createdSince.toISOString()}'`]
-        : []),
-    ].join(" and ")
-  );
-  return findFiles(authToken, query);
-};
-
-export const listFilesCreatedUntil = async (
-  parent: GDriveFileId,
-  authToken: GoogleAuthToken,
-  createdUntil: Date
-): Promise<GDriveFile[]> => {
-  const query = encodeURI(
-    [
-      "trashed=false",
-      `appProperties has { key='binder' and value='true' }`, // only created by binder
-      `'${parent}' in parents`,
-      `createdTime < '${createdUntil.toISOString()}'`,
-    ].join(" and ")
-  );
-  return findFiles(authToken, query);
 };
 
 export const updateFile = async (

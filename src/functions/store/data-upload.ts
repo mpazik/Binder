@@ -1,158 +1,121 @@
-import { asyncPool } from "../../libs/async-pool";
+import { splitArray } from "../../libs/array";
+import { asyncPool, browserHostConnectionsLimit } from "../../libs/async-pool";
 import { HashUri } from "../../libs/hash";
-import {
-  storeDelete,
-  storeGet,
-  storeGetAll,
-  storeGetAllWithKeys,
-  StoreProvider,
-} from "../../libs/indexeddb";
-import {
-  jsonldFileExtension,
-  jsonLdMimeType,
-  LinkedData,
-} from "../../libs/jsonld-format";
-import { createZip } from "../../libs/zip";
-import { GDriveConfig } from "../gdrive/app-files";
-import {
-  createFile,
-  GDriveFileId,
-  listFilesCreatedUntil,
-  trashFile,
-} from "../gdrive/file";
+import { LinkedDataWithHashId } from "../../libs/jsonld-format";
+import { RemoteDrive } from "../remote-drive";
 
-import { SyncRecord } from "./index";
+import { LinkedDataStoreRead, LinkedDataStoreReadAll } from "./local-store";
 
-const mimeToExtension = new Map([
-  [jsonLdMimeType, jsonldFileExtension],
-  ["text/html", "html"],
-]);
+import { ResourceStoreRead, SyncRecord } from "./index";
 
-const getFileName = (hash: string, mimeType: string, name?: string) => {
-  const extension = mimeToExtension.get(mimeType);
-  return (name ? name : hash) + (extension ? "." + extension : "");
+export type DataUpload = () => Promise<void>;
+
+type LinkedDataUploader = (linkedDataHashes: HashUri[]) => Promise<void>;
+
+// We limit how many archives are on remote drive so in worst case we could fetch one in a single round of calls
+const limitOfLinkedDtaFilesOnDrive = browserHostConnectionsLimit;
+
+export const createLinkedDataUploader = <FileId>(
+  readLinkedData: LinkedDataStoreRead,
+  readAllLinkedData: LinkedDataStoreReadAll,
+  uploadLinkedData: RemoteDrive<FileId>["uploadLinkedData"],
+  listLinkedDataCreatedUntil: RemoteDrive<FileId>["listLinkedDataCreatedUntil"],
+  deleteFile: RemoteDrive<FileId>["deleteFile"],
+  getLastSyncDate: () => Promise<Date | undefined>,
+  initLinkedDataFilesOnDrive = 0
+): LinkedDataUploader => {
+  // we track the number of files locally to save extra get call per each update
+  // that means that technically the number of files could be higher on remote drive if user would be uploading from multiple instances
+  const linkedDataFilesOnDrive = initLinkedDataFilesOnDrive;
+
+  return async (linkedDataHashes) => {
+    if (linkedDataFilesOnDrive < limitOfLinkedDtaFilesOnDrive) {
+      const linkedDataList: LinkedDataWithHashId[] = [];
+      for (const hash of linkedDataHashes) {
+        const linkedData = await readLinkedData(hash);
+        if (!linkedData) {
+          console.error(
+            `Could not find linked data with hash "${hash}" to sync`
+          );
+        } else {
+          linkedDataList.push(linkedData);
+        }
+      }
+
+      await uploadLinkedData(linkedDataList);
+    } else {
+      const lastSync = await getLastSyncDate();
+
+      // this will be bottle neck at some point, we won't be able to load all of the data
+      // later we could have to types of zip files, permanent and not
+      // not permanent hashes would be once that come from zip bellow chunk size limit
+      // then we would only compress non permanent zip files
+      const allData = await readAllLinkedData();
+
+      // if something will go wrong here the old files will still be on the remote drive
+      // passing last sync as creation time, so we would not re-download the data
+      await uploadLinkedData(allData, lastSync);
+
+      // cleanup all files that are not needed
+      // if something will go wrong here files will be picked up by next cleanup
+      const fileModifiedUntilLastCheck = await listLinkedDataCreatedUntil(
+        lastSync
+      );
+      await asyncPool(fileModifiedUntilLastCheck, deleteFile);
+    }
+  };
 };
 
-const createResourceFile = async (
-  { token, dirs }: GDriveConfig,
-  blob: Blob,
-  hash: HashUri,
-  name?: string
-): Promise<GDriveFileId> =>
-  createFile(
-    token,
-    {
-      name: getFileName(hash, blob.type, name),
-      mimeType: blob.type,
-      parents: [dirs.app],
-      appProperties: { hashLink: hash, binder: "true" },
-    },
-    blob
+type ResourceUploader = (
+  resourceRecords: { hash: HashUri; name?: string }[]
+) => Promise<void>;
+
+export const createResourceUploader = <FileId>(
+  readResource: ResourceStoreRead,
+  uploadResourceFile: RemoteDrive<FileId>["uploadResourceFile"],
+  areResourcesUploaded: RemoteDrive<FileId>["areResourcesUploaded"]
+): ResourceUploader => async (resourceRecords) => {
+  const uploadedFiles = await areResourcesUploaded(
+    resourceRecords.map(({ hash }) => hash)
   );
-
-export const compressLinkedDataToZip = async (
-  name: string,
-  linkedDataList: LinkedData[]
-): Promise<Blob> =>
-  createZip([name + ".jsonld", JSON.stringify(linkedDataList)]);
-
-const createZipFile = async (
-  linkedDataList: LinkedData[],
-  config: GDriveConfig,
-  createdTime?: string
-): Promise<void> => {
-  const name = new Date().toISOString();
-  const file = await compressLinkedDataToZip(name, linkedDataList);
-
-  await createFile(
-    config.token,
-    {
-      name: name + ".zip",
-      mimeType: "zip",
-      parents: [config.dirs.linkedData],
-      appProperties: { binder: "true" },
-      createdTime,
-    },
-    file
-  );
-};
-
-// Uploads data needed to be synced and cleans the sync marker once it is successful
-export const uploadDataToSync = async (
-  resourceStore: StoreProvider<Blob>,
-  linkedDataStore: StoreProvider<LinkedData>,
-  syncRequiredStore: StoreProvider<SyncRecord>,
-  config: GDriveConfig
-): Promise<void> => {
-  const records = await storeGetAllWithKeys<SyncRecord>(syncRequiredStore);
-
-  // upload resources
-  const resourceRecords = records.filter((it) => !it.value.ld);
-  for (const {
-    value: { hash, name },
-    key,
-  } of resourceRecords) {
-    const blob = await storeGet(resourceStore, hash);
+  await asyncPool(resourceRecords, async ({ hash, name }) => {
+    // do not re-upload files that are already on the remote drive
+    if (uploadedFiles.has(hash)) {
+      return;
+    }
+    const blob = await readResource(hash);
     if (blob) {
-      await createResourceFile(config, blob, hash, name);
+      await uploadResourceFile(blob, hash, name);
     } else {
       console.error(`Could not find resource with hash "${hash}" to sync`);
     }
-    await storeDelete(syncRequiredStore, key);
-  }
-
-  // upload linked data
-  const linkedDataRecords = records.filter((it) => it.value.ld);
-
-  const linkedDataListWithGaps: (LinkedData | undefined)[] = await asyncPool(
-    5,
-    linkedDataRecords,
-    async ({ value: { hash } }) => {
-      const linkedData = await storeGet(linkedDataStore, hash);
-      if (!linkedData) {
-        console.error(`Could not find linked data with hash "${hash}" to sync`);
-      }
-      return linkedData;
-    }
-  );
-
-  const linkedDataList = linkedDataListWithGaps.filter(
-    (it) => it !== undefined
-  ) as LinkedData[];
-
-  await createZipFile(linkedDataList, config);
-  await asyncPool(5, linkedDataRecords, async ({ key }) => {
-    await storeDelete(syncRequiredStore, key);
   });
 };
 
-// Compress all the data stored locally as a single archive and uploads it
-// then it would remove all old archives to the synchronisation point
-export const mergeRemoteData = async (
-  linkedDataStore: StoreProvider<LinkedData>,
-  syncPropsStore: StoreProvider<Date>,
-  config: GDriveConfig
-): Promise<void> => {
-  const lastSync = await storeGet<Date>(syncPropsStore, "last-sync");
-  console.log("Merge modified since", lastSync);
-  if (!lastSync) return;
+export const createDataUploader = <SyncKey>(
+  uploadResources: ResourceUploader,
+  uploadLinkedData: LinkedDataUploader,
+  getFilesToSync: () => Promise<[SyncKey, SyncRecord][]>,
+  markFileAsSync: (key: SyncKey) => Promise<void>
+): DataUpload => {
+  return async () => {
+    const records = await getFilesToSync();
 
-  // this will be bottle neck at some point, we won't be able to load all of the data
-  // later we could have to types of zip files, permanent and not
-  // not permanent hashes would be once that come from zip bellow chunk size limit
-  // then we would only compress non permanent zip files
+    // upload resources
+    const [linkedDataRecords, resourceRecords] = splitArray(
+      records,
+      (it) => it[1].ld
+    );
 
-  const allData = await storeGetAll(linkedDataStore);
+    await uploadResources(resourceRecords.map((it) => it[1]));
+    for (const it of resourceRecords) {
+      await markFileAsSync(it[0]);
+    }
 
-  await createZipFile(allData, config, lastSync.toISOString());
+    await uploadLinkedData(linkedDataRecords.map((it) => it[1].hash));
 
-  const fileModifiedUntilLastCheck = await listFilesCreatedUntil(
-    config.dirs.linkedData,
-    config.token,
-    lastSync
-  );
-
-  await asyncPool(5, fileModifiedUntilLastCheck, async ({ fileId }) => {
-    await trashFile(fileId, config.token);
-  });
+    for (const it of linkedDataRecords) {
+      await markFileAsSync(it[0]);
+    }
+  };
 };

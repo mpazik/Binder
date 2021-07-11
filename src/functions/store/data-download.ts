@@ -4,17 +4,17 @@ import { RemoteDrive } from "../remote-drive";
 import { LinkDateResponseExtractor } from "./link-data-response-extractor";
 import { ExternalLinkedDataStoreWrite } from "./local-store";
 
-type DataDownloader = (since: Date | undefined) => Promise<void>;
+export type DataDownload = (since: Date | undefined) => Promise<void>;
 
 export const createDataDownloader = <FileId>(
-  listFilesCreatedSince: RemoteDrive<FileId>["listFilesCreatedSince"],
-  downloadFile: RemoteDrive<FileId>["downloadLinkedDataFile"],
+  listLinkedDataCreatedSince: RemoteDrive<FileId>["listLinkedDataCreatedSince"],
+  downloadFile: RemoteDrive<FileId>["downloadLinkedData"],
   saveLinkedData: ExternalLinkedDataStoreWrite,
   extractLinkedDataFromResponse: LinkDateResponseExtractor
-): DataDownloader => async (since) => {
-  const fileModifiedSinceLastCheck = await listFilesCreatedSince(since);
+): DataDownload => async (since) => {
+  const fileModifiedSinceLastCheck = await listLinkedDataCreatedSince(since);
 
-  await asyncPool(3, fileModifiedSinceLastCheck, async (fileId) => {
+  await asyncPool(fileModifiedSinceLastCheck, async (fileId) => {
     const response = await downloadFile(fileId);
     await extractLinkedDataFromResponse(response, saveLinkedData);
   });

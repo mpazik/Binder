@@ -114,14 +114,12 @@ type ProfileActions = {
   login: () => void;
   logout: () => void;
   upload: () => void;
-  merge: () => void;
 };
 
 export const createProfileView: ViewSetup<ProfileActions, ProfileState> = ({
   login,
   logout,
   upload,
-  merge,
 }) =>
   newStateMapper<ProfileState, JsonHtml>({
     idle: () => loading(),
@@ -162,8 +160,7 @@ export const createProfileView: ViewSetup<ProfileActions, ProfileState> = ({
         icon: accountIcon,
         children: [
           profileItem(profile),
-          dropdownItem({ onClick: () => {}, text: "Storage settings" }),
-          dropdownItem({ onClick: merge, text: "Merge data on drive" }),
+          // dropdownItem({ onClick: () => {}, text: "Storage settings" }),
           dropdownItem({ onClick: logout, text: "Logout" }),
         ],
       }),
@@ -231,7 +228,7 @@ export const profilePanel: Component<ProfileActions, ProfilePanelControl> = (
         const state: ProfileState = (() => {
           if (gdriveState[0] === "logged") {
             const profile = gdriveState[1];
-            if (storeState[0] === "uploading" || storeState[0] === "merging") {
+            if (storeState[0] === "uploading") {
               return ["uploading", profile] as ProfileState;
             } else if (storeState[0] === "downloading") {
               return ["downloading", profile] as ProfileState;

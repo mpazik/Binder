@@ -44,6 +44,8 @@ export type LinkedDataStoreIterate = (
   handler: (hashUri: HashUri) => void
 ) => Promise<void>;
 
+export type LinkedDataStoreReadAll = () => Promise<LinkedDataWithHashId[]>;
+
 export const createLinkedDataProvider = (
   repositoryDb: RepositoryDb
 ): ((push: (ld: LinkedDataWithHashId) => Promise<void>) => Promise<void>) => {
