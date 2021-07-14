@@ -104,14 +104,20 @@ export const findFileIds = async (
 ): Promise<GDriveFileId[]> => {
   const fields = encodeURI(`files(id)`);
   const data = (await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=${query}&fields=${fields}`,
+    `https://www.googleapis.com/drive/v3/files?q=${query}&fields=${fields}&pageSize=1000`,
     {
       method: "GET",
       headers: new Headers({ Authorization: "Bearer " + authToken }),
     }
   ).then((it) => it.json())) as {
+    nextPageToken: string;
     files: { id: GDriveFileId }[];
   };
+  if (data.nextPageToken) {
+    console.error(
+      "There is more result on google drive that were not downloaded"
+    );
+  }
   return data.files.map((it) => it.id);
 };
 
@@ -166,7 +172,6 @@ export const findByHash = async (
   const query = encodeURI(
     [
       "trashed=false",
-      `appProperties has { key='binder' and value='true' }`, // only created by binder, list returns all the files but we can download only created by binder
       `appProperties has { key='hashLink' and value='${hash}' }`,
       `(${dirs.map((dir) => `'${dir}' in parents`).join(" or ")})`,
     ].join(" and ")

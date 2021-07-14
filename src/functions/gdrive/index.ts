@@ -39,7 +39,6 @@ export const createGDrive = ({
           name: name + ".zip",
           mimeType: "zip",
           parents: [dirs.linkedData],
-          appProperties: { binder: "true" },
           createdTime: createdTime?.toISOString(),
         },
         await createZip([name + ".jsonld", JSON.stringify(linkedDataList)])
@@ -54,11 +53,9 @@ export const createGDrive = ({
         .join(" or ");
       const q = [
         "trashed=false",
-        `appProperties has { key='binder' and value='true' }`, // only created by binder
         `(${hashQuery})`, // only created by binder
         `'${dirs.app}' in parents`,
       ].join(" and ");
-      console.log("query", q);
       const query = encodeURI(q);
       const remoteFiles = await findFiles(token, query);
       return new Set(filterUndefined(remoteFiles.map((it) => it.hashUri)));
@@ -78,7 +75,7 @@ export const createGDrive = ({
           name: getFileName(hash, blob.type, name),
           mimeType: blob.type,
           parents: [dirs.app],
-          appProperties: { hashLink: hash, binder: "true" },
+          appProperties: { hashLink: hash },
         },
         blob
       );
@@ -87,7 +84,6 @@ export const createGDrive = ({
       const query = encodeURI(
         [
           "trashed=false",
-          `appProperties has { key='binder' and value='true' }`, // only created by binder
           `'${dirs.linkedData}' in parents`,
           ...(createdSince
             ? [`createdTime > '${createdSince.toISOString()}'`]
@@ -103,7 +99,6 @@ export const createGDrive = ({
       const query = encodeURI(
         [
           "trashed=false",
-          `appProperties has { key='binder' and value='true' }`, // only created by binder
           `'${dirs.linkedData}' in parents`,
           `createdTime < '${createdUntil.toISOString()}'`,
         ].join(" and ")
