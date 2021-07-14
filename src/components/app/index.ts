@@ -23,7 +23,8 @@ import {
 } from "../../functions/content-processors";
 import { createContentSaver } from "../../functions/content-saver";
 import { createProxyFetch, Fetch } from "../../functions/fetch-trough-proxy";
-import { gdrive } from "../../functions/gdrive/controller";
+import { createGDrive } from "../../functions/gdrive";
+import { gdrive, GDriveState } from "../../functions/gdrive/controller";
 import {
   DriverAccount,
   getLastLogin,
@@ -38,6 +39,7 @@ import {
   createLinkedDataWithDocumentFetcher,
   LinkedDataWithContentFetcher,
 } from "../../functions/linked-data-fetcher";
+import { RemoteDrive, RemoteDriverState } from "../../functions/remote-drive";
 import { createStore } from "../../functions/store";
 import {
   openAccountRepository,
@@ -53,6 +55,7 @@ import {
 } from "../../functions/url-hijack";
 import { stateProvider } from "../../libs/connections";
 import { HashName } from "../../libs/hash";
+import { newStateMapper } from "../../libs/named-state";
 import { measureAsyncTime } from "../../libs/performance";
 import { div, fragment, newSlot } from "../../libs/simple-ui/render";
 import { asyncLoader } from "../common/async-loader";
@@ -156,7 +159,24 @@ export const App = asyncLoader(
           filter(defined),
           setCreator
         ),
-        store.updateGdriveState,
+        link(
+          map(
+            newStateMapper<GDriveState, RemoteDriverState>({
+              idle: () => ["off"],
+              loading: () => ["off"],
+              signedOut: () => ["off"],
+              disconnected: () => ["off"],
+              loggingIn: () => ["loading"],
+              profileRetrieving: () => ["loading"],
+              logged: ({ config }) => {
+                return ["on", createGDrive(config) as RemoteDrive];
+              },
+              loggingOut: () => ["off"],
+              error: () => ["off"],
+            })
+          ),
+          store.updateRemoteDriveState
+        ),
         link(
           map((state) => {
             if (

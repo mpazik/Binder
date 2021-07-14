@@ -26,7 +26,7 @@ export const createLinkedDataUploader = <FileId>(
 ): LinkedDataUploader => {
   // we track the number of files locally to save extra get call per each update
   // that means that technically the number of files could be higher on remote drive if user would be uploading from multiple instances
-  const linkedDataFilesOnDrive = initLinkedDataFilesOnDrive;
+  let linkedDataFilesOnDrive = initLinkedDataFilesOnDrive;
 
   return async (linkedDataHashes) => {
     if (linkedDataFilesOnDrive < limitOfLinkedDtaFilesOnDrive) {
@@ -43,6 +43,7 @@ export const createLinkedDataUploader = <FileId>(
       }
 
       await uploadLinkedData(linkedDataList);
+      linkedDataFilesOnDrive += 1;
     } else {
       const lastSync = await getLastSyncDate();
 
@@ -87,7 +88,9 @@ export const createResourceUploader = <FileId>(
     if (blob) {
       await uploadResourceFile(blob, hash, name);
     } else {
-      console.error(`Could not find resource with hash "${hash}" to sync`);
+      console.error(
+        `Could not find resource with hash "${hash}" for an upload to the remote drive`
+      );
     }
   });
 };
@@ -113,7 +116,6 @@ export const createDataUploader = <SyncKey>(
     }
 
     await uploadLinkedData(linkedDataRecords.map((it) => it[1].hash));
-
     for (const it of linkedDataRecords) {
       await markFileAsSync(it[0]);
     }

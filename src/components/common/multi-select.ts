@@ -32,7 +32,7 @@ const categoriesComp: Component<
   {
     renderCategories: string[] | undefined;
   }
-> = ({ onCategoryRemoved }) => (render) => {
+> = ({ onCategoryRemoved }) => (render, onClose) => {
   const categoryView: View<{ categories: string[] }> = ({ categories }) =>
     ul(
       { class: "multi-select-selected d-inline" },

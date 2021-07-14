@@ -18,11 +18,8 @@ import {
 import { LinkedData, LinkedDataWithHashId } from "../../libs/jsonld-format";
 import { handleState, mapState } from "../../libs/named-state";
 import { measureAsyncTime } from "../../libs/performance";
-import { createGDrive } from "../gdrive";
-import { GDriveConfig } from "../gdrive/app-files";
-import { GDriveState } from "../gdrive/controller";
-import { GDriveFileId } from "../gdrive/file";
 import { UpdateIndex } from "../indexes/types";
+import { RemoteDrive, RemoteDriverState } from "../remote-drive";
 
 import { createDataDownloader } from "./data-download";
 import {
@@ -31,7 +28,6 @@ import {
   createResourceUploader,
 } from "./data-upload";
 import { newExecutionTimeSaver } from "./execution-time-saver";
-import { createStatefulGDriveStoreRead } from "./gdrive-store-read";
 import { extractLinkedDataFromResponse } from "./link-data-response-extractor";
 import {
   ExternalLinkedDataStoreWrite,
@@ -42,6 +38,7 @@ import {
   ResourceStoreRead,
   ResourceStoreWrite,
 } from "./local-store";
+import { createStatefulRemoteDriveResourceRead } from "./remote-drive-store-read";
 import { registerRepositoryVersion, RepositoryDb } from "./repository";
 
 export type {
@@ -55,7 +52,7 @@ export type Store = {
   writeResource: ResourceStoreWrite;
   readLinkedData: LinkedDataStoreRead;
   writeLinkedData: LinkedDataStoreWrite;
-  updateGdriveState: (gdrive: GDriveState) => void;
+  updateRemoteDriveState: (driveState: RemoteDriverState) => void;
   switchRepo: (db: RepositoryDb) => void;
   upload: () => void;
 };
@@ -136,17 +133,19 @@ export const createStore = (
     await indexLinkedData(data);
   };
 
-  const [remoteStoreRead, updateGdriveState] = createStatefulGDriveStoreRead();
+  const [
+    remoteStoreRead,
+    updateDriveReaderState,
+  ] = createStatefulRemoteDriveResourceRead();
   let state: StoreState = ["idle"];
 
-  const setupStoreSync = (config: GDriveConfig): StoreSync => {
-    const remoteDrive = createGDrive(config);
+  const setupStoreSync = (drive: RemoteDrive): StoreSync => {
     return {
       downloadData: () =>
         downloadSyncTimeSaver(
-          createDataDownloader<GDriveFileId>(
-            remoteDrive.listLinkedDataCreatedSince,
-            remoteDrive.downloadLinkedData,
+          createDataDownloader(
+            drive.listLinkedDataCreatedSince,
+            drive.downloadLinkedData,
             saveExternalLinkedData,
             extractLinkedDataFromResponse
           )
@@ -154,15 +153,15 @@ export const createStore = (
       uploadData: createDataUploader<IDBValidKey>(
         createResourceUploader(
           (hash) => storeGet(resourceStore, hash),
-          remoteDrive.uploadResourceFile,
-          remoteDrive.areResourcesUploaded
+          drive.uploadResourceFile,
+          drive.areResourcesUploaded
         ),
         createLinkedDataUploader(
           (hash) => storeGet(linkedDataStore, hash),
           () => storeGetAll(linkedDataStore),
-          remoteDrive.uploadLinkedData,
-          remoteDrive.listLinkedDataCreatedUntil,
-          remoteDrive.deleteFile,
+          drive.uploadLinkedData,
+          drive.listLinkedDataCreatedUntil,
+          drive.deleteFile,
           getLastSyncTime
         ),
         () =>
@@ -287,21 +286,15 @@ export const createStore = (
       await indexLinkedData(linkedDataWithHashId);
       return linkedDataWithHashId;
     },
-    updateGdriveState: (gdrive: GDriveState) => {
-      updateGdriveState(gdrive);
+    updateRemoteDriveState: (driveState: RemoteDriverState) => {
+      updateDriveReaderState(driveState);
       updateState(
-        mapState(gdrive, {
-          idle: () => ["idle"],
+        mapState(driveState, {
+          off: () => ["idle"],
           loading: () => ["idle"],
-          signedOut: () => ["idle"],
-          disconnected: () => ["idle"],
-          loggingIn: () => ["idle"],
-          profileRetrieving: () => ["idle"],
-          logged: ({ config }) => {
-            return ["downloading", setupStoreSync(config)];
+          on: (drive) => {
+            return ["downloading", setupStoreSync(drive)];
           },
-          loggingOut: () => ["idle"],
-          error: () => ["idle"],
         })
       );
     },

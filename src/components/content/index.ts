@@ -1,10 +1,11 @@
+import { link, map, pick } from "linki";
+
 import { LinkedDataWithContent } from "../../functions/content-processors";
 import { ContentSaver } from "../../functions/content-saver";
 import { AnnotationsIndex } from "../../functions/indexes/annotations-index";
 import { LinkedDataStoreWrite } from "../../functions/store";
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { Consumer, fork, splitMap, withState } from "../../libs/connections";
-import { map, pick, pipe } from "../../libs/connections/mappers";
 import { throwIfNull2 } from "../../libs/errors";
 import { LinkedData, LinkedDataWithHashId } from "../../libs/jsonld-format";
 import { findHashUri } from "../../libs/linked-data";
@@ -48,12 +49,12 @@ export const contentComponent: Component<
       const refError = () =>
         "save article should have hash uri reference to the content";
       contentSaver(data).then(
-        map(
-          pick("linkedData"),
+        link(
+          map(pick("linkedData")),
           fork(
             onSave,
             () => updateSaveBar(["hidden"]),
-            map(pipe(findHashUri, throwIfNull2(refError)), setReference)
+            link(map(findHashUri, throwIfNull2(refError)), setReference)
           )
         )
       );
@@ -132,9 +133,17 @@ export const contentComponent: Component<
     displayContent: fork(
       displayContent,
       setContextForSave,
-      map(
-        pick("linkedData"),
-        fork(renderFields, map(findHashUri, fork(setReference)), resetSaveBar)
+      link(
+        map(pick("linkedData")),
+        fork(renderFields, link(map(findHashUri), setReference), resetSaveBar)
+      ),
+      link(
+        map(pick("linkedData")),
+        fork(
+          renderFields,
+          link(map(findHashUri), fork(setReference)),
+          resetSaveBar
+        )
       )
     ),
     goToFragment,

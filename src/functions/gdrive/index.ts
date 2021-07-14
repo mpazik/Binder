@@ -7,6 +7,7 @@ import { RemoteDrive } from "../remote-drive";
 import { GDriveConfig } from "./app-files";
 import {
   createFile,
+  findByHash,
   findFileIds,
   findFiles,
   GDriveFileId,
@@ -46,21 +47,29 @@ export const createGDrive = ({
     },
     areResourcesUploaded: async (files) => {
       const hashQuery = files
-        .map((hashUri) => `value='${hashUri}'`)
+        .map(
+          (hashUri) =>
+            `appProperties has { key='hashLink' and value='${hashUri}' }`
+        )
         .join(" or ");
-      const query = encodeURI(
-        [
-          "trashed=false",
-          `appProperties has { key='binder' and value='true' }`, // only created by binder
-          `appProperties has { key='hashLink' and (${hashQuery}) }`, // only created by binder
-          `'${dirs.app}' in parents`,
-        ].join(" and ")
-      );
+      const q = [
+        "trashed=false",
+        `appProperties has { key='binder' and value='true' }`, // only created by binder
+        `(${hashQuery})`, // only created by binder
+        `'${dirs.app}' in parents`,
+      ].join(" and ");
+      console.log("query", q);
+      const query = encodeURI(q);
       const remoteFiles = await findFiles(token, query);
       return new Set(filterUndefined(remoteFiles.map((it) => it.hashUri)));
     },
-    downloadResourceFile: (fileId) => {
-      return getFileContent(token, fileId);
+    downloadResourceFileByHash: async (hash) => {
+      const file = await findByHash(token, [dirs.app], hash);
+      if (file === undefined) {
+        return;
+      }
+      const response = await getFileContent(token, file.fileId);
+      return response.blob();
     },
     uploadResourceFile: (blob: Blob, hash: HashUri, name?: string) => {
       return createFile(

@@ -1,14 +1,14 @@
 import { HashUri } from "../../libs/hash";
 import { LinkedDataWithHashId } from "../../libs/jsonld-format";
 
-export interface RemoteDrive<FileId> {
+export interface RemoteDrive<FileId = unknown> {
   downloadLinkedData: (fileId: FileId) => Promise<Response>;
   uploadLinkedData: (
     data: LinkedDataWithHashId[],
     creationTime?: Date
   ) => Promise<FileId>;
   areResourcesUploaded: (files: HashUri[]) => Promise<Set<HashUri>>;
-  downloadResourceFile: (fileId: FileId) => Promise<Response>;
+  downloadResourceFileByHash: (fileHash: HashUri) => Promise<Blob | undefined>;
   uploadResourceFile: (
     blob: Blob,
     hash: HashUri,
@@ -18,3 +18,5 @@ export interface RemoteDrive<FileId> {
   listLinkedDataCreatedUntil: (date: Date | undefined) => Promise<FileId[]>;
   deleteFile: (fileId: FileId) => Promise<void>;
 }
+
+export type RemoteDriverState = ["off"] | ["on", RemoteDrive] | ["loading"];
