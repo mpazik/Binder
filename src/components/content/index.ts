@@ -120,7 +120,7 @@ export const contentComponent: Component<
         {
           id: "content-body",
           class: "mb-3 position-relative",
-          onDisplay: map(getTarget, setContainer),
+          onDisplay: link(map(getTarget), setContainer),
         },
         contentSlot,
         annotationSupportSlot
@@ -133,10 +133,6 @@ export const contentComponent: Component<
     displayContent: fork(
       displayContent,
       setContextForSave,
-      link(
-        map(pick("linkedData")),
-        fork(renderFields, link(map(findHashUri), setReference), resetSaveBar)
-      ),
       link(
         map(pick("linkedData")),
         fork(
