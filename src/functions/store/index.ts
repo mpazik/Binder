@@ -18,6 +18,7 @@ import {
 import { LinkedData, LinkedDataWithHashId } from "../../libs/jsonld-format";
 import { handleState, mapState } from "../../libs/named-state";
 import { measureAsyncTime } from "../../libs/performance";
+import { browserTimer, SetupTimer, setupTimer } from "../../libs/timer";
 import { UpdateIndex } from "../indexes/types";
 import { RemoteDrive, RemoteDriverState } from "../remote-drive";
 
@@ -66,6 +67,8 @@ export type SyncRecord = {
 const syncRequiredStoreName = "sync-required" as StoreName;
 const syncPropsStoreName = "sync-props" as StoreName;
 
+const autoUpdateTimeout = 5 * 60 * 1000;
+
 registerRepositoryVersion({
   version: 2,
   stores: [
@@ -91,12 +94,13 @@ export type StoreState =
       }
     ]
   | ["ready", StoreSync]
-  | ["update-needed", StoreSync]
+  | ["upload-needed", StoreSync & { stopAutoUpdate: () => void }]
   | ["loaded", StoreSync];
 
 export const createStore = (
   indexLinkedData: UpdateIndex,
-  handleNewState: Callback<StoreState>
+  handleNewState: Callback<StoreState>,
+  autoUpdateTimer: SetupTimer = setupTimer(browserTimer, autoUpdateTimeout)
 ): Store => {
   // pass unclaimedDb
   let resourceStore: StoreProvider<Blob>;
@@ -173,6 +177,13 @@ export const createStore = (
     };
   };
 
+  const changeToUpdateNeeded = (storeSync: StoreSync) => {
+    const stopAutoUpdate = autoUpdateTimer(() => {
+      updateState(["uploading", storeSync]);
+    });
+    updateState(["upload-needed", { ...storeSync, stopAutoUpdate }]);
+  };
+
   const updateState = (newState: StoreState) => {
     state = newState;
     handleNewState(state);
@@ -217,7 +228,7 @@ export const createStore = (
         // check if there is anything to upload
         const data = await storeGetFirst(syncRequiredStore);
         if (data !== undefined) {
-          updateState(["update-needed", storeSync]);
+          changeToUpdateNeeded(storeSync);
         }
       },
       uploading: async (storeSync) => {
@@ -247,17 +258,18 @@ export const createStore = (
       ld: linkedData,
     });
     if (state[0] !== "ready") return;
-    updateState(["update-needed", state[1]]);
+    changeToUpdateNeeded(state[1]);
   };
 
   return {
     upload: () => {
-      if (state[0] !== "update-needed") {
+      if (state[0] !== "upload-needed") {
         console.error(
           "Can not upload data when store connection with the drive is not ready"
         );
         return;
       }
+      state[1].stopAutoUpdate();
       updateState(["uploading", state[1]]);
     },
     readResource: async (hash) => {

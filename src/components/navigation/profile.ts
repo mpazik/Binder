@@ -234,7 +234,7 @@ export const profilePanel: Component<ProfileActions, ProfilePanelControl> = (
               return ["downloading", profile] as ProfileState;
             } else if (storeState[0] === "error") {
               return ["error", storeState[1].error.message] as ProfileState;
-            } else if (storeState[0] === "update-needed") {
+            } else if (storeState[0] === "upload-needed") {
               return ["upload-needed", profile] as ProfileState;
             }
           } else if (gdriveState[0] === "error") {
