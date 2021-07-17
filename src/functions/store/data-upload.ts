@@ -21,14 +21,17 @@ export const createLinkedDataUploader = <FileId>(
   uploadLinkedData: RemoteDrive<FileId>["uploadLinkedData"],
   listLinkedDataCreatedUntil: RemoteDrive<FileId>["listLinkedDataCreatedUntil"],
   deleteFile: RemoteDrive<FileId>["deleteFile"],
-  getLastSyncDate: () => Promise<Date | undefined>,
-  initLinkedDataFilesOnDrive = 0
+  getLastSyncDate: () => Promise<Date | undefined>
 ): LinkedDataUploader => {
-  // we track the number of files locally to save extra get call per each update
-  // that means that technically the number of files could be higher on remote drive if user would be uploading from multiple instances
-  let linkedDataFilesOnDrive = initLinkedDataFilesOnDrive;
+  let linkedDataFilesOnDrive: number | undefined;
 
   return async (linkedDataHashes) => {
+    if (linkedDataFilesOnDrive === undefined) {
+      const lastSync = await getLastSyncDate();
+      // potential problem if user will add files that we can not remove
+      linkedDataFilesOnDrive = (await listLinkedDataCreatedUntil(lastSync))
+        .length;
+    }
     if (linkedDataFilesOnDrive < limitOfLinkedDtaFilesOnDrive) {
       const linkedDataList: LinkedDataWithHashId[] = [];
       for (const hash of linkedDataHashes) {
@@ -56,13 +59,14 @@ export const createLinkedDataUploader = <FileId>(
       // if something will go wrong here the old files will still be on the remote drive
       // passing last sync as creation time, so we would not re-download the data
       await uploadLinkedData(allData, lastSync);
+      linkedDataFilesOnDrive += 1;
 
       // cleanup all files that are not needed
-      // if something will go wrong here files will be picked up by next cleanup
       const fileModifiedUntilLastCheck = await listLinkedDataCreatedUntil(
         lastSync
       );
       await asyncPool(fileModifiedUntilLastCheck, deleteFile);
+      linkedDataFilesOnDrive = 1;
     }
   };
 };
@@ -102,22 +106,26 @@ export const createDataUploader = <SyncKey>(
   markFileAsSync: (key: SyncKey) => Promise<void>
 ): DataUpload => {
   return async () => {
-    const records = await getFilesToSync();
+    try {
+      const records = await getFilesToSync();
 
-    // upload resources
-    const [linkedDataRecords, resourceRecords] = splitArray(
-      records,
-      (it) => it[1].ld
-    );
+      // upload resources
+      const [linkedDataRecords, resourceRecords] = splitArray(
+        records,
+        (it) => it[1].ld
+      );
 
-    await uploadResources(resourceRecords.map((it) => it[1]));
-    for (const it of resourceRecords) {
-      await markFileAsSync(it[0]);
-    }
+      await uploadResources(resourceRecords.map((it) => it[1]));
+      for (const it of resourceRecords) {
+        await markFileAsSync(it[0]);
+      }
 
-    await uploadLinkedData(linkedDataRecords.map((it) => it[1].hash));
-    for (const it of linkedDataRecords) {
-      await markFileAsSync(it[0]);
+      await uploadLinkedData(linkedDataRecords.map((it) => it[1].hash));
+      for (const it of linkedDataRecords) {
+        await markFileAsSync(it[0]);
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 };

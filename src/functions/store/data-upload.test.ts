@@ -10,6 +10,24 @@ import { createDataUploader } from "./data-upload";
 import { SyncRecord } from "./index";
 
 describe("dataUploader", () => {
+  const resource1 = {
+    hash: "text-txt-hash1" as HashUri,
+    ld: false,
+    name: "text1.txt",
+  };
+  const resource2 = {
+    hash: "text-txt-hash2" as HashUri,
+    ld: false,
+    name: "text2.txt",
+  };
+
+  const filesToSync: [string, SyncRecord][] = [
+    ["file1", resource1],
+    ["file2", resource2],
+    ["file3", { hash: linkedData1["@id"], ld: true }],
+    ["file4", { hash: linkedData2["@id"], ld: true }],
+  ];
+
   const newUploader = (filesToSync: [string, SyncRecord][]) => {
     const [captureLinkedData, getUploadedLinkedData] = newArgCapture<
       HashUri[]
@@ -39,36 +57,64 @@ describe("dataUploader", () => {
       getUploadedLinkedData,
       getUploadedResources,
       getFileSynchronised,
-    } = newUploader([
-      [
-        "file1",
-        { hash: "text-txt-hash" as HashUri, ld: false, name: "text.txt" },
-      ],
-      [
-        "file2",
-        { hash: "text-txt-hash" as HashUri, ld: false, name: "text.txt" },
-      ],
-      ["file3", { hash: linkedData1["@id"], ld: true }],
-      ["file4", { hash: linkedData2["@id"], ld: true }],
-    ]);
+    } = newUploader(filesToSync);
 
     await upload();
 
-    expect(getUploadedResources()).toEqual([
-      [
-        { hash: "text-txt-hash" as HashUri, ld: false, name: "text.txt" },
-        { hash: "text-txt-hash" as HashUri, ld: false, name: "text.txt" },
-      ],
-    ]);
+    expect(getUploadedResources()).toEqual([[resource1, resource2]]);
     expect(getUploadedLinkedData()).toEqual([
       [linkedData1["@id"], linkedData2["@id"]],
     ]);
     expect(getFileSynchronised()).toEqual(["file1", "file2", "file3", "file4"]);
   });
 
-  test("does not mark resources as synchronised when there was an error updating them", async () => {});
+  test("does not mark resources as synchronised when there was an error updating them", async () => {
+    const [captureLinkedData, getUploadedLinkedData] = newArgCapture<
+      HashUri[]
+    >();
+    const [, getUploadedResources] = newArgCapture<
+      { hash: HashUri; name?: string }[]
+    >();
+    const [captureFileSync, getFileSynchronised] = newArgCapture<string>();
 
-  test("does not mark resources as synchronised when there was an error updating them", async () => {});
+    const upload = createDataUploader<string>(
+      async () => {
+        throw new Error("something went wrong");
+      },
+      async (it) => captureLinkedData(it),
+      async () => filesToSync,
+      async (it) => captureFileSync(it)
+    );
+
+    await upload();
+
+    expect(getUploadedResources()).toEqual([]);
+    expect(getUploadedLinkedData()).toEqual([]);
+    expect(getFileSynchronised()).toEqual([]);
+  });
+
+  test("does not mark resources as synchronised when there was an error updating them", async () => {
+    const [, getUploadedLinkedData] = newArgCapture<HashUri[]>();
+    const [captureResource, getUploadedResources] = newArgCapture<
+      { hash: HashUri; name?: string }[]
+    >();
+    const [captureFileSync, getFileSynchronised] = newArgCapture<string>();
+
+    const upload = createDataUploader<string>(
+      async (it) => captureResource(it),
+      async () => {
+        throw new Error("something went wrong");
+      },
+      async () => filesToSync,
+      async (it) => captureFileSync(it)
+    );
+
+    await upload();
+
+    expect(getUploadedResources()).toEqual([[resource1, resource2]]);
+    expect(getUploadedLinkedData()).toEqual([]);
+    expect(getFileSynchronised()).toEqual(["file1", "file2"]);
+  });
 });
 
 describe("resourceUploader", () => {
