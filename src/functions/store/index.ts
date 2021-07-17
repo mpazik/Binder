@@ -17,6 +17,10 @@ import {
 } from "../../libs/indexeddb";
 import { LinkedData, LinkedDataWithHashId } from "../../libs/jsonld-format";
 import { handleState, mapState } from "../../libs/named-state";
+import {
+  onBrowserClose,
+  RegisterBrowserClose,
+} from "../../libs/on-browser-close";
 import { measureAsyncTime } from "../../libs/performance";
 import { browserTimer, SetupTimer, setupTimer } from "../../libs/timer";
 import { UpdateIndex } from "../indexes/types";
@@ -100,7 +104,8 @@ export type StoreState =
 export const createStore = (
   indexLinkedData: UpdateIndex,
   handleNewState: Callback<StoreState>,
-  autoUpdateTimer: SetupTimer = setupTimer(browserTimer, autoUpdateTimeout)
+  autoUpdateTimer: SetupTimer = setupTimer(browserTimer, autoUpdateTimeout),
+  registerBeforeClose: RegisterBrowserClose = onBrowserClose
 ): Store => {
   // pass unclaimedDb
   let resourceStore: StoreProvider<Blob>;
@@ -113,7 +118,6 @@ export const createStore = (
     getLastSyncTime,
     (date) => storePut<Date>(syncPropsStore, date, "last-sync").then(() => {})
   );
-
   const putLocalResource = async (blob: Blob) => {
     const hash = await hashBlob(blob);
     await storePut(resourceStore, blob, hash);
@@ -142,6 +146,15 @@ export const createStore = (
     updateDriveReaderState,
   ] = createStatefulRemoteDriveResourceRead();
   let state: StoreState = ["idle"];
+
+  registerBeforeClose(() => {
+    if (state[0] !== "upload-needed") {
+      return;
+    }
+    state[1].stopAutoUpdate();
+    updateState(["uploading", state[1]]);
+    return "Your browser data is uploading to remove drive, please don't leave now";
+  });
 
   const setupStoreSync = (drive: RemoteDrive): StoreSync => {
     return {
@@ -228,7 +241,7 @@ export const createStore = (
         // check if there is anything to upload
         const data = await storeGetFirst(syncRequiredStore);
         if (data !== undefined) {
-          changeToUpdateNeeded(storeSync);
+          updateState(["uploading", storeSync]);
         }
       },
       uploading: async (storeSync) => {
