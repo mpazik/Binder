@@ -62,9 +62,4 @@ export const normalizeLinkedData = (data: LinkedData): Promise<ArrayBuffer> =>
   normalize(data, {
     documentLoader: contextLoader,
     algorithm: "URDNA2015",
-  })
-    .then((it) => {
-      console.log("normalizes", it);
-      return it;
-    })
-    .then((normalized) => textEncoder.encode(normalized).buffer);
+  }).then((normalized) => textEncoder.encode(normalized).buffer);

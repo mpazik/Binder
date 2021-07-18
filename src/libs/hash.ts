@@ -56,7 +56,6 @@ export const hashLinkedData = async (
   algorithm: HashingAlgorithm = "sha-256"
 ): Promise<HashUri> => {
   const { "@id": id, ...rest } = data;
-  console.log(rest);
   const normalized = await normalizeLinkedData(rest);
   return referenceToHashUri(await computeHash(normalized, algorithm));
 };

@@ -129,7 +129,8 @@ export const App = asyncLoader(
       fork(
         (state) => console.log("store - ", state),
         (s) => updateStoreState(s)
-      )
+      ),
+      unclaimedRepository
     );
     const updateRepo = fork(
       () => console.log("switching repo"),
@@ -142,7 +143,9 @@ export const App = asyncLoader(
     updateRepo(initRepo);
 
     // todo this should be different
-    const [creatorProvider, setCreator] = stateProvider(lastLogin?.email);
+    const [creatorProvider, setCreator] = stateProvider<string | null>(
+      lastLogin?.email ?? null
+    );
 
     const updateGdrive = gdrive(
       fork(
@@ -153,6 +156,9 @@ export const App = asyncLoader(
             if (state[0] === "logged" || state[0] === "disconnected") {
               console.log("switching user", state[1].user);
               return state[1].user.emailAddress;
+            }
+            if (state[0] === "signedOut") {
+              return null;
             }
             return undefined;
           }),

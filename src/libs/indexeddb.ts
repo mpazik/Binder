@@ -113,6 +113,26 @@ export const storeIterate = <T>(
     };
   });
 
+export const storeOneWayIterate = <T>(
+  getStore: StoreProvider<T>,
+  handler: (value: T) => void
+): Promise<void> =>
+  new Promise((resolve, reject) => {
+    const request = getStore(true).openCursor();
+    request.onerror = reject;
+    request.onsuccess = function (event) {
+      const cursor = (event.target as IDBRequest<IDBCursorWithValue | null>)
+        .result;
+      if (cursor) {
+        handler(cursor.value);
+        cursor.delete();
+        cursor.continue();
+      } else {
+        resolve();
+      }
+    };
+  });
+
 export const storeGetAll = <T>(
   getStore: StoreProvider<T>,
   query?: IDBValidKey | IDBKeyRange

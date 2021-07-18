@@ -12,6 +12,7 @@ import {
   storeGetAllWithKeys,
   storeGetFirst,
   StoreName,
+  storeOneWayIterate,
   StoreProvider,
   storePut,
 } from "../../libs/indexeddb";
@@ -44,7 +45,11 @@ import {
   ResourceStoreWrite,
 } from "./local-store";
 import { createStatefulRemoteDriveResourceRead } from "./remote-drive-store-read";
-import { registerRepositoryVersion, RepositoryDb } from "./repository";
+import {
+  registerRepositoryVersion,
+  RepositoryDb,
+  UnclaimedRepositoryDb,
+} from "./repository";
 
 export type {
   ResourceStoreWrite,
@@ -104,10 +109,12 @@ export type StoreState =
 export const createStore = (
   indexLinkedData: UpdateIndex,
   handleNewState: Callback<StoreState>,
+  unclaimedRepo: UnclaimedRepositoryDb,
   autoUpdateTimer: SetupTimer = setupTimer(browserTimer, autoUpdateTimeout),
   registerBeforeClose: RegisterBrowserClose = onBrowserClose
 ): Store => {
-  // pass unclaimedDb
+  // this should be part of a state
+  let unclaimedRepoCurrent = false;
   let resourceStore: StoreProvider<Blob>;
   let linkedDataStore: StoreProvider<LinkedDataWithHashId>;
   let syncRequiredStore: StoreProvider<SyncRecord>;
@@ -324,18 +331,39 @@ export const createStore = (
       );
     },
     switchRepo: (repositoryDb) => {
-      // if repo is unclaimed
-      // if it is flag
-      // if flag is true go trough each
-      // const oldResourceStore = resourceStore
-      // const oldLinkedDataStore = linkedDataStore
-      // const oldSyncRequiredStore = syncRequiredStore
-      resourceStore = getResourceStore(repositoryDb);
-      linkedDataStore = getLinkedDataStore(repositoryDb);
-      syncRequiredStore = repositoryDb.getStoreProvider<SyncRecord>(
-        syncRequiredStoreName
-      );
-      syncPropsStore = repositoryDb.getStoreProvider<Date>(syncPropsStoreName);
+      // this is really ugly implementation
+      const setRepo = () => {
+        resourceStore = getResourceStore(repositoryDb);
+        linkedDataStore = getLinkedDataStore(repositoryDb);
+        syncRequiredStore = repositoryDb.getStoreProvider<SyncRecord>(
+          syncRequiredStoreName
+        );
+        syncPropsStore = repositoryDb.getStoreProvider<Date>(
+          syncPropsStoreName
+        );
+      };
+
+      if (repositoryDb === unclaimedRepo) {
+        unclaimedRepoCurrent = true;
+      } else if (unclaimedRepoCurrent) {
+        measureAsyncTime("claiming loged off data", async () => {
+          const oldResourceStore = resourceStore;
+          const oldLinkedDataStore = linkedDataStore;
+          const oldSyncRequiredStore = syncRequiredStore;
+          setRepo();
+
+          await storeOneWayIterate(oldResourceStore, putLocalResource);
+          await storeOneWayIterate(oldLinkedDataStore, async (ld) => {
+            const linkedDataWithHashId = await putLocalLinkedData(ld);
+            await indexLinkedData(linkedDataWithHashId);
+          });
+          await storeOneWayIterate(oldSyncRequiredStore, (sd) =>
+            storePut(syncRequiredStore, sd)
+          );
+        });
+        return;
+      }
+      setRepo();
     },
   };
 };

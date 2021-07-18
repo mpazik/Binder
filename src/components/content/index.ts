@@ -29,7 +29,7 @@ export const contentComponent: Component<
     ldStoreRead: LinkedDataStoreRead;
     onSave: Consumer<LinkedDataWithHashId>;
     annotationsIndex: AnnotationsIndex["search"];
-    creatorProvider: () => string | undefined;
+    creatorProvider: () => string | null;
   },
   {
     displayContent: LinkedDataWithContentAndFragment;

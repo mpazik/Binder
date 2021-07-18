@@ -66,7 +66,7 @@ export const annotationsSupport: Component<
     ldStoreRead: LinkedDataStoreRead;
     annotationsIndex: AnnotationsIndex["search"];
     requestDocumentSave: () => void;
-    creatorProvider: () => string | undefined;
+    creatorProvider: () => string | null;
   },
   {
     displayDocumentAnnotations: AnnotationDisplayRequest;
@@ -94,7 +94,7 @@ export const annotationsSupport: Component<
       reference,
       selector,
       content,
-      creatorProvider()
+      creatorProvider() ?? undefined
     );
     ldStoreWrite(annotation).then(() => {
       changeSelection(["display", annotation]);
