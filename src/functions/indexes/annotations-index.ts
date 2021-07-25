@@ -40,7 +40,7 @@ export const createSearchAnnotationsIndex = (
 
 const createAnnotationsIndexer = (store: AnnotationsStore): UpdateIndex => {
   return async (ld) => {
-    if (!isTypeEqualTo(ld, "annotation")) return;
+    if (!isTypeEqualTo(ld, "Annotation")) return;
     const annotation = (ld as unknown) as Annotation;
     const target = annotation.target;
     if (!target || typeof target !== "object") return;

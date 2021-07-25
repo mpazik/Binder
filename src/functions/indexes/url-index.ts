@@ -28,7 +28,7 @@ const createSearchUrlIndex = (
 
 const createUrlIndexer = (urlIndexStore: UrlIndexStore): UpdateIndex => {
   return async (ld) => {
-    if (!isTypeEqualTo(ld, "article")) return;
+    if (!isTypeEqualTo(ld, "Article")) return;
     const url = findUrl(ld);
     if (!url) return;
     return storePut(urlIndexStore, ld["@id"], url).then(); // ignore storePut result
