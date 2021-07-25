@@ -67,7 +67,6 @@ const prepareEpubPage = async (
 
     const { uri, fragment } = newUriWithFragment(url);
     const path = uri === "" ? file : absolute(file, uri);
-    console.log(packageDoc);
     const manifestItem = packageDoc.querySelector(
       `manifest > item[href='${path}']`
     );

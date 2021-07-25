@@ -1,3 +1,4 @@
+import { link, withOptionalState } from "../../../../linki";
 import { LinkedDataWithContent } from "../../functions/content-processors";
 import { ContentSaver } from "../../functions/content-saver";
 import { updateBrowserHistory } from "../../functions/url-hijack";
@@ -44,12 +45,18 @@ export const contentDisplayComponent: Component<
   {
     contentSaver: ContentSaver;
     onAnnotationDisplayRequest: Consumer<AnnotationDisplayRequest>;
+    onCurrentFragmentResponse: Consumer<string | undefined>;
   },
   {
     displayContent: LinkedDataWithContentAndFragment;
     goToFragment: string;
+    requestCurrentFragment: void;
   }
-> = ({ onAnnotationDisplayRequest, contentSaver }) => (render, onClose) => {
+> = ({
+  onCurrentFragmentResponse,
+  onAnnotationDisplayRequest,
+  contentSaver,
+}) => (render, onClose) => {
   // multi state with linkedData and fallback for update
   const [
     saveNewContent,
@@ -73,11 +80,22 @@ export const contentDisplayComponent: Component<
   }, undefined);
 
   const [
+    requestCurrentFragment,
+    setCallbackForReqFragment,
+    resetCallbackForReqFragment,
+  ] = link(withOptionalState<Callback>(), (requestFragment) =>
+    requestFragment?.()
+  );
+
+  // content to send last fragment before close
+  // put start view date to context
+  // figure out epub
+
+  const [
     closeContentComponent,
     [setCallbackForCloseComponent],
   ] = withMultiState<[Callback]>(([closeComponent]) => {
     if (closeComponent) {
-      console.log("closing");
       closeComponent();
     }
   }, undefined);
@@ -106,6 +124,7 @@ export const contentDisplayComponent: Component<
   const displayController: DisplayController = {
     onDisplay: fork(displayAnnotations, updateHistory),
     onContentModified: saveNewContent,
+    onCurrentFragmentResponse,
   };
 
   const displayContentComponent = (component: ContentComponent) => ({
@@ -114,12 +133,18 @@ export const contentDisplayComponent: Component<
   }: LinkedDataWithContentAndFragment) => {
     closeContentComponent();
     const [onClose, close] = newCloseController();
-    const { displayContent, saveComplete, goToFragment } = component(
-      displayController
-    )(render, onClose);
+    const {
+      displayContent,
+      saveComplete,
+      goToFragment,
+      requestCurrentFragment,
+    } = component(displayController)(render, onClose);
     setCallbackForCloseComponent(close);
     setCallbackForUpdate(saveComplete);
     setCallbackForFragment(goToFragment);
+    requestCurrentFragment
+      ? setCallbackForReqFragment(requestCurrentFragment)
+      : resetCallbackForReqFragment();
     displayContent({ content, fragment });
   };
 
@@ -150,5 +175,6 @@ export const contentDisplayComponent: Component<
       )
     ),
     goToFragment,
+    requestCurrentFragment,
   };
 };

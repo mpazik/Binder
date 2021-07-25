@@ -42,3 +42,19 @@ export const createDynamicIndex2 = <Q, T>(
     },
   };
 };
+
+export type DynamicStoreProvider<T> = [
+  store: StoreProvider<T>,
+  swtichRepo: (db: RepositoryDb) => void
+];
+export const createDynamicStoreProvider = <T>(
+  storeName: StoreName
+): DynamicStoreProvider<T> => {
+  let store: StoreProvider<T>;
+  return [
+    (arg) => throwIfUndefined(store)(arg),
+    (db) => {
+      store = db.getStoreProvider(storeName);
+    },
+  ];
+};

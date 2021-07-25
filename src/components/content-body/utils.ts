@@ -14,6 +14,21 @@ export const scrollToElement = (elementId: string): void => {
   element.scrollIntoView();
 };
 
+export const lastSeenElement = (
+  container: HTMLElement = document.body
+): HTMLElement | undefined => {
+  const elementsWithIds = Array.from(
+    container.querySelectorAll("[id]")
+  ) as HTMLElement[];
+  let lastSeenElement: HTMLElement | undefined;
+  for (const element of elementsWithIds) {
+    // if element is in the front of the top of the the view port - stop searching
+    if (element.offsetTop > window.pageYOffset) break;
+    lastSeenElement = element;
+  }
+  return lastSeenElement;
+};
+
 const tagsReadingKeyboardInput = ["INPUT", "TEXTAREA", "BUTTON"];
 export const doesElementReadsInput = (element: Element): boolean => {
   const tagName = element.tagName;

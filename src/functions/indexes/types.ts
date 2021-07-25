@@ -8,6 +8,9 @@ export type IndexingStrategy<T> = (
 
 export type SearchIndex<Q, T> = (q: Q) => Promise<IndexRecord<T>[]>;
 export type UpdateIndex = (ld: LinkedDataWithHashId) => Promise<void>;
+export type Indexer<T> = (
+  ld: LinkedDataWithHashId
+) => IndexRecord<T> | undefined;
 
 export type Index<Q, T> = {
   search: SearchIndex<Q, T>;

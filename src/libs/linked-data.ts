@@ -34,7 +34,7 @@ export const getType = (ld: LinkedData): string | undefined =>
 export const isTypeEqualTo = (ld: LinkedData, type: string): boolean => {
   const ldType = getType(ld);
   if (!ldType) return false;
-  return ldType.toLowerCase() === type;
+  return ldType === type;
 };
 
 export const getPropertyValue = <T = string>(

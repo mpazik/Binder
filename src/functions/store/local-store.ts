@@ -49,12 +49,11 @@ export type LinkedDataStoreReadAll = () => Promise<LinkedDataWithHashId[]>;
 export const createLinkedDataProvider = (
   repositoryDb: RepositoryDb
 ): ((push: (ld: LinkedDataWithHashId) => Promise<void>) => Promise<void>) => {
-  const linkedDataStore1 = getLinkedDataStore(repositoryDb);
   let lastHash: HashUri | undefined;
   return async (push) =>
     await asyncLoop(async () => {
       const result = await storeGetNext<LinkedDataWithHashId>(
-        linkedDataStore1,
+        getLinkedDataStore(repositoryDb),
         lastHash
       );
       if (!result) {

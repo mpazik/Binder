@@ -5,7 +5,7 @@ import { DocFragment } from "../annotations/annotation";
 export type DisplayContext = {
   container: HTMLElement;
   fragment?: string;
-  fragmentForAnnotations?: DocFragment;
+  fragmentForAnnotations?: DocFragment; // that looks a little bit ugly
 };
 
 export type AnnotationContext = {
@@ -16,6 +16,7 @@ export type AnnotationContext = {
 export type DisplayController = {
   onDisplay: Callback<DisplayContext>;
   onContentModified: Callback<Blob>;
+  onCurrentFragmentResponse: Callback<string | undefined>;
 };
 export type ContentComponent = Component<
   DisplayController,
@@ -23,5 +24,6 @@ export type ContentComponent = Component<
     displayContent: { content: Blob; fragment?: string };
     goToFragment: string;
     saveComplete?: void;
+    requestCurrentFragment?: void;
   }
 >;

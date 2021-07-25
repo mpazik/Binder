@@ -3,10 +3,12 @@ import "./loading.css";
 
 import {
   asyncMapWithErrorHandler,
+  Callback,
   defined,
   filter,
   fork,
   ignore,
+  ignoreParam,
   link,
   map,
   passOnlyChanged,
@@ -36,6 +38,11 @@ import { createCompositeIndexer } from "../../functions/indexes/composite-indexe
 import { createDirectoryIndex } from "../../functions/indexes/directory-index";
 import { createUriIndex } from "../../functions/indexes/url-index";
 import {
+  createWatchHistoryIndex,
+  createWatchHistoryIndexer,
+  createWatchHistoryStore,
+} from "../../functions/indexes/watch-history-index";
+import {
   createLinkedDataWithDocumentFetcher,
   LinkedDataWithContentFetcher,
 } from "../../functions/linked-data-fetcher";
@@ -48,13 +55,14 @@ import {
   UnclaimedRepositoryDb,
 } from "../../functions/store/repository";
 import {
-  currentDocumentUriProvider,
+  browserUriProvider,
+  documentLinksUriProvider,
   newUriWithFragment,
   updateBrowserHistory,
   UriWithFragment,
 } from "../../functions/url-hijack";
 import { stateProvider } from "../../libs/connections";
-import { HashName } from "../../libs/hash";
+import { HashName, HashUri, isHashUri } from "../../libs/hash";
 import { newStateMapper } from "../../libs/named-state";
 import { measureAsyncTime } from "../../libs/performance";
 import { div, fragment, newSlot } from "../../libs/simple-ui/render";
@@ -119,10 +127,17 @@ export const App = asyncLoader(
     const urlIndex = createUriIndex();
     const directoryIndex = createDirectoryIndex();
     const annotationsIndex = createAnnotationsIndex();
+    const [
+      watchHistoryStore,
+      switchRepoForWatchHistory,
+    ] = createWatchHistoryStore();
+    const watchHistoryIndex = createWatchHistoryIndex(watchHistoryStore);
+
     const indexLinkedData = createCompositeIndexer([
       urlIndex.update,
       directoryIndex.update,
       annotationsIndex.update,
+      createWatchHistoryIndexer(watchHistoryStore),
     ]);
     const store = createStore(
       indexLinkedData,
@@ -137,7 +152,8 @@ export const App = asyncLoader(
       store.switchRepo,
       urlIndex.switchRepo,
       directoryIndex.switchRepo,
-      annotationsIndex.switchRepo
+      annotationsIndex.switchRepo,
+      switchRepoForWatchHistory
     );
     const initRepo = lastLoginRepo ?? unclaimedRepository;
     updateRepo(initRepo);
@@ -224,7 +240,26 @@ export const App = asyncLoader(
       ])
     );
 
-    const [navigationSlot, { updateStoreState, updateGdriveState }] = newSlot(
+    const loadUriWithRecentFragment: Callback<UriWithFragment> = link(
+      asyncMapWithErrorHandler(
+        async ({ uri, fragment }) => {
+          if (!fragment && isHashUri(uri)) {
+            const record = await watchHistoryIndex(uri as HashUri);
+            if (record && record.fragment) {
+              return { uri, fragment: record.fragment };
+            }
+          }
+          return { uri, fragment };
+        },
+        (e) => console.error(e)
+      ),
+      loadUri
+    );
+
+    const [
+      navigationSlot,
+      { updateStoreState, updateGdriveState, hideNav },
+    ] = newSlot(
       "navigation",
       navigation({
         updateGdrive,
@@ -238,7 +273,7 @@ export const App = asyncLoader(
               }
             : undefined,
         },
-        loadUri,
+        loadUri: loadUriWithRecentFragment,
         directoryIndex: directoryIndex.search,
       })
     );

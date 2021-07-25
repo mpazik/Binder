@@ -1,14 +1,23 @@
-import { link, map, pick } from "linki";
+import {
+  link,
+  map,
+  pick,
+  fork,
+  withOptionalState,
+  Callback,
+  withMultiState,
+} from "linki";
 
 import { LinkedDataWithContent } from "../../functions/content-processors";
 import { ContentSaver } from "../../functions/content-saver";
 import { AnnotationsIndex } from "../../functions/indexes/annotations-index";
 import { LinkedDataStoreWrite } from "../../functions/store";
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
-import { Consumer, fork, splitMap, withState } from "../../libs/connections";
 import { throwIfNull2 } from "../../libs/errors";
+import { HashUri, isHashUri } from "../../libs/hash";
 import { LinkedData, LinkedDataWithHashId } from "../../libs/jsonld-format";
 import { findHashUri } from "../../libs/linked-data";
+import { throwOnNull } from "../../libs/linki";
 import { Component, div, newSlot } from "../../libs/simple-ui/render";
 import { getTarget } from "../../libs/simple-ui/utils/funtions";
 import { annotationsSupport } from "../annotations";
@@ -16,6 +25,7 @@ import {
   contentDisplayComponent,
   LinkedDataWithContentAndFragment,
 } from "../content-body";
+import { createWatchAction } from "../watch-history/watch-action";
 
 import { contentHeader } from "./content-header";
 import { EditBarState, saveBar } from "./edit-bar";
@@ -27,7 +37,7 @@ export const contentComponent: Component<
     contentSaver: ContentSaver;
     ldStoreWrite: LinkedDataStoreWrite;
     ldStoreRead: LinkedDataStoreRead;
-    onSave: Consumer<LinkedDataWithHashId>;
+    onSave: Callback<LinkedDataWithHashId>;
     annotationsIndex: AnnotationsIndex["search"];
     creatorProvider: () => string | null;
   },
@@ -54,6 +64,7 @@ export const contentComponent: Component<
           fork(
             onSave,
             () => updateSaveBar(["hidden"]),
+            (ld) => setWatchReference(ld["@id"]),
             link(map(findHashUri, throwIfNull2(refError)), setReference)
           )
         )
@@ -63,11 +74,29 @@ export const contentComponent: Component<
     }
   };
 
-  const [saveContent, setContextForSave] = withState<LinkedDataWithContent>(
+  const [saveContent, setContextForSave] = link(
+    withOptionalState<LinkedDataWithContent>(),
+    throwOnNull(),
     (data) => {
       if (!isNew(data.linkedData))
         throw new Error("Can only save content that was not saved before");
       storeData(data, saveContent);
+    }
+  );
+
+  const [saveWatchAction, setWatchStartTime, setWatchReference] = link(
+    withMultiState<[Date, HashUri], string | undefined>(undefined, undefined),
+    ([startTime, hashUri, fragment]) => {
+      if (startTime === undefined || hashUri === undefined)
+        throw new Error("context undefined");
+      if (!isHashUri(hashUri)) return; // ignore not saved pages
+      ldStoreWrite(
+        createWatchAction(
+          hashUri + (fragment ? `#${fragment}` : ""),
+          startTime,
+          new Date()
+        )
+      );
     }
   );
 
@@ -78,10 +107,10 @@ export const contentComponent: Component<
     })
   );
 
-  const resetSaveBar = splitMap(
-    isNew,
-    () => ["visible"] as EditBarState,
-    () => ["hidden"] as EditBarState,
+  const resetSaveBar = link(
+    map<LinkedData, EditBarState>((it) =>
+      isNew(it) ? ["visible"] : ["hidden"]
+    ),
     updateSaveBar
   );
 
@@ -99,11 +128,15 @@ export const contentComponent: Component<
     })
   );
 
-  const [contentSlot, { displayContent, goToFragment }] = newSlot(
+  const [
+    contentSlot,
+    { displayContent, goToFragment, requestCurrentFragment },
+  ] = newSlot(
     "content",
     contentDisplayComponent({
       contentSaver,
       onAnnotationDisplayRequest: displayDocumentAnnotations,
+      onCurrentFragmentResponse: saveWatchAction,
     })
   );
 
@@ -131,11 +164,16 @@ export const contentComponent: Component<
 
   return {
     displayContent: fork(
+      () => requestCurrentFragment(),
       displayContent,
       setContextForSave,
       link(
         map(pick("linkedData")),
         fork(
+          (linkedData) => {
+            setWatchStartTime(new Date());
+            setWatchReference(linkedData["@id"] as HashUri);
+          },
           renderFields,
           link(map(findHashUri), fork(setReference)),
           resetSaveBar

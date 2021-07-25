@@ -1,8 +1,14 @@
+import { asyncLoop } from "../../libs/async-pool";
+import { HashUri } from "../../libs/hash";
 import {
   createStoreProvider,
   openDb,
+  storeGetNext,
+  StoreName,
   StoreProvider,
 } from "../../libs/indexeddb";
+import { LinkedDataWithHashId } from "../../libs/jsonld-format";
+import { measureAsyncTime } from "../../libs/performance";
 import { DriverAccount } from "../global-db";
 
 export type RepositoryDb = {
@@ -15,6 +21,31 @@ type RepositoryVersionUpdate = {
   version: number;
   stores: { name: string; params?: IDBObjectStoreParameters }[];
   afterUpdate?: AfterUpdateHook;
+  index?: {
+    indexerCreator: <T>(
+      store: StoreProvider<T>
+    ) => (ld: LinkedDataWithHashId) => Promise<void>;
+    storeName: StoreName;
+  };
+};
+
+const linkedDataStoreName = "linked-data" as StoreName;
+const createLinkedDataProvider = (
+  repositoryDb: RepositoryDb
+): ((push: (ld: LinkedDataWithHashId) => Promise<void>) => Promise<void>) => {
+  let lastHash: HashUri | undefined;
+  return async (push) =>
+    await asyncLoop(async () => {
+      const result = await storeGetNext<LinkedDataWithHashId>(
+        repositoryDb.getStoreProvider(linkedDataStoreName),
+        lastHash
+      );
+      if (!result) {
+        return true;
+      }
+      lastHash = result.key as HashUri;
+      await push(result.value);
+    });
 };
 
 const updates: RepositoryVersionUpdate[] = [];
@@ -62,10 +93,21 @@ export const openRepository = async (
         console.log(
           `Processing repository update number "${processingVersion}"`
         );
-        const { stores, afterUpdate } = updates[processingVersion];
+        const { stores, afterUpdate, index } = updates[processingVersion];
         stores.forEach(({ name, params }) => {
           db.createObjectStore(name, params);
         });
+        if (index) {
+          afterCreationHooks.push((repositoryDb) => {
+            const indexer = index.indexerCreator(
+              repositoryDb.getStoreProvider(index.storeName)
+            );
+            const linkedDataProvider = createLinkedDataProvider(repositoryDb);
+            return measureAsyncTime(`${index.storeName}-indexing`, async () =>
+              linkedDataProvider((result) => indexer(result))
+            );
+          });
+        }
         if (afterUpdate) {
           afterCreationHooks.push(afterUpdate);
         }
