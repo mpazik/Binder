@@ -3,6 +3,7 @@ import { HashUri } from "../../libs/hash";
 import {
   createStoreProvider,
   openDb,
+  storeClear,
   storeGetNext,
   StoreName,
   StoreProvider,
@@ -17,16 +18,17 @@ export type RepositoryDb = {
 
 type AfterUpdateHook = (repositoryDb: RepositoryDb) => Promise<void>;
 
+type Indexer = {
+  indexerCreator: <T>(
+    store: StoreProvider<T>
+  ) => (ld: LinkedDataWithHashId) => Promise<void>;
+  storeName: StoreName;
+};
 type RepositoryVersionUpdate = {
   version: number;
   stores: { name: string; params?: IDBObjectStoreParameters }[];
   afterUpdate?: AfterUpdateHook;
-  index?: {
-    indexerCreator: <T>(
-      store: StoreProvider<T>
-    ) => (ld: LinkedDataWithHashId) => Promise<void>;
-    storeName: StoreName;
-  };
+  index?: Indexer;
 };
 
 const linkedDataStoreName = "linked-data" as StoreName;
@@ -46,6 +48,17 @@ const createLinkedDataProvider = (
       lastHash = result.key as HashUri;
       await push(result.value);
     });
+};
+
+const indexData = async (
+  repo: RepositoryDb,
+  { indexerCreator, storeName }: Indexer
+) => {
+  const indexer = indexerCreator(repo.getStoreProvider(storeName));
+  const linkedDataProvider = createLinkedDataProvider(repo);
+  return measureAsyncTime(`${storeName}-indexing`, async () =>
+    linkedDataProvider((result) => indexer(result))
+  );
 };
 
 const updates: RepositoryVersionUpdate[] = [];
@@ -98,15 +111,9 @@ export const openRepository = async (
           db.createObjectStore(name, params);
         });
         if (index) {
-          afterCreationHooks.push((repositoryDb) => {
-            const indexer = index.indexerCreator(
-              repositoryDb.getStoreProvider(index.storeName)
-            );
-            const linkedDataProvider = createLinkedDataProvider(repositoryDb);
-            return measureAsyncTime(`${index.storeName}-indexing`, async () =>
-              linkedDataProvider((result) => indexer(result))
-            );
-          });
+          afterCreationHooks.push((repositoryDb) =>
+            indexData(repositoryDb, index)
+          );
         }
         if (afterUpdate) {
           afterCreationHooks.push(afterUpdate);
@@ -115,6 +122,20 @@ export const openRepository = async (
     },
     currentVersion
   );
+
+  const binderIndexes: { [index: string]: () => void } = {};
+  updates.forEach(({ index }) => {
+    if (!index) return;
+    binderIndexes[index.storeName] = () => {
+      console.log("indexing", index.storeName);
+      const store = repo.getStoreProvider(index.storeName);
+      storeClear(store);
+      indexData(repo, index);
+    };
+  });
+
+  // @ts-ignore
+  global.reindex = binderIndexes;
 
   // export close method and is closing?
   const repo: RepositoryDb = {

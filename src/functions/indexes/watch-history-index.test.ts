@@ -25,8 +25,9 @@ describe("watch history indexer", () => {
           "nih:sha-256;a640336a3f643b0cc0f1648218ad881e8f28ea12bd010603c07009c9995347ec",
         startTime: "2021-07-25T09:11:52.680Z",
         endTime: "2021-07-25T09:12:44.692Z",
+        eventId: "nih:sha-256;1e784540af3bcf44ce196c327d6ffcec8aab064fe3d030c9913905e3243adffe" as HashUri,
       },
-      hash:
+      key:
         "nih:sha-256;a640336a3f643b0cc0f1648218ad881e8f28ea12bd010603c07009c9995347ec",
     });
   });
@@ -41,8 +42,9 @@ describe("watch history indexer", () => {
         fragment: "content",
         uri:
           "nih:sha-256;a640336a3f643b0cc0f1648218ad881e8f28ea12bd010603c07009c9995347ec",
+        eventId: "nih:sha-256;1e784540af3bcf44ce196c327d6ffcec8aab064fe3d030c9913905e3243adffe" as HashUri,
       },
-      hash:
+      key:
         "nih:sha-256;a640336a3f643b0cc0f1648218ad881e8f28ea12bd010603c07009c9995347ec",
     });
   });

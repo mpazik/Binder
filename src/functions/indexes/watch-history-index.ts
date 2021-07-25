@@ -7,6 +7,7 @@ import {
   storePut,
 } from "../../libs/indexeddb";
 import { isTypeEqualTo } from "../../libs/linked-data";
+import { LinkedDataDelete } from "../store/local-store";
 import { registerRepositoryVersion } from "../store/repository";
 import { newUriWithFragment } from "../url-hijack";
 
@@ -22,6 +23,7 @@ type WatchHistoryRecord = {
   uri: string;
   startTime?: string;
   endTime?: string;
+  eventId: HashUri;
 };
 export type WatchHistoryStore = StoreProvider<WatchHistoryRecord>;
 export type WatchHistoryIndex = (
@@ -44,7 +46,10 @@ export const index: Indexer<WatchHistoryRecord> = (ld) => {
 
   const endTime =
     typeof watchAction.endTime === "string" ? watchAction.endTime : undefined;
-  return { props: { fragment, uri, startTime, endTime }, hash: uri as HashUri };
+  return {
+    props: { fragment, uri, startTime, endTime, eventId: ld["@id"] },
+    key: uri as HashUri,
+  };
 };
 
 export const createWatchHistoryStore = (): DynamicStoreProvider<WatchHistoryRecord> =>
@@ -54,12 +59,26 @@ export const createWatchHistoryIndex = (
   watchHistoryStore: WatchHistoryStore
 ): WatchHistoryIndex => async (hashUri) => storeGet(watchHistoryStore, hashUri);
 
-export const createWatchHistoryIndexer = (
+const createWatchHistoryPureIndexer = (
   watchHistoryStore: WatchHistoryStore
 ): UpdateIndex => async (ld) => {
   const record = index(ld);
   if (!record) return;
-  return storePut(watchHistoryStore, record.props, record.hash).then(); // ignore storePut result
+  return storePut(watchHistoryStore, record.props, record.key).then(); // ignore storePut result
+};
+
+export const createWatchHistoryIndexer = (
+  watchHistoryStore: WatchHistoryStore,
+  deleteLinkedData: LinkedDataDelete
+): UpdateIndex => async (ld) => {
+  const record = index(ld);
+  if (!record) return;
+  const previous = await storeGet(watchHistoryStore, record.key);
+  if (previous) {
+    // we don't want to pollute space with all watch events so we store only last one
+    await deleteLinkedData(previous.eventId);
+  }
+  return storePut(watchHistoryStore, record.props, record.key).then(); // ignore storePut result
 };
 
 registerRepositoryVersion({
@@ -67,6 +86,6 @@ registerRepositoryVersion({
   stores: [{ name: watchHistoryStoreName }],
   index: {
     storeName: watchHistoryStoreName,
-    indexerCreator: createWatchHistoryIndexer,
+    indexerCreator: createWatchHistoryPureIndexer,
   },
 });

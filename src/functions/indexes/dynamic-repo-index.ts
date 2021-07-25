@@ -47,6 +47,7 @@ export type DynamicStoreProvider<T> = [
   store: StoreProvider<T>,
   swtichRepo: (db: RepositoryDb) => void
 ];
+
 export const createDynamicStoreProvider = <T>(
   storeName: StoreName
 ): DynamicStoreProvider<T> => {

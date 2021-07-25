@@ -37,12 +37,14 @@ import { newExecutionTimeSaver } from "./execution-time-saver";
 import { extractLinkedDataFromResponse } from "./link-data-response-extractor";
 import {
   ExternalLinkedDataStoreWrite,
-  getLinkedDataStore,
   getResourceStore,
   LinkedDataStoreRead,
   LinkedDataStoreWrite,
   ResourceStoreRead,
   ResourceStoreWrite,
+  LinkedDataDelete,
+  createDynamicLinkedDataStore,
+  createLinkedDataDelete,
 } from "./local-store";
 import { createStatefulRemoteDriveResourceRead } from "./remote-drive-store-read";
 import {
@@ -62,6 +64,7 @@ export type Store = {
   writeResource: ResourceStoreWrite;
   readLinkedData: LinkedDataStoreRead;
   writeLinkedData: LinkedDataStoreWrite;
+  removeLinkedData: LinkedDataDelete;
   updateRemoteDriveState: (driveState: RemoteDriverState) => void;
   switchRepo: (db: RepositoryDb) => void;
   upload: () => void;
@@ -116,9 +119,14 @@ export const createStore = (
   // this should be part of a state
   let unclaimedRepoCurrent = false;
   let resourceStore: StoreProvider<Blob>;
-  let linkedDataStore: StoreProvider<LinkedDataWithHashId>;
   let syncRequiredStore: StoreProvider<SyncRecord>;
   let syncPropsStore: StoreProvider<Date>;
+  const [
+    linkedDataStore,
+    switchRepoForLinkedData,
+  ] = createDynamicLinkedDataStore();
+  const removeLinkedData = createLinkedDataDelete(linkedDataStore);
+
   const getLastSyncTime = () => storeGet<Date>(syncPropsStore, "last-sync");
   const downloadSyncTimeSaver = newExecutionTimeSaver(
     () => new Date(),
@@ -272,13 +280,21 @@ export const createStore = (
     linkedData: boolean,
     name?: string
   ) => {
-    await storePut(syncRequiredStore, {
-      hash,
-      name,
-      ld: linkedData,
-    });
+    await storePut(
+      syncRequiredStore,
+      {
+        hash,
+        name,
+        ld: linkedData,
+      },
+      hash
+    );
     if (state[0] !== "ready") return;
     changeToUpdateNeeded(state[1]);
+  };
+
+  const unmarkLinkedDataForSync = async (hash: HashUri) => {
+    await storeDelete(syncRequiredStore, hash);
   };
 
   return {
@@ -307,6 +323,10 @@ export const createStore = (
       await markForSync(hash, false, name);
       return hash;
     },
+    removeLinkedData: async (hash) => {
+      await unmarkLinkedDataForSync(hash);
+      await removeLinkedData(hash);
+    },
     readLinkedData: async (hash) => storeGet(linkedDataStore, hash),
     writeLinkedData: async (linkedData) => {
       if (Array.isArray(linkedData)) {
@@ -334,7 +354,7 @@ export const createStore = (
       // this is really ugly implementation
       const setRepo = () => {
         resourceStore = getResourceStore(repositoryDb);
-        linkedDataStore = getLinkedDataStore(repositoryDb);
+        switchRepoForLinkedData(repositoryDb);
         syncRequiredStore = repositoryDb.getStoreProvider<SyncRecord>(
           syncRequiredStoreName
         );

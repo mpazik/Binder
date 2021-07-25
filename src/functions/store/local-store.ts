@@ -1,12 +1,22 @@
 import { asyncLoop } from "../../libs/async-pool";
 import { HashUri } from "../../libs/hash";
-import { storeGetNext, StoreName, StoreProvider } from "../../libs/indexeddb";
+import {
+  storeDelete,
+  storeGetNext,
+  StoreName,
+  StoreProvider,
+} from "../../libs/indexeddb";
 import { LinkedData, LinkedDataWithHashId } from "../../libs/jsonld-format";
+import {
+  createDynamicStoreProvider,
+  DynamicStoreProvider,
+} from "../indexes/dynamic-repo-index";
 
 import { registerRepositoryVersion, RepositoryDb } from "./repository";
 
 const resourcesStoreName = "resources" as StoreName;
 const linkedDataStoreName = "linked-data" as StoreName;
+export type LinkedDataStore = StoreProvider<LinkedDataWithHashId>;
 
 registerRepositoryVersion({
   version: 1,
@@ -17,10 +27,12 @@ export const getResourceStore = (
   repositoryDb: RepositoryDb
 ): StoreProvider<Blob> => repositoryDb.getStoreProvider(resourcesStoreName);
 
-export const getLinkedDataStore = (
+export const createLinkedDataStore = (
   repositoryDb: RepositoryDb
-): StoreProvider<LinkedDataWithHashId> =>
-  repositoryDb.getStoreProvider(linkedDataStoreName);
+): LinkedDataStore => repositoryDb.getStoreProvider(linkedDataStoreName);
+
+export const createDynamicLinkedDataStore = (): DynamicStoreProvider<LinkedDataWithHashId> =>
+  createDynamicStoreProvider(linkedDataStoreName);
 
 export type ResourceStoreRead = (hash: HashUri) => Promise<Blob | undefined>;
 export type ResourceStoreWrite = (
@@ -35,6 +47,12 @@ export type LinkedDataStoreRead = (
 export type LinkedDataStoreWrite = (
   jsonld: LinkedData
 ) => Promise<LinkedDataWithHashId>;
+
+export type LinkedDataDelete = (hash: HashUri) => Promise<void>;
+
+export const createLinkedDataDelete = (
+  store: LinkedDataStore
+): LinkedDataDelete => (hash) => storeDelete(store, hash);
 
 export type ExternalLinkedDataStoreWrite = (
   jsonld: LinkedDataWithHashId
@@ -53,7 +71,7 @@ export const createLinkedDataProvider = (
   return async (push) =>
     await asyncLoop(async () => {
       const result = await storeGetNext<LinkedDataWithHashId>(
-        getLinkedDataStore(repositoryDb),
+        createLinkedDataStore(repositoryDb),
         lastHash
       );
       if (!result) {

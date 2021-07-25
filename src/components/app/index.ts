@@ -137,7 +137,9 @@ export const App = asyncLoader(
       urlIndex.update,
       directoryIndex.update,
       annotationsIndex.update,
-      createWatchHistoryIndexer(watchHistoryStore),
+      createWatchHistoryIndexer(watchHistoryStore, (hash) =>
+        store.removeLinkedData(hash)
+      ),
     ]);
     const store = createStore(
       indexLinkedData,
