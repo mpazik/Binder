@@ -40,6 +40,7 @@ export const contentComponent: Component<
     onSave: Callback<LinkedDataWithHashId>;
     annotationsIndex: AnnotationsIndex["search"];
     creatorProvider: () => string | null;
+    onDisplay: Callback;
   },
   {
     displayContent: LinkedDataWithContentAndFragment;
@@ -52,6 +53,7 @@ export const contentComponent: Component<
   onSave,
   annotationsIndex,
   creatorProvider,
+  onDisplay,
 }) => (render) => {
   const storeData = (data: LinkedDataWithContent, retry: () => void) => {
     try {
@@ -137,6 +139,7 @@ export const contentComponent: Component<
       contentSaver,
       onAnnotationDisplayRequest: displayDocumentAnnotations,
       onCurrentFragmentResponse: saveWatchAction,
+      onDisplay,
     })
   );
 

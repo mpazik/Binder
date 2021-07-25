@@ -1,3 +1,5 @@
+import { ClosableProvider } from "../../../linki";
+
 import { Provider } from "./connections";
 
 export const urlHashProvider: Provider<string> = (onClose, push) => {
@@ -18,10 +20,10 @@ export const getQueryParams = (): URLSearchParams =>
 export const getUriFragment = (): string | undefined =>
   window.location.hash ? window.location.hash.substring(1) : undefined;
 
-export const queryParamProvider: Provider<{
+export const queryParamProvider: ClosableProvider<{
   queryParams: URLSearchParams;
   fragment?: string;
-}> = (onClose, push) => {
+}> = (push) => {
   const update = () =>
     push({
       queryParams: getQueryParams(),
@@ -30,5 +32,5 @@ export const queryParamProvider: Provider<{
 
   setImmediate(update);
   window.addEventListener("popstate", update);
-  onClose(() => document.removeEventListener("popstate", update));
+  return () => document.removeEventListener("popstate", update);
 };

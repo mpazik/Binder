@@ -1,11 +1,12 @@
+import { ClosableProvider, fork, link, map } from "../../../linki";
 import { getQueryParams, queryParamProvider } from "../libs/browser-providers";
-import { fork, Provider, ProviderSetup } from "../libs/connections";
-import { map, pipe } from "../libs/connections/mappers";
 import { throwIfNull } from "../libs/errors";
 
-const linkHijack: ProviderSetup<{ element?: Node }, string> = ({
+const linkHijack = ({
   element = document,
-}) => (onClose, push) => {
+}: {
+  element?: Node;
+}): ClosableProvider<string> => (push) => {
   const hijackLink = (event: Event) => {
     const element = event.target as HTMLElement;
     if (!element || element.nodeName !== "A") return;
@@ -22,7 +23,7 @@ const linkHijack: ProviderSetup<{ element?: Node }, string> = ({
 
   element.addEventListener("click", hijackLink);
 
-  onClose(() => element.removeEventListener("click", hijackLink));
+  return () => element.removeEventListener("click", hijackLink);
 };
 
 export const updateBrowserHistory = ({
@@ -53,15 +54,30 @@ export const newUriWithFragment = (url: string): UriWithFragment => {
 
 const getCurrentUri = () => throwIfNull(getQueryParams().get("uri"));
 
-export const currentDocumentUriProvider = ({
+export const browserUriProvider = ({
   defaultUri,
 }: {
   defaultUri: string;
-}): Provider<UriWithFragment> => (onClose, push) => {
-  linkHijack({})(
-    onClose,
-    map(
-      pipe(newUriWithFragment, (it) =>
+}): ClosableProvider<UriWithFragment> => (push) =>
+  queryParamProvider(
+    link(
+      map(({ queryParams, fragment }) => {
+        const uri = queryParams.get("uri");
+        return {
+          uri: uri ?? defaultUri,
+          fragment: uri ? fragment : undefined, // don't return fragment for default url
+        };
+      }),
+      push
+    )
+  );
+
+export const documentLinksUriProvider: ClosableProvider<UriWithFragment> = (
+  push
+) => {
+  return linkHijack({})(
+    link(
+      map(newUriWithFragment, (it) =>
         it.uri === ""
           ? {
               uri: getCurrentUri(),
@@ -71,15 +87,5 @@ export const currentDocumentUriProvider = ({
       ),
       fork(updateBrowserHistory, push)
     )
-  );
-  queryParamProvider(
-    onClose,
-    map(({ queryParams, fragment }) => {
-      const uri = queryParams.get("uri");
-      return {
-        uri: uri ?? defaultUri,
-        fragment: uri ? fragment : undefined, // don't return fragment for default url
-      };
-    }, push)
   );
 };

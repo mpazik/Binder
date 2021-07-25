@@ -273,7 +273,7 @@ export const epubDisplay: ContentComponent = ({ onDisplay }) => (
   const [contentSlot, { renderPage }] = newSlot(
     "epub-content",
     contentComponent({
-      onDisplay: fork(onDisplay, scroll),
+      onDisplay: fork(scroll, onDisplay),
     })
   );
 

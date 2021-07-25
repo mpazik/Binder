@@ -1,12 +1,10 @@
-import { link, withOptionalState } from "../../../../linki";
+import { Callback, fork, ignoreParam, link, withOptionalState } from "linki";
+
 import { LinkedDataWithContent } from "../../functions/content-processors";
 import { ContentSaver } from "../../functions/content-saver";
 import { updateBrowserHistory } from "../../functions/url-hijack";
 import { getUriFragment } from "../../libs/browser-providers";
 import {
-  Callback,
-  Consumer,
-  fork,
   select,
   split,
   withMultiState,
@@ -44,8 +42,9 @@ export type LinkedDataWithContentAndFragment = LinkedDataWithContent & {
 export const contentDisplayComponent: Component<
   {
     contentSaver: ContentSaver;
-    onAnnotationDisplayRequest: Consumer<AnnotationDisplayRequest>;
-    onCurrentFragmentResponse: Consumer<string | undefined>;
+    onAnnotationDisplayRequest: Callback<AnnotationDisplayRequest>;
+    onCurrentFragmentResponse: Callback<string | undefined>;
+    onDisplay: Callback;
   },
   {
     displayContent: LinkedDataWithContentAndFragment;
@@ -56,6 +55,7 @@ export const contentDisplayComponent: Component<
   onCurrentFragmentResponse,
   onAnnotationDisplayRequest,
   contentSaver,
+  onDisplay,
 }) => (render, onClose) => {
   // multi state with linkedData and fallback for update
   const [
@@ -122,7 +122,11 @@ export const contentDisplayComponent: Component<
   );
 
   const displayController: DisplayController = {
-    onDisplay: fork(displayAnnotations, updateHistory),
+    onDisplay: fork(
+      displayAnnotations,
+      updateHistory,
+      link(ignoreParam(), onDisplay)
+    ),
     onContentModified: saveNewContent,
     onCurrentFragmentResponse,
   };

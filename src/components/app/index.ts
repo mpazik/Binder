@@ -235,7 +235,10 @@ export const App = asyncLoader(
         link(
           map<UriWithFragment, string | undefined>(pick("fragment")),
           filter(defined),
-          (it) => goToFragment(it)
+          fork(
+            (it) => goToFragment(it),
+            () => postDisplayHook()
+          )
         ),
       ])
     );
@@ -291,6 +294,7 @@ export const App = asyncLoader(
         store.readResource
       )
     );
+    const postDisplayHook: Callback = fork(hideNav);
 
     const contentSaver = createContentSaver(
       store.writeResource,
@@ -304,6 +308,7 @@ export const App = asyncLoader(
         ldStoreRead: store.readLinkedData,
         annotationsIndex: annotationsIndex.search,
         onSave: ignore,
+        onDisplay: postDisplayHook,
         creatorProvider,
       })
     );
@@ -315,7 +320,7 @@ export const App = asyncLoader(
       "content-loader",
       loader({
         fetcher: contentFetcherPassingUri,
-        onLoaded: displayContent,
+        onLoaded: fork(displayContent, link(ignoreParam(), postDisplayHook)),
         contentSlot,
       })
     );
@@ -339,9 +344,8 @@ export const App = asyncLoader(
       })
     );
 
-    currentDocumentUriProvider({
-      defaultUri,
-    })(onClose, loadUri);
+    onClose(documentLinksUriProvider(loadUri));
+    onClose(browserUriProvider({ defaultUri })(loadUriWithRecentFragment));
 
     render(
       fragment(

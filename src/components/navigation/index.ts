@@ -1,4 +1,4 @@
-import { link, map } from "linki";
+import { link, map, Close, withState, defined, filter } from "linki";
 
 import { DISPLAY_CONFIG_ENABLED } from "../../config";
 import { GDriveLoadingProfile } from "../../functions/gdrive/app-files";
@@ -10,7 +10,6 @@ import {
   UriWithFragment,
 } from "../../functions/url-hijack";
 import { Callback, fork } from "../../libs/connections";
-import { throwIfNull } from "../../libs/errors";
 import {
   button,
   Component,
@@ -23,6 +22,7 @@ import {
   span,
   summary,
 } from "../../libs/simple-ui/render";
+import { getTarget } from "../../libs/simple-ui/utils/funtions";
 
 import { profilePanel, ProfilePanelControl } from "./profile";
 import { searchBox } from "./search-box";
@@ -62,6 +62,75 @@ const binderLogo = `
   <path xmlns="http://www.w3.org/2000/svg" d="M56 0H14C9.4 0 6 3.4 6 8v4H2c-1.1 0-2 .9-2 2s.9 2 2 2h4v32H2c-1.1 0-2 .9-2 2s.9 2 2 2h4v4c0 4.6 3.4 8 8 8h44c4.6 0 6-3.4 6-8V8c0-4.6-3.4-8-8-8zM10 56v-4h4c1.1 0 2-.9 2-2s-.9-2-2-2h-4V16h4c1.1 0 2-.9 2-2s-.9-2-2-2h-4V8c0-2.4 1.6-4 4-4h6v56h-6c-2.4 0-4-1.6-4-4zm50 0c0 2.3.302 3.323-2 4H24V4h32c2.3 0 4 1.6 4 4zm-8-44H32c-1.1 0-2 .9-2 2s.9 2 2 2h20c1.1 0 2-.9 2-2s-.9-2-2-2zm0 10H32c-1.1 0-2 .9-2 2s.9 2 2 2h20c1.1 0 2-.9 2-2s-.9-2-2-2z"/>
 </svg>`;
 
+const moveElementOnTopOfTheScreen = (
+  element: HTMLElement,
+  screenTopPosition: number = window.pageYOffset
+) => {
+  element.style.position = "absolute";
+  element.style.top = `${
+    screenTopPosition - element.getBoundingClientRect().height
+  }px`;
+};
+
+const moveElementOnTopOfTheScreen2 = (
+  element: HTMLElement,
+  screenTopPosition: number = window.pageYOffset
+) => {
+  element.style.position = "absolute";
+  element.style.top = `${Math.max(
+    screenTopPosition - element.getBoundingClientRect().height,
+    0
+  )}px`;
+};
+
+const registerNavScrollListener = (nav: HTMLElement): Close => {
+  let lastPosition = window.pageYOffset;
+  let directionWasUp = false;
+
+  const onScroll = () => {
+    const newPosition = window.pageYOffset;
+    const goingUp = newPosition < lastPosition;
+    if (goingUp) {
+      if (directionWasUp) {
+        // continue going up
+        if (nav.style.position === "absolute") {
+          if (nav.getBoundingClientRect().top > 0) {
+            // navigation fully uncovered
+            nav.style.top = `0px`;
+            nav.style.position = "fixed";
+          }
+        }
+      } else {
+        // switched direction to go up
+        directionWasUp = true;
+        if (
+          // navigation not on the screen
+          nav.getBoundingClientRect().bottom < 0 ||
+          // or in the middle of the screen due to scroll jump
+          nav.getBoundingClientRect().top > 0
+        ) {
+          // move navigation to on the top of the screen
+          moveElementOnTopOfTheScreen(nav, newPosition);
+        }
+      }
+    } else {
+      if (directionWasUp) {
+        // switched direction to go down
+        directionWasUp = false;
+        if (nav.style.position === "fixed") {
+          // unpin nav
+          nav.style.top = `${newPosition}px`;
+          nav.style.position = "absolute";
+        }
+      }
+    }
+    lastPosition = newPosition;
+  };
+
+  document.addEventListener("scroll", onScroll);
+  return () => document.removeEventListener("scroll", onScroll);
+};
+
 export const navigation: Component<
   {
     updateGdrive: Callback<GDriveAction>;
@@ -70,11 +139,12 @@ export const navigation: Component<
     directoryIndex: DirectoryIndex["search"];
     initProfile: GDriveLoadingProfile;
   },
-  ProfilePanelControl
+  ProfilePanelControl & { hideNav: void }
 > = ({ updateGdrive, upload, loadUri, directoryIndex, initProfile }) => (
-  render
+  render,
+  onClose
 ) => {
-  const [profilePanelSlot, profilePanelControl] = newSlot(
+  const [profilePanelSlot, { updateStoreState, updateGdriveState }] = newSlot(
     "profile",
     profilePanel({
       login: () => updateGdrive(["login"]),
@@ -82,53 +152,6 @@ export const navigation: Component<
       upload,
     })
   );
-
-  let nav: HTMLElement;
-  let lastPosition = window.pageYOffset;
-  let directionWasUp = false;
-  document.addEventListener("scroll", () => {
-    const newPosition = window.pageYOffset;
-    const goingUp = newPosition < lastPosition;
-    if (goingUp) {
-      const navChecked = throwIfNull(nav);
-      if (directionWasUp) {
-        // continue going up
-        if (navChecked.style.position === "absolute") {
-          if (navChecked.getBoundingClientRect().top > 0) {
-            // navigation fully uncovered
-            navChecked.style.top = `0px`;
-            navChecked.style.position = "fixed";
-          }
-        }
-      } else {
-        // switched direction to go up
-        directionWasUp = true;
-        if (
-          // navigation not on the screen
-          navChecked.getBoundingClientRect().bottom < 0 ||
-          // or in the middle of the screen due to scroll jump
-          navChecked.getBoundingClientRect().top > 0
-        ) {
-          // move navigation to on the top of the screen
-          navChecked.style.top = `${
-            newPosition - navChecked.getBoundingClientRect().height
-          }px`;
-        }
-      }
-    } else {
-      if (directionWasUp) {
-        // switched direction to go down
-        directionWasUp = false;
-        const navChecked = throwIfNull(nav);
-        if (navChecked.style.position === "fixed") {
-          // unpin nav
-          navChecked.style.top = `${newPosition}px`;
-          navChecked.style.position = "absolute";
-        }
-      }
-    }
-    lastPosition = newPosition;
-  });
 
   const searchBoxSlot = slot(
     "search-box",
@@ -139,6 +162,12 @@ export const navigation: Component<
       ),
       onSearch: (name) => directoryIndex({ name }),
     })
+  );
+
+  const [hideNav, setNavContext] = link(
+    withState<HTMLElement | undefined>(undefined),
+    filter(defined),
+    moveElementOnTopOfTheScreen2
   );
 
   render(
@@ -152,7 +181,13 @@ export const navigation: Component<
           "z-index": 1,
         },
         onDisplay: fork(
-          (e) => (nav = e.target as HTMLElement),
+          link(
+            map(getTarget),
+            fork(
+              (e) => onClose(registerNavScrollListener(e)),
+              (e) => setNavContext(e)
+            )
+          ),
           () => updateGdrive(["load", initProfile])
         ),
       },
@@ -215,5 +250,9 @@ export const navigation: Component<
     )
   );
 
-  return profilePanelControl;
+  return {
+    updateStoreState,
+    updateGdriveState,
+    hideNav,
+  };
 };
