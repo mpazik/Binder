@@ -17,6 +17,7 @@ import {
   storePut,
 } from "../../libs/indexeddb";
 import { LinkedData, LinkedDataWithHashId } from "../../libs/jsonld-format";
+import { getType } from "../../libs/linked-data";
 import { handleState, mapState } from "../../libs/named-state";
 import {
   onBrowserClose,
@@ -81,6 +82,8 @@ const syncPropsStoreName = "sync-props" as StoreName;
 
 const autoUpdateTimeout = 5 * 60 * 1000;
 
+const linkedDataTypeThatCouldBeRemoved = ["WatchAction"];
+
 registerRepositoryVersion({
   version: 2,
   stores: [
@@ -137,6 +140,14 @@ export const createStore = (
     const hash = await hashBlob(blob);
     await storePut(resourceStore, blob, hash);
     return hash;
+  };
+
+  const canBeDeleted = async (hash: HashUri): Promise<boolean> => {
+    const data = await storeGet(linkedDataStore, hash);
+    if (!data) return false;
+    const type = getType(data);
+    if (!type) return false;
+    return linkedDataTypeThatCouldBeRemoved.includes(type);
   };
 
   const putLocalLinkedData = async (jsonld: LinkedData) => {
@@ -324,6 +335,11 @@ export const createStore = (
       return hash;
     },
     removeLinkedData: async (hash) => {
+      if (!(await canBeDeleted(hash))) {
+        const data = await storeGet(linkedDataStore, hash);
+        console.error("Illegal delete operation on item", data);
+        return;
+      }
       await unmarkLinkedDataForSync(hash);
       await removeLinkedData(hash);
     },
