@@ -1,26 +1,26 @@
-import { WatchAction } from "../../components/watch-history/watch-action";
-import { HashUri } from "../../libs/hash";
+import { WatchAction } from "../../../components/watch-history/watch-action";
+import { HashUri, isHashUri } from "../../../libs/hash";
 import {
   storeGet,
+  storeGetAll,
   StoreName,
   StoreProvider,
   storePut,
-} from "../../libs/indexeddb";
-import { isTypeEqualTo } from "../../libs/linked-data";
-import { LinkedDataDelete } from "../store/local-store";
-import { registerRepositoryVersion } from "../store/repository";
-import { newUriWithFragment } from "../url-hijack";
-
+} from "../../../libs/indexeddb";
+import { isTypeEqualTo } from "../../../libs/linked-data";
+import { LinkedDataDelete } from "../../store/local-store";
+import { registerRepositoryVersion } from "../../store/repository";
+import { newUriWithFragment } from "../../url-hijack";
 import {
   createDynamicStoreProvider,
   DynamicStoreProvider,
-} from "./dynamic-repo-index";
-import { Indexer, UpdateIndex } from "./types";
+} from "../dynamic-repo-index";
+import { Indexer, UpdateIndex } from "../types";
 
 export type WatchHistoryQuery = HashUri;
-type WatchHistoryRecord = {
+export type WatchHistoryRecord = {
   fragment?: string;
-  uri: string;
+  uri: HashUri;
   startTime?: string;
   endTime?: string;
   eventId: HashUri;
@@ -30,6 +30,10 @@ export type WatchHistoryIndex = (
   ldId: HashUri
 ) => Promise<WatchHistoryRecord | undefined>;
 
+export type WatchHistorySearch = (
+  ldIds?: HashUri[]
+) => Promise<WatchHistoryRecord[]>;
+
 export const watchHistoryStoreName = "watch-history-index" as StoreName;
 
 export const index: Indexer<WatchHistoryRecord> = (ld) => {
@@ -38,6 +42,7 @@ export const index: Indexer<WatchHistoryRecord> = (ld) => {
   const target = watchAction.target;
   if (!target || typeof target !== "string") return;
   const { fragment, uri } = newUriWithFragment(target);
+  if (!isHashUri(uri)) return;
 
   const startTime =
     typeof watchAction.startTime === "string"
@@ -47,8 +52,14 @@ export const index: Indexer<WatchHistoryRecord> = (ld) => {
   const endTime =
     typeof watchAction.endTime === "string" ? watchAction.endTime : undefined;
   return {
-    props: { fragment, uri, startTime, endTime, eventId: ld["@id"] },
-    key: uri as HashUri,
+    props: {
+      ...(fragment ? { fragment } : {}),
+      uri,
+      startTime,
+      endTime,
+      eventId: ld["@id"],
+    },
+    key: uri,
   };
 };
 
@@ -58,6 +69,14 @@ export const createWatchHistoryStore = (): DynamicStoreProvider<WatchHistoryReco
 export const createWatchHistoryIndex = (
   watchHistoryStore: WatchHistoryStore
 ): WatchHistoryIndex => async (hashUri) => storeGet(watchHistoryStore, hashUri);
+
+export const createWatchHistorySearch = (
+  watchHistoryStore: WatchHistoryStore
+): WatchHistorySearch => async (hashUris) => {
+  const all = await storeGetAll(watchHistoryStore);
+  if (hashUris === undefined) return all;
+  return all.filter((it) => hashUris.includes(it.uri));
+};
 
 const createWatchHistoryPureIndexer = (
   watchHistoryStore: WatchHistoryStore

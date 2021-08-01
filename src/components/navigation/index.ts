@@ -4,8 +4,8 @@ import { DISPLAY_CONFIG_ENABLED } from "../../config";
 import { GDriveLoadingProfile } from "../../functions/gdrive/app-files";
 import { GDriveAction } from "../../functions/gdrive/controller";
 import { DirectoryIndex } from "../../functions/indexes/directory-index";
+import { WatchHistorySearch } from "../../functions/indexes/watch-history-index";
 import {
-  newUriWithFragment,
   updateBrowserHistory,
   UriWithFragment,
 } from "../../functions/url-hijack";
@@ -25,6 +25,7 @@ import {
 import { getTarget } from "../../libs/simple-ui/utils/funtions";
 
 import { profilePanel, ProfilePanelControl } from "./profile";
+import { createRecentDocumentSearch } from "./recent-document-serach";
 import { searchBox } from "./search-box";
 
 const typographyIcon = `
@@ -136,14 +137,19 @@ export const navigation: Component<
     updateGdrive: Callback<GDriveAction>;
     upload: () => void;
     loadUri: Callback<UriWithFragment>;
-    directoryIndex: DirectoryIndex["search"];
+    searchDirectory: DirectoryIndex["search"];
+    searchWatchHistory: WatchHistorySearch;
     initProfile: GDriveLoadingProfile;
   },
   ProfilePanelControl & { hideNav: void }
-> = ({ updateGdrive, upload, loadUri, directoryIndex, initProfile }) => (
-  render,
-  onClose
-) => {
+> = ({
+  updateGdrive,
+  upload,
+  loadUri,
+  searchDirectory,
+  searchWatchHistory,
+  initProfile,
+}) => (render, onClose) => {
   const [profilePanelSlot, { updateStoreState, updateGdriveState }] = newSlot(
     "profile",
     profilePanel({
@@ -152,15 +158,16 @@ export const navigation: Component<
       upload,
     })
   );
+  const searchRecentDocuments = createRecentDocumentSearch(
+    searchDirectory,
+    searchWatchHistory
+  );
 
   const searchBoxSlot = slot(
     "search-box",
     searchBox({
-      onSelected: link(
-        map(newUriWithFragment),
-        fork(updateBrowserHistory, loadUri)
-      ),
-      onSearch: (name) => directoryIndex({ name }),
+      onSelected: fork(updateBrowserHistory, loadUri),
+      onSearch: searchRecentDocuments,
     })
   );
 

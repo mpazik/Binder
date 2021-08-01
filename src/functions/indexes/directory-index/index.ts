@@ -1,17 +1,18 @@
-import { HashName } from "../../libs/hash";
+import { HashName } from "../../../libs/hash";
 import {
   storeGetAllWithKeys,
   StoreName,
   StoreProvider,
   storePut,
-} from "../../libs/indexeddb";
-import { getType } from "../../libs/linked-data";
-import { measureAsyncTime } from "../../libs/performance";
-import { createLinkedDataProvider } from "../store/local-store";
-import { registerRepositoryVersion } from "../store/repository";
+} from "../../../libs/indexeddb";
+import { getType } from "../../../libs/linked-data";
+import { measureAsyncTime } from "../../../libs/performance";
+import { createLinkedDataProvider } from "../../store/local-store";
+import { registerRepositoryVersion } from "../../store/repository";
+import { createDynamicIndex, DynamicRepoIndex } from "../dynamic-repo-index";
+import { IndexRecord } from "../types";
 
-import { createDynamicIndex, DynamicRepoIndex } from "./dynamic-repo-index";
-import { IndexRecord } from "./types";
+import { createQueryMatcher } from "./utils";
 
 export type DirectoryProps = { type: string; name: string };
 export type DirectoryQuery = { type?: string; name?: string };
@@ -23,28 +24,20 @@ const directoryIndexStoreName = "directory-index" as StoreName;
 
 const createSearchDirectoryIndex = (
   store: DirectoryIndexStore
-): DirectoryIndex["search"] => {
-  return async ({ name, type }) =>
-    measureAsyncTime("search", async () => {
-      const data = await storeGetAllWithKeys(store);
-      return data
-        .map(
-          ({ key, value }) =>
-            <DirectoryRecord>{
-              hash: key as HashName,
-              props: value,
-            }
-        )
-        .filter(
-          ({ props }) =>
-            (!name ||
-              props.name
-                .toLocaleLowerCase()
-                .includes(name.toLocaleLowerCase())) &&
-            (!type || props.type === type)
-        );
-    });
-};
+): DirectoryIndex["search"] => async (query) =>
+  measureAsyncTime("search", async () => {
+    const data = await storeGetAllWithKeys(store);
+
+    return data
+      .map(
+        ({ key, value }) =>
+          <DirectoryRecord>{
+            hash: key as HashName,
+            props: value,
+          }
+      )
+      .filter(createQueryMatcher(query));
+  });
 
 export const createDirectoryIndexer = (
   store: DirectoryIndexStore

@@ -40,6 +40,7 @@ import { createUriIndex } from "../../functions/indexes/url-index";
 import {
   createWatchHistoryIndex,
   createWatchHistoryIndexer,
+  createWatchHistorySearch,
   createWatchHistoryStore,
 } from "../../functions/indexes/watch-history-index";
 import {
@@ -132,6 +133,7 @@ export const App = asyncLoader(
       switchRepoForWatchHistory,
     ] = createWatchHistoryStore();
     const watchHistoryIndex = createWatchHistoryIndex(watchHistoryStore);
+    const searchWatchHistory = createWatchHistorySearch(watchHistoryStore);
 
     const indexLinkedData = createCompositeIndexer([
       urlIndex.update,
@@ -279,7 +281,8 @@ export const App = asyncLoader(
             : undefined,
         },
         loadUri: loadUriWithRecentFragment,
-        directoryIndex: directoryIndex.search,
+        searchDirectory: directoryIndex.search,
+        searchWatchHistory,
       })
     );
 

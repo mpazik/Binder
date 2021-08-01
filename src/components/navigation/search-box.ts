@@ -12,7 +12,10 @@ import {
   withState,
 } from "linki";
 
-import { DirectoryRecord } from "../../functions/indexes/directory-index";
+import {
+  newUriWithFragment,
+  UriWithFragment,
+} from "../../functions/url-hijack";
 import { mapAwait } from "../../libs/connections/mappers";
 import {
   Component,
@@ -30,6 +33,9 @@ import {
   resetInput,
   selectInputTarget,
 } from "../../libs/simple-ui/utils/funtions";
+import { formatRelativeTime } from "../../libs/time";
+
+import { RecentDocuments } from "./recent-document-serach";
 
 const noItemsView: View = () =>
   div(
@@ -141,21 +147,9 @@ const isUrl = (s: string) => {
   }
 };
 
-type SearchBoxOption = {
-  name: string;
-  uri: string;
-};
-
-const recordToOption = (r: DirectoryRecord) => ({
-  name: r.props.name,
-  uri: r.hash,
-});
-const forAll = <T, S>(mapper: (v: T) => S): ((v: T[]) => S[]) => (values) =>
-  values.map(mapper);
-
 export const searchBox: Component<{
-  onSearch: (term: string) => Promise<DirectoryRecord[]>;
-  onSelected: (url: string) => void;
+  onSearch: (term: string) => Promise<RecentDocuments[]>;
+  onSelected: (url: UriWithFragment) => void;
 }> = ({ onSearch, onSelected }) => (render) => {
   const [
     suggestionsSlot,
@@ -168,16 +162,16 @@ export const searchBox: Component<{
     },
   ] = newSlot(
     "autocomplete-list",
-    createAutocompleteList<SearchBoxOption>({
+    createAutocompleteList<RecentDocuments>({
       onSelected: (item) => {
         hideList();
         resetSearchInput();
-        onSelected(item.uri);
+        onSelected(item.uriWithFragment);
       },
-      getOptionLabel: (record) => record.name,
+      getOptionLabel: ({ name, startDate }) =>
+        startDate ? `${name} [${formatRelativeTime(startDate)}]` : name,
     })
   );
-
   const trigger = (): void => selectHighlighted();
 
   const keyHandlers: Map<string, (event: KeyboardEvent) => void> = new Map([
@@ -209,13 +203,12 @@ export const searchBox: Component<{
           link(split(isUrl), [
             (url: string) =>
               renderList([
-                { uri: url, name: `open page from: ${new URL(url).host}` },
+                {
+                  uriWithFragment: newUriWithFragment(url),
+                  name: `open page from: ${new URL(url).host}`,
+                },
               ]),
-            mapAwait(
-              onSearch,
-              link(map(forAll(recordToOption)), renderList),
-              (e) => console.error(e)
-            ),
+            mapAwait(onSearch, renderList, (e) => console.error(e)),
           ])
         ),
         onBlur: hideList,
