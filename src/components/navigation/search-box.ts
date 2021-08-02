@@ -12,6 +12,7 @@ import {
   withState,
 } from "linki";
 
+import { RecentDocuments } from "../../functions/recent-document-serach";
 import {
   newUriWithFragment,
   UriWithFragment,
@@ -34,8 +35,6 @@ import {
   selectInputTarget,
 } from "../../libs/simple-ui/utils/funtions";
 import { formatRelativeTime } from "../../libs/time";
-
-import { RecentDocuments } from "./recent-document-serach";
 
 const noItemsView: View = () =>
   div(

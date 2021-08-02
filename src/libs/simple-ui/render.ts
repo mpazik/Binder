@@ -316,6 +316,7 @@ export const h6 = newTagFactory<Nodes>("h6");
 export const input = newTagFactory<Nodes>("input");
 export const header = newTagFactory<Nodes>("header");
 export const span = newTagFactory<Nodes>("span");
+export const small = newTagFactory<Nodes>("small");
 export const p = newTagFactory<Nodes>("p");
 export const pre = newTagFactory<Nodes>("pre");
 export const button = newTagFactory<Nodes>("button");

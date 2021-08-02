@@ -54,7 +54,7 @@ export const contentComponent: Component<
   annotationsIndex,
   creatorProvider,
   onDisplay,
-}) => (render) => {
+}) => (render, onClose) => {
   const storeData = (data: LinkedDataWithContent, retry: () => void) => {
     try {
       updateSaveBar(["saving"]);
@@ -164,6 +164,10 @@ export const contentComponent: Component<
       saveBarSlot
     )
   );
+
+  onClose(() => {
+    requestCurrentFragment();
+  });
 
   return {
     displayContent: fork(

@@ -66,14 +66,16 @@ import { stateProvider } from "../../libs/connections";
 import { HashName, HashUri, isHashUri } from "../../libs/hash";
 import { newStateMapper } from "../../libs/named-state";
 import { measureAsyncTime } from "../../libs/performance";
-import { div, fragment, newSlot } from "../../libs/simple-ui/render";
+import { div, fragment, newSlot, slot } from "../../libs/simple-ui/render";
 import { asyncLoader } from "../common/async-loader";
+import { eitherComponent } from "../common/conditional-component";
 import { loader } from "../common/loader";
 import { contentComponent } from "../content";
+import { docsDirectory } from "../directory";
 import { fileDrop } from "../file-drop";
 import { navigation } from "../navigation";
 
-const defaultUri = "https://pl.wikipedia.org/wiki/Dedal_z_Sykionu";
+const hackedDirectoryUri = "directory";
 
 const initServices = async (): Promise<{
   fetchTroughProxy: Fetch;
@@ -235,7 +237,14 @@ export const App = asyncLoader(
         { uri: "", uriChanged: false }
       ),
       link(split(pick("uriChanged")), [
-        (it: UriWithFragment) => loadResource(it),
+        (it: UriWithFragment) => {
+          if (it.uri === hackedDirectoryUri) {
+            switchDisplayToDirectory();
+          } else {
+            switchDisplayToContent();
+            loadResource(it);
+          }
+        },
         link(
           map<UriWithFragment, string | undefined>(pick("fragment")),
           filter(defined),
@@ -330,6 +339,14 @@ export const App = asyncLoader(
       })
     );
 
+    const docsDirectorySlot = slot(
+      "docs-directory",
+      docsDirectory({
+        searchDirectory: directoryIndex.search,
+        searchWatchHistory,
+      })
+    );
+
     const [fileDropSlot, { displayFileDrop }] = newSlot(
       "file-drop",
       fileDrop({
@@ -350,7 +367,19 @@ export const App = asyncLoader(
     );
 
     onClose(documentLinksUriProvider(loadUri));
-    onClose(browserUriProvider({ defaultUri })(loadUriWithRecentFragment));
+    onClose(
+      browserUriProvider({ defaultUri: hackedDirectoryUri })(
+        loadUriWithRecentFragment
+      )
+    );
+
+    const [
+      contentOrDirSlot,
+      { renderA: switchDisplayToContent, renderB: switchDisplayToDirectory },
+    ] = newSlot(
+      "either-content",
+      eitherComponent({ slotA: contentLoaderSlot, slotB: docsDirectorySlot })
+    );
 
     render(
       fragment(
@@ -360,7 +389,7 @@ export const App = asyncLoader(
             id: "container",
             onDragenter: link(map(to<true>(true)), displayFileDrop),
           },
-          div({ class: "p-4" }, fileDropSlot, contentLoaderSlot)
+          div({ class: "p-4" }, fileDropSlot, contentOrDirSlot)
         )
       )
     );

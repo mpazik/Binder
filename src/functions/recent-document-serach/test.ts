@@ -6,13 +6,13 @@ import {
   discOrgDirRecord,
   firetDirRecord,
   hydraDirRecord,
-} from "../../../functions/indexes/directory-index/mock";
+} from "../indexes/directory-index/mock";
 import {
   createInMemoryWatchHistorySearch,
   firetWatchRecord,
   hydraWatchRecord,
   watchRecords,
-} from "../../../functions/indexes/watch-history-index/mock";
+} from "../indexes/watch-history-index/mock";
 
 import { recentDateComparator } from "./utils";
 

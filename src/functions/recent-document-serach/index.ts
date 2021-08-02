@@ -1,6 +1,6 @@
-import { DirectoryIndex } from "../../../functions/indexes/directory-index";
-import { WatchHistorySearch } from "../../../functions/indexes/watch-history-index";
-import { UriWithFragment } from "../../../functions/url-hijack";
+import { DirectoryIndex } from "../indexes/directory-index";
+import { WatchHistorySearch } from "../indexes/watch-history-index";
+import { UriWithFragment } from "../url-hijack";
 
 import { recentDateComparator } from "./utils";
 

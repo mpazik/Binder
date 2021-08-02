@@ -5,6 +5,7 @@ import { GDriveLoadingProfile } from "../../functions/gdrive/app-files";
 import { GDriveAction } from "../../functions/gdrive/controller";
 import { DirectoryIndex } from "../../functions/indexes/directory-index";
 import { WatchHistorySearch } from "../../functions/indexes/watch-history-index";
+import { createRecentDocumentSearch } from "../../functions/recent-document-serach";
 import {
   updateBrowserHistory,
   UriWithFragment,
@@ -25,7 +26,6 @@ import {
 import { getTarget } from "../../libs/simple-ui/utils/funtions";
 
 import { profilePanel, ProfilePanelControl } from "./profile";
-import { createRecentDocumentSearch } from "./recent-document-serach";
 import { searchBox } from "./search-box";
 
 const typographyIcon = `
