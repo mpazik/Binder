@@ -4,7 +4,7 @@ import {
   createRecentDocumentSearch,
   RecentDocuments,
 } from "../../functions/recent-document-serach";
-import { a, Component, JsonHtml, View } from "../../libs/simple-ui/render";
+import { a, Component, small, View } from "../../libs/simple-ui/render";
 import { relativeDate } from "../common/relative-date";
 
 const view: View<{ docs: RecentDocuments[] }> = ({ docs }) => [
@@ -16,11 +16,10 @@ const view: View<{ docs: RecentDocuments[] }> = ({ docs }) => [
       it.name,
       ...(it.startDate
         ? [
-            [
-              "small",
+            small(
               { class: "float-right" },
-              relativeDate({ date: it.startDate }),
-            ] as JsonHtml,
+              relativeDate({ date: it.startDate })
+            ),
           ]
         : [])
     )

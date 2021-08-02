@@ -1,4 +1,5 @@
 import {
+  debounce,
   defined,
   definedTuple,
   filter,
@@ -23,8 +24,11 @@ import {
   ComponentBody,
   div,
   input,
+  JsonHtml,
   li,
   newSlot,
+  small,
+  span,
   ul,
   View,
 } from "../../libs/simple-ui/render";
@@ -34,7 +38,8 @@ import {
   resetInput,
   selectInputTarget,
 } from "../../libs/simple-ui/utils/funtions";
-import { formatRelativeTime } from "../../libs/time";
+import { specialDirectoryUri } from "../app/special-uris";
+import { relativeDate } from "../common/relative-date";
 
 const noItemsView: View = () =>
   div(
@@ -49,7 +54,7 @@ export const createAutocompleteList = <T>({
   getOptionLabel,
 }: {
   onSelected: (s: T) => void;
-  getOptionLabel: (item: T) => string;
+  getOptionLabel: (item: T) => JsonHtml;
 }): ComponentBody<{
   renderList: T[];
   hideList: void;
@@ -146,6 +151,8 @@ const isUrl = (s: string) => {
   }
 };
 
+const specialAllItemsName = "list-all-items"; // this is hack
+
 export const searchBox: Component<{
   onSearch: (term: string) => Promise<RecentDocuments[]>;
   onSelected: (url: UriWithFragment) => void;
@@ -167,8 +174,22 @@ export const searchBox: Component<{
         resetSearchInput();
         onSelected(item.uriWithFragment);
       },
-      getOptionLabel: ({ name, startDate }) =>
-        startDate ? `${name} [${formatRelativeTime(startDate)}]` : name,
+      getOptionLabel: ({ name, startDate }) => {
+        if (name === specialAllItemsName)
+          return div(
+            { class: "pt-1 border-top color-text-secondary text-center" },
+            "List all documents"
+          );
+        if (startDate)
+          return span(
+            name,
+            small(
+              { class: "float-right text-normal" },
+              relativeDate({ date: startDate })
+            )
+          );
+        return name;
+      },
     })
   );
   const trigger = (): void => selectHighlighted();
@@ -187,6 +208,21 @@ export const searchBox: Component<{
     resetInput
   );
 
+  const renderSearch = mapAwait(
+    onSearch,
+    link(
+      map((it) => {
+        it.push({
+          uriWithFragment: { uri: specialDirectoryUri },
+          name: specialAllItemsName,
+        });
+        return it;
+      }),
+      renderList
+    ),
+    (e) => console.error(e)
+  );
+
   render(
     div(
       { class: "position-relative" },
@@ -195,10 +231,13 @@ export const searchBox: Component<{
         class: "form-control width-full",
         type: "text",
         placeholder: "Search your collection or open new url",
-        onFocus: selectInputTarget,
+        onFocus: fork(selectInputTarget, () => {
+          console.log("selected");
+          renderSearch("");
+        }),
         onInput: link(
           map(getInputTarget, (input) => input.value.trim()),
-          // debounce(300), // debounce actually make it feel slower and search take only few ms
+          debounce(100),
           link(split(isUrl), [
             (url: string) =>
               renderList([
@@ -207,7 +246,7 @@ export const searchBox: Component<{
                   name: `open page from: ${new URL(url).host}`,
                 },
               ]),
-            mapAwait(onSearch, renderList, (e) => console.error(e)),
+            renderSearch,
           ])
         ),
         onBlur: hideList,

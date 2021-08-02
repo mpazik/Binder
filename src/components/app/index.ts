@@ -75,7 +75,7 @@ import { docsDirectory } from "../directory";
 import { fileDrop } from "../file-drop";
 import { navigation } from "../navigation";
 
-const hackedDirectoryUri = "directory";
+import { specialDirectoryUri } from "./special-uris";
 
 const initServices = async (): Promise<{
   fetchTroughProxy: Fetch;
@@ -238,7 +238,7 @@ export const App = asyncLoader(
       ),
       link(split(pick("uriChanged")), [
         (it: UriWithFragment) => {
-          if (it.uri === hackedDirectoryUri) {
+          if (it.uri === specialDirectoryUri) {
             switchDisplayToDirectory();
           } else {
             switchDisplayToContent();
@@ -368,7 +368,7 @@ export const App = asyncLoader(
 
     onClose(documentLinksUriProvider(loadUri));
     onClose(
-      browserUriProvider({ defaultUri: hackedDirectoryUri })(
+      browserUriProvider({ defaultUri: specialDirectoryUri })(
         loadUriWithRecentFragment
       )
     );
