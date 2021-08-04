@@ -242,6 +242,7 @@ export const App = asyncLoader(
             switchDisplayToDirectory();
           } else {
             switchDisplayToContent();
+            setCurrentUri(it.uri);
             loadResource(it);
           }
         },
@@ -274,7 +275,7 @@ export const App = asyncLoader(
 
     const [
       navigationSlot,
-      { updateStoreState, updateGdriveState, hideNav },
+      { updateStoreState, updateGdriveState, hideNav, setCurrentUri },
     ] = newSlot(
       "navigation",
       navigation({

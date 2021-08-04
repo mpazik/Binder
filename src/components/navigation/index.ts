@@ -1,4 +1,4 @@
-import { link, map, Close, withState, defined, filter } from "linki";
+import { link, map, Close, withState, defined, filter, not } from "linki";
 
 import { DISPLAY_CONFIG_ENABLED } from "../../config";
 import { GDriveLoadingProfile } from "../../functions/gdrive/app-files";
@@ -141,7 +141,7 @@ export const navigation: Component<
     searchWatchHistory: WatchHistorySearch;
     initProfile: GDriveLoadingProfile;
   },
-  ProfilePanelControl & { hideNav: void }
+  ProfilePanelControl & { hideNav: void; setCurrentUri: string }
 > = ({
   updateGdrive,
   upload,
@@ -163,11 +163,18 @@ export const navigation: Component<
     searchWatchHistory
   );
 
+  let currentUri: string | undefined = undefined;
+  const search = (terms: string | undefined) => {
+    return searchRecentDocuments(terms).then((results) =>
+      results.filter(not((it) => it.uriWithFragment.uri === currentUri))
+    );
+  };
+
   const searchBoxSlot = slot(
     "search-box",
     searchBox({
       onSelected: fork(updateBrowserHistory, loadUri),
-      onSearch: searchRecentDocuments,
+      onSearch: search,
     })
   );
 
@@ -261,5 +268,8 @@ export const navigation: Component<
     updateStoreState,
     updateGdriveState,
     hideNav,
+    setCurrentUri: (uri) => {
+      currentUri = uri;
+    },
   };
 };
