@@ -34,7 +34,7 @@ import { createEpubFragment } from "../../annotations/annotation";
 import { loaderWithContext } from "../../common/loader";
 import { setupHtmlView } from "../html/view";
 import { ContentComponent, DisplayContext } from "../types";
-import { doesElementReadsInput, scrollToElement, scrollToTop } from "../utils";
+import { doesElementReadsInput, scrollToFragmentOrTop } from "../utils";
 
 const absolute = (base: string, relative: string) => {
   const separator = "/";
@@ -255,15 +255,13 @@ const contentComponent: Component<
   };
 };
 
-const scroll = ({ fragment, container }: DisplayContext) => {
-  if (fragment) {
-    const parts = getCfiParts(fragment);
-    if (parts[1]) {
-      scrollToElement(nodeIdFromCfiPart(parts[1]));
-      return;
-    }
-  }
-  scrollToTop(container);
+const autoScroll = ({ fragment, container }: DisplayContext) => {
+  scrollToFragmentOrTop(
+    container,
+    passUndefined<string, string | undefined>((fragment) =>
+      passUndefined(nodeIdFromCfiPart)(getCfiParts(fragment)[1])
+    )(fragment)
+  );
 };
 
 export const epubDisplay: ContentComponent = ({ onDisplay }) => (
@@ -273,7 +271,7 @@ export const epubDisplay: ContentComponent = ({ onDisplay }) => (
   const [contentSlot, { renderPage }] = newSlot(
     "epub-content",
     contentComponent({
-      onDisplay: fork(scroll, onDisplay),
+      onDisplay: fork(autoScroll, onDisplay),
     })
   );
 

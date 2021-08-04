@@ -4,7 +4,7 @@ import {
 } from "../../../functions/content-processors/html-processor";
 import { Callback } from "../../../libs/connections";
 import { DisplayContext } from "../types";
-import { scrollToElement, scrollToTop } from "../utils";
+import { scrollToTop } from "../utils";
 
 import { HtmlContent } from "./view";
 
@@ -24,16 +24,4 @@ export const scrollToPageTopWhenNoFragment: Callback<DisplayContext> = (
   // if there is no page fragment go to top of the page to show linked data, ideally it should be the top of the full content container
   if (context.fragment) return;
   scrollToTop();
-};
-
-export const scrollToPageCorrectPosition: Callback<
-  [HTMLElement, string | undefined]
-> = ([container, fragment]) => {
-  // if there is no page fragment go to top of the page to show linked data, ideally it should be the top of the full content container
-  if (fragment) {
-    console.log("scrolling to element", fragment);
-    scrollToElement(fragment);
-    return;
-  }
-  scrollToTop(container);
 };

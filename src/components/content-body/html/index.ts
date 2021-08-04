@@ -14,9 +14,9 @@ import {
 import { Component, newSlot } from "../../../libs/simple-ui/render";
 import { loader } from "../../common/loader";
 import { ContentComponent } from "../types";
-import { lastSeenElement } from "../utils";
+import { lastSeenElement, scrollToFragmentOrTop } from "../utils";
 
-import { processToHtml, scrollToPageCorrectPosition } from "./utils";
+import { processToHtml } from "./utils";
 import { HtmlContent, setupHtmlView } from "./view";
 
 const contentComponent: Component<
@@ -56,8 +56,8 @@ export const htmlDisplay: ContentComponent = ({
 
   const [goToFragment, setFragment] = link(
     valueWithState<string | undefined, HTMLElement>(undefined),
-    ([fragment, contianer]) => {
-      scrollToPageCorrectPosition([contianer, fragment]);
+    ([fragment]) => {
+      scrollToFragmentOrTop(undefined, fragment);
     }
   );
 

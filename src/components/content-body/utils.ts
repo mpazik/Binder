@@ -14,6 +14,18 @@ export const scrollToElement = (elementId: string): void => {
   element.scrollIntoView();
 };
 
+export const scrollToFragmentOrTop = (
+  container?: HTMLElement,
+  fragment?: string
+): void => {
+  // if there is no page fragment go to top of the page to show linked data, ideally it should be the top of the full content container
+  if (fragment) {
+    scrollToElement(fragment);
+    return;
+  }
+  scrollToTop(container);
+};
+
 export const lastSeenElement = (
   container: HTMLElement = document.body
 ): HTMLElement | undefined => {
