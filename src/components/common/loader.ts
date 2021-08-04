@@ -1,3 +1,5 @@
+import { defined, filter, link } from "linki";
+
 import { Callback, closable, Consumer, fork } from "../../libs/connections";
 import { map, pick } from "../../libs/connections/mappers";
 import {
@@ -139,11 +141,16 @@ export const loaderWithContext = <C, R, V extends Prop>({
   onClose
 ) => {
   const handleResponse = (
-    promise: Promise<V>
-  ): Promise<LoaderAction<C, R, V>> =>
+    promise: Promise<V>,
+    signal: AbortSignal
+  ): Promise<LoaderAction<C, R, V> | undefined> =>
     promise
       .then((article) => ["display", article] as LoaderAction<C, R, V>)
       .catch((error) => {
+        if (signal.aborted) {
+          console.info("Request was aborted, ignoring the error", error);
+          return;
+        }
         console.error(error);
         return ["fail", error.toString()] as LoaderAction<C, R, V>;
       });
@@ -161,13 +168,13 @@ export const loaderWithContext = <C, R, V extends Prop>({
       closable((state, signal) => {
         handleState<LoaderState<C, R, V>>(state, {
           initializing: ({ context, request }) => {
-            handleResponse(fetcher(context, request, signal)).then(
-              stateMachine
+            handleResponse(fetcher(context, request, signal), signal).then(
+              link(filter(defined), stateMachine)
             );
           },
           loading: ({ context, request }) => {
-            handleResponse(fetcher(context, request, signal)).then(
-              stateMachine
+            handleResponse(fetcher(context, request, signal), signal).then(
+              link(filter(defined), stateMachine)
             );
           },
           ready: map(pick("data"), onLoaded),
@@ -199,9 +206,7 @@ export const loader = <R, V extends Prop>({
   errorView?: ErrorView;
 }): ComponentBody<{ load: R; display: V }> => (render, onClose) => {
   const { load, display, init } = loaderWithContext<{}, R, V>({
-    fetcher: (context, request, signal) => {
-      return fetcher(request, signal);
-    },
+    fetcher: (context, request, signal) => fetcher(request, signal),
     onLoaded,
     contentSlot,
     errorView,
