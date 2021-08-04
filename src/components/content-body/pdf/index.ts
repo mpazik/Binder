@@ -10,6 +10,7 @@ import {
   pick,
   valueWithState,
   withDefaultValue,
+  withOptionalState,
 } from "linki";
 import * as pdfJsLib from "pdfjs-dist";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -128,6 +129,9 @@ const pdfNav: View<{
     )
   );
 
+const getFragmentForPage = (currentPage: number): string =>
+  "page=" + currentPage;
+
 const setupPdfPageView: ViewSetup<
   {
     onDisplay: Callback<DisplayContext>;
@@ -145,8 +149,10 @@ const setupPdfPageView: ViewSetup<
         onDisplay: link(map(getTarget), (container) =>
           onDisplay({
             container,
-            fragmentForAnnotations: createPdfFragment("page=" + currentPage),
-            fragment: "page=" + currentPage,
+            fragmentForAnnotations: createPdfFragment(
+              getFragmentForPage(currentPage)
+            ),
+            fragment: getFragmentForPage(currentPage),
           })
         ),
       },
@@ -172,7 +178,7 @@ const contentComponent: Component<
   });
 
   return {
-    renderPage: map(pdfPageView)(render),
+    renderPage: link(map(pdfPageView), render),
   };
 };
 
@@ -201,10 +207,10 @@ const parsePageFragment = (fragment: string): number | undefined => {
   console.error(`Could not parse page number from ${fragment}`);
 };
 
-export const pdfDisplay: ContentComponent = ({ onDisplay }) => (
-  render,
-  onClose
-) => {
+export const pdfDisplay: ContentComponent = ({
+  onDisplay,
+  onCurrentFragmentResponse,
+}) => (render, onClose) => {
   const [contentSlot, { renderPage }] = newSlot(
     "content",
     contentComponent({
@@ -230,13 +236,27 @@ export const pdfDisplay: ContentComponent = ({ onDisplay }) => (
     }
   );
 
+  const [returnCurrentFragment, setPageNumberForFragment] = link(
+    withOptionalState<number>(undefined),
+    filter(defined),
+    map(getFragmentForPage),
+    onCurrentFragmentResponse
+  );
+
   const { load, init } = loaderWithContext<
     PdfDocument,
     number,
     PdfPage | undefined
   >({
     fetcher: (pdfDocument, page, signal) => openPage(pdfDocument, page, signal),
-    onLoaded: link(filter(defined), fork(renderPage, setPage)),
+    onLoaded: link(
+      filter(defined),
+      fork(
+        renderPage,
+        setPage,
+        link(map(pick("currentPage")), setPageNumberForFragment)
+      )
+    ),
     contentSlot,
   })(render, onClose);
 
@@ -256,5 +276,6 @@ export const pdfDisplay: ContentComponent = ({ onDisplay }) => (
       )
     ),
     goToFragment: link(map(parsePageFragment), filter(defined), load),
+    requestCurrentFragment: returnCurrentFragment,
   };
 };
