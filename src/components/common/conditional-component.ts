@@ -1,4 +1,4 @@
-import { Component, Slot } from "../../libs/simple-ui/render";
+import { Component, div, Slot } from "../../libs/simple-ui/render";
 
 export const eitherComponent: Component<
   { slotA: Slot; slotB: Slot },
@@ -6,10 +6,10 @@ export const eitherComponent: Component<
 > = ({ slotA, slotB }) => (render) => {
   return {
     renderA: () => {
-      render(slotA);
+      render(div(slotA));
     },
     renderB: () => {
-      render(slotB);
+      render(div(slotB));
     },
   };
 };
