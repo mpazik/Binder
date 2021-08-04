@@ -289,7 +289,7 @@ export const App = asyncLoader(
               }
             : undefined,
         },
-        loadUri: loadUriWithRecentFragment,
+        loadUri,
         searchDirectory: directoryIndex.search,
         searchWatchHistory,
       })
@@ -344,6 +344,7 @@ export const App = asyncLoader(
       docsDirectory({
         searchDirectory: directoryIndex.search,
         searchWatchHistory,
+        loadUri,
       })
     );
 

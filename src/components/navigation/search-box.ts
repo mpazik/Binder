@@ -232,7 +232,6 @@ export const searchBox: Component<{
         type: "text",
         placeholder: "Search your collection or open new url",
         onFocus: fork(selectInputTarget, () => {
-          console.log("selected");
           renderSearch("");
         }),
         onInput: link(
