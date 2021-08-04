@@ -85,10 +85,6 @@ export const wrap = <V, K extends keyof never>(
 
 export const to = <T>(v: T): ((v: unknown) => T) => (): T => v;
 
-export const withDefaultValue = <T>(defaultValue: T) => (
-  value: T | undefined | null
-): T => value ?? defaultValue;
-
 export const map = <T, S>(
   transform: Function<T, S>,
   callback: Callback<S>
@@ -105,14 +101,3 @@ export const cast = <T, S>(callback: Callback<S>): Callback<T> => (v: T) =>
 
 export const mapTo = <T>(value: T, callback: Callback<T>): Callback<unknown> =>
   map(to(value), callback);
-
-export const mapToUndefined = (
-  callback: Callback<undefined>
-): Callback<unknown> => map(to(undefined), callback);
-
-export const withValue = <T>(value: T, callback: Callback<T>): Callback<void> =>
-  map(to(value), callback);
-
-export const ignoreParam = (
-  callback: Callback<void>
-): Callback<unknown> => () => callback();

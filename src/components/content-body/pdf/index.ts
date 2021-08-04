@@ -1,3 +1,16 @@
+import {
+  Callback,
+  defined,
+  definedTuple,
+  filter,
+  fork,
+  link,
+  map,
+  passUndefined,
+  pick,
+  valueWithState,
+  withDefaultValue,
+} from "linki";
 import * as pdfJsLib from "pdfjs-dist";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
@@ -10,16 +23,6 @@ import "./text_layer_builder.css";
 
 import { PDFDocumentProxy } from "pdfjs-dist/types/display/api";
 
-import { Callback, fork, withMultiState } from "../../../libs/connections";
-import { defined, filter } from "../../../libs/connections/filters";
-import {
-  map,
-  passNull,
-  passUndefined,
-  pick,
-  pipe,
-  withDefaultValue,
-} from "../../../libs/connections/mappers";
 import {
   a,
   Component,
@@ -33,7 +36,11 @@ import { getTarget } from "../../../libs/simple-ui/utils/funtions";
 import { createPdfFragment } from "../../annotations/annotation";
 import { loaderWithContext } from "../../common/loader";
 import { ContentComponent, DisplayContext } from "../types";
-import { doesElementReadsInput, scrollToTop } from "../utils";
+import {
+  doesElementReadsInput,
+  isFocusedElementStatic,
+  scrollToTop,
+} from "../utils";
 
 // The workerSrc property shall be specified.
 pdfJsLib.GlobalWorkerOptions.workerSrc = "./pdf.worker.js";
@@ -135,7 +142,7 @@ const setupPdfPageView: ViewSetup<
     div(
       {
         class: "position-relative",
-        onDisplay: map(getTarget, (container) =>
+        onDisplay: link(map(getTarget), (container) =>
           onDisplay({
             container,
             fragmentForAnnotations: createPdfFragment("page=" + currentPage),
@@ -165,7 +172,7 @@ const contentComponent: Component<
   });
 
   return {
-    renderPage: map(pdfPageView, render),
+    renderPage: map(pdfPageView)(render),
   };
 };
 
@@ -201,14 +208,17 @@ export const pdfDisplay: ContentComponent = ({ onDisplay }) => (
   const [contentSlot, { renderPage }] = newSlot(
     "content",
     contentComponent({
-      onDisplay: fork(onDisplay, map(pick("container"), scrollToTop)),
+      onDisplay: fork(onDisplay, link(map(pick("container")), scrollToTop)),
     })
   );
 
-  const [changePage, [setPage]] = withMultiState<[PdfPage], KeyboardEvent>(
-    ([page], keyboardEvent) => {
+  const [changePage, setPage] = link(
+    valueWithState<PdfPage | undefined, KeyboardEvent>(undefined),
+    filter(definedTuple),
+    filter(isFocusedElementStatic),
+    ([page, keyboardEvent]) => {
       if (!page) return;
-      if (passNull(doesElementReadsInput)(document.activeElement)) return;
+      if (passUndefined(doesElementReadsInput)(document.activeElement!)) return;
       if (keyboardEvent.key === "ArrowLeft" && page.currentPage > 1) {
         load(page.currentPage - 1);
       } else if (
@@ -217,8 +227,7 @@ export const pdfDisplay: ContentComponent = ({ onDisplay }) => (
       ) {
         load(page.currentPage + 1);
       }
-    },
-    undefined
+    }
   );
 
   const { load, init } = loaderWithContext<
@@ -227,7 +236,7 @@ export const pdfDisplay: ContentComponent = ({ onDisplay }) => (
     PdfPage | undefined
   >({
     fetcher: (pdfDocument, page, signal) => openPage(pdfDocument, page, signal),
-    onLoaded: filter(defined, fork(renderPage, setPage)),
+    onLoaded: link(filter(defined), fork(renderPage, setPage)),
     contentSlot,
   })(render, onClose);
 
@@ -236,9 +245,9 @@ export const pdfDisplay: ContentComponent = ({ onDisplay }) => (
 
   return {
     displayContent: fork(
-      map(pipe(pick("content"), openPdf), init),
-      map(
-        pipe(
+      link(map(pick("content"), openPdf), init),
+      link(
+        map(
           pick("fragment"),
           passUndefined(parsePageFragment),
           withDefaultValue(1)
@@ -246,6 +255,6 @@ export const pdfDisplay: ContentComponent = ({ onDisplay }) => (
         load
       )
     ),
-    goToFragment: map(parsePageFragment, filter(defined, load)),
+    goToFragment: link(map(parsePageFragment), filter(defined), load),
   };
 };

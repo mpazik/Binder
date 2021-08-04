@@ -1,16 +1,20 @@
 import * as JSZip from "jszip";
-
-import { newUriWithFragment } from "../../../functions/url-hijack";
-import { Callback, fork, withMultiState } from "../../../libs/connections";
-import { defined, filter } from "../../../libs/connections/filters";
 import {
+  Callback,
+  defined,
+  definedTuple,
+  filter,
+  fork,
+  link,
   map,
-  passNull,
   passUndefined,
   pick,
   pipe,
+  valueWithState,
   withDefaultValue,
-} from "../../../libs/connections/mappers";
+} from "linki";
+
+import { newUriWithFragment } from "../../../functions/url-hijack";
 import { getBlobFile, getXmlFile, ZipObject } from "../../../libs/epub";
 import {
   customParseFirstSegmentEpubCfi,
@@ -34,7 +38,7 @@ import { createEpubFragment } from "../../annotations/annotation";
 import { loaderWithContext } from "../../common/loader";
 import { setupHtmlView } from "../html/view";
 import { ContentComponent, DisplayContext } from "../types";
-import { doesElementReadsInput, scrollToFragmentOrTop } from "../utils";
+import { isFocusedElementStatic, scrollToFragmentOrTop } from "../utils";
 
 const absolute = (base: string, relative: string) => {
   const separator = "/";
@@ -150,14 +154,16 @@ const openChapter = async (
   const path = throwIfNull(manifestItem.getAttribute("href"));
 
   const cfiForChapterItem = (sibling: Element | null) =>
-    passNull(pipe(getManifestItem, generateEpubCfi))(sibling);
+    passUndefined(pipe(getManifestItem, generateEpubCfi))(sibling ?? undefined);
 
   return {
     currentChapter: chapter,
     content: await prepareEpubPage(zip, path, packageDoc, rootFilePath),
     previousChapter: cfiForChapterItem(chapterItem.previousElementSibling),
     nextChapter: cfiForChapterItem(chapterItem.nextElementSibling),
-    navigation: passNull(generateEpubCfi)(packageDoc.getElementById("nav")),
+    navigation: passUndefined(generateEpubCfi)(
+      packageDoc.getElementById("nav") ?? undefined
+    ),
   };
 };
 
@@ -251,7 +257,7 @@ const contentComponent: Component<
   });
 
   return {
-    renderPage: map(chapterView, render),
+    renderPage: link(map(chapterView), render),
   };
 };
 
@@ -275,18 +281,18 @@ export const epubDisplay: ContentComponent = ({ onDisplay }) => (
     })
   );
 
-  const [changeChapter, [setChapter]] = withMultiState<
-    [EpubChapter],
-    KeyboardEvent
-  >(([chapter], keyboardEvent) => {
-    if (!chapter) return;
-    if (passNull(doesElementReadsInput)(document.activeElement)) return;
-    if (keyboardEvent.key === "ArrowLeft" && chapter.previousChapter) {
-      load(chapter.previousChapter);
-    } else if (keyboardEvent.key === "ArrowRight" && chapter.nextChapter) {
-      load(chapter.nextChapter);
+  const [changeChapter, setChapter] = link(
+    valueWithState<EpubChapter | undefined, KeyboardEvent>(undefined),
+    filter(definedTuple),
+    filter(isFocusedElementStatic),
+    ([chapter, keyboardEvent]) => {
+      if (keyboardEvent.key === "ArrowLeft" && chapter.previousChapter) {
+        load(chapter.previousChapter);
+      } else if (keyboardEvent.key === "ArrowRight" && chapter.nextChapter) {
+        load(chapter.nextChapter);
+      }
     }
-  }, undefined);
+  );
 
   document.addEventListener("keyup", changeChapter);
   onClose(() => {
@@ -301,9 +307,9 @@ export const epubDisplay: ContentComponent = ({ onDisplay }) => (
 
   return {
     displayContent: fork(
-      map(pipe(pick("content"), openEpub), init),
-      map(pipe(pick("fragment"), withDefaultValue(emptyEpubCfi)), load)
+      link(map(pick("content"), openEpub), init),
+      link(map(pick("fragment"), withDefaultValue(emptyEpubCfi)), load)
     ),
-    goToFragment: filter(defined, load),
+    goToFragment: link(filter(defined), load),
   };
 };

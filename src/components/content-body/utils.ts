@@ -42,6 +42,7 @@ export const lastSeenElement = (
 };
 
 const tagsReadingKeyboardInput = ["INPUT", "TEXTAREA", "BUTTON"];
+
 export const doesElementReadsInput = (element: Element): boolean => {
   const tagName = element.tagName;
   if (tagsReadingKeyboardInput.includes(tagName)) return true;
@@ -49,3 +50,8 @@ export const doesElementReadsInput = (element: Element): boolean => {
     tagName === "DIV" && element.getAttribute("contenteditable") === "true"
   );
 };
+
+export const isFocusedElementStatic = (): boolean =>
+  document.activeElement
+    ? !doesElementReadsInput(document.activeElement)
+    : true;
