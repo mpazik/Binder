@@ -83,7 +83,7 @@ const createWatchHistoryPureIndexer = (
 ): UpdateIndex => async (ld) => {
   const record = index(ld);
   if (!record) return;
-  return storePut(watchHistoryStore, record.props, record.key).then(); // ignore storePut result
+  await storePut(watchHistoryStore, record.props, record.key);
 };
 
 export const createWatchHistoryIndexer = (
@@ -92,12 +92,14 @@ export const createWatchHistoryIndexer = (
 ): UpdateIndex => async (ld) => {
   const record = index(ld);
   if (!record) return;
+  await storePut(watchHistoryStore, record.props, record.key);
+  console.log("Watch view indexing", ld);
+
   const previous = await storeGet(watchHistoryStore, record.key);
   if (previous) {
     // we don't want to pollute space with all watch events so we store only last one
     await deleteLinkedData(previous.eventId);
   }
-  return storePut(watchHistoryStore, record.props, record.key).then(); // ignore storePut result
 };
 
 registerRepositoryVersion({

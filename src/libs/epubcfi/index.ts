@@ -59,9 +59,13 @@ function calcSiblingCount(
   throw new Error("The specified node was not found in the array of siblings");
 }
 
-type CfiNode = { node: Node; offset: number };
+export type EpubCfi = string;
+export type EpubCfiPart = string;
 
-const generatePart = ({ node, offset }: CfiNode) => {
+export const generateEpubCfiPartForNode = (
+  node: Node,
+  offset = 0
+): EpubCfiPart => {
   let cfi = "";
   let o;
   while (node.parentNode) {
@@ -77,30 +81,19 @@ const generatePart = ({ node, offset }: CfiNode) => {
   return cfi;
 };
 
-export type EpubCfi = string;
+export const generateEpubCfiPartForId = (fragment: string): EpubCfiPart =>
+  `[${fragment}]`;
 
-export const generateEpubCfi = (
-  node: Node | Node[],
-  extra?: string
-): EpubCfi => {
-  let cfi;
+export const generateEpubCfi = (...parts: EpubCfiPart[]): EpubCfi =>
+  `epubcfi(${parts.join("!")})`;
 
-  if (node instanceof Array) {
-    const strs = [];
-    for (const n of node) {
-      strs.push(generatePart({ node: n, offset: 0 }));
-    }
-    cfi = strs.join("!");
-  } else {
-    cfi = generatePart({ node, offset: 0 });
-  }
-
-  if (extra) cfi += extra;
-
-  return `epubcfi(${cfi})`;
+export const generateEpubCfiFromNodes = (node: Node | Node[]): EpubCfi => {
+  const nodes = Array.isArray(node) ? node : [node];
+  const parts = nodes.map(generateEpubCfiPartForNode);
+  return generateEpubCfi(...parts);
 };
 
-export const emptyEpubCfi = "epubcfi()";
+export const emptyEpubCfi = generateEpubCfi();
 
 const isCFI = new RegExp(/^epubcfi\((.*)\)$/);
 const hasNodeId = new RegExp(/^.*\[(.*)]$/);
