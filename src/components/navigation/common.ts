@@ -1,4 +1,7 @@
+import { fork } from "linki";
+
 import {
+  a,
   dangerousHTML,
   details,
   div,
@@ -9,6 +12,7 @@ import {
   ul,
   View,
 } from "../../libs/simple-ui/render";
+import { preventDefault } from "../../libs/simple-ui/utils/funtions";
 
 const loadingIcon = `
 <svg xmlns="http://www.w3.org/2000/svg" class=" v-align-middle" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -48,9 +52,12 @@ export const dropdownItem: View<{ text: string; onClick: () => void }> = ({
   onClick,
 }) =>
   li(
-    {
-      class: "dropdown-item",
-      onClick,
-    },
-    text
+    a(
+      {
+        class: "dropdown-item",
+        href: "#",
+        onClick: fork(onClick, preventDefault),
+      },
+      text
+    )
   );

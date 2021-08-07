@@ -239,6 +239,11 @@ const slotHandler = (parent: Element): Renderer => {
     console.debug("render", jsonml);
     if (jsonml === undefined) {
       parent.innerHTML = "";
+      for (const slotKey of existingSlots.keys()) {
+        const existingSlot = existingSlots.get(slotKey);
+        existingSlot!.deactivate();
+        existingSlots.delete(slotKey);
+      }
       return;
     }
     const [newChild, renderedSlots] = convertToDom(jsonml);

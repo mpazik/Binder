@@ -220,7 +220,7 @@ export const App = asyncLoader(
           }),
           filter(defined),
           passOnlyChanged<RepositoryDb>(initRepo),
-          updateRepo
+          fork(updateRepo, () => switchDisplayToDirectory())
         )
       ),
       globalDb,

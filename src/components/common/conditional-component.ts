@@ -6,9 +6,11 @@ export const eitherComponent: Component<
 > = ({ slotA, slotB }) => (render) => {
   return {
     renderA: () => {
+      render(); // clean previous dom, to force rerender
       render(div(slotA));
     },
     renderB: () => {
+      render(); // clean previous dom, to force rerender
       render(div(slotB));
     },
   };

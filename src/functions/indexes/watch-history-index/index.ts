@@ -93,7 +93,6 @@ export const createWatchHistoryIndexer = (
   const record = index(ld);
   if (!record) return;
   await storePut(watchHistoryStore, record.props, record.key);
-  console.log("Watch view indexing", ld);
 
   const previous = await storeGet(watchHistoryStore, record.key);
   if (previous) {

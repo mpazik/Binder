@@ -39,6 +39,10 @@ export const docsDirectory: Component<{
   );
 
   return (render) => {
-    searchRecentDocuments(undefined).then((docs) => render(view({ docs })));
+    const renderStuff = async () => {
+      const docs = await searchRecentDocuments(undefined);
+      render(view({ docs }));
+    };
+    renderStuff();
   };
 };
