@@ -4,9 +4,11 @@ import {
   definedTuple,
   filter,
   fork,
+  ignoreParam,
   is,
   link,
   map,
+  pick,
   split,
   to,
   valueWithState,
@@ -18,7 +20,9 @@ import {
   newUriWithFragment,
   UriWithFragment,
 } from "../../functions/url-hijack";
+import { and } from "../../libs/connections/filters";
 import { mapAwait } from "../../libs/connections/mappers";
+import { keyNameTooltip } from "../../libs/key-events";
 import {
   Component,
   ComponentBody,
@@ -33,13 +37,18 @@ import {
   View,
 } from "../../libs/simple-ui/render";
 import {
+  focusElement,
   getInputTarget,
   getTarget,
+  hasNoKeyModifier,
+  isKey,
+  preventDefault,
   resetInput,
   selectInputTarget,
 } from "../../libs/simple-ui/utils/funtions";
 import { specialDirectoryUri } from "../app/special-uris";
 import { relativeDate } from "../common/relative-date";
+import { isFocusedElementStatic } from "../content-body/utils";
 
 const noItemsView: View = () =>
   div(
@@ -151,12 +160,19 @@ const isUrl = (s: string) => {
   }
 };
 
+const searchFocusShortCutKey = "KeyF";
 const specialAllItemsName = "list-all-items"; // this is hack
 
 export const searchBox: Component<{
   onSearch: (term: string) => Promise<RecentDocuments[]>;
   onSelected: (url: UriWithFragment) => void;
-}> = ({ onSearch, onSelected }) => (render) => {
+}> = ({ onSearch, onSelected }) => (render, onClose) => {
+  const selectUrl = (url: UriWithFragment) => {
+    hideList();
+    resetSearchInput();
+    onSelected(url);
+  };
+
   const [
     suggestionsSlot,
     {
@@ -169,11 +185,7 @@ export const searchBox: Component<{
   ] = newSlot(
     "autocomplete-list",
     createAutocompleteList<RecentDocuments>({
-      onSelected: (item) => {
-        hideList();
-        resetSearchInput();
-        onSelected(item.uriWithFragment);
-      },
+      onSelected: link(map(pick("uriWithFragment")), selectUrl),
       getOptionLabel: ({ name, startDate }) => {
         if (name === specialAllItemsName)
           return div(
@@ -208,6 +220,12 @@ export const searchBox: Component<{
     resetInput
   );
 
+  const [focusInput, setInputForFocus] = link(
+    withState<HTMLInputElement | undefined>(undefined),
+    filter(defined),
+    focusElement
+  );
+
   const renderSearch = mapAwait(
     onSearch,
     link(
@@ -223,14 +241,35 @@ export const searchBox: Component<{
     (e) => console.error(e)
   );
 
+  const keyHandler: (e: KeyboardEvent) => void = link(
+    filter(
+      and(
+        isKey(searchFocusShortCutKey),
+        hasNoKeyModifier,
+        isFocusedElementStatic
+      )
+    ),
+    fork(link(ignoreParam(), focusInput), preventDefault)
+  );
+
+  onClose(() => {
+    document.removeEventListener("keydown", keyHandler);
+  });
+  document.addEventListener("keydown", keyHandler);
+
   render(
     div(
       { class: "position-relative" },
       input({
-        onDisplay: link(map(getInputTarget), setInputForReset),
+        onDisplay: link(
+          map(getInputTarget),
+          fork(setInputForReset, setInputForFocus)
+        ),
         class: "form-control width-full",
         type: "text",
-        placeholder: "Search your collection or open new url",
+        placeholder: `Search your collection or open new url ${keyNameTooltip(
+          searchFocusShortCutKey
+        )}`,
         onFocus: fork(selectInputTarget, () => {
           renderSearch("");
         }),
@@ -238,13 +277,7 @@ export const searchBox: Component<{
           map(getInputTarget, (input) => input.value.trim()),
           debounce(100),
           link(split(isUrl), [
-            (url: string) =>
-              renderList([
-                {
-                  uriWithFragment: newUriWithFragment(url),
-                  name: `open page from: ${new URL(url).host}`,
-                },
-              ]),
+            link(map(newUriWithFragment), selectUrl),
             renderSearch,
           ])
         ),

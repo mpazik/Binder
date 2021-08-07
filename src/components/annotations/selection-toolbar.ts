@@ -1,6 +1,7 @@
 import { fork, passOnlyChanged } from "../../libs/connections";
 import { and, filter, not } from "../../libs/connections/filters";
 import { map, mapTo } from "../../libs/connections/mappers";
+import { keyNameTooltip } from "../../libs/key-events";
 import { button, Component, div, View } from "../../libs/simple-ui/render";
 import { hasNoKeyModifier, isKey } from "../../libs/simple-ui/utils/funtions";
 
@@ -16,13 +17,6 @@ export type Button = {
   handler: (selection: Selection) => void;
   label: string;
   shortCutKey?: string;
-};
-
-const keyCodeToKeyName = (keyCode: string) => {
-  if (keyCode.startsWith("Key")) {
-    return keyCode.substring(3);
-  }
-  return keyCode;
 };
 
 export const selectionToolbarView: View<{
@@ -45,7 +39,7 @@ export const selectionToolbarView: View<{
             class: `BtnGroup-item btn btn-sm`,
             type: "button",
             title: shortCutKey
-              ? `${label}    [${keyCodeToKeyName(shortCutKey)}]`
+              ? `${label}    ${keyNameTooltip(shortCutKey)}`
               : undefined,
             onClick: handler,
           },
