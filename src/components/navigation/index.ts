@@ -6,10 +6,7 @@ import { GDriveAction } from "../../functions/gdrive/controller";
 import { DirectoryIndex } from "../../functions/indexes/directory-index";
 import { WatchHistorySearch } from "../../functions/indexes/watch-history-index";
 import { createRecentDocumentSearch } from "../../functions/recent-document-serach";
-import {
-  updateBrowserHistory,
-  UriWithFragment,
-} from "../../functions/url-hijack";
+import { UriWithFragment } from "../../functions/url-hijack";
 import { Callback, fork } from "../../libs/connections";
 import {
   button,
@@ -173,7 +170,7 @@ export const navigation: Component<
   const searchBoxSlot = slot(
     "search-box",
     searchBox({
-      onSelected: fork(updateBrowserHistory, loadUri),
+      onSelected: loadUri,
       onSearch: search,
     })
   );

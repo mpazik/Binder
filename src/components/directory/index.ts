@@ -4,20 +4,18 @@ import {
   createRecentDocumentSearch,
   RecentDocuments,
 } from "../../functions/recent-document-serach";
-import { UriWithFragment } from "../../functions/url-hijack";
-import { Callback } from "../../libs/connections";
+import { combineToUri } from "../../functions/url-hijack";
 import { a, Component, small, View } from "../../libs/simple-ui/render";
 import { relativeDate } from "../common/relative-date";
 
 const view: View<{
   docs: RecentDocuments[];
-  loadUri: Callback<UriWithFragment>;
-}> = ({ docs, loadUri }) => [
+}> = ({ docs }) => [
   "nav",
   { class: "menu" },
   ...docs.map((it) =>
     a(
-      { class: "menu-item", onClick: () => loadUri(it.uriWithFragment) },
+      { class: "menu-item", href: combineToUri(it.uriWithFragment) },
       it.name,
       ...(it.startDate
         ? [
@@ -34,16 +32,13 @@ const view: View<{
 export const docsDirectory: Component<{
   searchDirectory: DirectoryIndex["search"];
   searchWatchHistory: WatchHistorySearch;
-  loadUri: Callback<UriWithFragment>;
-}> = ({ searchDirectory, searchWatchHistory, loadUri }) => {
+}> = ({ searchDirectory, searchWatchHistory }) => {
   const searchRecentDocuments = createRecentDocumentSearch(
     searchDirectory,
     searchWatchHistory
   );
 
   return (render) => {
-    searchRecentDocuments(undefined).then((docs) =>
-      render(view({ loadUri, docs }))
-    );
+    searchRecentDocuments(undefined).then((docs) => render(view({ docs })));
   };
 };

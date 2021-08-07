@@ -290,7 +290,7 @@ export const App = asyncLoader(
               }
             : undefined,
         },
-        loadUri,
+        loadUri: fork(updateBrowserHistory, loadUri),
         searchDirectory: directoryIndex.search,
         searchWatchHistory,
       })
@@ -345,7 +345,6 @@ export const App = asyncLoader(
       docsDirectory({
         searchDirectory: directoryIndex.search,
         searchWatchHistory,
-        loadUri,
       })
     );
 

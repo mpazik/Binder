@@ -52,6 +52,9 @@ export const newUriWithFragment = (url: string): UriWithFragment => {
   };
 };
 
+export const combineToUri = ({ uri, fragment }: UriWithFragment): string =>
+  fragment ? `${uri}#${fragment}` : uri;
+
 const getCurrentUri = () => throwIfNull(getQueryParams().get("uri"));
 
 export const browserUriProvider = ({
