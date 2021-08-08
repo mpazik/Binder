@@ -1159,20 +1159,12 @@
     tslib "^2.2.0"
     webcrypto-core "^1.2.0"
 
-"@primer/css@^16.3.0":
-  version "16.3.0"
-  resolved "https://registry.yarnpkg.com/@primer/css/-/css-16.3.0.tgz#1dca32ff75e6bf23fbe8c27c014b35dfe1294ac0"
-  integrity sha512-nfgvRLPVGS1cdEh/Y1cak17gwEVI8HtQpbGQHvBcWrVQ78sbS3EHvdRUGpFM/Lyi/WKVZInAAwIXG9RWKukOag==
+"@primer/css@^17.5.2":
+  version "17.5.2"
+  resolved "https://registry.yarnpkg.com/@primer/css/-/css-17.5.2.tgz#91b7c9ec55e1a74ad4f085df3b12f6244188cec8"
+  integrity sha512-l7V/Hgqtumh840BZuiMI0tZNLnLOHCztVL1s9z6ORUjm/g3gTtVZGdDRvQ+NGU85WpVAhcQBNgsPHoxLMq/Mbw==
   dependencies:
-    "@primer/octicons" "13.0.0"
-    "@primer/primitives" "4.2.1"
-
-"@primer/octicons@13.0.0":
-  version "13.0.0"
-  resolved "https://registry.yarnpkg.com/@primer/octicons/-/octicons-13.0.0.tgz#dab1f156ac601d2cb7c83eab9242a1739429cf2e"
-  integrity sha512-kMNu3Ny3eocOTl2hxRC0YX0na7zJwpSIQNiZqmyqbLMKp2YwNAwk5Tan4RLGe35f30st+EbNq15dEjiMzslAcw==
-  dependencies:
-    object-assign "^4.1.1"
+    "@primer/primitives" "^4.3.5"
 
 "@primer/octicons@^11.0.0":
   version "11.0.0"
@@ -1181,10 +1173,10 @@
   dependencies:
     object-assign "^4.1.1"
 
-"@primer/primitives@4.2.1":
-  version "4.2.1"
-  resolved "https://registry.yarnpkg.com/@primer/primitives/-/primitives-4.2.1.tgz#e8fac9b4b78eb81d81384ce5fcfe32bbb4115861"
-  integrity sha512-sI0Bw/PMCZ1kfPX1MRwoNYD6RWdvU0sGk9YYD8euYASwrr4E6aNH9dutMmHTRVe/N3/coBN7QUkV79GMt0UKyQ==
+"@primer/primitives@^4.3.5":
+  version "4.5.2"
+  resolved "https://registry.yarnpkg.com/@primer/primitives/-/primitives-4.5.2.tgz#97f802ac0e3fa28136f0505a8b009a9be2ac9dec"
+  integrity sha512-Mct7UJNruBFFFFaif19L5E8HvWe5ff64QbzXXxMHl8HVQhtCcVfpGtR30aUYKmtPtQmXO1UOb3QnaO5tuEP+7g==
 
 "@sinonjs/commons@^1.7.0":
   version "1.8.2"
@@ -4820,14 +4812,6 @@ isobject@^3.0.0, isobject@^3.0.1:
   resolved "https://registry.yarnpkg.com/isobject/-/isobject-3.0.1.tgz"
   integrity sha1-TkMekrEalzFjaqH5yNHMvP2reN8=
 
-isomorphic-fetch@^3.0.0:
-  version "3.0.0"
-  resolved "https://registry.yarnpkg.com/isomorphic-fetch/-/isomorphic-fetch-3.0.0.tgz#0267b005049046d2421207215d45d6a262b8b8b4"
-  integrity sha512-qvUtwJ3j6qwsF3jLxkZ72qCgjMysPzDfeV240JHiGZsANBYd+EEuu35v7dfrJ9Up0Ak07D7GGSkGhCHTqg/5wA==
-  dependencies:
-    node-fetch "^2.6.1"
-    whatwg-fetch "^3.4.1"
-
 isstream@~0.1.2:
   version "0.1.2"
   resolved "https://registry.yarnpkg.com/isstream/-/isstream-0.1.2.tgz"
@@ -5899,11 +5883,6 @@ no-case@^3.0.3:
   dependencies:
     lower-case "^2.0.1"
     tslib "^1.10.0"
-
-node-fetch@^2.6.1:
-  version "2.6.1"
-  resolved "https://registry.yarnpkg.com/node-fetch/-/node-fetch-2.6.1.tgz#045bd323631f76ed2e2b55573394416b639a0052"
-  integrity sha512-V4aYg89jEoVRxRb2fJdAg8FHvI7cEyYdVAh94HH0UIK8oJxUfkjlDQN9RbMx+bEjP7+ggMiFRprSti032Oipxw==
 
 node-forge@^0.10.0:
   version "0.10.0"
@@ -8461,7 +8440,7 @@ whatwg-encoding@^1.0.5:
   dependencies:
     iconv-lite "0.4.24"
 
-whatwg-fetch@^3.4.1, whatwg-fetch@^3.6.2:
+whatwg-fetch@^3.6.2:
   version "3.6.2"
   resolved "https://registry.yarnpkg.com/whatwg-fetch/-/whatwg-fetch-3.6.2.tgz#dced24f37f2624ed0281725d51d0e2e3fe677f8c"
   integrity sha512-bJlen0FcuU/0EMLrdbJ7zOnW6ITZLrZMIarMUVmdKtsGvZna8vxKYaexICWPfZ8qwf9fzNq+UEIZrnSaApt6RA==
