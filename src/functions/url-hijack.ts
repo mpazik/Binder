@@ -1,4 +1,5 @@
-import { ClosableProvider, fork, link, map } from "../../../linki";
+import { ClosableProvider, fork, link, map } from "linki";
+
 import { getQueryParams, queryParamProvider } from "../libs/browser-providers";
 import { throwIfNull } from "../libs/errors";
 

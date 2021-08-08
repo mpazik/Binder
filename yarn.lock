@@ -1166,13 +1166,6 @@
   dependencies:
     "@primer/primitives" "^4.3.5"
 
-"@primer/octicons@^11.0.0":
-  version "11.0.0"
-  resolved "https://registry.yarnpkg.com/@primer/octicons/-/octicons-11.0.0.tgz"
-  integrity sha512-aMM2n7dl4ToEqQH9ZWQ8M8alGCoGsRk2k5hT5h3KXd54YFKte1twhJDvyQjIjjxqggNh5NUfyuqTOv6MPCVSKQ==
-  dependencies:
-    object-assign "^4.1.1"
-
 "@primer/primitives@^4.3.5":
   version "4.5.2"
   resolved "https://registry.yarnpkg.com/@primer/primitives/-/primitives-4.5.2.tgz#97f802ac0e3fa28136f0505a8b009a9be2ac9dec"
@@ -5440,10 +5433,10 @@ lines-and-columns@^1.1.6:
   resolved "https://registry.yarnpkg.com/lines-and-columns/-/lines-and-columns-1.1.6.tgz"
   integrity sha1-HADHQ7QzzQpOgHWPe2SldEDZ/wA=
 
-linki@^0.0.6:
-  version "0.0.6"
-  resolved "https://registry.yarnpkg.com/linki/-/linki-0.0.6.tgz#7b0feb7f1535c56e8f764ef342f45549d59348f9"
-  integrity sha512-ekaLlQ2WSYzNQsmDWUfvK7GEZTy5XuVymLPkoYo69jfCKYWzXMaZg+jNp+BUwnufa9PeEvXwWO4IaCEyR6lC5g==
+linki@^0.0.7:
+  version "0.0.7"
+  resolved "https://registry.yarnpkg.com/linki/-/linki-0.0.7.tgz#4a54e6fa6626891147ab91855981397f2e089661"
+  integrity sha512-91mxxKcINHtfPIDgB/VHnxTVxlgw/befGp7SBp7ESzHce6LO7hnwaBQ1xdx8OwdWjyEHyWSvAbou0BT3qNSjpg==
 
 load-json-file@^2.0.0:
   version "2.0.0"

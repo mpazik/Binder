@@ -1,4 +1,4 @@
-import { ClosableProvider } from "../../../linki";
+import { ClosableProvider } from "linki";
 
 import { Provider } from "./connections";
 
