@@ -25,7 +25,7 @@ const devConfig = {
 
 const prodConfig = {
   PROXY_SERVER: JSON.stringify(
-    "https://purple-sun-fdbf.friendly-apps.workers.dev/"
+    "https://docland-proxy.friendly-apps.workers.dev/"
   ),
   GDRIVE_APP_DIR_NAME: JSON.stringify("binder"),
   // these keys are public as they get to the end code anyway. They are obfuscated to make difficult to scrap them from the repo
