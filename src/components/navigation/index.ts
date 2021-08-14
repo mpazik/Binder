@@ -9,6 +9,7 @@ import { createRecentDocumentSearch } from "../../functions/recent-document-sera
 import { UriWithFragment } from "../../functions/url-hijack";
 import { Callback, fork } from "../../libs/connections";
 import {
+  a,
   button,
   Component,
   dangerousHTML,
@@ -206,8 +207,15 @@ export const navigation: Component<
         { class: "flex-1" },
         h2(
           { class: "ml-2", style: { "font-size": "22px" } },
-          dangerousHTML(productLogo),
-          span({ class: "v-align-middle" }, " docland")
+          a(
+            { href: "/about", class: "color-text-primary no-underline" },
+            dangerousHTML(productLogo),
+            span({ class: "v-align-middle" }, " docland"),
+            span(
+              { class: "v-align-middle text-light h4 color-text-danger" },
+              " beta"
+            )
+          )
         )
       ),
       div(

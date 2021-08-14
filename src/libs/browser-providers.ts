@@ -1,4 +1,4 @@
-import { ClosableProvider } from "linki";
+import { ClosableProvider, link, logger, map, passOnlyChanged } from "linki";
 
 import { Provider } from "./connections";
 
@@ -29,6 +29,20 @@ export const queryParamProvider: ClosableProvider<{
       queryParams: getQueryParams(),
       fragment: getUriFragment(),
     });
+
+  setImmediate(update);
+  window.addEventListener("popstate", update);
+  return () => document.removeEventListener("popstate", update);
+};
+
+export const browserPathProvider: ClosableProvider<string> = (push) => {
+  const update = link(
+    map(() => window.location.pathname),
+    passOnlyChanged(),
+
+    logger("tset"),
+    push
+  ) as () => void;
 
   setImmediate(update);
   window.addEventListener("popstate", update);

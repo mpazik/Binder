@@ -1,23 +1,30 @@
-import { ClosableProvider, fork, link, map } from "linki";
+import { ClosableProvider, fork, link, map, Predicate } from "linki";
 
 import { getQueryParams, queryParamProvider } from "../libs/browser-providers";
 import { throwIfNull } from "../libs/errors";
 
-const linkHijack = ({
+const findLink = (element: HTMLElement | null): HTMLElement | undefined => {
+  if (!element) return;
+  if (element.nodeName === "A") return element;
+  if (element.nodeName === "SPAN") return findLink(element.parentElement);
+};
+export const linkHijack = ({
+  predicate = () => true,
   element = document,
 }: {
   element?: Node;
+  predicate?: Predicate<string>;
 }): ClosableProvider<string> => (push) => {
   const hijackLink = (event: Event) => {
-    const element = event.target as HTMLElement;
-    if (!element || element.nodeName !== "A") return;
+    const element = findLink(event.target as HTMLElement);
+    if (!element) return;
     if (element.getAttribute("target")) {
       return; // ignore anchor with explicitly set target attribute
     }
     const uri = element.getAttribute("href");
-    if (!uri) {
-      return;
-    }
+    if (!uri) return;
+    if (!predicate(uri)) return;
+
     push(uri);
     event.preventDefault();
   };
@@ -79,7 +86,12 @@ export const browserUriProvider = ({
 export const documentLinksUriProvider: ClosableProvider<UriWithFragment> = (
   push
 ) => {
-  return linkHijack({})(
+  return linkHijack({
+    predicate: (uri) =>
+      uri.startsWith("http://") ||
+      uri.startsWith("https://") ||
+      uri.startsWith("nih:"),
+  })(
     link(
       map(newUriWithFragment, (it) =>
         it.uri === ""

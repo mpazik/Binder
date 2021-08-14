@@ -67,7 +67,7 @@ module.exports = {
       templateContent: ({ htmlWebpackPlugin }) => `
     <html lang="en">
       <head>
-        <title>docland</title>
+        <title>docpot</title>
         <link href="primer.css" rel="stylesheet" />
         <link rel="icon" href="${iconFileName}.svg" type="image/svg+xml"/>
         <link rel="mask-icon" href="${iconFileName}.svg" color="#24292e">
@@ -111,5 +111,8 @@ module.exports = {
         router: (req) => new URL(req.url.slice("/proxy/".length)).origin,
       },
     },
+    historyApiFallback: {
+      historyApiFallback: true
+    }
   },
 };

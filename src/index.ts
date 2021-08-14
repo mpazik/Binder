@@ -1,4 +1,7 @@
-import { App } from "./components/app";
+import "./styles/styles.css";
+import "./styles/loading.css";
+
+import { AppRouter } from "./components/router";
 import { setupComponent } from "./libs/simple-ui/render";
 
 (async () => {
@@ -6,5 +9,5 @@ import { setupComponent } from "./libs/simple-ui/render";
   root.id = "root";
   document.body.appendChild(root);
 
-  setupComponent(App, root);
+  setupComponent(AppRouter(), root);
 })();

@@ -1,6 +1,3 @@
-import "./styles.css";
-import "./loading.css";
-
 import {
   asyncMapWithErrorHandler,
   Callback,
