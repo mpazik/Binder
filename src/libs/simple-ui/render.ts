@@ -312,6 +312,9 @@ export type ComponentItem<I, ID, T = void> = (
 ) => ComponentRuntime;
 
 export const div = newTagFactory<Nodes>("div");
+export const nav = newTagFactory<Nodes>("nav");
+export const video = newTagFactory<Nodes>("video");
+export const source = newTagFactory<Nodes>("source");
 export const h1 = newTagFactory<Nodes>("h1");
 export const h2 = newTagFactory<Nodes>("h2");
 export const h3 = newTagFactory<Nodes>("h3");
@@ -333,6 +336,7 @@ export const li = newTagFactory<Nodes>("li");
 export const a = newTagFactory<Nodes>("a");
 export const strong = newTagFactory<Nodes>("strong");
 export const b = newTagFactory<Nodes>("b");
+export const img = newTagFactory<Nodes>("img");
 export const article = newTagFactory<Nodes>("article");
 export const details = newTagFactory<Nodes>("details");
 export const summary = newTagFactory<Nodes>("summary");

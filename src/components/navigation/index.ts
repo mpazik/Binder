@@ -1,4 +1,4 @@
-import { link, map, Close, withState, defined, filter, not } from "linki";
+import { Close, defined, filter, link, map, not, withState } from "linki";
 
 import { DISPLAY_CONFIG_ENABLED } from "../../config";
 import { GDriveLoadingProfile } from "../../functions/gdrive/app-files";
@@ -9,19 +9,20 @@ import { createRecentDocumentSearch } from "../../functions/recent-document-sera
 import { UriWithFragment } from "../../functions/url-hijack";
 import { Callback, fork } from "../../libs/connections";
 import {
-  a,
   button,
   Component,
   dangerousHTML,
   details,
   div,
-  h2,
+  JsonHtml,
+  Listener,
   newSlot,
   slot,
-  span,
   summary,
+  View,
 } from "../../libs/simple-ui/render";
 import { getTarget } from "../../libs/simple-ui/utils/funtions";
+import { productLogo } from "../logo";
 
 import { profilePanel, ProfilePanelControl } from "./profile";
 import { searchBox } from "./search-box";
@@ -54,11 +55,6 @@ const zoomOut = `
   <circle cx="10" cy="10" r="7"></circle>
   <line x1="7" y1="10" x2="13" y2="10"></line>
   <line x1="21" y1="21" x2="15" y2="15"></line>
-</svg>`;
-
-const productLogo = `
-<svg class="v-align-middle" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 64 64">
-  <path xmlns="http://www.w3.org/2000/svg" d="M56 0H14C9.4 0 6 3.4 6 8v4H2c-1.1 0-2 .9-2 2s.9 2 2 2h4v32H2c-1.1 0-2 .9-2 2s.9 2 2 2h4v4c0 4.6 3.4 8 8 8h44c4.6 0 6-3.4 6-8V8c0-4.6-3.4-8-8-8zM10 56v-4h4c1.1 0 2-.9 2-2s-.9-2-2-2h-4V16h4c1.1 0 2-.9 2-2s-.9-2-2-2h-4V8c0-2.4 1.6-4 4-4h6v56h-6c-2.4 0-4-1.6-4-4zm50 0c0 2.3.302 3.323-2 4H24V4h32c2.3 0 4 1.6 4 4zm-8-44H32c-1.1 0-2 .9-2 2s.9 2 2 2h20c1.1 0 2-.9 2-2s-.9-2-2-2zm0 10H32c-1.1 0-2 .9-2 2s.9 2 2 2h20c1.1 0 2-.9 2-2s-.9-2-2-2z"/>
 </svg>`;
 
 const moveElementOnTopOfTheScreen = (
@@ -130,6 +126,27 @@ const registerNavScrollListener = (nav: HTMLElement): Close => {
   return () => document.removeEventListener("scroll", onScroll);
 };
 
+export const navigationView: View<{
+  onDisplay?: Listener<"display">;
+  midSection?: JsonHtml;
+  rightSection?: JsonHtml;
+}> = ({ onDisplay, midSection, rightSection }) =>
+  div(
+    {
+      id: "navigation",
+      class: "d-flex flex-justify-between flex-items-center width-full",
+      style: {
+        top: "0px",
+        position: "absolute",
+        "z-index": 1,
+      },
+      onDisplay,
+    },
+    div({ class: "flex-1 my-2" }, productLogo),
+    div({ class: "flex-auto" }, midSection ?? div()),
+    div({ class: "flex-1 d-flex flex-sm-row-reverse" }, rightSection ?? div())
+  );
+
 export const navigation: Component<
   {
     updateGdrive: Callback<GDriveAction>;
@@ -183,51 +200,23 @@ export const navigation: Component<
   );
 
   render(
-    div(
-      {
-        id: "navigation",
-        class: "d-flex flex-justify-between flex-items-center width-full",
-        style: {
-          top: "0px",
-          position: "absolute",
-          "z-index": 1,
-        },
-        onDisplay: fork(
-          link(
-            map(getTarget),
-            fork(
-              (e) => onClose(registerNavScrollListener(e)),
-              (e) => setNavContext(e)
-            )
-          ),
-          () => updateGdrive(["load", initProfile])
-        ),
-      },
-      div(
-        { class: "flex-1" },
-        h2(
-          { class: "ml-2", style: { "font-size": "22px" } },
-          a(
-            { href: "/about", class: "color-text-primary no-underline" },
-            dangerousHTML(productLogo),
-            span({ class: "v-align-middle" }, " docland"),
-            span(
-              { class: "v-align-middle text-light h4 color-text-danger" },
-              " beta"
-            )
+    navigationView({
+      onDisplay: fork(
+        link(
+          map(getTarget),
+          fork(
+            (e) => onClose(registerNavScrollListener(e)),
+            (e) => setNavContext(e)
           )
-        )
+        ),
+        () => updateGdrive(["load", initProfile])
       ),
-      div(
-        { class: "flex-auto" },
-        div(
-          { class: "mx-auto my-2", style: { maxWidth: "500px" } },
-          searchBoxSlot
-        )
+      midSection: div(
+        { class: "mx-auto my-2", style: { maxWidth: "500px" } },
+        searchBoxSlot
       ),
-      div(
-        { class: "flex-1 d-flex" },
-        div({ class: "flex-1" }),
+      rightSection: div(
+        { class: "d-flex" },
         ...(DISPLAY_CONFIG_ENABLED
           ? [
               button({ class: "btn-octicon" }, dangerousHTML(zoomOut)),
@@ -263,10 +252,10 @@ export const navigation: Component<
                 )
               ),
             ]
-          : [])
+          : []),
+        profilePanelSlot
       ),
-      profilePanelSlot
-    )
+    })
   );
 
   return {

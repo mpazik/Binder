@@ -37,6 +37,24 @@ type HTMLInputElement = HTMLElement & {
   readOnly: boolean;
   required: boolean;
 };
+type HTMLImageElement = HTMLElement & {
+  alt: string;
+  src: string;
+  srcset: string;
+};
+type HTMLSourceElement = HTMLElement & {
+  media: string;
+  sizes: string;
+  src: string;
+  srcset: string;
+  type: string;
+};
+type HTMLVideoElement = HTMLElement & {
+  height: number;
+  playsInline: boolean;
+  poster: string;
+};
+
 type HTMLLIElement = HTMLElement & {
   value: number;
 };
@@ -108,7 +126,7 @@ type HTMLElementTagNameMap = {
   // html: HTMLHtmlElement;
   i: HTMLElement;
   // iframe: HTMLIFrameElement;
-  // img: HTMLImageElement;
+  img: HTMLImageElement;
   input: HTMLInputElement;
   // ins: HTMLModElement;
   kbd: HTMLElement;
@@ -146,7 +164,7 @@ type HTMLElementTagNameMap = {
   // select: HTMLSelectElement;
   slot: HTMLSlotElement;
   small: HTMLElement;
-  // source: HTMLSourceElement;
+  source: HTMLSourceElement;
   span: HTMLElement;
   strong: HTMLElement;
   // style: HTMLStyleElement;
@@ -168,7 +186,7 @@ type HTMLElementTagNameMap = {
   u: HTMLElement;
   ul: HTMLElement;
   var: HTMLElement;
-  // video: HTMLVideoElement;
+  video: HTMLVideoElement;
   wbr: HTMLElement;
 };
 

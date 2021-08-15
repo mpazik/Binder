@@ -267,7 +267,7 @@ export const searchBox: Component<{
         ),
         class: "form-control width-full",
         type: "text",
-        placeholder: `Search your collection or open new url ${keyNameTooltip(
+        placeholder: `Search or open new url ${keyNameTooltip(
           searchFocusShortCutKey
         )}`,
         onFocus: fork(selectInputTarget, () => {

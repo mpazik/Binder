@@ -7,6 +7,15 @@ body {
     max-width: 600px
 }
 
+#container.wide {
+    max-width: 1200px
+}
+
+.marketing-content {
+    margin: 0 auto;
+    max-width: 1000px
+}
+
 #content video {
     max-width: 638px
 }

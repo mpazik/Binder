@@ -2,7 +2,8 @@ import { fork } from "linki";
 
 import { linkHijack } from "../../functions/url-hijack";
 import { browserPathProvider } from "../../libs/browser-providers";
-import { a, Component, div, slot, Slot } from "../../libs/simple-ui/render";
+import { Component, div, slot, Slot } from "../../libs/simple-ui/render";
+import { AboutPage } from "../../pages/about";
 import { App } from "../app";
 
 export const Router: Component<{
@@ -21,15 +22,8 @@ export const Router: Component<{
   );
 };
 
-export const AppRouter: Component<void, void> = () =>
+export const AppRouter: Component = () =>
   Router({
-    mapping: new Map([
-      [
-        "/about",
-        slot("about", (render) => {
-          render(div(a({ href: "/" }, "start")));
-        }),
-      ],
-    ]),
+    mapping: new Map([["/about", slot("about", AboutPage)]]),
     default: slot("app", App),
   });
