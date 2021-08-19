@@ -1,0 +1,8 @@
+.community a {
+    width: 100%;
+    display: block;
+}
+
+.community svg:not(:hover) {
+    fill: var(--color-text-secondary);
+}

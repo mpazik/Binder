@@ -14,6 +14,7 @@ import {
   dangerousHTML,
   details,
   div,
+  fragment,
   JsonHtml,
   Listener,
   newSlot,
@@ -128,23 +129,21 @@ const registerNavScrollListener = (nav: HTMLElement): Close => {
 
 export const navigationView: View<{
   onDisplay?: Listener<"display">;
-  midSection?: JsonHtml;
-  rightSection?: JsonHtml;
-}> = ({ onDisplay, midSection, rightSection }) =>
+  body: JsonHtml;
+  position?: string;
+}> = ({ onDisplay, body, position = "absolute" }) =>
   div(
     {
       id: "navigation",
       class: "d-flex flex-justify-between flex-items-center width-full",
       style: {
         top: "0px",
-        position: "absolute",
+        position,
         "z-index": 1,
       },
       onDisplay,
     },
-    div({ class: "flex-1 my-2" }, productLogo),
-    div({ class: "flex-auto" }, midSection ?? div()),
-    div({ class: "flex-1 d-flex flex-sm-row-reverse" }, rightSection ?? div())
+    body
   );
 
 export const navigation: Component<
@@ -211,49 +210,55 @@ export const navigation: Component<
         ),
         () => updateGdrive(["load", initProfile])
       ),
-      midSection: div(
-        { class: "mx-auto my-2", style: { maxWidth: "500px" } },
-        searchBoxSlot
-      ),
-      rightSection: div(
-        { class: "d-flex" },
-        ...(DISPLAY_CONFIG_ENABLED
-          ? [
-              button({ class: "btn-octicon" }, dangerousHTML(zoomOut)),
-              button({ class: "btn-octicon" }, dangerousHTML(zoomIn)),
-              details(
-                { class: "dropdown details-reset details-overlay" },
-                summary(
-                  {
-                    class: "btn-octicon",
-                    role: "button",
-                  },
-                  dangerousHTML(navigationIcon),
-                  div({ class: "dropdown-caret" })
-                ),
-                div(
-                  { class: "dropdown-menu dropdown-menu-sw right-0" },
-                  "something"
-                )
-              ),
-              details(
-                { class: "dropdown details-reset details-overlay" },
-                summary(
-                  {
-                    class: "btn-octicon",
-                    role: "button",
-                  },
-                  dangerousHTML(typographyIcon),
-                  div({ class: "dropdown-caret" })
-                ),
-                div(
-                  { class: "dropdown-menu dropdown-menu-sw right-0" },
-                  "something"
-                )
-              ),
-            ]
-          : []),
-        profilePanelSlot
+      body: fragment(
+        div({ class: "flex-1 my-2" }, productLogo),
+        div(
+          { class: "flex-auto mx-auto my-2", style: { maxWidth: "500px" } },
+          searchBoxSlot
+        ),
+        div(
+          { class: "flex-1 d-flex flex-sm-row-reverse" },
+          div(
+            { class: "d-flex" },
+            ...(DISPLAY_CONFIG_ENABLED
+              ? [
+                  button({ class: "btn-octicon" }, dangerousHTML(zoomOut)),
+                  button({ class: "btn-octicon" }, dangerousHTML(zoomIn)),
+                  details(
+                    { class: "dropdown details-reset details-overlay" },
+                    summary(
+                      {
+                        class: "btn-octicon",
+                        role: "button",
+                      },
+                      dangerousHTML(navigationIcon),
+                      div({ class: "dropdown-caret" })
+                    ),
+                    div(
+                      { class: "dropdown-menu dropdown-menu-sw right-0" },
+                      "something"
+                    )
+                  ),
+                  details(
+                    { class: "dropdown details-reset details-overlay" },
+                    summary(
+                      {
+                        class: "btn-octicon",
+                        role: "button",
+                      },
+                      dangerousHTML(typographyIcon),
+                      div({ class: "dropdown-caret" })
+                    ),
+                    div(
+                      { class: "dropdown-menu dropdown-menu-sw right-0" },
+                      "something"
+                    )
+                  ),
+                ]
+              : []),
+            profilePanelSlot
+          )
+        )
       ),
     })
   );
