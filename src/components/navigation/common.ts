@@ -26,8 +26,7 @@ export const loading: View = () =>
   span({ class: "btn-octicon" }, dangerousHTML(loadingIcon));
 
 export const dropdownMenu: View<
-  | { icon: string; children: JsonHtml[] }
-  | { title: string; children: JsonHtml[] }
+  { children: JsonHtml[] } & ({ title: string } | { icon: string })
 > = (props) =>
   details(
     { class: "dropdown details-reset details-overlay" },
@@ -47,17 +46,17 @@ export const dropdownMenu: View<
     )
   );
 
-export const dropdownItem: View<{ text: string; onClick: () => void }> = ({
-  text,
-  onClick,
-}) =>
+export const dropdownItem: View<
+  { text: string } & ({ onClick: () => void } | { href: string })
+> = (props) =>
   li(
     a(
       {
         class: "dropdown-item",
-        href: "#",
-        onClick: fork(onClick, preventDefault),
+        href: "href" in props ? props.href : "#",
+        onClick:
+          "onClick" in props ? fork(props.onClick, preventDefault) : undefined,
       },
-      text
+      props.text
     )
   );

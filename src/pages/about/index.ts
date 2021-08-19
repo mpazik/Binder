@@ -128,12 +128,12 @@ const features = div(
       featureSection(
         "Own your data",
         span(
-          "No one besides you, your browser and your private cloud drive has access to your data. Docland is",
+          "No one besides you, your browser and your private cloud drive has access to your data. Docland source code is ",
           a(
             { href: "https://github.com/mpazik/docland" },
-            "fully open sourced"
+            "publicly available"
           ),
-          " and use only open file formats."
+          " and it use only open file formats."
         ),
         "privacy.png"
       )
