@@ -35,7 +35,7 @@ const header = div(
       div(
         { class: "f3 mt-4" },
         a(
-          { href: "/", class: "btn btn-large  btn-primary px-4 py-2" },
+          { href: "/directory", class: "btn btn-large  btn-primary px-4 py-2" },
           "Go to docland"
         )
       )

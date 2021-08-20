@@ -14,6 +14,14 @@ export const openDb = (
     };
   });
 
+export const listDbs = (): Promise<string[]> => {
+  if ("databases" in indexedDB) {
+    // @ts-ignore
+    return indexedDB.databases().then((list) => list.map((db) => db.name));
+  }
+  throw new Error("Browser does not support 'indexedDB.databases'");
+};
+
 export type StoreName = Opaque<string>;
 export const defaultStoreName = "store" as StoreName;
 

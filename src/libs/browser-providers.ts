@@ -1,6 +1,8 @@
-import { ClosableProvider, link, logger, map, passOnlyChanged } from "linki";
+import { ClosableProvider, link, map, passOnlyChanged } from "linki";
 
-import { Provider } from "./connections";
+import { linkHijack } from "../functions/url-hijack";
+
+import { fork, Provider } from "./connections";
 
 export const urlHashProvider: Provider<string> = (onClose, push) => {
   const update = () => {
@@ -39,8 +41,6 @@ export const browserPathProvider: ClosableProvider<string> = (push) => {
   const update = link(
     map(() => window.location.pathname),
     passOnlyChanged(),
-
-    logger("tset"),
     push
   ) as () => void;
 
@@ -48,3 +48,11 @@ export const browserPathProvider: ClosableProvider<string> = (push) => {
   window.addEventListener("popstate", update);
   return () => document.removeEventListener("popstate", update);
 };
+
+export const pathProvider: ClosableProvider<string> = (push) =>
+  fork(
+    linkHijack({ predicate: (uri) => uri.startsWith("/") })(
+      fork(push, (path) => history.pushState(null, "", path))
+    ),
+    browserPathProvider(push)
+  );
