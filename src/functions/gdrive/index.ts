@@ -53,7 +53,7 @@ export const createGDrive = ({
         .join(" or ");
       const q = [
         "trashed=false",
-        `(${hashQuery})`, // only created by binder
+        `(${hashQuery})`, // only created by the app
         `'${dirs.app}' in parents`,
       ].join(" and ");
       const query = encodeURI(q);
