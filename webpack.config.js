@@ -67,7 +67,7 @@ module.exports = {
       templateContent: ({ htmlWebpackPlugin }) => `
     <html lang="en">
       <head>
-        <title>docpot</title>
+        <title>docland</title>
         <link href="primer.css" rel="stylesheet" />
         <link rel="icon" href="${iconFileName}.svg" type="image/svg+xml"/>
         <link rel="mask-icon" href="${iconFileName}.svg" color="#24292e">
