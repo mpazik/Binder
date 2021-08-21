@@ -22,7 +22,6 @@ import {
 } from "../../functions/url-hijack";
 import { and } from "../../libs/connections/filters";
 import { mapAwait } from "../../libs/connections/mappers";
-import { keyNameTooltip } from "../../libs/key-events";
 import {
   Component,
   ComponentBody,
@@ -160,7 +159,7 @@ const isUrl = (s: string) => {
   }
 };
 
-const searchFocusShortCutKey = "KeyF";
+const searchFocusShortCutKey = "Slash";
 const specialAllItemsName = "list-all-items"; // this is hack
 
 export const searchBox: Component<{
@@ -267,9 +266,7 @@ export const searchBox: Component<{
         ),
         class: "form-control width-full",
         type: "text",
-        placeholder: `Search or open new url ${keyNameTooltip(
-          searchFocusShortCutKey
-        )}`,
+        placeholder: `Search or open new url [/]`,
         onFocus: fork(selectInputTarget, () => {
           renderSearch("");
         }),
