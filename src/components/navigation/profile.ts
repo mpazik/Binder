@@ -13,11 +13,11 @@ import {
   div,
   JsonHtml,
   li,
+  p,
   span,
   View,
   ViewSetup,
 } from "../../libs/simple-ui/render";
-import { maxLengthText } from "../common/max-length-text";
 
 import { dropdownItem, dropdownMenu, loading } from "./common";
 
@@ -110,6 +110,46 @@ const profileStatusItem: View<string> = (status: string) =>
     span({ class: "AnimatedEllipsis" })
   );
 
+const errorMessage: View<{ error: string; login: () => void }> = ({
+  error,
+  login,
+}) => {
+  if (error === "insufficient-permission") {
+    return div(
+      p(
+        "Docland has insufficent permisson to access your google drive account."
+      ),
+      p(
+        "Please sign in again and click check box to grant Docland permission to create files. ",
+        a(
+          { type: "button", onClick: login, style: { cursor: "pointer" } },
+          "Sign In"
+        )
+      )
+    );
+  }
+  return div("Unknown Google Drive failure");
+};
+
+const errorView: View<{ error: string; login: () => void }> = (props) =>
+  dropdownMenu({
+    icon: errorIcon,
+    children: [
+      li(
+        {
+          class: "d-inline-flex flex-items-center p-2",
+          style: { width: "300px" },
+        },
+        div({
+          class: "p-2",
+          style: { fill: "var(--color-icon-danger)" },
+          dangerouslySetInnerHTML: errorIcon,
+        }),
+        errorMessage(props)
+      ),
+    ],
+  });
+
 type ProfileActions = {
   login: () => void;
   logout: () => void;
@@ -189,24 +229,9 @@ export const createProfileView: ViewSetup<ProfileActions, ProfileState> = ({
           dropdownItem({ onClick: logout, text: "Logout" }),
         ],
       }),
-    error: (reason) =>
-      dropdownMenu({
-        icon: errorIcon,
-        children: [
-          li(
-            {
-              class: "d-inline-flex flex-items-center p-2",
-              style: { width: "200px" },
-            },
-            div({
-              class: "p-2",
-              style: { fill: "var(--color-icon-danger)" },
-              dangerouslySetInnerHTML: errorIcon,
-            }),
-            div({ class: "d-flex" }, maxLengthText(reason, 50))
-          ),
-        ],
-      }),
+    error: (error) => errorView({ error, login }),
+    loadingError: ({ error }) => errorView({ error, login }),
+    loggingInError: ({ error }) => errorView({ error, login }),
   });
 
 export type ProfilePanelControl = {
@@ -237,8 +262,8 @@ export const profilePanel: Component<ProfileActions, ProfilePanelControl> = (
             } else if (storeState[0] === "upload-needed") {
               return ["upload-needed", profile] as ProfileState;
             }
-          } else if (gdriveState[0] === "error") {
-            return ["error", gdriveState[1]] as ProfileState;
+          } else if (gdriveState[0] === "loggingInError") {
+            return ["loggingInError", gdriveState[1]] as ProfileState;
           }
           return gdriveState as ProfileState;
         })();

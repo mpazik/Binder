@@ -197,7 +197,8 @@ export const App = asyncLoader(
                 return ["on", createGDrive(config) as RemoteDrive];
               },
               loggingOut: () => ["off"],
-              error: () => ["off"],
+              loadingError: () => ["off"],
+              loggingInError: () => ["off"],
             })
           ),
           store.updateRemoteDriveState

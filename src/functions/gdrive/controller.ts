@@ -47,16 +47,18 @@ export type GDriveState =
   | ["loggingIn", GDriveLoggedOurProfile]
   | ["profileRetrieving", GDriveLoggedOurProfile & { alreadyLogged: boolean }]
   | ["logged", GDriveProfile]
-  | ["error", string]
+  | ["loadingError", { error: string }]
+  | ["loggingInError", GDriveLoggedOurProfile & { error: string }]
   | ["loggingOut", GDriveLoggedOurProfile];
 
 export const initGdriveState: GDriveState = ["idle"];
 
-const handleError = (e: Error | unknown): GDriveAction => [
-  "fail",
-  (e instanceof Error ? e.message : undefined) ||
-    "Unknown Error: " + JSON.stringify(e),
-];
+const handleError = (e: Error | unknown): GDriveAction => {
+  console.error("Gdrive error", e);
+  const message =
+    typeof e === "string" ? e : e instanceof Error ? e.message : "";
+  return ["fail", message];
+};
 
 // this become more than just gdrive. It controls the current repository
 export const gdrive = (
@@ -85,7 +87,7 @@ export const gdrive = (
               ]
             : ["signedOut", { gapi, repository }];
         },
-        fail: (reason) => ["error", reason],
+        fail: (error) => ["loadingError", { error }],
       },
       loggingIn: {
         retrieveProfile: (_, context) => [
@@ -95,7 +97,7 @@ export const gdrive = (
       },
       profileRetrieving: {
         loggedIn: (profile) => ["logged", profile],
-        fail: (reason) => ["error", reason],
+        fail: (error, profile) => ["loggingInError", { error, ...profile }],
       },
       logged: {
         logout: (_, { gapi }) => [
@@ -116,7 +118,12 @@ export const gdrive = (
           return ["loggingIn", profile];
         },
       },
-      error: {},
+      loadingError: {},
+      loggingInError: {
+        login: (_, profile) => {
+          return ["loggingIn", profile];
+        },
+      },
     },
     fork((state) => {
       filter<Promise<GDriveAction> | undefined, Promise<GDriveAction>>(
@@ -160,6 +167,9 @@ export const gdrive = (
                 },
               ];
             } catch (error) {
+              if (error.status === 403) {
+                return handleError("insufficient-permission");
+              }
               return handleError(error);
             }
           },
@@ -171,7 +181,8 @@ export const gdrive = (
               .catch(handleError),
           disconnected: () => undefined,
           signedOut: () => undefined,
-          error: () => undefined,
+          loggingInError: () => undefined,
+          loadingError: () => undefined,
         })
       );
     }, callback)
