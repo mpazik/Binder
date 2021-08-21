@@ -42,13 +42,9 @@ const view: View<{
     div(
       { class: "Box p-2 mb-4, p-3" },
       p(
-        "To open a wep article, paste its url address to the search bar on the top of the page. " +
-          "You can open your favorite blogpost, wikipedia article or news page"
+        "Paste url of your favorite blogpost, wikipedia article or news page to the search bar on the top of the page, or drop a PDF or EBUP file into the window."
       ),
-      p(
-        "To open a document or ebook in PDF or EBUP format just drop the file  into the window."
-      ),
-      div(a({ href: "/about" }, "learn more"))
+      p(a({ href: "/about" }, "learn more"))
     )
   );
 
