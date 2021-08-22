@@ -1,16 +1,18 @@
 import "./styles.css";
 
-import { productLogo } from "../../components/logo";
+import { productLogo, productLogoLargeBeta } from "../../components/logo";
 import { navigationView } from "../../components/navigation";
 import {
   a,
   b,
   ComponentBody,
   div,
+  footer,
   fragment,
   img,
   JsonHtml,
   p,
+  small,
   source,
   span,
   video,
@@ -18,7 +20,7 @@ import {
 
 const header = div(
   {
-    class: "marketing-content px-2 py-8",
+    class: "marketing-content px-2 my-8",
   },
   div(
     { class: "d-flex flex-items-center", style: { gap: "48px" } },
@@ -93,11 +95,12 @@ const features = div(
         "display.png"
       ),
       featureSection(
-        "Save forever",
+        "PDF and EPUB support",
         span(
-          "Never loos your favorite articles. Docland uses your personal cloud drive to store information in open file formats, to make you able access your data forever."
+          "Keep your web articles, PDF documents and ebooks together. Quickly search trough all your favourite book quotes or skim trough ",
+          b("all of your documents and notes from your research")
         ),
-        "save.png"
+        "epub.png"
       ),
       featureSection(
         "Speed up learning",
@@ -116,13 +119,15 @@ const features = div(
         style: { gap: "64px" },
       },
       featureSection(
-        "PDF and EPUB support",
-        "Manage all of your web articles, PDF documents and ebooks in a single place. Quick search trough all your favourite book quotes, skim trough all notes and highlights from a school subject, all this is now possible",
-        "epub.png"
+        "Save forever",
+        span(
+          "Never loos your favorite articles. Docland uses your personal cloud drive to store information in open file formats, to make you able access your data forever."
+        ),
+        "save.png"
       ),
       featureSection(
         "Instant response",
-        "No more loading screens to access recent page. Documents are also stored on your machine to displayed documents  and give you search results instantly.",
+        "No more loading screens to access recent page. Docland keeps copy of data on your machine to give you search results instantly.",
         "instant.png"
       ),
       featureSection(
@@ -141,6 +146,32 @@ const features = div(
     div(
       { class: "f4 color-text-danger" },
       "* Docland is in beta version, not all of the features are fully implemented yet."
+    )
+  )
+);
+
+const mission = div(
+  { class: "marketing-content px-2 my-8" },
+  p({ class: "h4-mktg" }, "Take control over your data"),
+  p({ class: "f3" }, "Docland mission is to give you control over your data."),
+  p(
+    { class: "f3" },
+    "We plan to extend the application with sharing capabilities and add option to capture notes and structured information."
+  ),
+  p(
+    { class: "f3" },
+    "If you need a better control of your information ",
+    a(
+      {
+        href: "https://discord.com/channels/876828347492073543",
+        target: "_blank",
+      },
+      "join our community"
+    ),
+    " and ",
+    a(
+      { href: "https://twitter.com/DoclandHQ", target: "_blank" },
+      "follow the project"
     )
   )
 );
@@ -190,25 +221,27 @@ const contactList = [
   }),
 ];
 const contact = div(
-  { class: "marketing-content px-2 py-8" },
+  { class: "marketing-content px-2 my-8" },
   p({ class: "h4-mktg mb-6" }, "Let's stay in touch"),
   div(
     {
       class: "community d-flex flex-items-center width-full px-6",
-      style: { gap: "64px" },
+      style: { gap: "15%" },
     },
     ...contactList
   )
 );
 
-const footer = div({ class: "color-bg-tertiary px-2 py-3" });
-
-const navLogos = div(
-  {
-    class: "community d-flex flex-items-center p-2",
-    style: { gap: "16px", height: "30px", width: "200px" },
-  },
-  ...contactList
+const footerView = footer(
+  { class: "color-bg-tertiary px-2 py-3" },
+  div(
+    { class: "marketing-content d-flex flex-justify-center flex-items-center" },
+    small({
+      dangerouslySetInnerHTML:
+        "&copy; Copyright 2021, Docland. All Rights Reserved",
+    }),
+    productLogo
+  )
 );
 
 export const AboutPage: ComponentBody<void> = (render) => {
@@ -217,16 +250,17 @@ export const AboutPage: ComponentBody<void> = (render) => {
       navigationView({
         // position: "fixed",
         body: fragment(
-          div({ class: "flex-1 my-2" }, productLogo)
+          div({ class: "flex-1 my-2" }, productLogoLargeBeta)
           // span({ class: "f3-mktg" }, "Let's stay in touch"),
           // navLogos
         ),
       }),
-      div({ class: "mt-8" }),
+      div({ class: "pt-8" }),
       header,
       features,
+      mission,
       contact,
-      footer
+      footerView
     )
   );
 };

@@ -23,7 +23,7 @@ import {
   View,
 } from "../../libs/simple-ui/render";
 import { getTarget } from "../../libs/simple-ui/utils/funtions";
-import { productLogo } from "../logo";
+import { productLogoBeta } from "../logo";
 
 import { dropdownItem, dropdownMenu } from "./common";
 import { profilePanel, ProfilePanelControl } from "./profile";
@@ -220,7 +220,7 @@ export const navigation: Component<
         () => updateGdrive(["load", initProfile])
       ),
       body: fragment(
-        div({ class: "flex-1 my-2" }, productLogo),
+        div({ class: "flex-1 my-2" }, productLogoBeta),
         div(
           { class: "flex-auto mx-auto my-2", style: { maxWidth: "500px" } },
           searchBoxSlot
