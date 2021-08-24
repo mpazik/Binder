@@ -15,4 +15,4 @@ We plan to extend the application with sharing capabilities and add the option t
 
 ### Contribution
 The repository is not yet set up to accept pull requests. The code is available for review purposes.
-If you would like to help, please share any problem you have encountered or let us know your improvement suggestions in the [issue section](https://github.com/mpazik/docland/issues) or [contact us on discord](https://discord.com/channels/876828347492073543).
+If you would like to help, please share any problem you have encountered or let us know your improvement suggestions in the [issue section](https://github.com/mpazik/docland/issues) or [let's chat on discord](https://discord.com/channels/876828347492073543).
