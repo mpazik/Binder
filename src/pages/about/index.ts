@@ -46,16 +46,15 @@ const header = div(
       { style: { flex: "3" } },
 
       video(
-        { controls: undefined, style: { maxWidth: "100%" } },
+        {
+          class: "color-shadow-extra-large",
+          autoplay: true,
+          muted: true,
+          style: { maxWidth: "100%", borderRadius: "4px" },
+        },
         source({
-          src:
-            " https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm",
+          src: "docland-demo.webm",
           type: "video/webm",
-        }),
-        source({
-          src:
-            " https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
-          type: "video/mp4",
         }),
         "Your browser does not support HTML5 video."
       )
@@ -91,26 +90,27 @@ const features = div(
       },
       featureSection(
         "Read on your terms",
-        "Stretched text, small font, clutter on the page? Docland cleans up all the noise leaving you with the pure content displayed to your preferences.",
+        "Stretched text, small font, clutter on the page? Docland cleans up all the noise and leaves only the pure content displayed to your preferences.",
         "display.png"
-      ),
-      featureSection(
-        "PDF and EPUB support",
-        span(
-          "Keep your web articles, PDF documents and ebooks together. Quickly search trough all your favourite book quotes or skim trough ",
-          b("all of your documents and notes from your research")
-        ),
-        "epub.png"
       ),
       featureSection(
         "Speed up learning",
         span(
           "Do active reading and quick review by adding ",
           b("highlights and comments"),
-          ". Remember information quickly and for a long time",
+          " to articles and books. Remember information quickly and for a long time",
           "."
         ),
         "annotations.png"
+      ),
+      featureSection(
+        "Organise your research",
+        span(
+          "With ",
+          b("PDF and EPUB format support"),
+          " you can easily store and organise your research materials in a single place."
+        ),
+        "pdf.png"
       )
     ),
     div(
@@ -121,24 +121,24 @@ const features = div(
       featureSection(
         "Save forever",
         span(
-          "Never loos your favorite articles. Docland uses your personal cloud drive to store information in open file formats, to make you able access your data forever."
+          "Never lose your favorite articles. Docland uses your personal cloud drive to store information in open file formats, which guarantees the access to your data forever."
         ),
         "save.png"
       ),
       featureSection(
         "Instant response",
-        "No more loading screens to access recent page. Docland keeps copy of data on your machine to give you search results instantly.",
+        "No more loading screens to access recent page. Docland keeps copy of data on your device to give you search results instantly.",
         "instant.png"
       ),
       featureSection(
         "Own your data",
         span(
-          "No one besides you, your browser and your private cloud drive has access to your data. Docland source code is ",
+          "No one besides you, has access to your data. Docland does not store any of your information and its code is ",
           a(
             { href: "https://github.com/mpazik/docland" },
             "publicly available"
           ),
-          " and it use only open file formats."
+          "."
         ),
         "privacy.png"
       )
