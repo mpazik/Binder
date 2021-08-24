@@ -31,7 +31,7 @@ const header = div(
         { class: "f3-mktg" },
         "All your ",
         b("articles, ebooks, notes"),
-        " in ONE place; synchronised with your cloud drive, with full privacy, display preferences, personal comments, search, categorization, and offline access\n"
+        " in ONE place; synchronized with your cloud drive, with full privacy, display preferences, personal comments, search, categorization, and offline access\n"
       ),
       // p({ class: "f3-mktg" }, "Boost your research and learning!"),
       div(
@@ -104,11 +104,11 @@ const features = div(
         "annotations.png"
       ),
       featureSection(
-        "Organise your research",
+        "Organize your research",
         span(
           "With ",
           b("PDF and EPUB format support"),
-          " you can easily store and organise your research materials in a single place."
+          ", you can easily store and organize your research materials in a single place."
         ),
         "pdf.png"
       )
@@ -127,13 +127,13 @@ const features = div(
       ),
       featureSection(
         "Instant response",
-        "No more loading screens to access recent page. Docland keeps copy of data on your device to give you search results instantly.",
+        "No more loading screens to access a recent page. Docland keeps a copy of data on your device to give you search results instantly.",
         "instant.png"
       ),
       featureSection(
         "Own your data",
         span(
-          "No one besides you, has access to your data. Docland does not store any of your information and its code is ",
+          "No one besides you has access to your data. Docland does not store any of your information, and its code is ",
           a(
             { href: "https://github.com/mpazik/docland" },
             "publicly available"
@@ -145,7 +145,7 @@ const features = div(
     ),
     div(
       { class: "f4 color-text-danger" },
-      "* Docland is in beta version, not all of the features are fully implemented yet."
+      "* Docland is in beta version; not all of the features are fully implemented yet."
     )
   )
 );
@@ -156,11 +156,11 @@ const mission = div(
   p({ class: "f3" }, "Docland mission is to give you control over your data."),
   p(
     { class: "f3" },
-    "We plan to extend the application with sharing capabilities and add option to capture notes and structured information."
+    "We plan to extend the application with sharing capabilities and add the option to capture notes and structured information."
   ),
   p(
     { class: "f3" },
-    "If you need a better control of your information ",
+    "If you need better control of your information, ",
     a(
       {
         href: "https://discord.com/channels/876828347492073543",
