@@ -48,9 +48,10 @@ const header = div(
       video(
         {
           class: "color-shadow-extra-large",
-          autoplay: true,
-          muted: true,
-          style: { maxWidth: "100%", borderRadius: "4px" },
+          autoplay: undefined,
+          muted: undefined,
+          controls: undefined,
+          style: { width: "100%", borderRadius: "4px" },
         },
         source({
           src: "docland-demo.webm",
