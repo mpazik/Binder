@@ -1,6 +1,9 @@
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
+const SpeedMeasurePlugin = require("speed-measure-webpack-plugin");
 const webpack = require("webpack");
+
+const smp = new SpeedMeasurePlugin();
 
 const devOverride = {
   mode: "development",
@@ -40,7 +43,7 @@ const prodConfig = {
 const iconFileName =
   process.env.NODE_ENV === "production" ? "notebook-icon" : "notebook-icon-dev";
 
-module.exports = {
+module.exports = smp.wrap({
   entry: {
     main: "./src/index.ts",
   },
@@ -56,8 +59,11 @@ module.exports = {
       },
       {
         test: /\.ts$/i,
-        use: "ts-loader",
-        exclude: /node_modules/,
+        use: {
+          loader: "ts-loader",
+          options: { transpileOnly: true },
+        },
+        exclude: [/node_modules/, /\.test\.ts$/i],
       },
     ],
   },
@@ -115,4 +121,4 @@ module.exports = {
       historyApiFallback: true
     }
   },
-};
+});

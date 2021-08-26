@@ -49,6 +49,7 @@
     "html-webpack-plugin": "^4.5.0",
     "jest": "^26.6.3",
     "prettier": "^2.2.1",
+    "speed-measure-webpack-plugin": "^1.5.0",
     "style-loader": "^1.2.1",
     "ts-loader": "^8.0.4",
     "typescript": "^4.1.2",
