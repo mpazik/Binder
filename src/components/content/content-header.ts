@@ -1,5 +1,4 @@
 import { link, map } from "linki";
-import { URL } from "schema-dts";
 
 import { CATEGORIES_ENABLED } from "../../config";
 import { LinkedData } from "../../libs/jsonld-format";
