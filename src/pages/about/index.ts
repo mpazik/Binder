@@ -1,6 +1,6 @@
 import "./styles.css";
 
-import { productLogo, productLogoLargeBeta } from "../../components/logo";
+import { productLogo } from "../../components/logo";
 import { navigationView } from "../../components/navigation";
 import {
   a,
@@ -239,9 +239,9 @@ const footerView = footer(
     { class: "marketing-content d-flex flex-justify-center flex-items-center" },
     small({
       dangerouslySetInnerHTML:
-        "&copy; Copyright 2021, Docland. All Rights Reserved",
+        "&copy; Copyright 2021, Docland. All Rights Reserved &nbsp;",
     }),
-    productLogo
+    productLogo()
   )
 );
 
@@ -250,11 +250,10 @@ export const AboutPage: ComponentBody<void> = (render) => {
     fragment(
       navigationView({
         // position: "fixed",
-        body: fragment(
-          div({ class: "flex-1 my-2" }, productLogoLargeBeta)
-          // span({ class: "f3-mktg" }, "Let's stay in touch"),
-          // navLogos
-        ),
+        productLogoSize: "large",
+        body: fragment(),
+        // span({ class: "f3-mktg" }, "Let's stay in touch"),
+        // navLogos
       }),
       div({ class: "pt-8" }),
       header,

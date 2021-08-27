@@ -11,20 +11,21 @@ import {
   summary,
   View,
 } from "../../libs/simple-ui/render";
-import { productLogoBeta } from "../logo";
+import { productLogo, ProductLogoSize } from "../logo";
 
 import { dropdownLink, dropdownMenu } from "./common";
 
 export const navigationView: View<{
   onDisplay?: Listener<"display">;
+  productLogoSize?: ProductLogoSize;
   body: JsonHtml;
   position?: string;
-}> = ({ onDisplay, body, position = "absolute" }) =>
+}> = ({ onDisplay, body, position = "absolute", productLogoSize }) =>
   div(
     {
       id: "navigation",
       class:
-        "d-flex flex-justify-between flex-items-center width-full color-bg-tertiary",
+        "d-flex flex-justify-between flex-items-center width-full color-bg-tertiary px-2",
       style: {
         top: "0px",
         position,
@@ -32,6 +33,10 @@ export const navigationView: View<{
       },
       onDisplay,
     },
+    div(
+      { class: "flex-1 my-2" },
+      productLogo({ size: productLogoSize, beta: true })
+    ),
     body
   );
 
@@ -83,7 +88,6 @@ export const appNavContent: View<{
   displayConfig = DISPLAY_CONFIG_ENABLED,
 }) =>
   fragment(
-    div({ class: "flex-1 my-2" }, productLogoBeta),
     div(
       { class: "flex-auto mx-auto my-2", style: { maxWidth: "500px" } },
       searchBoxSlot

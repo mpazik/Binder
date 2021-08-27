@@ -7,6 +7,12 @@ export const emptyNavigation = navigationView({
   position: "static",
 });
 
+export const emptyNavigationWithLargeLogo = navigationView({
+  body: "Example body",
+  position: "static",
+  productLogoSize: "large",
+});
+
 export const appNavigation = navigationView({
   position: "static",
   body: appNavContent({
@@ -20,7 +26,7 @@ export const appNavigationWithConfig = navigationView({
   position: "static",
   body: appNavContent({
     displayConfig: true,
-    searchBoxSlot: div(),
-    profilePanelSlot: div(),
+    searchBoxSlot: div("Search box"),
+    profilePanelSlot: div("P"),
   }),
 });

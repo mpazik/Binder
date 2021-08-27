@@ -2,11 +2,13 @@ import {
   appNavigation,
   appNavigationWithConfig,
   emptyNavigation,
+  emptyNavigationWithLargeLogo,
 } from "../components/navigation/examples";
 import { div, JsonHtml, jsonHtmlToDom } from "../libs/simple-ui/render";
 
 const navigationExamples = [
   emptyNavigation,
+  emptyNavigationWithLargeLogo,
   appNavigation,
   appNavigationWithConfig,
 ];
