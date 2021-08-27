@@ -13,6 +13,7 @@ import {
   View,
 } from "../../libs/simple-ui/render";
 import { preventDefault } from "../../libs/simple-ui/utils/funtions";
+import { getLinkTarget } from "../common/link";
 
 const loadingIcon = `
 <svg xmlns="http://www.w3.org/2000/svg" class=" v-align-middle" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -46,16 +47,27 @@ export const dropdownMenu: View<
     )
   );
 
-export const dropdownItem: View<
-  { text: string } & ({ onClick: () => void } | { href: string })
-> = (props) =>
+export const dropdownButton: View<{ text: string; onClick: () => void }> = (
+  props
+) =>
   li(
     a(
       {
         class: "dropdown-item",
-        href: "href" in props ? props.href : "#",
-        onClick:
-          "onClick" in props ? fork(props.onClick, preventDefault) : undefined,
+        href: "#",
+        onClick: fork(props.onClick, preventDefault),
+      },
+      props.text
+    )
+  );
+
+export const dropdownLink: View<{ text: string; href: string }> = (props) =>
+  li(
+    a(
+      {
+        class: "dropdown-item",
+        href: props.href,
+        target: getLinkTarget(props.href),
       },
       props.text
     )

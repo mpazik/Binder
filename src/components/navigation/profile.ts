@@ -19,7 +19,7 @@ import {
   ViewSetup,
 } from "../../libs/simple-ui/render";
 
-import { dropdownItem, dropdownMenu, loading } from "./common";
+import { dropdownButton, dropdownMenu, loading } from "./common";
 
 const gdriveLogoIcon = `
 <svg xmlns="http://www.w3.org/2000/svg" width="25" height="22" viewBox="0 0 1443.061 1249.993" role="img">
@@ -201,7 +201,7 @@ export const createProfileView: ViewSetup<ProfileActions, ProfileState> = ({
         children: [
           profileItem(profile),
           // dropdownItem({ onClick: () => {}, text: "Storage settings" }),
-          dropdownItem({ onClick: logout, text: "Logout" }),
+          dropdownButton({ onClick: logout, text: "Logout" }),
         ],
       }),
     "upload-needed": () =>
@@ -215,8 +215,8 @@ export const createProfileView: ViewSetup<ProfileActions, ProfileState> = ({
         children: [
           profileStatusItem("uploading"),
           profileItem(profile),
-          dropdownItem({ onClick: () => {}, text: "Storage settings" }),
-          dropdownItem({ onClick: logout, text: "Logout" }),
+          dropdownButton({ onClick: () => {}, text: "Storage settings" }),
+          dropdownButton({ onClick: logout, text: "Logout" }),
         ],
       }),
     downloading: (profile) =>
@@ -225,8 +225,8 @@ export const createProfileView: ViewSetup<ProfileActions, ProfileState> = ({
         children: [
           profileStatusItem("downloading"),
           profileItem(profile),
-          dropdownItem({ onClick: () => {}, text: "Storage settings" }),
-          dropdownItem({ onClick: logout, text: "Logout" }),
+          dropdownButton({ onClick: () => {}, text: "Storage settings" }),
+          dropdownButton({ onClick: logout, text: "Logout" }),
         ],
       }),
     error: (error) => errorView({ error, login }),
