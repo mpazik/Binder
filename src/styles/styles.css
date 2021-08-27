@@ -22,10 +22,6 @@ body {
     max-width: 638px
 }
 
-#navigation {
-    background-color: #EEE;
-}
-
 article.book {
     font-size: 18px;
     font-family: Georgia, serif;

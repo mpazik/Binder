@@ -1,17 +1,32 @@
-import { button, div, JsonHtml, jsonHtmlToDom } from "../libs/simple-ui/render";
+import {
+  appNavigation,
+  appNavigationWithConfig,
+  emptyNavigation,
+} from "../components/navigation/examples";
+import { div, JsonHtml, jsonHtmlToDom } from "../libs/simple-ui/render";
 
-const examples: JsonHtml[] = [button("test")];
+const navigationExamples = [
+  emptyNavigation,
+  appNavigation,
+  appNavigationWithConfig,
+];
+
+const examples: JsonHtml[] = navigationExamples;
 
 const wrapper = (example: JsonHtml) => div(example);
 
 {
   (async () => {
-    const root = document.createElement("div");
-    root.id = "root";
-    document.body.appendChild(root);
-
-    examples.forEach((example) => {
-      root.appendChild(jsonHtmlToDom(wrapper(example)));
-    });
+    document.body.appendChild(
+      jsonHtmlToDom(
+        div(
+          {
+            class: "d-flex flex-column",
+            style: { gap: "32px", margin: "0 auto", maxWidth: "800px" },
+          },
+          ...examples.map((example) => wrapper(example))
+        )
+      )
+    );
   })();
 }
