@@ -378,3 +378,8 @@ export const slotForEntity = (
     key: entity ? `${key}-${hashCode(entity)}` : key,
   },
 ];
+
+export const jsonHtmlToDom = (json: JsonHtml): Node => {
+  const [node] = convertToDom(json);
+  return node;
+};
