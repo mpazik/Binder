@@ -1,5 +1,6 @@
 import "./styles.css";
 
+import { inline, stack } from "../../components/common/spacing";
 import { productLogo } from "../../components/logo";
 import { navigationView } from "../../components/navigation";
 import {
@@ -22,8 +23,8 @@ const header = div(
   {
     class: "marketing-content px-2 my-8",
   },
-  div(
-    { class: "d-flex flex-items-center", style: { gap: "48px" } },
+  inline(
+    { marketing: true },
     div(
       { style: { flex: "2" } },
       p({ class: "h3-mktg" }, "Single place for your documents"),
@@ -53,7 +54,8 @@ const header = div(
           class: "color-shadow-extra-large",
           autoplay: undefined,
           muted: undefined,
-          controls: undefined,
+          loop: undefined,
+          playsinline: undefined,
           style: { width: "100%", borderRadius: "4px" },
         },
         source({
@@ -82,16 +84,10 @@ const features = div(
   {
     class: "color-bg-secondary px-2 py-8",
   },
-  div(
-    {
-      class: "marketing-content d-flex flex-column",
-      style: { gap: "48px" },
-    },
-    div(
-      {
-        class: "d-flex",
-        style: { gap: "64px" },
-      },
+  stack(
+    { marketing: true, class: "marketing-content" },
+    inline(
+      { marketing: true, gap: "large" },
       featureSection(
         "Read on your terms",
         "Stretched text, small font, clutter on the page? Docland cleans up all the noise and leaves only the pure content displayed to your preferences.",
@@ -117,11 +113,8 @@ const features = div(
         "pdf.png"
       )
     ),
-    div(
-      {
-        class: "d-flex",
-        style: { gap: "64px" },
-      },
+    inline(
+      { marketing: true, gap: "large" },
       featureSection(
         "Save forever",
         span(
@@ -238,8 +231,8 @@ const contact = div(
 
 const footerView = footer(
   { class: "color-bg-tertiary px-2 py-3" },
-  div(
-    { class: "marketing-content d-flex flex-justify-center flex-items-center" },
+  inline(
+    { class: "marketing-content flex-justify-center" },
     small({
       dangerouslySetInnerHTML:
         "&copy; Copyright 2021, Docland. All Rights Reserved &nbsp;",

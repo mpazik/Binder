@@ -110,7 +110,7 @@ type HTMLElementTagNameMap = {
   figure: HTMLElement;
   // font: HTMLFontElement;
   footer: HTMLElement;
-  // form: HTMLFormElement;
+  form: HTMLElement;
   // frame: HTMLFrameElement;
   // frameset: HTMLFrameSetElement;
   h1: HTMLElement;

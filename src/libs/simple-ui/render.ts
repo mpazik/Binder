@@ -322,6 +322,7 @@ export const h4 = newTagFactory<Nodes>("h4");
 export const h5 = newTagFactory<Nodes>("h5");
 export const h6 = newTagFactory<Nodes>("h6");
 export const input = newTagFactory<Nodes>("input");
+export const form = newTagFactory<Nodes>("form");
 export const header = newTagFactory<Nodes>("header");
 export const span = newTagFactory<Nodes>("span");
 export const small = newTagFactory<Nodes>("small");
