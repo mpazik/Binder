@@ -5,7 +5,6 @@ body {
 #container {
     margin: 0 auto;
     padding-top: 50px;
-    max-width: 600px;
     height: 100%;
 }
 
@@ -22,10 +21,10 @@ body {
     max-width: 638px
 }
 
-article.book {
-    font-size: 18px;
-    font-family: Georgia, serif;
-}
+/*article.book {*/
+/*    font-size: 18px;*/
+/*    font-family: Georgia, serif;*/
+/*}*/
 
 .editable.markdown-body a {
     cursor: pointer;

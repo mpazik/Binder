@@ -13,7 +13,6 @@ import {
   pipe,
   reduce,
   split,
-  to,
 } from "linki";
 
 import {
@@ -59,11 +58,18 @@ import {
   updateBrowserHistory,
   UriWithFragment,
 } from "../../functions/url-hijack";
-import { stateProvider } from "../../libs/connections";
+import { Consumer, stateProvider } from "../../libs/connections";
+import { to } from "../../libs/connections/mappers";
 import { HashName, HashUri, isHashUri } from "../../libs/hash";
 import { newStateMapper } from "../../libs/named-state";
 import { measureAsyncTime } from "../../libs/performance";
-import { div, fragment, newSlot, slot } from "../../libs/simple-ui/render";
+import {
+  div,
+  newSlot,
+  Slot,
+  slot,
+  ViewSetup,
+} from "../../libs/simple-ui/render";
 import { asyncLoader } from "../common/async-loader";
 import { eitherComponent } from "../common/conditional-component";
 import { loader } from "../common/loader";
@@ -114,6 +120,74 @@ const createContentFetcherPassingUri = (
   fragment,
   ...(await contentFetcher(uri, signal)),
 });
+
+type DisplaySettings = {
+  fontSize: "x-small" | "small" | "medium" | "large" | "x-large";
+  lineLength: "x-small" | "small" | "medium" | "large" | "x-large";
+  theme: "light" | "dark" | "dark-dimmed" | "auto";
+};
+
+const themeProps = new Map<DisplaySettings["theme"], {}>([
+  ["light", { "data-color-mode": "light", "data-light-theme": "light" }],
+  [
+    "dark-dimmed",
+    { "data-color-mode": "dark", "data-dark-theme": "dark_dimmed" },
+  ],
+  ["dark", { "data-color-mode": "dark", "data-dark-theme": "dark" }],
+  [
+    "auto",
+    {
+      "data-color-mode": "auto",
+      "data-light-theme": "light",
+      "data-dark-theme": "dark_dimmed",
+    },
+  ],
+]);
+
+const lineLengthWidth = new Map<DisplaySettings["lineLength"], number>([
+  ["x-small", 400],
+  ["small", 600],
+  ["medium", 800],
+  ["large", 1000],
+  ["x-large", 1400],
+]);
+
+const fontSizePixels = new Map<DisplaySettings["lineLength"], number>([
+  ["x-small", 14],
+  ["small", 16],
+  ["medium", 18],
+  ["large", 22],
+  ["x-large", 26],
+]);
+
+const createContainerView: ViewSetup<
+  {
+    navigationSlot: Slot;
+    contentOrDirSlot: Slot;
+    fileDropSlot: Slot;
+    onFileDrop: () => void;
+  },
+  DisplaySettings
+> = ({ navigationSlot, contentOrDirSlot, fileDropSlot, onFileDrop }) => ({
+  fontSize,
+  lineLength,
+  theme,
+}) =>
+  div(
+    themeProps.get(theme)!,
+    navigationSlot,
+    div(
+      {
+        id: "container",
+        style: {
+          width: lineLengthWidth.get(lineLength),
+          fontSize: fontSizePixels.get(fontSize),
+        },
+        onDragenter: onFileDrop,
+      },
+      div({ class: "p-4" }, fileDropSlot, contentOrDirSlot)
+    )
+  );
 
 export const App = asyncLoader(
   measureAsyncTime("init", () => initServices()),
@@ -380,17 +454,14 @@ export const App = asyncLoader(
       eitherComponent({ slotA: contentLoaderSlot, slotB: docsDirectorySlot })
     );
 
+    const containerView = createContainerView({
+      navigationSlot,
+      contentOrDirSlot,
+      fileDropSlot,
+      onFileDrop: link(map(to<true>(true)), displayFileDrop) as Consumer<void>,
+    });
     render(
-      fragment(
-        navigationSlot,
-        div(
-          {
-            id: "container",
-            onDragenter: link(map(to<true>(true)), displayFileDrop),
-          },
-          div({ class: "p-4" }, fileDropSlot, contentOrDirSlot)
-        )
-      )
+      containerView({ theme: "dark", lineLength: "small", fontSize: "small" })
     );
   }
 );
