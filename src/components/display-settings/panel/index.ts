@@ -40,10 +40,17 @@ const getThemeIcon = () => `
 <svg xmlns="http://www.w3.org/2000/svg"  width=36 height="24" viewBox="0 0 36 24" stroke="none" fill="currentColor" stroke-linecap="round">
    <rect width="100%" height="100%" />
 </svg>`;
-const getAutoThemeIcon = () => `
+const darkColor = "#0d1117";
+const getAutoDarkThemeIcon = () => `
 <svg xmlns="http://www.w3.org/2000/svg"  width=36 height="24" preserveAspectRatio="none"  viewBox="0 0 100 100" stroke-linecap="round">
    <polygon points="0,0 100,0 0,100" style="fill:white;stroke:none" />
-   <polygon points="0,100 100,0 100,100" style="fill:#444d56;stroke:none" />
+   <polygon points="0,100 100,0 100,100" style="fill:${darkColor};stroke:none" />
+</svg>`;
+const darkDimmedColor = "#6a737d";
+const getAutoDarkDimmedThemeIcon = () => `
+<svg xmlns="http://www.w3.org/2000/svg"  width=36 height="24" preserveAspectRatio="none"  viewBox="0 0 100 100" stroke-linecap="round">
+   <polygon points="0,0 100,0 0,100" style="fill:white;stroke:none" />
+   <polygon points="0,100 100,0 100,100" style="fill:${darkDimmedColor};stroke:none" />
 </svg>`;
 
 const settingPanel = <T, E = void>({
@@ -147,18 +154,26 @@ export const setupDisplaySettingsPanel: ViewSetup<
         onChange: onThemeChange,
         data: [
           { value: "light", extra: ["light", "#ffffff"] },
-          { value: "dark-dimmed", extra: ["dimmed", "#444d56"] },
-          { value: "dark", extra: ["dark", "#0d1117"] },
+          { value: "dark-dimmed", extra: ["dimmed", darkDimmedColor] },
+          { value: "dark", extra: ["dark", darkColor] },
           {
-            value: "auto",
-            extra: ["auto - sync with you OS color mode", "auto"],
+            value: "auto-dark-dimmed",
+            extra: ["auto - sync with you OS color mode", "auto-dark-dimmed"],
+          },
+          {
+            value: "auto-dark",
+            extra: ["auto - sync with you OS color mode", "auto-dark"],
           },
         ],
         labelProps: ([title, color]) => ({
           style: { color } as CSSStyleDeclaration,
           title,
           dangerouslySetInnerHTML:
-            color === "auto" ? getAutoThemeIcon() : getThemeIcon(),
+            color === "auto-dark"
+              ? getAutoDarkThemeIcon()
+              : color === "auto-dark-dimmed"
+              ? getAutoDarkDimmedThemeIcon()
+              : getThemeIcon(),
         }),
       })
     )

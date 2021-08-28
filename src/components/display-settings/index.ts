@@ -1,6 +1,11 @@
 export type FontSize = "x-small" | "small" | "medium" | "large" | "x-large";
 export type LineLength = "x-small" | "small" | "medium" | "large" | "x-large";
-export type Theme = "light" | "dark" | "dark-dimmed" | "auto";
+export type Theme =
+  | "light"
+  | "dark"
+  | "dark-dimmed"
+  | "auto-dark"
+  | "auto-dark-dimmed";
 
 export type DisplaySettings = {
   fontSize: FontSize;
@@ -21,7 +26,15 @@ const themeNodeProps = new Map<Theme, ThemeProps>([
   ],
   ["dark", { "data-color-mode": "dark", "data-dark-theme": "dark" }],
   [
-    "auto",
+    "auto-dark",
+    {
+      "data-color-mode": "auto",
+      "data-light-theme": "light",
+      "data-dark-theme": "dark",
+    },
+  ],
+  [
+    "auto-dark-dimmed",
     {
       "data-color-mode": "auto",
       "data-light-theme": "light",

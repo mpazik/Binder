@@ -54,3 +54,23 @@
 .theme-group input[type="radio"]:checked + label {
     background: var(--color-bg-info-inverse);
 }
+
+.theme-group label[for="theme_auto-dark"] {
+    display: none;
+}
+.theme-group label[for="theme_auto-dark-dimmed"] {
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
+}
+.theme-group input[type="radio"][value="dark"]:checked ~ label[for="theme_auto-dark"] {
+    display: block;
+}
+.theme-group input[type="radio"][value="auto-dark"]:checked ~ label[for="theme_auto-dark"] {
+    display: block;
+}
+.theme-group input[type="radio"][value="dark"]:checked ~ label[for="theme_auto-dark-dimmed"] {
+    display: none;
+}
+.theme-group label[for="theme_auto-dark-dimmed"]:not(.theme-group input[type="radio"]:checked ~ label) {
+    display: none;
+}

@@ -1,4 +1,4 @@
-import { displaySettingsPanelDefault } from "../components/display-settings/panel/examples";
+import { displaySettingsPanelDark } from "../components/display-settings/panel/examples";
 import {
   appNavigation,
   appNavigationWithConfig,
@@ -7,15 +7,15 @@ import {
 } from "../components/navigation/examples";
 import { div, JsonHtml, jsonHtmlToDom } from "../libs/simple-ui/render";
 
+const displaySettingsPanelExamples = [displaySettingsPanelDark];
 const navigationExamples = [
   emptyNavigation,
   emptyNavigationWithLargeLogo,
   appNavigation,
   appNavigationWithConfig,
-  displaySettingsPanelDefault,
 ];
 
-const examples: JsonHtml[] = navigationExamples;
+const examples: JsonHtml[] = displaySettingsPanelExamples;
 
 const wrapper = (example: JsonHtml) => div(example);
 
