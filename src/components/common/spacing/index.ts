@@ -28,29 +28,38 @@ const defaultInsetProps: InsetProps = {
   class: "",
 };
 
-const squishPaddingMap = {
-  square: {
-    none: "",
-    small: "p-1",
-    medium: "p-2",
-    large: "p-3",
-    "x-large": "p-5",
-  },
-  squish: {
-    none: "",
-    small: "py-1 px-2",
-    medium: "py-2 px-3",
-    large: "py3 px-5",
-    "x-large": "py-4 px-6",
-  },
-  stretch: {
-    none: "",
-    small: "py-2 px-1",
-    medium: "py-3 px-2",
-    large: "py-5 px-3",
-    "x-large": "py-6 px-4",
-  },
-};
+const insetPaddings = new Map<InsetType, Map<Size, string>>([
+  [
+    "square",
+    new Map([
+      ["none", ""],
+      ["small", "p-1"],
+      ["medium", "p-2"],
+      ["large", "p-3"],
+      ["x-large", "p-5"],
+    ]),
+  ],
+  [
+    "squish",
+    new Map([
+      ["none", ""],
+      ["small", "py-1 px-2"],
+      ["medium", "py-2 px-3"],
+      ["large", "py3 px-5"],
+      ["x-large", "py-4 px-6"],
+    ]),
+  ],
+  [
+    "stretch",
+    new Map([
+      ["none", ""],
+      ["small", "py-2 px-1"],
+      ["medium", "py-3 px-2"],
+      ["large", "py-5 px-3"],
+      ["x-large", "py-6 px-4"],
+    ]),
+  ],
+]);
 
 export const inset = (...props: InsetPropsWithChildren): JsonHtml => {
   const [{ type, size, class: className }, children] = parseProps(
@@ -59,26 +68,28 @@ export const inset = (...props: InsetPropsWithChildren): JsonHtml => {
   );
   return div(
     {
-      class: squishPaddingMap[type][size] + (className ? " " + className : ""),
+      class:
+        insetPaddings.get(type)!.get(size)! +
+        (className ? " " + className : ""),
     },
     ...children
   );
 };
 
-const gapMap = {
-  none: "",
-  small: "4px",
-  medium: "8px",
-  large: "16px",
-  "x-large": "24px",
-};
-const mktgGapMap = {
-  none: "",
-  small: "16px",
-  medium: "32px",
-  large: "48px",
-  "x-large": "64px",
-};
+const gapPixels = new Map<Size, string>([
+  ["none", ""],
+  ["small", "4px"],
+  ["medium", "8px"],
+  ["large", "16px"],
+  ["x-large", "24px"],
+]);
+const mktgGapPixels = new Map<Size, string>([
+  ["none", ""],
+  ["small", "16px"],
+  ["medium", "32px"],
+  ["large", "48px"],
+  ["x-large", "64px"],
+]);
 
 export type ListOrientation = "horizontal" | "vertical";
 type ListProps = {
@@ -105,7 +116,7 @@ const listPure = (
         (orientation === "vertical"
           ? "d-flex flex-column"
           : "d-flex flex-items-center") + (className ? " " + className : ""),
-      style: { gap: (marketing ? mktgGapMap : gapMap)[gap] },
+      style: { gap: (marketing ? mktgGapPixels : gapPixels).get(gap) },
     },
     ...children
   );
