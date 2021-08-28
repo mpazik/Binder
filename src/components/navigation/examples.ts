@@ -1,5 +1,6 @@
 import { div } from "../../libs/simple-ui/render";
 
+import { displaySettingsPanel } from "./display-settings";
 import { appNavContent, navigationView } from "./view";
 
 export const emptyNavigation = navigationView({
@@ -30,3 +31,5 @@ export const appNavigationWithConfig = navigationView({
     profilePanelSlot: div("P"),
   }),
 });
+
+export const displaySettingsPanelDefault = displaySettingsPanel({});

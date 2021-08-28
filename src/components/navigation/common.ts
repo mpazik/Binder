@@ -26,11 +26,42 @@ const loadingIcon = `
 export const loading: View = () =>
   span({ class: "btn-octicon" }, dangerousHTML(loadingIcon));
 
-export const dropdownMenu: View<
-  { children: JsonHtml[] } & ({ title: string } | { icon: string })
+export const dropdown: View<
+  { children: JsonHtml[] } & (
+    | { title: string }
+    | { icon: string; title?: string }
+  )
 > = (props) =>
   details(
     { class: "dropdown details-reset details-overlay" },
+    summary(
+      {
+        class: "btn-octicon",
+        role: "button",
+        title: (props as { icon: string }).icon ? props.title : undefined,
+      },
+      (props as { icon: string }).icon
+        ? dangerousHTML((props as { icon: string }).icon)
+        : (props as { title: string }).title,
+      div({ class: "dropdown-caret" })
+    ),
+    div(
+      { class: "dropdown-menu dropdown-menu-sw right-0 width-auto" },
+      ...props.children
+    )
+  );
+
+export const dropdownMenu: View<
+  { children: JsonHtml[]; open?: boolean } & (
+    | { title: string }
+    | { icon: string }
+  )
+> = (props) =>
+  details(
+    {
+      class: "dropdown details-reset details-overlay",
+      ...(props.open ? { open: undefined } : {}),
+    },
     summary(
       {
         class: "btn-octicon",

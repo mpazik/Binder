@@ -1,6 +1,7 @@
 import {
   appNavigation,
   appNavigationWithConfig,
+  displaySettingsPanelDefault,
   emptyNavigation,
   emptyNavigationWithLargeLogo,
 } from "../components/navigation/examples";
@@ -11,6 +12,7 @@ const navigationExamples = [
   emptyNavigationWithLargeLogo,
   appNavigation,
   appNavigationWithConfig,
+  displaySettingsPanelDefault,
 ];
 
 const examples: JsonHtml[] = navigationExamples;
