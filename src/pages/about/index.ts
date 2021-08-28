@@ -35,9 +35,12 @@ const header = div(
       ),
       // p({ class: "f3-mktg" }, "Boost your research and learning!"),
       div(
-        { class: "f3 mt-4" },
+        { class: "mt-4" },
         a(
-          { href: "/directory", class: "btn btn-large  btn-primary px-4 py-2" },
+          {
+            href: "/directory",
+            class: "btn-mktg",
+          },
           "Go to docland"
         )
       )
