@@ -15,7 +15,6 @@ import {
 import { productLogo, ProductLogoSize } from "../logo";
 
 import { dropdownLink, dropdownMenu } from "./common";
-import { displaySettings } from "./display-settings";
 
 export const navigationView: View<{
   onDisplay?: Listener<"display">;
@@ -102,11 +101,13 @@ export const zoomOut = `
 export const appNavContent: View<{
   searchBoxSlot: Slot;
   profilePanelSlot: Slot;
+  displaySettingsSlot: Slot;
   displayConfig?: boolean;
 }> = ({
   searchBoxSlot,
   profilePanelSlot,
   displayConfig = DISPLAY_CONFIG_ENABLED,
+  displaySettingsSlot,
 }) =>
   fragment(
     div(
@@ -138,7 +139,7 @@ export const appNavContent: View<{
               ),
             ]
           : []),
-        displaySettings,
+        displaySettingsSlot,
         helpMenu,
         profilePanelSlot
       )

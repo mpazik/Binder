@@ -1,7 +1,7 @@
+import { displaySettingsPanelDefault } from "../components/display-settings/panel/examples";
 import {
   appNavigation,
   appNavigationWithConfig,
-  displaySettingsPanelDefault,
   emptyNavigation,
   emptyNavigationWithLargeLogo,
 } from "../components/navigation/examples";

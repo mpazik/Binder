@@ -7,7 +7,12 @@ import { WatchHistorySearch } from "../../functions/indexes/watch-history-index"
 import { createRecentDocumentSearch } from "../../functions/recent-document-serach";
 import { UriWithFragment } from "../../functions/url-hijack";
 import { Callback, fork } from "../../libs/connections";
-import { Component, newSlot, slot } from "../../libs/simple-ui/render";
+import {
+  Component,
+  JsonHtml,
+  newSlot,
+  slot,
+} from "../../libs/simple-ui/render";
 import { getTarget } from "../../libs/simple-ui/utils/funtions";
 
 import { profilePanel, ProfilePanelControl } from "./profile";
@@ -93,6 +98,7 @@ export const navigation: Component<
     searchDirectory: DirectoryIndex["search"];
     searchWatchHistory: WatchHistorySearch;
     initProfile: GDriveLoadingProfile;
+    displaySettingsSlot: JsonHtml;
   },
   ProfilePanelControl & { hideNav: void; setCurrentUri: string }
 > = ({
@@ -101,6 +107,7 @@ export const navigation: Component<
   loadUri,
   searchDirectory,
   searchWatchHistory,
+  displaySettingsSlot,
   initProfile,
 }) => (render, onClose) => {
   const [profilePanelSlot, { updateStoreState, updateGdriveState }] = newSlot(
@@ -149,7 +156,11 @@ export const navigation: Component<
         ),
         () => updateGdrive(["load", initProfile])
       ),
-      body: appNavContent({ profilePanelSlot, searchBoxSlot }),
+      body: appNavContent({
+        profilePanelSlot,
+        searchBoxSlot,
+        displaySettingsSlot,
+      }),
     })
   );
 

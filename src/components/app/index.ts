@@ -13,6 +13,9 @@ import {
   pipe,
   reduce,
   split,
+  merge,
+  wrap,
+  to,
 } from "linki";
 
 import {
@@ -59,7 +62,6 @@ import {
   UriWithFragment,
 } from "../../functions/url-hijack";
 import { Consumer, stateProvider } from "../../libs/connections";
-import { to } from "../../libs/connections/mappers";
 import { HashName, HashUri, isHashUri } from "../../libs/hash";
 import { newStateMapper } from "../../libs/named-state";
 import { measureAsyncTime } from "../../libs/performance";
@@ -75,8 +77,19 @@ import { eitherComponent } from "../common/conditional-component";
 import { loader } from "../common/loader";
 import { contentComponent } from "../content";
 import { docsDirectory } from "../directory";
+import {
+  DisplaySettings,
+  fontSizeStyle,
+  lineLengthStyle,
+  themeProps,
+} from "../display-settings";
+import {
+  setupDisplaySettingsPanel,
+  typographyIcon,
+} from "../display-settings/panel";
 import { fileDrop } from "../file-drop";
 import { navigation } from "../navigation";
+import { dropdown } from "../navigation/common";
 
 import { specialDirectoryUri } from "./special-uris";
 
@@ -121,45 +134,6 @@ const createContentFetcherPassingUri = (
   ...(await contentFetcher(uri, signal)),
 });
 
-type DisplaySettings = {
-  fontSize: "x-small" | "small" | "medium" | "large" | "x-large";
-  lineLength: "x-small" | "small" | "medium" | "large" | "x-large";
-  theme: "light" | "dark" | "dark-dimmed" | "auto";
-};
-
-const themeProps = new Map<DisplaySettings["theme"], {}>([
-  ["light", { "data-color-mode": "light", "data-light-theme": "light" }],
-  [
-    "dark-dimmed",
-    { "data-color-mode": "dark", "data-dark-theme": "dark_dimmed" },
-  ],
-  ["dark", { "data-color-mode": "dark", "data-dark-theme": "dark" }],
-  [
-    "auto",
-    {
-      "data-color-mode": "auto",
-      "data-light-theme": "light",
-      "data-dark-theme": "dark_dimmed",
-    },
-  ],
-]);
-
-const lineLengthWidth = new Map<DisplaySettings["lineLength"], number>([
-  ["x-small", 400],
-  ["small", 600],
-  ["medium", 800],
-  ["large", 1000],
-  ["x-large", 1400],
-]);
-
-const fontSizePixels = new Map<DisplaySettings["lineLength"], number>([
-  ["x-small", 14],
-  ["small", 16],
-  ["medium", 18],
-  ["large", 22],
-  ["x-large", 26],
-]);
-
 const createContainerView: ViewSetup<
   {
     navigationSlot: Slot;
@@ -174,14 +148,14 @@ const createContainerView: ViewSetup<
   theme,
 }) =>
   div(
-    themeProps.get(theme)!,
+    { ...themeProps(theme) },
     navigationSlot,
     div(
       {
         id: "container",
         style: {
-          width: lineLengthWidth.get(lineLength),
-          fontSize: fontSizePixels.get(fontSize),
+          ...lineLengthStyle(lineLength),
+          ...fontSizeStyle(fontSize),
         },
         onDragenter: onFileDrop,
       },
@@ -345,6 +319,15 @@ export const App = asyncLoader(
       loadUri
     );
 
+    const updateDisplaySetting = link(
+      reduce<DisplaySettings, Partial<DisplaySettings>>(merge, {
+        theme: "dark",
+        lineLength: "small",
+        fontSize: "small",
+      }),
+      (it) => renderContainer(it)
+    );
+
     const [
       navigationSlot,
       { updateStoreState, updateGdriveState, hideNav, setCurrentUri },
@@ -365,6 +348,23 @@ export const App = asyncLoader(
         loadUri: fork(updateBrowserHistory, loadUri),
         searchDirectory: directoryIndex.search,
         searchWatchHistory,
+        displaySettingsSlot: dropdown({
+          icon: typographyIcon,
+          title: "display settings",
+          children: [
+            setupDisplaySettingsPanel({
+              onThemeChange: link(map(wrap("theme")), updateDisplaySetting),
+              onLineLengthChange: link(
+                map(wrap("lineLength")),
+                updateDisplaySetting
+              ),
+              onFontSizeChange: link(
+                map(wrap("fontSize")),
+                updateDisplaySetting
+              ),
+            })({ fontSize: "small", theme: "dark", lineLength: "small" }),
+          ],
+        }),
       })
     );
 
@@ -460,8 +460,8 @@ export const App = asyncLoader(
       fileDropSlot,
       onFileDrop: link(map(to<true>(true)), displayFileDrop) as Consumer<void>,
     });
-    render(
-      containerView({ theme: "dark", lineLength: "small", fontSize: "small" })
-    );
+
+    const renderContainer = link(map(containerView), render);
+    updateDisplaySetting({});
   }
 );

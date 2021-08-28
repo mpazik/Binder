@@ -5,7 +5,7 @@ body {
 #container {
     margin: 0 auto;
     padding-top: 50px;
-    height: 100%;
+    min-height: 100%;
 }
 
 #container.wide {
