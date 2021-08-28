@@ -16,7 +16,7 @@ const parseProps = <T extends object>(
   return [defaultProps, props as JsonHtml[]];
 };
 
-export type Size = "none" | "small" | "medium" | "large" | "xlarge";
+export type Size = "none" | "small" | "medium" | "large" | "x-large";
 
 export type InsetType = "square" | "squish" | "stretch";
 type InsetProps = { size: Size; type: InsetType; class: string };
@@ -34,21 +34,21 @@ const squishPaddingMap = {
     small: "p-1",
     medium: "p-2",
     large: "p-3",
-    xlarge: "p-5",
+    "x-large": "p-5",
   },
   squish: {
     none: "",
     small: "py-1 px-2",
     medium: "py-2 px-3",
     large: "py3 px-5",
-    xlarge: "py-4 px-6",
+    "x-large": "py-4 px-6",
   },
   stretch: {
     none: "",
     small: "py-2 px-1",
     medium: "py-3 px-2",
     large: "py-5 px-3",
-    xlarge: "py-6 px-4",
+    "x-large": "py-6 px-4",
   },
 };
 
@@ -70,14 +70,14 @@ const gapMap = {
   small: "4px",
   medium: "8px",
   large: "16px",
-  xlarge: "24px",
+  "x-large": "24px",
 };
 const mktgGapMap = {
   none: "",
   small: "16px",
   medium: "32px",
   large: "48px",
-  xlarge: "64px",
+  "x-large": "64px",
 };
 
 export type ListOrientation = "horizontal" | "vertical";

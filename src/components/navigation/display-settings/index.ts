@@ -71,7 +71,7 @@ export const displaySettingsPanel: View<{}> = () =>
   inset(
     { size: "medium" },
     stack(
-      { gap: "xlarge" },
+      { gap: "x-large" },
       stack(
         { gap: "small" },
         h5("Font size"),
