@@ -7,9 +7,7 @@
     "start:dev": "webpack-dev-server --port 8090",
     "start:prod": "yarn build && yarn serve build -p 9090",
     "build": "NODE_ENV=production webpack",
-    "build:clean": "rm -rf build && git worktree remove build && git worktree add build gh-pages",
-    "deploy:setup": "git branch gh-pages && git worktree add build gh-pages",
-    "deploy": "cd build && git add . && git commit -m 'Deploy' && git push origin gh-pages",
+    "build:clean": "rm -rf build",
     "lint": "yarn eslint",
     "fix": "prettier --write src && yarn eslint:fix",
     "test": "jest"
