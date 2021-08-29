@@ -54,13 +54,19 @@ const header = div(
           class: "color-shadow-extra-large",
           autoplay: undefined,
           muted: undefined,
+          onloadedmetadata: "this.muted = true",
           loop: undefined,
           playsinline: undefined,
           style: { width: "100%", borderRadius: "4px" },
+          alt: "Docland demo",
         },
         source({
           src: "docland-demo.webm",
           type: "video/webm",
+        }),
+        source({
+          src: "docland-demo.mp4",
+          type: "video/mp4",
         }),
         "Your browser does not support HTML5 video."
       )
