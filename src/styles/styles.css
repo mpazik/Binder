@@ -21,11 +21,6 @@ body {
     max-width: 638px
 }
 
-/*article.book {*/
-/*    font-size: 18px;*/
-/*    font-family: Georgia, serif;*/
-/*}*/
-
 .editable.markdown-body a {
     cursor: pointer;
 }

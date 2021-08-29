@@ -15,26 +15,59 @@ import {
   inputValue,
 } from "../../../libs/simple-ui/utils/funtions";
 import { inline, inset, stack } from "../../common/spacing";
-import { dropdown } from "../../navigation/common";
-import { FontSize } from "../index";
-import { DisplaySettings, LineLength, Theme } from "../type";
+import {
+  DisplaySettings,
+  FontFace,
+  FontSize,
+  LineHeight,
+  LineLength,
+  Theme,
+} from "../type";
 
-const getTypographyIcon = (size = "24") => `
-<svg xmlns="http://www.w3.org/2000/svg" class="v-align-middle" width=${size} height=${size} viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+const serifIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <line x1="4" y1="20" x2="7" y2="20"></line>
+   <line x1="14" y1="20" x2="21" y2="20"></line>
+   <line x1="6.9" y1="15" x2="13.8" y2="15"></line>
+   <line x1="10.2" y1="6.3" x2="16" y2="20"></line>
+   <polyline points="5 20 11 4 13 4 20 20"></polyline>
+</svg>`;
+const sansSerifIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <path d="M7 20v-12a4 4 0 0 1 4 -4h2a4 4 0 0 1 4 4v12"></path>
+   <line x1="7" y1="13" x2="17" y2="13"></line>
+</svg>`;
+
+const getFontSizeIcon = (
+  size = "24"
+) => `<svg xmlns="http://www.w3.org/2000/svg" class="v-align-middle" width=${size} height=${size} viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
    <circle cx="18" cy="16" r="3"></circle>
    <line x1="21" y1="13" x2="21" y2="19"></line>
    <path d="M3 19v-10a4 4 0 0 1 4 -4a4 4 0 0 1 4 4v10"></path>
    <line x1="3" y1="13" x2="11" y2="13"></line>
 </svg>`;
-export const typographyIcon = getTypographyIcon();
+export const typographyIcon = getFontSizeIcon();
 
-const getTextIcon = (width = "24") => `
-<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" width=${width} height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+const getLineLengthIcon = (
+  width = "24"
+) => `<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" width=${width} height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
    <line x1="4" y1="6" x2="20" y2="6"></line>
    <line x1="4" y1="12" x2="20" y2="12"></line>
    <line x1="4" y1="18" x2="16" y2="18"></line>
+</svg>`;
+
+const getLineHeightIcon = (
+  height = "24"
+) => `<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" width="24" height=${height} viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+   <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+   <polyline points="3 8 6 5 9 8"></polyline>
+   <polyline points="3 16 6 19 9 16"></polyline>
+   <line x1="6" y1="5" x2="6" y2="19"></line>
+   <line x1="13" y1="6" x2="20" y2="6"></line>
+   <line x1="13" y1="12" x2="20" y2="12"></line>
+   <line x1="13" y1="18" x2="20" y2="18"></line>
 </svg>`;
 
 const getThemeIcon = () => `
@@ -99,22 +132,41 @@ const settingPanel = <T, E = void>({
     )
   );
 
+export type DisplaySettingListeners = {
+  onFontFaceChange: (v: FontFace) => void;
+  onFontSizeChange: (v: FontSize) => void;
+  onLineLengthChange: (v: LineLength) => void;
+  onLineHeightChange: (v: LineHeight) => void;
+  onThemeChange: (v: Theme) => void;
+};
 export const setupDisplaySettingsPanel: ViewSetup<
-  {
-    onFontSizeChange: (v: FontSize) => void;
-    onLineLengthChange: (v: LineLength) => void;
-    onThemeChange: (v: Theme) => void;
-  },
+  DisplaySettingListeners,
   DisplaySettings
-> = ({ onFontSizeChange, onLineLengthChange, onThemeChange }) => ({
-  fontSize,
-  lineLength,
-  theme,
-}) =>
+> = ({
+  onFontFaceChange,
+  onFontSizeChange,
+  onLineLengthChange,
+  onLineHeightChange,
+  onThemeChange,
+}) => ({ fontFace, fontSize, lineLength, lineHeight, theme }) =>
   inset(
     { size: "medium" },
     stack(
       { gap: "x-large" },
+      settingPanel<FontFace, string>({
+        name: "font-face",
+        class: "font-face",
+        title: "Font face",
+        currentValue: fontFace,
+        onChange: onFontFaceChange,
+        data: [
+          { value: "sans-serif", extra: sansSerifIcon },
+          { value: "serif", extra: serifIcon },
+        ],
+        labelProps: (icon) => ({
+          dangerouslySetInnerHTML: icon,
+        }),
+      }),
       settingPanel<FontSize, string>({
         name: "font-size",
         title: "Font size",
@@ -128,7 +180,7 @@ export const setupDisplaySettingsPanel: ViewSetup<
           { value: "x-large", extra: "30" },
         ],
         labelProps: (size) => ({
-          dangerouslySetInnerHTML: getTypographyIcon(size),
+          dangerouslySetInnerHTML: getFontSizeIcon(size),
         }),
       }),
       settingPanel<LineLength, string>({
@@ -144,7 +196,22 @@ export const setupDisplaySettingsPanel: ViewSetup<
           { value: "x-large", extra: "30" },
         ],
         labelProps: (size) => ({
-          dangerouslySetInnerHTML: getTextIcon(size),
+          dangerouslySetInnerHTML: getLineLengthIcon(size),
+        }),
+      }),
+      settingPanel<LineHeight, string>({
+        name: "line-height",
+        title: "Line height",
+        class: "line-height",
+        currentValue: lineHeight,
+        onChange: onLineHeightChange,
+        data: [
+          { value: "small", extra: "18" },
+          { value: "medium", extra: "24" },
+          { value: "large", extra: "30" },
+        ],
+        labelProps: (size) => ({
+          dangerouslySetInnerHTML: getLineHeightIcon(size),
         }),
       }),
       settingPanel<Theme, [title: string, color: string]>({
@@ -179,15 +246,3 @@ export const setupDisplaySettingsPanel: ViewSetup<
       })
     )
   );
-
-export const displaySettings = dropdown({
-  icon: typographyIcon,
-  title: "display settings",
-  children: [
-    setupDisplaySettingsPanel({
-      onThemeChange: () => {},
-      onLineLengthChange: () => {},
-      onFontSizeChange: () => {},
-    })({ fontSize: "small", theme: "dark", lineLength: "small" }),
-  ],
-});

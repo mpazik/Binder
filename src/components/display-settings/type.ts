@@ -1,6 +1,7 @@
-import { FontSize } from "./index";
-
+export type FontFace = "serif" | "sans-serif";
+export type FontSize = "x-small" | "small" | "medium" | "large" | "x-large";
 export type LineLength = "x-small" | "small" | "medium" | "large" | "x-large";
+export type LineHeight = "small" | "medium" | "large";
 export type Theme =
   | "light"
   | "dark"
@@ -9,8 +10,10 @@ export type Theme =
   | "auto-dark-dimmed";
 
 export type DisplaySettings = {
+  fontFace: FontFace;
   fontSize: FontSize;
   lineLength: LineLength;
+  lineHeight: LineHeight;
   theme: Theme;
 };
 

@@ -2,7 +2,7 @@
 .radio-group label {
     margin-left: -1px;
     display: block;
-    width: 40px;
+    width: 36px;
     height: 30px;
     position: relative;
     cursor: pointer;
@@ -41,8 +41,17 @@
     border-color: var(--color-border-info);
 }
 
+.font-face label {
+    width: 90px;
+}
+
+.line-height label {
+    width: 60px;
+}
+
+
 .theme-group label {
-    width: 50px;
+    width: 45px;
 }
 
 /*noinspection CssUnresolvedCustomProperty*/

@@ -1,4 +1,12 @@
-import { LineLength, Settings, Theme, ThemeProps } from "./type";
+import {
+  FontFace,
+  FontSize,
+  LineHeight,
+  LineLength,
+  Settings,
+  Theme,
+  ThemeProps,
+} from "./type";
 
 export type {
   Settings,
@@ -9,7 +17,51 @@ export type {
   LineLength,
 } from "./type";
 
-export type FontSize = "x-small" | "small" | "medium" | "large" | "x-large";
+const fontFace = new Map<FontFace, string>([
+  [
+    "sans-serif",
+    '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
+  ],
+  ["serif", "Georgia, serif"],
+]);
+
+export const fontFaceStyle = (size: FontFace): { fontFamily: string } => ({
+  fontFamily: fontFace.get(size)!,
+});
+
+const fontSizePixels = new Map<FontSize, number>([
+  ["x-small", 14],
+  ["small", 16],
+  ["medium", 18],
+  ["large", 20],
+  ["x-large", 24],
+]);
+
+export const fontSizeStyle = (size: FontSize): { fontSize: number } => ({
+  fontSize: fontSizePixels.get(size)!,
+});
+
+const lineLength = new Map<LineLength, number>([
+  ["x-small", 400],
+  ["small", 500],
+  ["medium", 600],
+  ["large", 800],
+  ["x-large", 1200],
+]);
+
+export const lineLengthStyle = (size: LineLength): { "max-width": number } => ({
+  "max-width": lineLength.get(size)!,
+});
+
+const lineHeight = new Map<LineHeight, string>([
+  ["small", "1.3"],
+  ["medium", "1.5"],
+  ["large", "1.8"],
+]);
+
+export const lineHeightStyle = (size: LineHeight): { lineHeight: string } => ({
+  lineHeight: lineHeight.get(size)!,
+});
 
 const themeNodeProps = new Map<Theme, ThemeProps>([
   ["light", { "data-color-mode": "light", "data-light-theme": "light" }],
@@ -39,32 +91,10 @@ const themeNodeProps = new Map<Theme, ThemeProps>([
 export const themeProps = (theme: Theme): ThemeProps =>
   themeNodeProps.get(theme)!;
 
-const lineLengthWidth = new Map<LineLength, number>([
-  ["x-small", 400],
-  ["small", 500],
-  ["medium", 600],
-  ["large", 800],
-  ["x-large", 1200],
-]);
-
-export const lineLengthStyle = (size: LineLength): { "max-width": number } => ({
-  "max-width": lineLengthWidth.get(size)!,
-});
-
-const fontSizePixels = new Map<LineLength, number>([
-  ["x-small", 14],
-  ["small", 16],
-  ["medium", 18],
-  ["large", 22],
-  ["x-large", 26],
-]);
-
-export const fontSizeStyle = (size: LineLength): { fontSize: number } => ({
-  fontSize: fontSizePixels.get(size)!,
-});
-
 export const defaultSettings: Settings = {
+  fontFace: "sans-serif",
   fontSize: "medium",
   lineLength: "small",
+  lineHeight: "medium",
   theme: "light",
 };

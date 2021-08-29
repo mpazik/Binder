@@ -84,7 +84,9 @@ import { loader } from "../common/loader";
 import { contentComponent } from "../content";
 import { docsDirectory } from "../directory";
 import {
+  fontFaceStyle,
   fontSizeStyle,
+  lineHeightStyle,
   lineLengthStyle,
   Settings,
   themeProps,
@@ -158,8 +160,10 @@ const createContainerView: ViewSetup<
   },
   DisplaySettings
 > = ({ navigationSlot, contentOrDirSlot, fileDropSlot, onFileDrop }) => ({
+  fontFace,
   fontSize,
   lineLength,
+  lineHeight,
   theme,
 }) =>
   div(
@@ -169,8 +173,10 @@ const createContainerView: ViewSetup<
       {
         id: "container",
         style: {
-          ...lineLengthStyle(lineLength),
+          ...fontFaceStyle(fontFace),
           ...fontSizeStyle(fontSize),
+          ...lineLengthStyle(lineLength),
+          ...lineHeightStyle(lineHeight),
         },
         onDragenter: onFileDrop,
       },
@@ -378,9 +384,11 @@ export const App = asyncLoader(
           title: "display settings",
           children: [
             setupDisplaySettingsPanel({
-              onThemeChange: createDisplaySettingUpdater("theme"),
-              onLineLengthChange: createDisplaySettingUpdater("lineLength"),
+              onFontFaceChange: createDisplaySettingUpdater("fontFace"),
               onFontSizeChange: createDisplaySettingUpdater("fontSize"),
+              onLineLengthChange: createDisplaySettingUpdater("lineLength"),
+              onLineHeightChange: createDisplaySettingUpdater("lineHeight"),
+              onThemeChange: createDisplaySettingUpdater("theme"),
             })(displaySettings),
           ],
         }),
