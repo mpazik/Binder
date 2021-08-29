@@ -45,12 +45,11 @@ export const setupHtmlView: ViewSetup<
 > = ({ onDisplay, extraClass }) => ({ content }) =>
   article({
     class:
-      "markdown-body flex-1 position-relative" +
+      "markdown-body with-display-settings flex-1 position-relative" +
       (extraClass ? " " + extraClass : ""),
     style: {
       fontSize: "1em",
       lineHeight: "inherit",
-      fontFamily: "var(--font-face)",
     },
     dangerouslySetDom: content,
     onDisplay: onDisplay ? map(getTarget, onDisplay) : undefined,

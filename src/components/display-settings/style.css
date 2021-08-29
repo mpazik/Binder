@@ -1,4 +1,48 @@
 :root {
     --font-face: -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji";
+    --font-size: 18px;
     --line-width: 600px;
+    --img-max-width: 900px;
+    --line-height: 1.5;
+}
+
+.with-display-settings {
+    font-family: var(--font-face) !important;
+    font-size: var(--font-size) !important;
+    line-height: var(--line-height) !important;
+}
+
+.with-line-length-settings,
+.with-display-settings p,
+.with-display-settings h1,
+.with-display-settings h2,
+.with-display-settings h3,
+.with-display-settings h4,
+.with-display-settings h5,
+.with-display-settings h6,
+.with-display-settings figcaption,
+.with-display-settings ul,
+.with-display-settings ol {
+    width: var(--line-width) !important;
+    margin: 0 auto;
+}
+
+.with-display-settings img {
+    max-width: var(--img-max-width);
+    margin: 0 auto;
+    width: auto;
+    height: auto;
+}
+
+.with-display-settings p > img {
+    max-width: var(--line-width);
+    margin: 0 auto;
+}
+
+.with-display-settings figure {
+    text-align: center;
+}
+
+.with-display-settings figure img {
+    display: block;
 }

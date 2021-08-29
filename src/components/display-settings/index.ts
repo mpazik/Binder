@@ -1,6 +1,7 @@
 import "./style.css";
 
 import {
+  DisplaySettings,
   FontFace,
   FontSize,
   LineHeight,
@@ -19,19 +20,15 @@ export type {
   LineLength,
 } from "./type";
 
-const fontFace = new Map<FontFace, string>([
+const fontFaceMap = new Map<FontFace, string>([
   [
     "sans-serif",
     '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
   ],
-  ["serif", "Georgia, serif"],
+  ["serif", 'charter, Georgia, Cambria, "Times New Roman", Times, serif'],
 ]);
 
-export const fontFaceStyle = (size: FontFace): { fontFamily: string } => ({
-  fontFamily: fontFace.get(size)!,
-});
-
-const fontSizePixels = new Map<FontSize, number>([
+const fontSizeMap = new Map<FontSize, number>([
   ["x-small", 14],
   ["small", 16],
   ["medium", 18],
@@ -39,11 +36,7 @@ const fontSizePixels = new Map<FontSize, number>([
   ["x-large", 24],
 ]);
 
-export const fontSizeStyle = (size: FontSize): { fontSize: number } => ({
-  fontSize: fontSizePixels.get(size)!,
-});
-
-const lineLength = new Map<LineLength, number>([
+const lineLengthMap = new Map<LineLength, number>([
   ["x-small", 400],
   ["small", 500],
   ["medium", 600],
@@ -51,19 +44,19 @@ const lineLength = new Map<LineLength, number>([
   ["x-large", 1200],
 ]);
 
-export const lineLengthStyle = (size: LineLength): { "max-width": number } => ({
-  "max-width": lineLength.get(size)!,
-});
+const imgMaxWidthMap = new Map<LineLength, number>([
+  ["x-small", 600],
+  ["small", 700],
+  ["medium", 800],
+  ["large", 1000],
+  ["x-large", 1200],
+]);
 
-const lineHeight = new Map<LineHeight, string>([
+const lineHeightMap = new Map<LineHeight, string>([
   ["small", "1.3"],
   ["medium", "1.5"],
   ["large", "1.8"],
 ]);
-
-export const lineHeightStyle = (size: LineHeight): { lineHeight: string } => ({
-  lineHeight: lineHeight.get(size)!,
-});
 
 const themeNodeProps = new Map<Theme, ThemeProps>([
   ["light", { "data-color-mode": "light", "data-light-theme": "light" }],
@@ -99,4 +92,18 @@ export const defaultSettings: Settings = {
   lineLength: "small",
   lineHeight: "medium",
   theme: "light",
+};
+
+export const updateCssVariables = ({
+  fontFace,
+  fontSize,
+  lineLength,
+  lineHeight,
+}: DisplaySettings): void => {
+  const style = document.documentElement.style;
+  style.setProperty("--font-face", fontFaceMap.get(fontFace)!);
+  style.setProperty("--font-size", `${fontSizeMap.get(fontSize)!}px`);
+  style.setProperty("--line-width", `${lineLengthMap.get(lineLength)!}px`);
+  style.setProperty("--img-max-width", `${imgMaxWidthMap.get(lineLength)!}px`);
+  style.setProperty("--line-height", lineHeightMap.get(lineHeight)!);
 };

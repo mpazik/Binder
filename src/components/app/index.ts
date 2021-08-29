@@ -83,14 +83,7 @@ import { eitherComponent } from "../common/conditional-component";
 import { loader } from "../common/loader";
 import { contentComponent } from "../content";
 import { docsDirectory } from "../directory";
-import {
-  fontFaceStyle,
-  fontSizeStyle,
-  lineHeightStyle,
-  lineLengthStyle,
-  Settings,
-  themeProps,
-} from "../display-settings";
+import { Settings, themeProps, updateCssVariables } from "../display-settings";
 import { DisplaySettings } from "../display-settings";
 import {
   setupDisplaySettingsPanel,
@@ -160,10 +153,6 @@ const createContainerView: ViewSetup<
   },
   DisplaySettings
 > = ({ navigationSlot, contentOrDirSlot, fileDropSlot, onFileDrop }) => ({
-  fontFace,
-  fontSize,
-  lineLength,
-  lineHeight,
   theme,
 }) =>
   div(
@@ -173,10 +162,9 @@ const createContainerView: ViewSetup<
       {
         id: "container",
         style: {
-          ...fontFaceStyle(fontFace),
-          ...fontSizeStyle(fontSize),
-          ...lineLengthStyle(lineLength),
-          ...lineHeightStyle(lineHeight),
+          margin: "0 auto",
+          paddingTop: "50px",
+          minHeight: "100%",
         },
         onDragenter: onFileDrop,
       },
@@ -489,6 +477,6 @@ export const App = asyncLoader(
     });
 
     const renderContainer = link(map(containerView), render);
-    subscribeToSettings(renderContainer);
+    subscribeToSettings(fork(renderContainer, updateCssVariables));
   }
 );
