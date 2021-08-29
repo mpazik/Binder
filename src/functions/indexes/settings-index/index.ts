@@ -117,6 +117,15 @@ export const createSettingsIndexer = (
   const record = index(ld);
   if (!record) return;
   const previous = await storeGet(store, record.key);
+  if (
+    previous &&
+    record.props.startTime &&
+    previous.startTime &&
+    record.props.startTime < previous.startTime
+  ) {
+    console.log("Ignore older change settings event");
+    return;
+  }
 
   await storePut(store, record.props, record.key);
   callback(record.props);

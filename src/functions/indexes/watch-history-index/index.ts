@@ -93,6 +93,15 @@ export const createWatchHistoryIndexer = (
   const record = index(ld);
   if (!record) return;
   const previous = await storeGet(watchHistoryStore, record.key);
+  if (
+    previous &&
+    record.props.startTime &&
+    previous.startTime &&
+    record.props.startTime < previous.startTime
+  ) {
+    console.log("Ignore older watch event");
+    return;
+  }
 
   await storePut(watchHistoryStore, record.props, record.key);
 
