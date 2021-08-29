@@ -1,23 +1,16 @@
+import { LineLength, Settings, Theme, ThemeProps } from "./type";
+
+export type {
+  Settings,
+  Setting,
+  DisplaySettings,
+  Theme,
+  ThemeProps,
+  LineLength,
+} from "./type";
+
 export type FontSize = "x-small" | "small" | "medium" | "large" | "x-large";
-export type LineLength = "x-small" | "small" | "medium" | "large" | "x-large";
-export type Theme =
-  | "light"
-  | "dark"
-  | "dark-dimmed"
-  | "auto-dark"
-  | "auto-dark-dimmed";
 
-export type DisplaySettings = {
-  fontSize: FontSize;
-  lineLength: LineLength;
-  theme: Theme;
-};
-
-type ThemeProps = {
-  "data-color-mode": "light" | "dark" | "auto";
-  "data-light-theme"?: string;
-  "data-dark-theme"?: string;
-};
 const themeNodeProps = new Map<Theme, ThemeProps>([
   ["light", { "data-color-mode": "light", "data-light-theme": "light" }],
   [
@@ -69,3 +62,9 @@ const fontSizePixels = new Map<LineLength, number>([
 export const fontSizeStyle = (size: LineLength): { fontSize: number } => ({
   fontSize: fontSizePixels.get(size)!,
 });
+
+export const defaultSettings: Settings = {
+  fontSize: "medium",
+  lineLength: "small",
+  theme: "light",
+};

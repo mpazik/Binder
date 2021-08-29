@@ -13,8 +13,6 @@ import {
   pipe,
   reduce,
   split,
-  merge,
-  wrap,
   to,
 } from "linki";
 
@@ -35,6 +33,13 @@ import {
 import { createAnnotationsIndex } from "../../functions/indexes/annotations-index";
 import { createCompositeIndexer } from "../../functions/indexes/composite-indexer";
 import { createDirectoryIndex } from "../../functions/indexes/directory-index";
+import {
+  createSettingsIndexer,
+  createSettingsStore,
+  createSettingsSubscription,
+  SettingsRecord,
+  settingsStoreName,
+} from "../../functions/indexes/settings-index";
 import { createUriIndex } from "../../functions/indexes/url-index";
 import {
   createWatchHistoryIndex,
@@ -63,6 +68,7 @@ import {
 } from "../../functions/url-hijack";
 import { Consumer, stateProvider } from "../../libs/connections";
 import { HashName, HashUri, isHashUri } from "../../libs/hash";
+import { storeGetAll } from "../../libs/indexeddb";
 import { newStateMapper } from "../../libs/named-state";
 import { measureAsyncTime } from "../../libs/performance";
 import {
@@ -78,15 +84,17 @@ import { loader } from "../common/loader";
 import { contentComponent } from "../content";
 import { docsDirectory } from "../directory";
 import {
-  DisplaySettings,
   fontSizeStyle,
   lineLengthStyle,
+  Settings,
   themeProps,
 } from "../display-settings";
+import { DisplaySettings } from "../display-settings";
 import {
   setupDisplaySettingsPanel,
   typographyIcon,
 } from "../display-settings/panel";
+import { createSettingUpdateAction } from "../display-settings/replace-action";
 import { fileDrop } from "../file-drop";
 import { navigation } from "../navigation";
 import { dropdown } from "../navigation/common";
@@ -98,7 +106,8 @@ const initServices = async (): Promise<{
   globalDb: GlobalDb;
   unclaimedRepository: UnclaimedRepositoryDb;
   lastLogin: DriverAccount | undefined;
-  lastLoginRepo: RepositoryDb | undefined;
+  initRepo: RepositoryDb;
+  initialSettings: SettingsRecord[];
 }> => {
   const [globalDb, fetchTroughProxy, unclaimedRepository] = await Promise.all([
     openGlobalDb(),
@@ -110,12 +119,18 @@ const initServices = async (): Promise<{
     ? await openAccountRepository(lastLogin)
     : undefined;
 
+  const initRepo = lastLoginRepo ?? unclaimedRepository;
+  const initialSettings = await storeGetAll<SettingsRecord>(
+    initRepo.getStoreProvider(settingsStoreName)
+  );
+
   return {
     fetchTroughProxy,
     globalDb,
     unclaimedRepository,
     lastLogin,
-    lastLoginRepo,
+    initRepo,
+    initialSettings,
   };
 };
 
@@ -170,7 +185,8 @@ export const App = asyncLoader(
     globalDb,
     unclaimedRepository,
     lastLogin,
-    lastLoginRepo,
+    initRepo,
+    initialSettings,
   }) => (render, onClose) => {
     const urlIndex = createUriIndex();
     const directoryIndex = createDirectoryIndex();
@@ -182,12 +198,24 @@ export const App = asyncLoader(
     const watchHistoryIndex = createWatchHistoryIndex(watchHistoryStore);
     const searchWatchHistory = createWatchHistorySearch(watchHistoryStore);
 
+    const [settingsStore, switchRepoForSettings] = createSettingsStore();
+    const [
+      displaySettings,
+      updateSettings,
+      subscribeToSettings,
+    ] = createSettingsSubscription(initialSettings);
+
     const indexLinkedData = createCompositeIndexer([
       urlIndex.update,
       directoryIndex.update,
       annotationsIndex.update,
       createWatchHistoryIndexer(watchHistoryStore, (hash) =>
         store.removeLinkedData(hash)
+      ),
+      createSettingsIndexer(
+        settingsStore,
+        (hash) => store.removeLinkedData(hash),
+        updateSettings
       ),
     ]);
     const store = createStore(
@@ -204,11 +232,10 @@ export const App = asyncLoader(
       urlIndex.switchRepo,
       directoryIndex.switchRepo,
       annotationsIndex.switchRepo,
-      switchRepoForWatchHistory
+      switchRepoForWatchHistory,
+      switchRepoForSettings
     );
-    const initRepo = lastLoginRepo ?? unclaimedRepository;
     updateRepo(initRepo);
-
     // todo this should be different
     const [creatorProvider, setCreator] = stateProvider<string | null>(
       lastLogin?.email ?? null
@@ -318,15 +345,13 @@ export const App = asyncLoader(
       ),
       loadUri
     );
-
-    const updateDisplaySetting = link(
-      reduce<DisplaySettings, Partial<DisplaySettings>>(merge, {
-        theme: "dark",
-        lineLength: "small",
-        fontSize: "small",
-      }),
-      (it) => renderContainer(it)
-    );
+    const createDisplaySettingUpdater = <T extends keyof Settings>(
+      key: T
+    ): ((value: Settings[T]) => void) =>
+      link(
+        map((it: Settings[T]) => createSettingUpdateAction(key, it)),
+        store.writeLinkedData
+      );
 
     const [
       navigationSlot,
@@ -353,16 +378,10 @@ export const App = asyncLoader(
           title: "display settings",
           children: [
             setupDisplaySettingsPanel({
-              onThemeChange: link(map(wrap("theme")), updateDisplaySetting),
-              onLineLengthChange: link(
-                map(wrap("lineLength")),
-                updateDisplaySetting
-              ),
-              onFontSizeChange: link(
-                map(wrap("fontSize")),
-                updateDisplaySetting
-              ),
-            })({ fontSize: "small", theme: "dark", lineLength: "small" }),
+              onThemeChange: createDisplaySettingUpdater("theme"),
+              onLineLengthChange: createDisplaySettingUpdater("lineLength"),
+              onFontSizeChange: createDisplaySettingUpdater("fontSize"),
+            })(displaySettings),
           ],
         }),
       })
@@ -462,6 +481,6 @@ export const App = asyncLoader(
     });
 
     const renderContainer = link(map(containerView), render);
-    updateDisplaySetting({});
+    subscribeToSettings(renderContainer);
   }
 );

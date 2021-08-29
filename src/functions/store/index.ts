@@ -82,7 +82,7 @@ const syncPropsStoreName = "sync-props" as StoreName;
 
 const autoUpdateTimeout = 5 * 60 * 1000;
 
-const linkedDataTypeThatCouldBeRemoved = ["WatchAction"];
+const linkedDataTypeThatCouldBeRemoved = ["WatchAction", "ReplaceAction"];
 
 registerRepositoryVersion({
   version: 2,
@@ -337,7 +337,7 @@ export const createStore = (
     removeLinkedData: async (hash) => {
       if (!(await canBeDeleted(hash))) {
         const data = await storeGet(linkedDataStore, hash);
-        console.error("Illegal delete operation on item", data);
+        console.error("Ignored illegal delete operation on item", data);
         return;
       }
       await unmarkLinkedDataForSync(hash);

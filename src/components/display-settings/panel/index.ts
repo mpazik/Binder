@@ -16,7 +16,8 @@ import {
 } from "../../../libs/simple-ui/utils/funtions";
 import { inline, inset, stack } from "../../common/spacing";
 import { dropdown } from "../../navigation/common";
-import { DisplaySettings, FontSize, LineLength, Theme } from "../index";
+import { FontSize } from "../index";
+import { DisplaySettings, LineLength, Theme } from "../type";
 
 const getTypographyIcon = (size = "24") => `
 <svg xmlns="http://www.w3.org/2000/svg" class="v-align-middle" width=${size} height=${size} viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">

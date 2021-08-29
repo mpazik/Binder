@@ -92,9 +92,10 @@ export const createWatchHistoryIndexer = (
 ): UpdateIndex => async (ld) => {
   const record = index(ld);
   if (!record) return;
+  const previous = await storeGet(watchHistoryStore, record.key);
+
   await storePut(watchHistoryStore, record.props, record.key);
 
-  const previous = await storeGet(watchHistoryStore, record.key);
   if (previous) {
     // we don't want to pollute space with all watch events so we store only last one
     await deleteLinkedData(previous.eventId);
