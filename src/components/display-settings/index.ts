@@ -89,7 +89,7 @@ export const themeProps = (theme: Theme): ThemeProps =>
 export const defaultSettings: Settings = {
   fontFace: "sans-serif",
   fontSize: "medium",
-  lineLength: "small",
+  lineLength: "medium",
   lineHeight: "medium",
   theme: "light",
 };

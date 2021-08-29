@@ -24,19 +24,22 @@
 .with-display-settings ul,
 .with-display-settings ol {
     width: var(--line-width) !important;
-    margin: 0 auto;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .with-display-settings img {
     max-width: var(--img-max-width);
-    margin: 0 auto;
+    margin-left: auto;
+    margin-right: auto;
     width: auto;
     height: auto;
 }
 
 .with-display-settings p > img {
     max-width: var(--line-width);
-    margin: 0 auto;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .with-display-settings figure {

@@ -21,6 +21,7 @@ const view: View<{
   docs: RecentDocuments[];
 }> = ({ docs }) =>
   div(
+    { class: "with-line-length-settings" },
     h4("Your documents"),
     nav(
       { class: "menu" },
