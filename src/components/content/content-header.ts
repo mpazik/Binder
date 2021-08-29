@@ -19,7 +19,7 @@ const newContentHeader: ViewSetup<{ categoriesSlot: Slot }, LinkedData> = ({
 }) => (linkedData: LinkedData) => {
   const uri = findUrl(linkedData);
   return div(
-    { class: "Subhead" },
+    { class: "Subhead sans-serif" },
     div({ class: "Subhead-heading" }, String(linkedData.name)),
     div(
       { class: "Subhead-description" },
