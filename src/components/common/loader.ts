@@ -1,3 +1,5 @@
+import "./loading.css";
+
 import { defined, filter, link } from "linki";
 
 import { Callback, closable, Consumer, fork } from "../../libs/connections";

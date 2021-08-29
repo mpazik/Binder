@@ -13,12 +13,14 @@
     margin: 8px;
     border-radius: 50%;
     border: 6px solid;
-    border-color: #FFF transparent #FFF transparent;
+    /*noinspection CssUnresolvedCustomProperty*/
+    border-color: var(--color-text-inverse) transparent var(--color-text-inverse) transparent;
     animation: rotate 1.4s linear infinite;
 }
 
 .loading.black:after {
-    border-color: #24292e transparent #24292e transparent;
+    /*noinspection CssUnresolvedCustomProperty*/
+    border-color: var(--color-text-primary) transparent var(--color-text-primary) transparent;
 }
 
 @keyframes rotate {

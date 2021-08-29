@@ -1,3 +1,5 @@
+import "./style.css";
+
 import { documentContentRoodId } from "../../../functions/content-processors/html-processor";
 import { documentToBlob } from "../../../functions/content-saver";
 import {

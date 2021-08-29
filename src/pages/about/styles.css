@@ -1,8 +1,14 @@
+.marketing-content {
+    margin: 0 auto;
+    max-width: 1000px
+}
+
 .community a {
     width: 100%;
     display: block;
 }
 
 .community svg:not(:hover) {
+    /*noinspection CssUnresolvedCustomProperty*/
     fill: var(--color-text-secondary);
 }

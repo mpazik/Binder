@@ -1,3 +1,5 @@
+import "./style.css";
+
 import {
   FontFace,
   FontSize,

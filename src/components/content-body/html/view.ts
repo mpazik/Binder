@@ -47,7 +47,11 @@ export const setupHtmlView: ViewSetup<
     class:
       "markdown-body flex-1 position-relative" +
       (extraClass ? " " + extraClass : ""),
-    style: { fontSize: "1em", lineHeight: "inherit", fontFamily: "inherit" },
+    style: {
+      fontSize: "1em",
+      lineHeight: "inherit",
+      fontFamily: "var(--font-face)",
+    },
     dangerouslySetDom: content,
     onDisplay: onDisplay ? map(getTarget, onDisplay) : undefined,
   });
