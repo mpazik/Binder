@@ -41,7 +41,7 @@ describe("index", () => {
 describe("createSettingsSubscription", () => {
   test("push default settings upon subscription", async () => {
     const [push, pull] = createQueue();
-    const [, subscribe] = createSettingsSubscription([]);
+    const [, , subscribe] = createSettingsSubscription([]);
     subscribe(push);
     expect(await pull()).toEqual({
       fontSize: "medium",
@@ -52,7 +52,7 @@ describe("createSettingsSubscription", () => {
 
   test("push initial settings upon subscription", async () => {
     const [push, pull] = createQueue();
-    const [, subscribe] = createSettingsSubscription([record]);
+    const [, , subscribe] = createSettingsSubscription([record]);
     subscribe(push);
     expect(await pull()).toEqual({
       fontSize: "x-small",
@@ -63,7 +63,7 @@ describe("createSettingsSubscription", () => {
 
   test("push new settings", async () => {
     const [push, pull] = createQueue();
-    const [update, subscribe] = createSettingsSubscription([]);
+    const [, update, subscribe] = createSettingsSubscription([]);
     subscribe(push);
     await pull(); // ignore initial setting
 
