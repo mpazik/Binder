@@ -448,7 +448,10 @@ export const App = asyncLoader(
               map(pipe(pick("linkedData"), pick("@id"), newUriWithFragment)),
               updateBrowserHistory
             ),
-            (it) => displayFile(it)
+            (it) => {
+              switchDisplayToContent();
+              displayFile(it);
+            }
           )
         ),
       })
