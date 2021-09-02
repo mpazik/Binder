@@ -2,15 +2,12 @@ import { Callback, fork, ignoreParam, link, withOptionalState } from "linki";
 
 import { LinkedDataWithContent } from "../../functions/content-processors";
 import { ContentSaver } from "../../functions/content-saver";
-import { updateBrowserHistory } from "../../functions/url-hijack";
-import { getUriFragment } from "../../libs/browser-providers";
 import {
   select,
   split,
   withMultiState,
   withState,
 } from "../../libs/connections";
-import { and, defined, filter } from "../../libs/connections/filters";
 import { map, passUndefined, pick, pipe } from "../../libs/connections/mappers";
 import { throwIfUndefined } from "../../libs/errors";
 import { LinkedData } from "../../libs/jsonld-format";
@@ -107,26 +104,8 @@ export const contentDisplayComponent: Component<
       onAnnotationDisplayRequest({ fragment, textLayer: container })
   );
 
-  const updateHistory: Callback<DisplayContext> = map(
-    pick("fragment"),
-    filter(
-      and(defined, (fragment) => fragment !== getUriFragment()),
-      map(
-        (fragment: string | undefined) => ({
-          fragment: fragment!,
-          uri: undefined,
-        }),
-        updateBrowserHistory
-      )
-    )
-  );
-
   const displayController: DisplayController = {
-    onDisplay: fork(
-      displayAnnotations,
-      updateHistory,
-      link(ignoreParam(), onDisplay)
-    ),
+    onDisplay: fork(displayAnnotations, link(ignoreParam(), onDisplay)),
     onContentModified: saveNewContent,
     onCurrentFragmentResponse,
   };
