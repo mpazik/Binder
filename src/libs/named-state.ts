@@ -1,3 +1,5 @@
+import { Processor } from "linki";
+
 import { reduce } from "./connections";
 import { Callback } from "./connections";
 
@@ -102,10 +104,17 @@ export const newStateMachine = <S extends SomeState, A extends SomeAction>(
   reduce(initState, newStateMachineHandler(behaviours, defaults), callback);
 
 export const filterState = <S extends SomeState, K extends S[0]>(
-  stateName: K,
-  callback: Callback<StateByName<S, K>[1]>
-): Callback<S> => (state: S) => {
+  stateName: K
+): Processor<S, StateByName<S, K>[1]> => (callback) => (state) => {
   if (state[0] === stateName) {
+    callback(state[1]);
+  }
+};
+
+export const filterStates = <S extends SomeState, K extends S[0]>(
+  ...stateName: K[]
+): Processor<S, StateByName<S, K>[1]> => (callback) => (state) => {
+  if (stateName.includes(state[0] as K)) {
     callback(state[1]);
   }
 };

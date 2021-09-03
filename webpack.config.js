@@ -87,6 +87,7 @@ const devEnv = {
   GDRIVE_API_KEY: JSON.stringify(
     "QUl6YVN5QmhfcGpVdGZYOFFjV1NGVVFzZWtMcHg5bV82dzBPTGZv",
   ),
+  ANALYTICS_KEY: JSON.stringify(false),
 };
 
 const devConfig = (() => {
@@ -151,6 +152,7 @@ const prodEnv = {
   GDRIVE_API_KEY: JSON.stringify(
     "QUl6YVN5QmhfcGpVdGZYOFFjV1NGVVFzZWtMcHg5bV82dzBPTGZv",
   ),
+  ANALYTICS_KEY: JSON.stringify("cGhjX2c1djR3V0p4MHdnTVNMc3B1UHpFMnVjYW1KWEY4dk82dUhNWWFTT04yNUg="),
 };
 
 const prodConfig = {

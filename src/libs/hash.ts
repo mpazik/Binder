@@ -3,6 +3,7 @@ import { normalizeLinkedData } from "./linked-data";
 import { Opaque } from "./types";
 
 type Hash = ArrayBuffer;
+type HashHex = string;
 type HashingAlgorithm = "sha-1" | "sha-256" | "sha-384" | "sha-512";
 type HashReference = [Hash, HashingAlgorithm];
 
@@ -27,28 +28,54 @@ const byteToHex: string[] = [...Array(0xff).keys()].map((n) =>
   n.toString(16).padStart(2, "0")
 );
 
-const bufferToHex = (arrayBuffer: ArrayBuffer) => {
-  const buff = new Uint8Array(arrayBuffer);
+const hashToHex = (hash: Hash): HashHex => {
+  const buff = new Uint8Array(hash);
   const hexOctets = [];
   for (let i = 0; i < buff.length; ++i) hexOctets.push(byteToHex[buff[i]]);
   return hexOctets.join("");
 };
 
-const referenceToHashUri = (ref: HashReference): HashUri =>
-  `${hashUriScheme}:${ref[1]};${bufferToHex(ref[0])}` as HashUri;
+export const referenceToHashUri = ([hash, alg]: HashReference): HashUri =>
+  `${hashUriScheme}:${alg};${hashToHex(hash)}` as HashUri;
 
-export const computeHash = (
-  buffer: ArrayBuffer,
+export const referenceToHashName = ([hash, alg]: HashReference): HashUri =>
+  `${alg}-${hashToHex(hash)}` as HashUri;
+
+export type HashFunction<T> = (
+  buffer: T,
+  algorithm: HashingAlgorithm
+) => Promise<Hash>;
+
+export const hashBytes: HashFunction<ArrayBuffer> = (
+  buffer,
+  algorithm = "sha-256"
+): Promise<Hash> => crypto.subtle.digest(algorithm, buffer);
+
+export const hashString: HashFunction<string> = (
+  string,
+  algorithm = "sha-256"
+): Promise<Hash> => hashBytes(new TextEncoder().encode(string), algorithm);
+
+export const hashToUri = async <T>(
+  data: T,
+  fn: HashFunction<T>,
   algorithm: HashingAlgorithm = "sha-256"
-): Promise<HashReference> =>
-  crypto.subtle.digest(algorithm, buffer).then((hash) => [hash, algorithm]);
+): Promise<HashUri> =>
+  referenceToHashUri([await fn(data, algorithm), algorithm]);
+
+export const hashToName = async <T>(
+  data: T,
+  fn: HashFunction<T>,
+  algorithm: HashingAlgorithm = "sha-256"
+): Promise<HashName> =>
+  referenceToHashName([await fn(data, algorithm), algorithm]);
 
 export const hashBlob = async (
   data: Blob,
   algorithm: HashingAlgorithm = "sha-256"
 ): Promise<HashUri> => {
   const buffer = await data.arrayBuffer();
-  return referenceToHashUri(await computeHash(buffer, algorithm));
+  return hashToUri(buffer, hashBytes, algorithm);
 };
 
 export const hashLinkedData = async (
@@ -57,7 +84,7 @@ export const hashLinkedData = async (
 ): Promise<HashUri> => {
   const { "@id": id, ...rest } = data;
   const normalized = await normalizeLinkedData(rest);
-  return referenceToHashUri(await computeHash(normalized, algorithm));
+  return hashToUri(normalized, hashBytes, algorithm);
 };
 
 export const computeLinkedDataWithHashId = async (

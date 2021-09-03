@@ -3,7 +3,6 @@ import { defined, filter } from "../../libs/connections/filters";
 import { mapState, newStateMachine } from "../../libs/named-state";
 import {
   clearLastLogin,
-  DriverAccount,
   GlobalDb,
   setLastConnected,
   setLastLogin,
@@ -22,6 +21,7 @@ import {
 } from "./app-files";
 import {
   GApi,
+  gdriveUserToAccount,
   getUserProfile,
   initializeGoogleDrive,
   signIn,
@@ -145,11 +145,7 @@ export const gdrive = (
           profileRetrieving: async ({ gapi, repository, alreadyLogged }) => {
             try {
               const profile = await getUserProfile(gapi);
-              const account: DriverAccount = {
-                driver: "gdrive",
-                name: profile.user.displayName,
-                email: profile.user.emailAddress,
-              };
+              const account = gdriveUserToAccount(profile.user);
               if (alreadyLogged) {
                 await setLastConnected(globalDb);
               } else {

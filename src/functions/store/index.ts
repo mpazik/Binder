@@ -25,6 +25,7 @@ import {
 } from "../../libs/on-browser-close";
 import { measureAsyncTime } from "../../libs/performance";
 import { browserTimer, SetupTimer, setupTimer } from "../../libs/timer";
+import { AnalyticsSender, createErrorSender } from "../analytics";
 import { UpdateIndex } from "../indexes/types";
 import { RemoteDrive, RemoteDriverState } from "../remote-drive";
 
@@ -116,6 +117,7 @@ export const createStore = (
   indexLinkedData: UpdateIndex,
   handleNewState: Callback<StoreState>,
   unclaimedRepo: UnclaimedRepositoryDb,
+  sendAnalytics: AnalyticsSender,
   autoUpdateTimer: SetupTimer = setupTimer(browserTimer, autoUpdateTimeout),
   registerBeforeClose: RegisterBrowserClose = onBrowserClose
 ): Store => {
@@ -141,6 +143,7 @@ export const createStore = (
     await storePut(resourceStore, blob, hash);
     return hash;
   };
+  const sendError = createErrorSender(sendAnalytics);
 
   const canBeDeleted = async (hash: HashUri): Promise<boolean> => {
     const data = await storeGet(linkedDataStore, hash);
@@ -234,8 +237,17 @@ export const createStore = (
       e: unknown
     ) => {
       if (state[0] !== handlingState) {
+        sendError({
+          key: "unexpected-store-change",
+          from: handlingState,
+        });
         console.error(`unexpected store state change from "${handlingState}"`);
       }
+      sendError({
+        key: "sync-error",
+        state: handlingState,
+        message,
+      });
       console.error(message, e);
       updateState([
         "error",
@@ -332,6 +344,7 @@ export const createStore = (
     writeResource: async (blob, name): Promise<HashName> => {
       const hash = await putLocalResource(blob);
       await markForSync(hash, false, name);
+      sendAnalytics("save-resource", { type: blob.type });
       return hash;
     },
     removeLinkedData: async (hash) => {
@@ -352,6 +365,7 @@ export const createStore = (
       const linkedDataWithHashId = await putLocalLinkedData(linkedData);
       await markForSync(linkedDataWithHashId["@id"], true);
       await indexLinkedData(linkedDataWithHashId);
+      sendAnalytics("save-linked-data", { type: getType(linkedData) });
       return linkedDataWithHashId;
     },
     updateRemoteDriveState: (driveState: RemoteDriverState) => {
@@ -382,7 +396,7 @@ export const createStore = (
       if (repositoryDb === unclaimedRepo) {
         unclaimedRepoCurrent = true;
       } else if (unclaimedRepoCurrent) {
-        measureAsyncTime("claiming loged off data", async () => {
+        measureAsyncTime("claiming logged off data", async () => {
           const oldResourceStore = resourceStore;
           const oldLinkedDataStore = linkedDataStore;
           const oldSyncRequiredStore = syncRequiredStore;

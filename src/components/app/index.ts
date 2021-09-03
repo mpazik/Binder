@@ -17,12 +17,19 @@ import {
 } from "linki";
 
 import {
+  initConfiguredAnalyticsForRepoAccount,
+  AnalyticsSender,
+  UpdateAnalyticsRepoAccount,
+  createErrorSender,
+} from "../../functions/analytics";
+import {
   LinkedDataWithContent,
   processFileToContent,
 } from "../../functions/content-processors";
 import { createContentSaver } from "../../functions/content-saver";
 import { createProxyFetch, Fetch } from "../../functions/fetch-trough-proxy";
 import { createGDrive } from "../../functions/gdrive";
+import { gdriveUserToAccount } from "../../functions/gdrive/auth";
 import { gdrive, GDriveState } from "../../functions/gdrive/controller";
 import {
   DriverAccount,
@@ -69,7 +76,11 @@ import {
 import { Consumer, stateProvider } from "../../libs/connections";
 import { HashName, HashUri, isHashUri } from "../../libs/hash";
 import { storeGetAll } from "../../libs/indexeddb";
-import { newStateMapper } from "../../libs/named-state";
+import {
+  filterState,
+  filterStates,
+  newStateMapper,
+} from "../../libs/named-state";
 import { measureAsyncTime } from "../../libs/performance";
 import {
   div,
@@ -103,6 +114,8 @@ const initServices = async (): Promise<{
   lastLogin: DriverAccount | undefined;
   initRepo: RepositoryDb;
   initialSettings: SettingsRecord[];
+  sendAnalytics: AnalyticsSender;
+  updateAnalyticsRepoAccount: UpdateAnalyticsRepoAccount;
 }> => {
   const [globalDb, fetchTroughProxy, unclaimedRepository] = await Promise.all([
     openGlobalDb(),
@@ -118,6 +131,10 @@ const initServices = async (): Promise<{
   const initialSettings = await storeGetAll<SettingsRecord>(
     initRepo.getStoreProvider(settingsStoreName)
   );
+  const [
+    sendAnalytics,
+    updateAnalyticsRepoAccount,
+  ] = await initConfiguredAnalyticsForRepoAccount(lastLogin);
 
   return {
     fetchTroughProxy,
@@ -126,6 +143,8 @@ const initServices = async (): Promise<{
     lastLogin,
     initRepo,
     initialSettings,
+    sendAnalytics,
+    updateAnalyticsRepoAccount,
   };
 };
 
@@ -181,6 +200,8 @@ export const App = asyncLoader(
     lastLogin,
     initRepo,
     initialSettings,
+    sendAnalytics,
+    updateAnalyticsRepoAccount,
   }) => (render, onClose) => {
     const urlIndex = createUriIndex();
     const directoryIndex = createDirectoryIndex();
@@ -218,7 +239,8 @@ export const App = asyncLoader(
         (state) => console.log("store - ", state),
         (s) => updateStoreState(s)
       ),
-      unclaimedRepository
+      unclaimedRepository,
+      sendAnalytics
     );
     const updateRepo = fork(
       () => console.log("switching repo"),
@@ -234,24 +256,29 @@ export const App = asyncLoader(
     const [creatorProvider, setCreator] = stateProvider<string | null>(
       lastLogin?.email ?? null
     );
+    const sendError = createErrorSender(sendAnalytics);
 
     const updateGdrive = gdrive(
       fork(
         (state) => console.log("gdrive - ", state),
         (s) => updateGdriveState(s),
         link(
-          map((state) => {
-            if (state[0] === "logged" || state[0] === "disconnected") {
-              console.log("switching user", state[1].user);
-              return state[1].user.emailAddress;
-            }
-            if (state[0] === "signedOut") {
-              return null;
-            }
-            return undefined;
-          }),
+          filterStates("logged", "disconnected"),
+          map(pick("user")),
           filter(defined),
-          setCreator
+          fork(
+            (user) => console.log("switching user", user),
+            link(map(pick("emailAddress")), setCreator),
+            link(map(gdriveUserToAccount), updateAnalyticsRepoAccount)
+          )
+        ),
+        link(
+          filterState("signedOut"),
+          fork(
+            () => console.log("signing out user"),
+            link(map(to(null)), setCreator),
+            link(map(to(undefined)), updateAnalyticsRepoAccount)
+          )
         ),
         link(
           map(
@@ -273,21 +300,33 @@ export const App = asyncLoader(
           store.updateRemoteDriveState
         ),
         link(
-          map((state) => {
-            if (
-              state[0] === "loading" ||
-              state[0] === "logged" ||
-              state[0] === "loggingIn" ||
-              state[0] === "disconnected" ||
-              state[0] === "signedOut"
-            ) {
-              return state[1].repository;
-            }
-            return undefined;
-          }),
+          filterStates(
+            "loading",
+            "logged",
+            "loggingIn",
+            "disconnected",
+            "signedOut"
+          ),
+          map(pick("repository")),
           filter(defined),
           passOnlyChanged<RepositoryDb>(initRepo),
           fork(updateRepo, () => switchDisplayToDirectory())
+        ),
+        link(
+          filterState("loadingError"),
+          map((state) => ({
+            key: "gdrive-loading-error",
+            message: state.error,
+          })),
+          sendError
+        ),
+        link(
+          filterState("loggingInError"),
+          map((state) => ({
+            key: "gdrive-logging-error",
+            message: state.error,
+          })),
+          sendError
         )
       ),
       globalDb,

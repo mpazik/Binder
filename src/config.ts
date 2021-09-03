@@ -14,5 +14,9 @@ declare const PROXY_SERVER: string;
 const _PROXY_SERVER = PROXY_SERVER;
 export { _PROXY_SERVER as PROXY_SERVER };
 
+declare const ANALYTICS_KEY: string;
+const _ANALYTICS_KEY = ANALYTICS_KEY;
+export { _ANALYTICS_KEY as ANALYTICS_KEY };
+
 export const CATEGORIES_ENABLED = false;
 export const DISPLAY_CONFIG_ENABLED = false;

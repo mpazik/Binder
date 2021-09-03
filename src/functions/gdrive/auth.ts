@@ -1,5 +1,6 @@
 import { GDRIVE_API_KEY, GDRIVE_CLIENT_ID } from "../../config";
 import { Opaque } from "../../libs/types";
+import { DriverAccount } from "../global-db";
 
 const DISCOVERY_DOCS = [
   "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest",
@@ -103,6 +104,15 @@ export type GDriveUserProfile = {
   user: GDriveUser;
   storageQuota: GDriveQuota;
 };
+
+export const gdriveUserToAccount = ({
+  displayName,
+  emailAddress,
+}: GDriveUser): DriverAccount => ({
+  driver: "gdrive",
+  name: displayName,
+  email: emailAddress,
+});
 
 export const getUserProfile = async (gapi: GApi): Promise<GDriveUserProfile> =>
   await gapi.client.drive.about
