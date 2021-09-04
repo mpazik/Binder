@@ -21,7 +21,7 @@ import {
 
 const header = div(
   {
-    class: "marketing-content px-2 my-8",
+    class: "marketing-content px-4 my-8",
   },
   inline(
     { marketing: true },
@@ -52,11 +52,11 @@ const header = div(
       video(
         {
           class: "color-shadow-extra-large",
-          autoplay: undefined,
-          muted: undefined,
+          autoplay: true,
+          muted: true,
           onloadedmetadata: "this.muted = true",
-          loop: undefined,
-          playsinline: undefined,
+          loop: true,
+          playsinline: true,
           style: { width: "100%", borderRadius: "4px" },
           alt: "Docland demo",
         },
@@ -88,7 +88,7 @@ const featureSection = (title: string, description: JsonHtml, imgSrc: string) =>
 
 const features = div(
   {
-    class: "color-bg-secondary px-2 py-8",
+    class: "color-bg-secondary px-4 py-8",
   },
   stack(
     { marketing: true, class: "marketing-content" },
@@ -154,7 +154,7 @@ const features = div(
 );
 
 const mission = div(
-  { class: "marketing-content px-2 my-8" },
+  { class: "marketing-content px-4 my-8" },
   p({ class: "h4-mktg" }, "Take control over your data"),
   p({ class: "f3" }, "Docland mission is to give you control over your data."),
   p(
@@ -224,7 +224,7 @@ const contactList = [
   }),
 ];
 const contact = div(
-  { class: "marketing-content px-2 my-8" },
+  { class: "marketing-content px-4 my-8" },
   p({ class: "h4-mktg mb-6" }, "Let's stay in touch"),
   div(
     {
@@ -236,7 +236,7 @@ const contact = div(
 );
 
 const footerView = footer(
-  { class: "color-bg-tertiary px-2 py-3" },
+  { class: "color-bg-tertiary px-4py-3" },
   inline(
     { class: "marketing-content flex-justify-center" },
     small({
