@@ -1,3 +1,5 @@
+import "./style.css";
+
 import { Callback } from "../../../libs/connections";
 import { map } from "../../../libs/connections/mappers";
 import { article, ViewSetup } from "../../../libs/simple-ui/render";
@@ -8,11 +10,11 @@ import {
   newDocumentComparator,
 } from "../html-editable/document-change";
 
-export type HtmlContent = { content: HTMLElement };
+export type HtmlContent = { content: DocumentFragment };
 
 // ideally should be triggered on resize too
 const detectDocumentChange = (
-  contentRoot: HTMLElement,
+  contentRoot: DocumentFragment,
   onChange: (c: DocumentChange[]) => void
 ) => (e: InputEvent) =>
   throttleArg<Element>(
@@ -29,7 +31,8 @@ export const setupEditableHtmlView: ViewSetup<
 > = ({ onDocumentChange, onDisplay }) => ({ content }) =>
   article({
     contenteditable: true,
-    class: "editable markdown-body flex-1 position-relative",
+    class:
+      "editable main-article markdown-body with-display-settings flex-1 position-relative",
     style: { outline: "none" },
     onInput: detectDocumentChange(content, onDocumentChange),
     dangerouslySetDom: content,
@@ -45,7 +48,7 @@ export const setupHtmlView: ViewSetup<
 > = ({ onDisplay, extraClass }) => ({ content }) =>
   article({
     class:
-      "markdown-body with-display-settings flex-1 position-relative" +
+      "main-article markdown-body with-display-settings flex-1 position-relative" +
       (extraClass ? " " + extraClass : ""),
     style: {
       fontSize: "1em",

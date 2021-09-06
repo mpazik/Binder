@@ -59,7 +59,14 @@ export const documentContentRoodId = "content";
 
 export const getDocumentContentRoot = (
   contentDocument: Document
-): HTMLElement => contentDocument.body;
+): DocumentFragment => {
+  const newParent = contentDocument.createDocumentFragment();
+  const oldParent = contentDocument.body;
+  while (oldParent.childNodes.length > 0) {
+    newParent.appendChild(oldParent.childNodes[0]);
+  }
+  return newParent;
+};
 
 const removeRootAndContentWrappers = (contentBody: HTMLElement) => {
   const newRoot = removeWrappers(

@@ -2790,10 +2790,10 @@ dns-txt@^2.0.2:
   dependencies:
     buffer-indexof "^1.0.0"
 
-docland-readability@^0.4.4:
-  version "0.4.4"
-  resolved "https://registry.yarnpkg.com/docland-readability/-/docland-readability-0.4.4.tgz#d73f9d44aa1cb69c4685a304945422613c457285"
-  integrity sha512-5k3Cu8uAmgqh7Rvt0ZECMEz5+zdXVj7uCsELsy25G8CXzGW5+w0mBnFkG/tMLe+ZSD9PU7ivhjb6E/uIgM75Pw==
+docland-readability@^0.4.5:
+  version "0.4.5"
+  resolved "https://registry.yarnpkg.com/docland-readability/-/docland-readability-0.4.5.tgz#c2559120d0f3dd31ada9a79395d44ba3a4f45810"
+  integrity sha512-vb9wOpHSxydjLwF2Qt5vTNDz01n9Yw9Go4lcEMcIMSKnUvMn9DL0AAtzRDSQzjVKB0QXY5kN6yI2/JTTeuJOaQ==
 
 doctrine@1.5.0:
   version "1.5.0"
