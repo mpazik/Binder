@@ -13,10 +13,10 @@
     "test": "jest"
   },
   "dependencies": {
-    "@mozilla/readability": "^0.4.0",
     "@primer/css": "^17.5.2",
     "@types/jszip": "^3.4.1",
     "diff": "^5.0.0",
+    "docland-readability": "^0.4.4",
     "jsonld": "^3.3.0",
     "jszip": "^3.6.0",
     "linki": "^0.1.0",

@@ -1,4 +1,4 @@
-import { Readability } from "@mozilla/readability";
+import { Readability } from "docland-readability";
 import * as pdfjsLib from "pdfjs-dist";
 
 import { throwIfNull } from "../../libs/errors";
@@ -59,17 +59,12 @@ export const documentContentRoodId = "content";
 
 export const getDocumentContentRoot = (
   contentDocument: Document
-): HTMLElement =>
-  throwIfNull(
-    contentDocument.getElementById("content"),
-    () =>
-      'expected that article document would have root element with id "content'
-  );
+): HTMLElement => contentDocument.body;
 
-const removeRootAndContentWrappers = (contentDocument: Document) => {
+const removeRootAndContentWrappers = (contentBody: HTMLElement) => {
   const newRoot = removeWrappers(
-    contentDocument.body.childNodes[0] as HTMLElement,
-    contentDocument.body
+    contentBody.childNodes[0] as HTMLElement,
+    contentBody
   );
 
   newRoot.id = documentContentRoodId;
@@ -96,7 +91,9 @@ export const htmlContentProcessor: ContentProcessor = {
     }
 
     const article = throwIfNull(
-      measureTime("readability", () => new Readability(dom).parse())
+      measureTime("readability", () =>
+        new Readability(dom, { serializer: (node) => node }).parse()
+      )
     );
 
     const articleLd: LinkedData = createArticle({
@@ -106,16 +103,16 @@ export const htmlContentProcessor: ContentProcessor = {
       urls: url ? [url] : [],
     });
 
-    const contentDocument = domParser.parseFromString(
-      article.content,
-      htmlMediaType
+    const contentDocument = document.implementation.createHTMLDocument(
+      article.title
     );
-    removeRootAndContentWrappers(contentDocument);
-    cleanElement(contentDocument.body);
+    const contentBody = contentDocument.createElement("body");
+    contentBody.appendChild(article.content as HTMLElement);
 
-    const titleEl = contentDocument.createElement("title");
-    titleEl.appendChild(contentDocument.createTextNode(article.title));
-    contentDocument.head.appendChild(titleEl);
+    contentDocument.body = contentBody;
+
+    removeRootAndContentWrappers(contentBody);
+    cleanElement(contentBody);
 
     const metaEl = contentDocument.createElement("meta");
     metaEl.setAttribute("charset", "UTF-8");
