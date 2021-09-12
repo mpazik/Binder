@@ -308,13 +308,7 @@ export const App = asyncLoader(
           store.updateRemoteDriveState
         ),
         link(
-          filterStates(
-            "loading",
-            "logged",
-            "loggingIn",
-            "disconnected",
-            "signedOut"
-          ),
+          filterStates("disconnected", "signedOut"),
           map(pick("repository")),
           filter(defined),
           passOnlyChanged<RepositoryDb>(initRepo),
