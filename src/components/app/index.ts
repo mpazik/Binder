@@ -314,7 +314,12 @@ export const App = asyncLoader(
           passOnlyChanged<RepositoryDb>(initRepo),
           fork(updateRepo, () => switchDisplayToDirectory())
         ),
-        link(filterState("signedOut"), () => displayAccountPicker()),
+        link(filterState("signedOut"), () =>
+          displayAccountPicker({ loading: false })
+        ),
+        link(filterState("loggingIn"), () =>
+          displayAccountPicker({ loading: true })
+        ),
         link(filterState("logged"), () => closeAccountPicker()),
         link(
           filterState("loadingError"),
@@ -398,7 +403,7 @@ export const App = asyncLoader(
       navigation({
         updateGdrive,
         upload: store.upload,
-        displayAccountPicker: () => displayAccountPicker(),
+        displayAccountPicker: () => displayAccountPicker({ loading: false }),
         initProfile: {
           repository: initRepo,
           user: lastLogin

@@ -12,6 +12,7 @@ import {
   ViewSetup,
 } from "../../libs/simple-ui/render";
 import { blanket } from "../common/blanket";
+import { centerLoading } from "../common/center-loading-component";
 import { stack } from "../common/spacing";
 
 const gdriveLogoIcon = `
@@ -56,17 +57,18 @@ const modalFrame = (...content: JsonHtml[]) =>
 
 const modalView: ViewSetup<
   { gdriveLogin: () => void; closeModal: () => void },
-  void
-> = ({ gdriveLogin, closeModal }) => () =>
+  { loading: boolean }
+> = ({ gdriveLogin, closeModal }) => ({ loading }) =>
   modalFrame(
     stack(
       { class: "Box-body", gap: "large" },
       p(
-        { class: "f4" },
+        { class: "f4 mb-0" },
         "Sign In to your cloud storage provider to synchronize your data"
       ),
+      ...(loading ? [centerLoading()] : []),
       button(
-        { class: "btn f3", onClick: gdriveLogin },
+        { class: "btn f3", onClick: gdriveLogin, disabled: loading },
         span({ dangerouslySetInnerHTML: gdriveLogoIcon }),
         span(
           { class: "v-align-middle color-text-secondary px-2" },
@@ -87,13 +89,20 @@ const modalView: ViewSetup<
     ),
     div(
       { class: "Box-footer text-right p-2" },
-      button({ class: "btn btn-sm btn-secondary", onClick: closeModal }, "Skip")
+      button(
+        {
+          class: "btn btn-sm btn-secondary",
+          onClick: closeModal,
+          disabled: loading,
+        },
+        "Skip"
+      )
     )
   );
 
 export const accountPicker: Component<
   { gdriveLogin: () => void },
-  { displayAccountPicker: void; closeAccountPicker: void }
+  { displayAccountPicker: { loading: boolean }; closeAccountPicker: void }
 > = ({ gdriveLogin }) => (render) => {
   const closeModal: Callback = link(map(to(undefined)), render);
   const renderModal = link(map(modalView({ gdriveLogin, closeModal })), render);
