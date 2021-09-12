@@ -93,6 +93,7 @@ const registerNavScrollListener = (nav: HTMLElement): Close => {
 export const navigation: Component<
   {
     updateGdrive: Callback<GDriveAction>;
+    displayAccountPicker: Callback;
     upload: () => void;
     loadUri: Callback<UriWithFragment>;
     searchDirectory: DirectoryIndex["search"];
@@ -103,6 +104,7 @@ export const navigation: Component<
   ProfilePanelControl & { hideNav: void; setCurrentUri: string }
 > = ({
   updateGdrive,
+  displayAccountPicker,
   upload,
   loadUri,
   searchDirectory,
@@ -113,7 +115,7 @@ export const navigation: Component<
   const [profilePanelSlot, { updateStoreState, updateGdriveState }] = newSlot(
     "profile",
     profilePanel({
-      login: () => updateGdrive(["login"]),
+      login: displayAccountPicker,
       logout: () => updateGdrive(["logout"]),
       upload,
     })

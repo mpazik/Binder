@@ -89,6 +89,7 @@ import {
   slot,
   ViewSetup,
 } from "../../libs/simple-ui/render";
+import { accountPicker } from "../account-picker";
 import { asyncLoader } from "../common/async-loader";
 import { eitherComponent } from "../common/conditional-component";
 import { loader } from "../common/loader";
@@ -167,13 +168,18 @@ const createContainerView: ViewSetup<
   {
     navigationSlot: Slot;
     contentOrDirSlot: Slot;
+    accountPickerSlot: Slot;
     fileDropSlot: Slot;
     onFileDrop: () => void;
   },
   DisplaySettings
-> = ({ navigationSlot, contentOrDirSlot, fileDropSlot, onFileDrop }) => ({
-  theme,
-}) =>
+> = ({
+  navigationSlot,
+  contentOrDirSlot,
+  accountPickerSlot,
+  fileDropSlot,
+  onFileDrop,
+}) => ({ theme }) =>
   div(
     { ...themeProps(theme) },
     navigationSlot,
@@ -187,7 +193,9 @@ const createContainerView: ViewSetup<
         },
         onDragenter: onFileDrop,
       },
-      div({ class: "p-4" }, fileDropSlot, contentOrDirSlot)
+      fileDropSlot,
+      accountPickerSlot,
+      div({ class: "p-4" }, contentOrDirSlot)
     )
   );
 
@@ -312,6 +320,8 @@ export const App = asyncLoader(
           passOnlyChanged<RepositoryDb>(initRepo),
           fork(updateRepo, () => switchDisplayToDirectory())
         ),
+        link(filterState("signedOut"), () => displayAccountPicker()),
+        link(filterState("logged"), () => closeAccountPicker()),
         link(
           filterState("loadingError"),
           map((state) => ({
@@ -394,6 +404,7 @@ export const App = asyncLoader(
       navigation({
         updateGdrive,
         upload: store.upload,
+        displayAccountPicker: () => displayAccountPicker(),
         initProfile: {
           repository: initRepo,
           user: lastLogin
@@ -496,6 +507,16 @@ export const App = asyncLoader(
       })
     );
 
+    const [
+      accountPickerSlot,
+      { displayAccountPicker, closeAccountPicker },
+    ] = newSlot(
+      "account-picker",
+      accountPicker({
+        gdriveLogin: () => updateGdrive(["login"]),
+      })
+    );
+
     onClose(documentLinksUriProvider(loadUri));
     onClose(
       browserUriProvider({ defaultUri: specialDirectoryUri })(
@@ -515,6 +536,7 @@ export const App = asyncLoader(
       navigationSlot,
       contentOrDirSlot,
       fileDropSlot,
+      accountPickerSlot,
       onFileDrop: link(map(to<true>(true)), displayFileDrop) as Consumer<void>,
     });
 

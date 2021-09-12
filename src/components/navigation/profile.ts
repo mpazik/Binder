@@ -168,18 +168,10 @@ export const createProfileView: ViewSetup<ProfileActions, ProfileState> = ({
     loggingIn: () => loading(),
     profileRetrieving: () => loading(),
     signedOut: () =>
-      dropdownMenu({
-        icon: cloudOffIcon,
-        children: [
-          li(
-            { class: "px-4 py-2", style: { width: "200px" } },
-            a(
-              { type: "button", onClick: login, style: { cursor: "pointer" } },
-              "Sign In"
-            ),
-            " to your cloud storage provider to synchronize your data"
-          ),
-        ],
+      button({
+        class: "btn-octicon",
+        onClick: login,
+        dangerouslySetInnerHTML: cloudOffIcon,
       }),
     disconnected: () =>
       dropdownMenu({
