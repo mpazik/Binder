@@ -1,4 +1,5 @@
 import {
+  Callback,
   debounce,
   defined,
   definedTuple,
@@ -34,6 +35,7 @@ import {
   span,
   ul,
   View,
+  ViewSetup,
 } from "../../libs/simple-ui/render";
 import {
   focusElement,
@@ -49,20 +51,62 @@ import { specialDirectoryUri } from "../app/special-uris";
 import { relativeDate } from "../common/relative-date";
 import { isFocusedElementStatic } from "../content-body/utils";
 
-const noItemsView: View = () =>
+// @ts-ignore
+export const blur = (): void => document.activeElement?.blur();
+
+const setupAutoCompleteFrame: ViewSetup<
+  { setInteracting: () => void; footer?: JsonHtml },
+  JsonHtml
+> = ({ setInteracting, footer }) => (content) =>
   div(
     {
       class: "autocomplete-results",
+      onMousedown: link(map(to(true)), setInteracting),
+      style: {
+        "overflow-y": "hidden",
+      },
     },
-    div({ class: "p-2" }, "No results")
+    content,
+    ...(footer ? [footer] : [])
   );
+
+const setupSuggestionsView = <T>({
+  setDom,
+  onSelected,
+  getOptionLabel,
+}: {
+  setDom: Callback<HTMLElement>;
+  onSelected: Callback<T>;
+  getOptionLabel: (item: T) => JsonHtml;
+}): View<{ suggestions: T[] }> => ({ suggestions }) =>
+  ul(
+    {
+      onDisplay: link(map(getTarget), setDom),
+      style: {
+        "overflow-y": "auto",
+      },
+    },
+    ...suggestions.map((suggestion) =>
+      li(
+        {
+          class: "autocomplete-item",
+          onClick: link(map(to(suggestion)), onSelected),
+        },
+        getOptionLabel(suggestion)
+      )
+    )
+  );
+
+const noItemsView = () => div({ class: "p-2" }, "No results");
 
 export const createAutocompleteList = <T>({
   onSelected,
   getOptionLabel,
+  footer,
 }: {
   onSelected: (s: T) => void;
   getOptionLabel: (item: T) => JsonHtml;
+  footer?: JsonHtml;
 }): ComponentBody<{
   renderList: T[];
   hideList: void;
@@ -101,14 +145,25 @@ export const createAutocompleteList = <T>({
     }
   );
 
+  const autoCompleteFrame = setupAutoCompleteFrame({
+    setInteracting: () => setInteracting(true),
+    footer,
+  });
+  const suggestionsView = setupSuggestionsView({
+    setDom,
+    getOptionLabel,
+    onSelected,
+  });
+
   const renderList = fork<T[] | undefined>(
     link(map(to(undefined)), fork(setDom)),
     link(map(to(undefined)), setHighlighted),
     link(
       map((suggestions) => {
         if (suggestions === undefined) return undefined;
-        if (suggestions.length > 0) return suggestionsView({ suggestions });
-        return noItemsView();
+        if (suggestions.length > 0)
+          return autoCompleteFrame(suggestionsView({ suggestions }));
+        return autoCompleteFrame(noItemsView());
       }),
       render
     )
@@ -121,24 +176,6 @@ export const createAutocompleteList = <T>({
     map(to(undefined)),
     renderList
   );
-
-  const suggestionsView: View<{ suggestions: T[] }> = ({ suggestions }) =>
-    ul(
-      {
-        class: "autocomplete-results",
-        onDisplay: link(map(getTarget), setDom),
-        onMousedown: link(map(to(true)), setInteracting),
-      },
-      ...suggestions.map((suggestion) =>
-        li(
-          {
-            class: "autocomplete-item",
-            onClick: link(map(to(suggestion)), onSelected),
-          },
-          getOptionLabel(suggestion)
-        )
-      )
-    );
 
   return {
     renderList,
@@ -160,7 +197,6 @@ const isUrl = (s: string) => {
 };
 
 const searchFocusShortCutKey = "Slash";
-const specialAllItemsName = "list-all-items"; // this is hack
 
 export const searchBox: Component<{
   onSearch: (term: string) => Promise<RecentDocuments[]>;
@@ -172,6 +208,7 @@ export const searchBox: Component<{
     onSelected(url);
   };
 
+  const goToDirectory = () => selectUrl({ uri: specialDirectoryUri });
   const [
     suggestionsSlot,
     {
@@ -186,11 +223,6 @@ export const searchBox: Component<{
     createAutocompleteList<RecentDocuments>({
       onSelected: link(map(pick("uriWithFragment")), selectUrl),
       getOptionLabel: ({ name, startDate }) => {
-        if (name === specialAllItemsName)
-          return div(
-            { class: "pt-1 border-top color-text-secondary text-center" },
-            "List all documents"
-          );
         if (startDate)
           return span(
             name,
@@ -201,14 +233,21 @@ export const searchBox: Component<{
           );
         return name;
       },
+      footer: div(
+        {
+          class: "py-1 color-text-secondary text-center autocomplete-item",
+          onClick: goToDirectory,
+        },
+        "List all documents [Tab]"
+      ),
     })
   );
   const trigger = (): void => selectHighlighted();
 
   const keyHandlers: Map<string, (event: KeyboardEvent) => void> = new Map([
     ["Enter", trigger],
-    ["Tab", trigger],
-    ["Escape", () => hideList()],
+    ["Tab", goToDirectory],
+    ["Escape", () => fork(hideList, blur)()],
     ["ArrowDown", () => highlightNextItem()],
     ["ArrowUp", () => highlightPreviousItem()],
   ]);
@@ -225,20 +264,7 @@ export const searchBox: Component<{
     focusElement
   );
 
-  const renderSearch = mapAwait(
-    onSearch,
-    link(
-      map((it) => {
-        it.push({
-          uriWithFragment: { uri: specialDirectoryUri },
-          name: specialAllItemsName,
-        });
-        return it;
-      }),
-      renderList
-    ),
-    (e) => console.error(e)
-  );
+  const renderSearch = mapAwait(onSearch, renderList, (e) => console.error(e));
 
   const keyHandler: (e: KeyboardEvent) => void = link(
     filter(
@@ -266,7 +292,7 @@ export const searchBox: Component<{
         ),
         class: "form-control width-full",
         type: "text",
-        placeholder: `Search or open new url [/]`,
+        placeholder: `Search or open new url [ / ]`,
         onFocus: fork(selectInputTarget, () => {
           renderSearch("");
         }),
