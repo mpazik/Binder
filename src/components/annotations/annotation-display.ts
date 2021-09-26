@@ -56,8 +56,8 @@ const createAnnotationView: ViewSetup<
     {
       class: "Box Box--condensed Popover",
       style: {
-        left,
-        top,
+        left: `${left}px`,
+        top: `${top}px`,
         transform: "translate(-50%, 8px)",
       },
       onMouseleave: onHoverOut,
@@ -174,8 +174,8 @@ const commentFormView: View<{
     {
       class: "Box Popover",
       style: {
-        left,
-        top,
+        left: `${left}px`,
+        top: `${top}px`,
         transform: "translate(-50%, 30px)",
       },
     },

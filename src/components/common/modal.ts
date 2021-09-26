@@ -18,8 +18,8 @@ const modalView = (
       {
         class: "Popover Box color-shadow-extra-large",
         style: {
-          top,
-          left,
+          left: `${left}px`,
+          top: `${top}px`,
         },
       },
       content ?? ""
