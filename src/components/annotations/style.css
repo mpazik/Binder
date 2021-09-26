@@ -5,16 +5,16 @@
 }
 
 [data-color-mode="dark"][data-dark-theme*="dark"] {
-    --color-highligh-green: var(--color-scale-green-7);
-    --color-highligh-yellow: var(--color-scale-yellow-7);
-    --color-highligh-purple: var(--color-scale-purple-6);
+    --color-highligh-green: var(--color-scale-green-8);
+    --color-highligh-yellow: var(--color-scale-yellow-8);
+    --color-highligh-purple: var(--color-scale-purple-9);
 }
 
 @media (prefers-color-scheme: dark) {
     [data-color-mode="auto"][data-dark-theme*="dark"] {
         --color-highligh-green: var(--color-scale-green-7);
         --color-highligh-yellow: var(--color-scale-yellow-7);
-        --color-highligh-purple: var(--color-scale-purple-6);
+        --color-highligh-purple: var(--color-scale-purple-8);
     }
 }
 
