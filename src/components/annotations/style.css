@@ -4,10 +4,18 @@
     --color-highligh-purple: var(--color-scale-purple-1);
 }
 
-[data-color-mode="dark"] {
+[data-color-mode="dark"][data-dark-theme*="dark"] {
     --color-highligh-green: var(--color-scale-green-7);
     --color-highligh-yellow: var(--color-scale-yellow-7);
     --color-highligh-purple: var(--color-scale-purple-6);
+}
+
+@media (prefers-color-scheme: dark) {
+    [data-color-mode="auto"][data-dark-theme*="dark"] {
+        --color-highligh-green: var(--color-scale-green-7);
+        --color-highligh-yellow: var(--color-scale-yellow-7);
+        --color-highligh-purple: var(--color-scale-purple-6);
+    }
 }
 
 
