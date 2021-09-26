@@ -83,9 +83,6 @@ const themeNodeProps = new Map<Theme, ThemeProps>([
   ],
 ]);
 
-export const themeProps = (theme: Theme): ThemeProps =>
-  themeNodeProps.get(theme)!;
-
 export const defaultSettings: Settings = {
   fontFace: "sans-serif",
   fontSize: "medium",
@@ -94,11 +91,12 @@ export const defaultSettings: Settings = {
   theme: "light",
 };
 
-export const updateCssVariables = ({
+export const updateDisplaySettings = ({
   fontFace,
   fontSize,
   lineLength,
   lineHeight,
+  theme,
 }: DisplaySettings): void => {
   const style = document.documentElement.style;
   style.setProperty("--font-face", fontFaceMap.get(fontFace)!);
@@ -106,4 +104,15 @@ export const updateCssVariables = ({
   style.setProperty("--line-width", `${lineLengthMap.get(lineLength)!}px`);
   style.setProperty("--img-max-width", `${imgMaxWidthMap.get(lineLength)!}px`);
   style.setProperty("--line-height", lineHeightMap.get(lineHeight)!);
+
+  const themeProps = themeNodeProps.get(theme)!;
+  const body = document.body;
+  for (const attr of Object.keys(themeProps)) {
+    const propValue = themeProps[attr as keyof ThemeProps];
+    if (propValue) {
+      body.setAttribute(attr, propValue);
+    } else {
+      body.removeAttribute(attr);
+    }
+  }
 };

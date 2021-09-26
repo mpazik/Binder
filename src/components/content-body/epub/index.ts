@@ -207,7 +207,10 @@ const epubNav: View<{
   navigation?: string;
 }> = ({ previousChapter, nextChapter, navigation }) =>
   div(
-    { class: "d-flex flex-justify-between flex-items-center" },
+    {
+      class:
+        "d-flex flex-justify-between flex-items-center with-line-length-settings",
+    },
     a(
       {
         href: `#${previousChapter ?? ""}`,
@@ -255,7 +258,7 @@ const setupChapterView: ViewSetup<
       },
       extraClass: "book",
     })({
-      content: content,
+      content,
     }),
     epubNav({ previousChapter, navigation, nextChapter })
   );

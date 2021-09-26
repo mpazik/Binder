@@ -95,8 +95,7 @@ import { eitherComponent } from "../common/conditional-component";
 import { loader } from "../common/loader";
 import { contentComponent } from "../content";
 import { docsDirectory } from "../directory";
-import { Settings, themeProps, updateCssVariables } from "../display-settings";
-import { DisplaySettings } from "../display-settings";
+import { Settings, updateDisplaySettings } from "../display-settings";
 import {
   setupDisplaySettingsPanel,
   typographyIcon,
@@ -164,24 +163,20 @@ const createContentFetcherPassingUri = (
   ...(await contentFetcher(uri, signal)),
 });
 
-const createContainerView: ViewSetup<
-  {
-    navigationSlot: Slot;
-    contentOrDirSlot: Slot;
-    accountPickerSlot: Slot;
-    fileDropSlot: Slot;
-    onFileDrop: () => void;
-  },
-  DisplaySettings
-> = ({
+const createContainerView: ViewSetup<{
+  navigationSlot: Slot;
+  contentOrDirSlot: Slot;
+  accountPickerSlot: Slot;
+  fileDropSlot: Slot;
+  onFileDrop: () => void;
+}> = ({
   navigationSlot,
   contentOrDirSlot,
   accountPickerSlot,
   fileDropSlot,
   onFileDrop,
-}) => ({ theme }) =>
+}) => () =>
   div(
-    { ...themeProps(theme) },
     navigationSlot,
     div(
       {
@@ -540,6 +535,7 @@ export const App = asyncLoader(
     });
 
     const renderContainer = link(map(containerView), render);
-    subscribeToSettings(fork(renderContainer, updateCssVariables));
+    renderContainer();
+    subscribeToSettings(updateDisplaySettings);
   }
 );

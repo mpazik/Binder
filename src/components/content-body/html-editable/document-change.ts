@@ -8,7 +8,7 @@ export type DocumentChange = {
 };
 
 export const newDocumentComparator = (
-  initialEditor: DocumentFragment
+  initialEditor: HTMLElement
 ): ((editor: Element) => DocumentChange[]) => {
   const oldContent = getElements(initialEditor);
 

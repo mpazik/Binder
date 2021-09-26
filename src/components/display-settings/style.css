@@ -13,6 +13,8 @@
 }
 
 .with-line-length-settings,
+.with-display-settings div > div, /* ignore intitial wrapping div */
+.with-display-settings table,
 .with-display-settings p,
 .with-display-settings h1,
 .with-display-settings h2,

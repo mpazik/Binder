@@ -109,7 +109,10 @@ const pdfNav: View<{
   numberOfPages: number;
 }> = ({ currentPage, numberOfPages }) =>
   div(
-    { class: "d-flex flex-justify-between flex-items-center" },
+    {
+      class:
+        "d-flex flex-justify-between flex-items-center with-line-length-settings",
+    },
     a(
       {
         href: `#page=${currentPage - 1}`,

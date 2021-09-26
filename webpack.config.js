@@ -32,6 +32,7 @@ const sharedConfig = ({ envVariables, productIcon }) => ({
     new HtmlWebpackPlugin({
       chunks: ["main"],
       templateContent: ({ htmlWebpackPlugin }) => `
+    <!DOCTYPE html>
     <html lang="en">
       <head>
         <title>docland</title>
