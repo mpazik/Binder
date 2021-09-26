@@ -26,7 +26,11 @@ export const selectionToolbarView: View<{
   div(
     {
       class: "Popover",
-      style: { left, top, transform: "translate(-50%, -125%)" },
+      style: {
+        left: `${left}px`,
+        top: `${top}px`,
+        transform: "translate(-50%, -125%)",
+      },
     },
     div(
       {
