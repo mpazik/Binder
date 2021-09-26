@@ -1,11 +1,24 @@
+:root {
+    --color-highligh-green: var(--color-scale-green-1);
+    --color-highligh-yellow: var(--color-scale-yellow-2);
+    --color-highligh-purple: var(--color-scale-purple-1);
+}
+
+[data-color-mode="dark"] {
+    --color-highligh-green: var(--color-scale-green-7);
+    --color-highligh-yellow: var(--color-scale-yellow-7);
+    --color-highligh-purple: var(--color-scale-purple-6);
+}
+
+
 .highlight-green {
-    background: #dcffe4;
+    background: var(--color-highligh-green);
 }
 
 .highlight-yellow {
-    background: #fff5b1;
+    background: var(--color-highligh-yellow);
 }
 
 .highlight-purple {
-    background: #f5f0ff;
+    background: var(--color-highligh-purple);
 }
