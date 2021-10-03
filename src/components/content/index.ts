@@ -150,7 +150,7 @@ export const contentComponent: Component<
 
   render(
     div(
-      { id: "content-container", class: "ml-4" },
+      { id: "content-container" },
       contentFieldsSlot,
       div(
         {

@@ -1,19 +1,15 @@
-import { ClosableProvider, link, map, passOnlyChanged } from "linki";
+import { ClosableProvider, link, map } from "linki";
 
-import { linkHijack } from "../functions/url-hijack";
-
-import { fork, Provider } from "./connections";
-
-export const urlHashProvider: Provider<string> = (onClose, push) => {
+export const urlHashProvider: ClosableProvider<string> = (push) => {
   const update = () => {
     const hash = location.hash;
     push(hash);
   };
   update();
   window.addEventListener("hashchange", update);
-  onClose(() => {
+  return () => {
     window.removeEventListener("hashchange", update);
-  });
+  };
 };
 
 export const getQueryParams = (): URLSearchParams =>
@@ -37,22 +33,14 @@ export const queryParamProvider: ClosableProvider<{
   return () => document.removeEventListener("popstate", update);
 };
 
-export const browserPathProvider: ClosableProvider<string> = (push) => {
-  const update = link(
-    map(() => window.location.pathname),
-    passOnlyChanged(),
-    push
-  ) as () => void;
+export const currentPath = (): string => {
+  const path = window.location.pathname;
+  return path.startsWith("/") ? path.substring(1) : path;
+};
 
-  setImmediate(update);
+export const browserPathProvider: ClosableProvider<string> = (push) => {
+  const update = link(map(currentPath), push);
+
   window.addEventListener("popstate", update);
   return () => document.removeEventListener("popstate", update);
 };
-
-export const pathProvider: ClosableProvider<string> = (push) =>
-  fork(
-    linkHijack({ predicate: (uri) => uri.startsWith("/") })(
-      fork(push, (path) => history.pushState(null, "", path))
-    ),
-    browserPathProvider(push)
-  );

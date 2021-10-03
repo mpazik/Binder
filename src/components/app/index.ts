@@ -67,15 +67,16 @@ import {
   UnclaimedRepositoryDb,
 } from "../../functions/store/repository";
 import {
-  browserUriProvider,
   documentLinksUriProvider,
   newUriWithFragment,
+  pathToUri,
   updateBrowserHistory,
   UriWithFragment,
 } from "../../functions/url-hijack";
+import { browserPathProvider, currentPath } from "../../libs/browser-providers";
 import { Consumer, stateProvider } from "../../libs/connections";
 import { HashName, HashUri, isHashUri } from "../../libs/hash";
-import { storeGetAll } from "../../libs/indexeddb";
+import { listDbs, storeGetAll } from "../../libs/indexeddb";
 import {
   filterState,
   filterStates,
@@ -84,14 +85,15 @@ import {
 import { measureAsyncTime } from "../../libs/performance";
 import {
   div,
+  Handlers,
   newSlot,
   Slot,
   slot,
   ViewSetup,
 } from "../../libs/simple-ui/render";
+import { AboutPage } from "../../pages/about";
 import { accountPicker } from "../account-picker";
 import { asyncLoader } from "../common/async-loader";
-import { eitherComponent } from "../common/conditional-component";
 import { loader } from "../common/loader";
 import { contentComponent } from "../content";
 import { docsDirectory } from "../directory";
@@ -183,14 +185,13 @@ const createContainerView: ViewSetup<{
         id: "container",
         style: {
           margin: "0 auto",
-          paddingTop: "50px",
           minHeight: "100%",
         },
         onDragenter: onFileDrop,
       },
       fileDropSlot,
       accountPickerSlot,
-      div({ class: "p-4" }, contentOrDirSlot)
+      contentOrDirSlot
     )
   );
 
@@ -348,8 +349,17 @@ export const App = asyncLoader(
       ),
       link(split(pick("uriChanged")), [
         (it: UriWithFragment) => {
-          if (it.uri === specialDirectoryUri) {
+          if (it.uri === `${window.location.origin}/${specialDirectoryUri}`) {
             switchDisplayToDirectory();
+          } else if (it.uri === `${window.location.origin}/about`) {
+            renderAbout2();
+          } else if (
+            it.uri === window.location.origin ||
+            it.uri === `${window.location.origin}/`
+          ) {
+            listDbs().then((list) => {
+              list.length ? switchDisplayToDirectory() : renderAbout2();
+            });
           } else {
             switchDisplayToContent();
             setCurrentUri(it.uri);
@@ -392,7 +402,13 @@ export const App = asyncLoader(
 
     const [
       navigationSlot,
-      { updateStoreState, updateGdriveState, hideNav, setCurrentUri },
+      {
+        updateStoreState,
+        updateGdriveState,
+        hideNav,
+        hideNavPermanently,
+        setCurrentUri,
+      },
     ] = newSlot(
       "navigation",
       navigation({
@@ -511,20 +527,33 @@ export const App = asyncLoader(
       })
     );
 
-    onClose(documentLinksUriProvider(loadUri));
-    onClose(
-      browserUriProvider({ defaultUri: specialDirectoryUri })(
-        loadUriWithRecentFragment
-      )
-    );
-
     const [
       contentOrDirSlot,
-      { renderA: switchDisplayToContent, renderB: switchDisplayToDirectory },
+      { switchDisplayToContent, switchDisplayToDirectory, renderAbout },
     ] = newSlot(
       "either-content",
-      eitherComponent({ slotA: contentLoaderSlot, slotB: docsDirectorySlot })
+      (
+        render
+      ): Handlers<{
+        switchDisplayToContent: void;
+        switchDisplayToDirectory: void;
+        renderAbout: void;
+      }> => ({
+        switchDisplayToContent: () => {
+          render(); // clean previous dom, to force rerender
+          render(div({ class: "mt-8" }, contentLoaderSlot));
+        },
+        switchDisplayToDirectory: () => {
+          render(); // clean previous dom, to force rerender
+          render(div({ class: "mt-8" }, docsDirectorySlot));
+        },
+        renderAbout: () => {
+          render(AboutPage);
+        },
+      })
     );
+
+    const renderAbout2 = fork(renderAbout, hideNavPermanently);
 
     const containerView = createContainerView({
       navigationSlot,
@@ -537,5 +566,10 @@ export const App = asyncLoader(
     const renderContainer = link(map(containerView), render);
     renderContainer();
     subscribeToSettings(updateDisplaySettings);
+
+    const openPath = link(map(pathToUri), loadUriWithRecentFragment);
+    openPath(currentPath());
+    onClose(browserPathProvider(openPath));
+    onClose(documentLinksUriProvider(loadUri));
   }
 );

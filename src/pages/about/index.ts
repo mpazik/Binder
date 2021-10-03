@@ -6,7 +6,6 @@ import { navigationView } from "../../components/navigation";
 import {
   a,
   b,
-  ComponentBody,
   div,
   footer,
   fragment,
@@ -41,6 +40,7 @@ const header = div(
           {
             href: "/directory",
             class: "btn-mktg",
+            style: { zIndex: 0 },
           },
           "Go to docland"
         )
@@ -247,22 +247,18 @@ const footerView = footer(
   )
 );
 
-export const AboutPage: ComponentBody<void> = (render) => {
-  render(
-    fragment(
-      navigationView({
-        // position: "fixed",
-        productLogoSize: "large",
-        body: fragment(),
-        // span({ class: "f3-mktg" }, "Let's stay in touch"),
-        // navLogos
-      }),
-      div({ class: "pt-8" }),
-      header,
-      features,
-      mission,
-      contact,
-      footerView
-    )
-  );
-};
+export const AboutPage: JsonHtml = fragment(
+  navigationView({
+    // position: "fixed",
+    productLogoSize: "large",
+    body: fragment(),
+    // span({ class: "f3-mktg" }, "Let's stay in touch"),
+    // navLogos
+  }),
+  div({ class: "pt-8" }),
+  header,
+  features,
+  mission,
+  contact,
+  footerView
+);

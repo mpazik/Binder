@@ -1,7 +1,7 @@
 import { ClosableProvider, fork, link, map, Predicate } from "linki";
 
-import { getQueryParams, queryParamProvider } from "../libs/browser-providers";
-import { throwIfNull } from "../libs/errors";
+import { isAbsoluteUrl } from "../components/common/link";
+import { currentPath } from "../libs/browser-providers";
 
 const findLink = (element: HTMLElement | null): HTMLElement | undefined => {
   if (!element) return;
@@ -35,16 +35,10 @@ export const linkHijack = ({
 };
 
 export const updateBrowserHistory = ({
-  uri = getCurrentUri(),
+  uri = currentPath(),
   fragment,
 }: UriWithFragment | { fragment: string; uri?: string }): void => {
-  const queryParams = new URLSearchParams(window.location.search);
-  queryParams.set("uri", uri);
-  window.history.pushState(
-    {},
-    "",
-    `?${queryParams.toString()}${fragment ? `#${fragment}` : ""}`
-  );
+  window.history.pushState({}, "", `/${uri}${fragment ? `#${fragment}` : ""}`);
 };
 
 export type UriWithFragment = {
@@ -63,40 +57,23 @@ export const newUriWithFragment = (url: string): UriWithFragment => {
 export const combineToUri = ({ uri, fragment }: UriWithFragment): string =>
   fragment ? `${uri}#${fragment}` : uri;
 
-const getCurrentUri = () => throwIfNull(getQueryParams().get("uri"));
-
-export const browserUriProvider = ({
-  defaultUri,
-}: {
-  defaultUri: string;
-}): ClosableProvider<UriWithFragment> => (push) =>
-  queryParamProvider(
-    link(
-      map(({ queryParams, fragment }) => {
-        const uri = queryParams.get("uri");
-        return {
-          uri: uri ?? defaultUri,
-          fragment: uri ? fragment : undefined, // don't return fragment for default url
-        };
-      }),
-      push
-    )
+export const pathToUri = (path: string): UriWithFragment => {
+  return newUriWithFragment(
+    isAbsoluteUrl(path) ? path : `${window.location.origin}/${path}`
   );
+};
 
 export const documentLinksUriProvider: ClosableProvider<UriWithFragment> = (
   push
 ) => {
   return linkHijack({
-    predicate: (uri) =>
-      uri.startsWith("http://") ||
-      uri.startsWith("https://") ||
-      uri.startsWith("nih:"),
+    predicate: isAbsoluteUrl,
   })(
     link(
       map(newUriWithFragment, (it) =>
         it.uri === ""
           ? {
-              uri: getCurrentUri(),
+              uri: currentPath(),
               fragment: it.fragment,
             }
           : it

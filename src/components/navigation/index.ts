@@ -26,20 +26,18 @@ const moveElementOnTopOfTheScreen = (
   screenTopPosition: number = window.pageYOffset
 ) => {
   element.style.position = "absolute";
-  element.style.top = `${
-    screenTopPosition - element.getBoundingClientRect().height
-  }px`;
-};
-
-const moveElementOnTopOfTheScreen2 = (
-  element: HTMLElement,
-  screenTopPosition: number = window.pageYOffset
-) => {
-  element.style.position = "absolute";
   element.style.top = `${Math.max(
     screenTopPosition - element.getBoundingClientRect().height,
     0
   )}px`;
+};
+
+const hideElement = (element: HTMLElement) => {
+  element.style.setProperty("display", "none", "important");
+};
+
+const showElement = (element: HTMLElement) => {
+  element.style.removeProperty("display");
 };
 
 const registerNavScrollListener = (nav: HTMLElement): Close => {
@@ -101,7 +99,12 @@ export const navigation: Component<
     initProfile: GDriveLoadingProfile;
     displaySettingsSlot: JsonHtml;
   },
-  ProfilePanelControl & { hideNav: void; setCurrentUri: string }
+  ProfilePanelControl & {
+    hideNav: void;
+    showNav: void;
+    hideNavPermanently: void;
+    setCurrentUri: string;
+  }
 > = ({
   updateGdrive,
   displayAccountPicker,
@@ -143,7 +146,19 @@ export const navigation: Component<
   const [hideNav, setNavContext] = link(
     withState<HTMLElement | undefined>(undefined),
     filter(defined),
-    moveElementOnTopOfTheScreen2
+    moveElementOnTopOfTheScreen
+  );
+
+  const [hideNavPermanently, setNavContext2] = link(
+    withState<HTMLElement | undefined>(undefined),
+    filter(defined),
+    hideElement
+  );
+
+  const [showNav, setNavContext3] = link(
+    withState<HTMLElement | undefined>(undefined),
+    filter(defined),
+    showElement
   );
 
   render(
@@ -153,7 +168,9 @@ export const navigation: Component<
           map(getTarget),
           fork(
             (e) => onClose(registerNavScrollListener(e)),
-            (e) => setNavContext(e)
+            (e) => setNavContext(e),
+            (e) => setNavContext2(e),
+            (e) => setNavContext3(e)
           )
         ),
         () => updateGdrive(["load", initProfile])
@@ -170,6 +187,8 @@ export const navigation: Component<
     updateStoreState,
     updateGdriveState,
     hideNav,
+    showNav,
+    hideNavPermanently,
     setCurrentUri: (uri) => {
       currentUri = uri;
     },
