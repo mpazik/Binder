@@ -1,9 +1,9 @@
+import { definedTuple, filter, link, map } from "linki";
+
 import { GDriveProfile } from "../../functions/gdrive/app-files";
 import { GDriveState } from "../../functions/gdrive/controller";
 import { StoreState } from "../../functions/store";
-import { combine } from "../../libs/connections";
-import { definedTuple, filter } from "../../libs/connections/filters";
-import { map } from "../../libs/connections/mappers";
+import { combine } from "../../libs/linki";
 import { mapState, newStateMapper } from "../../libs/named-state";
 import {
   a,
@@ -234,43 +234,38 @@ export type ProfilePanelControl = {
 export const profilePanel: Component<ProfileActions, ProfilePanelControl> = (
   props
 ) => (render) => {
-  const renderProfileContainer = render;
-  const renderProfile = map(createProfileView(props), renderProfileContainer);
-  const [gdriveStateForProfile, storeStateForProfile] = combine<
-    [GDriveState, StoreState]
-  >(
-    filter(
-      definedTuple,
-      map(
-        ([gdriveState, storeState]) =>
-          mapState<GDriveState, ProfileState>(gdriveState, {
-            idle: () => ["loading"],
-            loading: () => ["loading"],
-            loggingIn: () => ["loading"],
-            profileRetrieving: () => ["loading"],
-            loggingOut: () => ["loading"],
-            disconnected: () => ["disconnected"],
-            signedOut: () => ["signedOut"],
-            logged: (profile) =>
-              mapState<StoreState, ProfileState>(storeState, {
-                idle: () => ["logged", profile],
-                uploading: () => ["uploading", profile],
-                downloading: () => ["downloading", profile],
-                error: ({ error }) => ["error", error.message],
-                ready: () => ["logged", profile],
-                uploadNeeded: () => ["uploadNeeded", profile],
-                loaded: () => ["logged", profile],
-              }),
-            loadingError: ({ error }) => ["error", error],
-            loggingInError: ({ error }) => ["error", error],
+  const renderProfile = link(map(createProfileView(props)), render);
+
+  const [gdriveStateForProfile, storeStateForProfile] = link(
+    combine<[GDriveState, StoreState]>(undefined, undefined),
+    filter(definedTuple),
+    map<[GDriveState, StoreState], ProfileState>(([gdriveState, storeState]) =>
+      mapState<GDriveState, ProfileState>(gdriveState, {
+        idle: () => ["loading"],
+        loading: () => ["loading"],
+        loggingIn: () => ["loading"],
+        profileRetrieving: () => ["loading"],
+        loggingOut: () => ["loading"],
+        disconnected: () => ["disconnected"],
+        signedOut: () => ["signedOut"],
+        logged: (profile) =>
+          mapState<StoreState, ProfileState>(storeState, {
+            idle: () => ["logged", profile],
+            uploading: () => ["uploading", profile],
+            downloading: () => ["downloading", profile],
+            error: ({ error }) => ["error", error.message],
+            ready: () => ["logged", profile],
+            uploadNeeded: () => ["uploadNeeded", profile],
+            loaded: () => ["logged", profile],
           }),
-        renderProfile
-      )
+        loadingError: ({ error }) => ["error", error],
+        loggingInError: ({ error }) => ["error", error],
+      })
     ),
-    undefined,
-    undefined
+    renderProfile
   );
-  renderProfileContainer(loading());
+
+  renderProfile(["loading"]);
 
   return {
     updateStoreState: storeStateForProfile,
