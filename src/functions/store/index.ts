@@ -110,7 +110,7 @@ export type StoreState =
       }
     ]
   | ["ready", StoreSync]
-  | ["upload-needed", StoreSync & { stopAutoUpdate: () => void }]
+  | ["uploadNeeded", StoreSync & { stopAutoUpdate: () => void }]
   | ["loaded", StoreSync];
 
 export const createStore = (
@@ -177,7 +177,7 @@ export const createStore = (
   let state: StoreState = ["idle"];
 
   registerBeforeClose(() => {
-    if (state[0] !== "upload-needed") {
+    if (state[0] !== "uploadNeeded") {
       return;
     }
     state[1].stopAutoUpdate();
@@ -223,7 +223,7 @@ export const createStore = (
     const stopAutoUpdate = autoUpdateTimer(() => {
       updateState(["uploading", storeSync]);
     });
-    updateState(["upload-needed", { ...storeSync, stopAutoUpdate }]);
+    updateState(["uploadNeeded", { ...storeSync, stopAutoUpdate }]);
   };
 
   const updateState = (newState: StoreState) => {
@@ -322,7 +322,7 @@ export const createStore = (
 
   return {
     upload: () => {
-      if (state[0] !== "upload-needed") {
+      if (state[0] !== "uploadNeeded") {
         console.error(
           "Can not upload data when store connection with the drive is not ready"
         );

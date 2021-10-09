@@ -4,7 +4,7 @@ import { StoreState } from "../../functions/store";
 import { combine } from "../../libs/connections";
 import { definedTuple, filter } from "../../libs/connections/filters";
 import { map } from "../../libs/connections/mappers";
-import { newStateMapper } from "../../libs/named-state";
+import { mapState, newStateMapper } from "../../libs/named-state";
 import {
   a,
   button,
@@ -79,13 +79,6 @@ const uploadIcon = `
    <line x1="12" y1="4" x2="12" y2="16"></line>
 </svg>`;
 
-type ProfileState =
-  | GDriveState
-  | ["uploading", GDriveProfile]
-  | ["upload-needed", GDriveProfile]
-  | ["downloading", GDriveProfile]
-  | ["error", string];
-
 const profileItem: View<GDriveProfile> = ({ user }) =>
   li(
     {
@@ -156,17 +149,45 @@ type ProfileActions = {
   upload: () => void;
 };
 
+type ProfileState =
+  | ["loading"]
+  | ["disconnected"]
+  | ["signedOut"]
+  | ["logged", GDriveProfile]
+  | ["uploading", GDriveProfile]
+  | ["uploadNeeded", GDriveProfile]
+  | ["downloading", GDriveProfile]
+  | ["error", string];
+
+const profileDropdown: ViewSetup<
+  {
+    logout: () => void;
+    icon: string;
+    status?: string;
+  },
+  GDriveProfile
+> = ({ icon, logout, status }) => (profile) =>
+  dropdownMenu({
+    icon,
+    children: [
+      ...(status ? [profileStatusItem(status)] : []),
+      profileItem(profile),
+      // dropdownButton({
+      //   onClick: () => {},
+      //   text: "Storage settings",
+      // }),
+      dropdownButton({ onClick: logout, text: "Logout" }),
+    ],
+  });
+
 export const createProfileView: ViewSetup<ProfileActions, ProfileState> = ({
   login,
   logout,
   upload,
 }) =>
   newStateMapper<ProfileState, JsonHtml>({
-    idle: () => loading(),
     loading: () => loading(),
-    loggingOut: () => loading(),
-    loggingIn: () => loading(),
-    profileRetrieving: () => loading(),
+    error: (error) => errorView({ error, login }),
     signedOut: () =>
       button({
         class: "btn-octicon",
@@ -187,43 +208,22 @@ export const createProfileView: ViewSetup<ProfileActions, ProfileState> = ({
           ),
         ],
       }),
-    logged: (profile) =>
-      dropdownMenu({
-        icon: accountIcon,
-        children: [
-          profileItem(profile),
-          // dropdownItem({ onClick: () => {}, text: "Storage settings" }),
-          dropdownButton({ onClick: logout, text: "Logout" }),
-        ],
-      }),
-    "upload-needed": () =>
+    uploadNeeded: () =>
       button(
         { class: "btn-octicon", onClick: upload },
         dangerousHTML(uploadIcon)
       ),
-    uploading: (profile) =>
-      dropdownMenu({
-        icon: cloudUploadIcon,
-        children: [
-          profileStatusItem("uploading"),
-          profileItem(profile),
-          dropdownButton({ onClick: () => {}, text: "Storage settings" }),
-          dropdownButton({ onClick: logout, text: "Logout" }),
-        ],
-      }),
-    downloading: (profile) =>
-      dropdownMenu({
-        icon: cloudDownloadIcon,
-        children: [
-          profileStatusItem("downloading"),
-          profileItem(profile),
-          dropdownButton({ onClick: () => {}, text: "Storage settings" }),
-          dropdownButton({ onClick: logout, text: "Logout" }),
-        ],
-      }),
-    error: (error) => errorView({ error, login }),
-    loadingError: ({ error }) => errorView({ error, login }),
-    loggingInError: ({ error }) => errorView({ error, login }),
+    logged: profileDropdown({ logout, icon: accountIcon }),
+    uploading: profileDropdown({
+      logout,
+      icon: cloudUploadIcon,
+      status: "uploading",
+    }),
+    downloading: profileDropdown({
+      logout,
+      icon: cloudDownloadIcon,
+      status: "downloading",
+    }),
   });
 
 export type ProfilePanelControl = {
@@ -241,26 +241,31 @@ export const profilePanel: Component<ProfileActions, ProfilePanelControl> = (
   >(
     filter(
       definedTuple,
-      map(([gdriveState, storeState]) => {
-        const state: ProfileState = (() => {
-          if (gdriveState[0] === "logged") {
-            const profile = gdriveState[1];
-            if (storeState[0] === "uploading") {
-              return ["uploading", profile] as ProfileState;
-            } else if (storeState[0] === "downloading") {
-              return ["downloading", profile] as ProfileState;
-            } else if (storeState[0] === "error") {
-              return ["error", storeState[1].error.message] as ProfileState;
-            } else if (storeState[0] === "upload-needed") {
-              return ["upload-needed", profile] as ProfileState;
-            }
-          } else if (gdriveState[0] === "loggingInError") {
-            return ["loggingInError", gdriveState[1]] as ProfileState;
-          }
-          return gdriveState as ProfileState;
-        })();
-        return state;
-      }, renderProfile)
+      map(
+        ([gdriveState, storeState]) =>
+          mapState<GDriveState, ProfileState>(gdriveState, {
+            idle: () => ["loading"],
+            loading: () => ["loading"],
+            loggingIn: () => ["loading"],
+            profileRetrieving: () => ["loading"],
+            loggingOut: () => ["loading"],
+            disconnected: () => ["disconnected"],
+            signedOut: () => ["signedOut"],
+            logged: (profile) =>
+              mapState<StoreState, ProfileState>(storeState, {
+                idle: () => ["logged", profile],
+                uploading: () => ["uploading", profile],
+                downloading: () => ["downloading", profile],
+                error: ({ error }) => ["error", error.message],
+                ready: () => ["logged", profile],
+                uploadNeeded: () => ["uploadNeeded", profile],
+                loaded: () => ["logged", profile],
+              }),
+            loadingError: ({ error }) => ["error", error],
+            loggingInError: ({ error }) => ["error", error],
+          }),
+        renderProfile
+      )
     ),
     undefined,
     undefined
