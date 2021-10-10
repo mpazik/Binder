@@ -10,11 +10,11 @@ import {
   newDocumentComparator,
 } from "../html-editable/document-change";
 
-export type HtmlContent = { content: HTMLElement };
+export type HtmlContent = { content: Node };
 
 // ideally should be triggered on resize too
 const detectDocumentChange = (
-  contentRoot: HTMLElement,
+  contentRoot: Node,
   onChange: (c: DocumentChange[]) => void
 ) => (e: InputEvent) =>
   throttleArg<Element>(
