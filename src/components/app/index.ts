@@ -2,6 +2,7 @@ import {
   asyncMapWithErrorHandler,
   Callback,
   defined,
+  definedTuple,
   filter,
   fork,
   ignore,
@@ -59,7 +60,7 @@ import {
   LinkedDataWithContentFetcher,
 } from "../../functions/linked-data-fetcher";
 import { RemoteDrive, RemoteDriverState } from "../../functions/remote-drive";
-import { createStore } from "../../functions/store";
+import { createStore, StoreState } from "../../functions/store";
 import {
   openAccountRepository,
   openUnclaimedRepository,
@@ -77,9 +78,11 @@ import { browserPathProvider, currentPath } from "../../libs/browser-providers";
 import { Consumer, stateProvider } from "../../libs/connections";
 import { HashName, HashUri, isHashUri } from "../../libs/hash";
 import { listDbs, storeGetAll } from "../../libs/indexeddb";
+import { combine } from "../../libs/linki";
 import {
   filterState,
   filterStates,
+  handleState,
   newStateMapper,
 } from "../../libs/named-state";
 import { measureAsyncTime } from "../../libs/performance";
@@ -241,7 +244,8 @@ export const App = asyncLoader(
       indexLinkedData,
       fork(
         (state) => console.log("store - ", state),
-        (s) => updateStoreState(s)
+        (s) => updateStoreState(s),
+        (s) => storeStateForAccountPicker(s)
       ),
       unclaimedRepository,
       sendAnalytics
@@ -261,6 +265,21 @@ export const App = asyncLoader(
       lastLogin?.email ?? null
     );
     const sendError = createErrorSender(sendAnalytics);
+
+    const [gdriveStateForAccountPicker, storeStateForAccountPicker] = link(
+      combine<[GDriveState, StoreState]>(undefined, undefined),
+      filter(definedTuple),
+      ([gdriveState, storeState]) =>
+        handleState<GDriveState>(gdriveState, {
+          loggingIn: () => displayAccountPicker({ loading: true }),
+          logged: () => closeAccountPicker(),
+          signedOut: () => {
+            handleState<StoreState>(storeState, {
+              remoteDriveNeeded: () => displayAccountPicker({ loading: false }),
+            });
+          },
+        })
+    );
 
     const updateGdrive = gdrive(
       fork(
@@ -310,13 +329,6 @@ export const App = asyncLoader(
           passOnlyChanged<RepositoryDb>(initRepo),
           fork(updateRepo, () => switchDisplayToDirectory())
         ),
-        link(filterState("signedOut"), () =>
-          displayAccountPicker({ loading: false })
-        ),
-        link(filterState("loggingIn"), () =>
-          displayAccountPicker({ loading: true })
-        ),
-        link(filterState("logged"), () => closeAccountPicker()),
         link(
           filterState("loadingError"),
           map((state) => ({
@@ -332,7 +344,8 @@ export const App = asyncLoader(
             message: state.error,
           })),
           sendError
-        )
+        ),
+        gdriveStateForAccountPicker
       ),
       globalDb,
       unclaimedRepository

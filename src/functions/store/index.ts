@@ -111,6 +111,7 @@ export type StoreState =
     ]
   | ["ready", StoreSync]
   | ["uploadNeeded", StoreSync & { stopAutoUpdate: () => void }]
+  | ["remoteDriveNeeded"]
   | ["loaded", StoreSync];
 
 export const createStore = (
@@ -312,8 +313,10 @@ export const createStore = (
       },
       hash
     );
-    if (state[0] !== "ready") return;
-    changeToUpdateNeeded(state[1]);
+    handleState(state, {
+      idle: () => updateState(["remoteDriveNeeded"]),
+      ready: changeToUpdateNeeded,
+    });
   };
 
   const unmarkLinkedDataForSync = async (hash: HashUri) => {

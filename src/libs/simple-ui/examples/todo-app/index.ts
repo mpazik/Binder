@@ -315,15 +315,16 @@ const AppComponent: Component = () => (render, onClose) => {
     fork(map(countActive, passOnlyChanged(activeItemsCount)), setTodos)
   );
 
-  urlHashProvider(
-    onClose,
-    match(
-      new Map<string, TodoFilter>([
-        ["#/", "all"],
-        ["#/active", "active"],
-        ["#/completed", "completed"],
-      ]),
-      fork(todoFilter, setFilter)
+  onClose(
+    urlHashProvider(
+      match(
+        new Map<string, TodoFilter>([
+          ["#/", "all"],
+          ["#/active", "active"],
+          ["#/completed", "completed"],
+        ]),
+        fork(todoFilter, setFilter)
+      )
     )
   );
 };

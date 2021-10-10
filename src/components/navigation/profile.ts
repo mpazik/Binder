@@ -256,6 +256,7 @@ export const profilePanel: Component<ProfileActions, ProfilePanelControl> = (
             error: ({ error }) => ["error", error.message],
             ready: () => ["logged", profile],
             uploadNeeded: () => ["uploadNeeded", profile],
+            remoteDriveNeeded: () => ["logged", profile],
             loaded: () => ["logged", profile],
           }),
         loadingError: ({ error }) => ["error", error],
