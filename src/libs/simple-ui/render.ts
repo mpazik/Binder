@@ -1,5 +1,4 @@
-import { OnCloseRegister, Provider } from "../connections";
-import { CloseHandler } from "../connections/types";
+import { Close, Provider } from "linki";
 
 import {
   SimplifiedElementsMap,
@@ -18,6 +17,7 @@ import {
 // todo render should be independent from JsonML and accpet only raw dom
 // there could be another jsonMl (jsonHtml) render that act as a glue code
 
+export type OnCloseRegister = (handler: Close) => void;
 type CustomEventMap = {
   display: SimplifiedEvent;
 };
@@ -284,7 +284,7 @@ const slotHandler = (parent: Element): Renderer => {
   };
 };
 
-export const newCloseController = (): [OnCloseRegister, CloseHandler] => {
+export const newCloseController = (): [OnCloseRegister, Close] => {
   const abortController = new AbortController();
   return [
     (handler) => {

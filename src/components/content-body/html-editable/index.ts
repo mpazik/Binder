@@ -1,16 +1,23 @@
 import "./style.css";
 
-import { documentContentRoodId } from "../../../functions/content-processors/html-processor";
-import { documentToBlob } from "../../../functions/content-saver";
 import {
+  definedTuple,
+  filter,
+  map,
+  pick,
+  to,
+  wrap,
   Callback,
   fork,
   passOnlyChanged,
   withMultiState,
-  withState,
-} from "../../../libs/connections";
-import { definedTuple, filter } from "../../../libs/connections/filters";
-import { map, pick, to, wrap } from "../../../libs/connections/mappers";
+  link,
+  withOptionalState,
+  defined,
+} from "linki";
+
+import { documentContentRoodId } from "../../../functions/content-processors/html-processor";
+import { documentToBlob } from "../../../functions/content-saver";
 import { Component, div, newSlot } from "../../../libs/simple-ui/render";
 import { loader } from "../../common/loader";
 import { modal } from "../../common/modal";
@@ -62,22 +69,21 @@ const contentComponent: Component<
     }
   };
 
-  const [discard, setContextForDiscard] = withState<HtmlContent>((data) =>
-    displayContent(data)
+  const [discard, setContextForDiscard] = link(
+    withOptionalState<HtmlContent>(),
+    filter(defined),
+    (data) => displayContent(data)
   );
 
-  const [
-    update,
-    [setDocumentForUpdate, setContainerForUpdate],
-  ] = withMultiState<[Document, HTMLElement]>(
-    filter(definedTuple, ([contentDocument, container]) => {
+  const [update, setDocumentForUpdate, setContainerForUpdate] = link(
+    withMultiState<[Document, HTMLElement]>(undefined, undefined),
+    filter(definedTuple),
+    ([contentDocument, container]) => {
       updateData(
         documentToBlob(createNewDocument(contentDocument, container)),
         update
       );
-    }),
-    undefined,
-    undefined
+    }
   );
 
   const [updateBarSlot, { updateUpdateBar }] = newSlot(
@@ -112,25 +118,25 @@ const contentComponent: Component<
   const editableHtmlView = setupEditableHtmlView({
     onDocumentChange: fork(
       displayChangesOnBar,
-      map(
-        (changes) => Boolean(changes && changes.length > 0),
-        passOnlyChanged(
-          map(
-            (modified) => (modified ? ["visible"] : ["hidden"]) as EditBarState,
-            updateUpdateBar
-          )
-        )
+      link(
+        map((changes) => Boolean(changes && changes.length > 0)),
+        passOnlyChanged(),
+        map(
+          (modified: boolean) =>
+            (modified ? ["visible"] : ["hidden"]) as EditBarState
+        ),
+        updateUpdateBar
       )
     ),
     onDisplay: fork(
-      map(wrap("container"), onDisplay),
+      link(map(wrap("container")), onDisplay),
       setContainerForUpdate,
-      map(to([]), displayChangesOnBar)
+      link(map(to([])), displayChangesOnBar)
     ),
   });
 
-  const displayContent: Callback<HtmlContent> = map(
-    ({ content }) =>
+  const displayContent: Callback<HtmlContent> = link(
+    map(({ content }) =>
       div(
         div(
           gutterSlot,
@@ -140,15 +146,19 @@ const contentComponent: Component<
           })
         ),
         updateBarSlot
-      ),
+      )
+    ),
     render
   );
 
   return {
-    renderPage: map(
-      pick("doc"),
+    renderPage: link(
+      map(pick("doc")),
       fork(
-        map(documentToHtmlContent, fork(displayContent, setContextForDiscard)),
+        link(
+          map(documentToHtmlContent),
+          fork(displayContent, setContextForDiscard)
+        ),
         setDocumentForUpdate
       )
     ),
@@ -175,7 +185,7 @@ export const htmlEditableDisplay: ContentComponent = ({
   })(render, onClose);
 
   return {
-    displayContent: map(pick("content"), load),
+    displayContent: link(map(pick("content")), load),
     goToFragment: () => {
       // handled by browser
     },

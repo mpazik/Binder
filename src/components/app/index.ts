@@ -75,7 +75,6 @@ import {
   UriWithFragment,
 } from "../../functions/url-hijack";
 import { browserPathProvider, currentPath } from "../../libs/browser-providers";
-import { Consumer, stateProvider } from "../../libs/connections";
 import { HashName, HashUri, isHashUri } from "../../libs/hash";
 import { listDbs, storeGetAll } from "../../libs/indexeddb";
 import { combine } from "../../libs/linki";
@@ -260,10 +259,6 @@ export const App = asyncLoader(
       switchRepoForSettings
     );
     updateRepo(initRepo);
-    // todo this should be different
-    const [creatorProvider, setCreator] = stateProvider<string | null>(
-      lastLogin?.email ?? null
-    );
     const sendError = createErrorSender(sendAnalytics);
 
     const [gdriveStateForAccountPicker, storeStateForAccountPicker] = link(
@@ -291,7 +286,7 @@ export const App = asyncLoader(
           filter(defined),
           fork(
             (user) => console.log("switching user", user),
-            link(map(pick("emailAddress")), setCreator),
+            link(map(pick("emailAddress")), (it) => setCreator(it)),
             link(map(gdriveUserToAccount), updateAnalyticsRepoAccount)
           )
         ),
@@ -299,7 +294,7 @@ export const App = asyncLoader(
           filterState("signedOut"),
           fork(
             () => console.log("signing out user"),
-            link(map(to(null)), setCreator),
+            link(map(to(null)), (it) => setCreator(it)),
             link(map(to(undefined)), updateAnalyticsRepoAccount)
           )
         ),
@@ -468,7 +463,7 @@ export const App = asyncLoader(
       store.writeResource,
       store.writeLinkedData
     );
-    const [contentSlot, { displayContent, goToFragment }] = newSlot(
+    const [contentSlot, { displayContent, goToFragment, setCreator }] = newSlot(
       "content-container",
       contentComponent({
         contentSaver,
@@ -477,7 +472,6 @@ export const App = asyncLoader(
         annotationsIndex: annotationsIndex.search,
         onSave: ignore,
         onDisplay: postDisplayHook,
-        creatorProvider,
       })
     );
 
@@ -566,7 +560,7 @@ export const App = asyncLoader(
       contentOrDirSlot,
       fileDropSlot,
       accountPickerSlot,
-      onFileDrop: link(map(to<true>(true)), displayFileDrop) as Consumer<void>,
+      onFileDrop: link(map(to<true>(true)), displayFileDrop) as Callback<void>,
     });
 
     const renderContainer = link(map(containerView), render);

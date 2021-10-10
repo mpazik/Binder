@@ -1,4 +1,6 @@
 import {
+  and,
+  async,
   Callback,
   debounce,
   defined,
@@ -21,8 +23,6 @@ import {
   newUriWithFragment,
   UriWithFragment,
 } from "../../functions/url-hijack";
-import { and } from "../../libs/connections/filters";
-import { mapAwait } from "../../libs/connections/mappers";
 import {
   Component,
   ComponentBody,
@@ -264,7 +264,10 @@ export const searchBox: Component<{
     focusElement
   );
 
-  const renderSearch = mapAwait(onSearch, renderList, (e) => console.error(e));
+  const renderSearch = link(map(onSearch), async(), [
+    renderList,
+    (e) => console.error(e),
+  ]);
 
   const keyHandler: (e: KeyboardEvent) => void = link(
     filter(

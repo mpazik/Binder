@@ -1,7 +1,5 @@
 import * as pdfjsLib from "pdfjs-dist";
 
-import { defined2 } from "../../libs/connections/filters";
-import { branch } from "../../libs/connections/mappers";
 import { throwIfUndefined } from "../../libs/errors";
 import { LinkedData } from "../../libs/jsonld-format";
 import { createCreativeWork, pdfMediaType } from "../../libs/ld-schemas";
@@ -97,17 +95,14 @@ export const pdfContentProcessor: ContentProcessor = {
     const metadata = await pdfDocument.getMetadata();
 
     const infoMetadata = metadata.info as PdfInfoMetadata;
+    const creationDate = infoMetadata.CreationDate;
 
     const articleLd: LinkedData = createCreativeWork({
       id: url,
       type: getPdfType(pdfDocument.numPages),
       name: getLinkedDataName(infoMetadata.Title, name),
       encodingFormat: pdfMediaType,
-      dateCreated: branch(
-        defined2<string>(),
-        parsePdfDate,
-        () => createTime
-      )(infoMetadata.CreationDate),
+      dateCreated: creationDate ? parsePdfDate(creationDate) : createTime,
       urls: url ? [url] : [],
     });
 

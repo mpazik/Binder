@@ -1,4 +1,14 @@
-import { Close, defined, filter, link, map, not, withState } from "linki";
+import {
+  Callback,
+  fork,
+  Close,
+  defined,
+  filter,
+  link,
+  map,
+  not,
+  withState,
+} from "linki";
 
 import { GDriveLoadingProfile } from "../../functions/gdrive/app-files";
 import { GDriveAction } from "../../functions/gdrive/controller";
@@ -6,7 +16,6 @@ import { DirectoryIndex } from "../../functions/indexes/directory-index";
 import { WatchHistorySearch } from "../../functions/indexes/watch-history-index";
 import { createRecentDocumentSearch } from "../../functions/recent-document-serach";
 import { UriWithFragment } from "../../functions/url-hijack";
-import { Callback, fork } from "../../libs/connections";
 import {
   Component,
   JsonHtml,

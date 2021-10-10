@@ -1,4 +1,5 @@
-import { map } from "../../../libs/connections/mappers";
+import { link, map } from "linki";
+
 import { newStateMapper } from "../../../libs/named-state";
 import {
   Component,
@@ -37,6 +38,9 @@ export const updateBar: Component<
   { updateUpdateBar: EditBarState }
 > = ({ onDiscard, onUpdate }) => (render) => {
   return {
-    updateUpdateBar: map(createUpdateBarView({ onUpdate, onDiscard }), render),
+    updateUpdateBar: link(
+      map(createUpdateBarView({ onUpdate, onDiscard })),
+      render
+    ),
   };
 };

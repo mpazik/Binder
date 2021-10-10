@@ -1,4 +1,5 @@
-import { Callback } from "../../libs/connections";
+import { Callback } from "linki";
+
 import { Component } from "../../libs/simple-ui/render";
 import { DocFragment } from "../annotations/annotation";
 

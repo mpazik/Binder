@@ -1,5 +1,5 @@
-import { Callback } from "../../libs/connections";
-import { map, passUndefined } from "../../libs/connections/mappers";
+import { map, Callback, passUndefined, link } from "linki";
+
 import { Component, h2 } from "../../libs/simple-ui/render";
 import { blanket } from "../common/blanket";
 
@@ -35,40 +35,42 @@ export const fileDrop: Component<
   };
 
   // noinspection JSUnusedGlobalSymbols
-  const displayFileDrop = map(
-    passUndefined(() =>
-      blanket(
-        {
-          style: {
-            "z-index": "1",
-            opacity: "0.6",
-            color: "white",
-            background: "black",
-            "padding-top": "50%",
-            "text-align": "center",
+  const displayFileDrop = link(
+    map(
+      passUndefined(() =>
+        blanket(
+          {
+            style: {
+              "z-index": "1",
+              opacity: "0.6",
+              color: "white",
+              background: "black",
+              "padding-top": "50%",
+              "text-align": "center",
+            },
           },
-        },
-        h2("Drop file here"),
-        blanket({
-          onDragenter: (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          },
-          onDragover: (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          },
-          onDrop: (e) => {
-            e.preventDefault();
-            displayFileDrop(undefined);
-            handleFile(e);
-          },
-          onDragleave: (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            displayFileDrop(undefined);
-          },
-        })
+          h2("Drop file here"),
+          blanket({
+            onDragenter: (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            },
+            onDragover: (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            },
+            onDrop: (e) => {
+              e.preventDefault();
+              displayFileDrop(undefined);
+              handleFile(e);
+            },
+            onDragleave: (e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              displayFileDrop(undefined);
+            },
+          })
+        )
       )
     ),
     render

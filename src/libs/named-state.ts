@@ -1,7 +1,4 @@
-import { Processor } from "linki";
-
-import { reduce } from "./connections";
-import { Callback } from "./connections";
+import { Processor, reduce } from "linki";
 
 export type NamedAction<N, T = void> = T extends void
   ? [name: N]
@@ -108,10 +105,9 @@ const newStateMachineHandler = <S extends SomeState, A extends SomeAction>(
 export const newStateMachine = <S extends SomeState, A extends SomeAction>(
   initState: S,
   behaviours: Behaviours<S, A>,
-  callback: Callback<S>,
   defaults?: DefaultHandlers<S, A>
-): Callback<A> =>
-  reduce(initState, newStateMachineHandler(behaviours, defaults), callback);
+): Processor<A, S> =>
+  reduce(newStateMachineHandler(behaviours, defaults), initState);
 
 export const filterState = <S extends SomeState, K extends S[0]>(
   stateName: K

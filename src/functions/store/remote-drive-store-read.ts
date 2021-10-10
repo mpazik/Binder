@@ -1,4 +1,5 @@
-import { Consumer } from "../../libs/connections";
+import { Callback } from "linki";
+
 import { HashUri } from "../../libs/hash";
 import { handleState, mapState } from "../../libs/named-state";
 import { RemoteDrive, RemoteDriverState } from "../remote-drive";
@@ -7,12 +8,12 @@ import { ResourceStoreRead } from "./local-store";
 
 type ReaderState =
   | ["off"]
-  | ["loading", { hash: HashUri; resolve: Consumer<Blob | undefined> }[]]
+  | ["loading", { hash: HashUri; resolve: Callback<Blob | undefined> }[]]
   | ["ready", RemoteDrive["downloadResourceFileByHash"]];
 
 export const createStatefulRemoteDriveResourceRead = (): [
   ResourceStoreRead,
-  Consumer<RemoteDriverState>
+  Callback<RemoteDriverState>
 ] => {
   let state: ReaderState = ["off"];
 

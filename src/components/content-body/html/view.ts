@@ -1,7 +1,7 @@
 import "./style.css";
 
-import { Callback } from "../../../libs/connections";
-import { map } from "../../../libs/connections/mappers";
+import { link, map, Callback } from "linki";
+
 import { article, ViewSetup } from "../../../libs/simple-ui/render";
 import { getTarget } from "../../../libs/simple-ui/utils/funtions";
 import { throttleArg } from "../../../libs/throttle";
@@ -18,7 +18,7 @@ const detectDocumentChange = (
   onChange: (c: DocumentChange[]) => void
 ) => (e: InputEvent) =>
   throttleArg<Element>(
-    map(newDocumentComparator(contentRoot), onChange),
+    link(map(newDocumentComparator(contentRoot)), onChange),
     300
   )(e.target as HTMLElement);
 

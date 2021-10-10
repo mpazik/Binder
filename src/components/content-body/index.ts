@@ -1,14 +1,22 @@
-import { Callback, fork, ignoreParam, link, withOptionalState } from "linki";
+import {
+  Callback,
+  defined,
+  definedTuple,
+  filter,
+  fork,
+  ignoreParam,
+  link,
+  map,
+  pick,
+  pipe,
+  split,
+  withMultiState,
+  withOptionalState,
+} from "linki";
+import { valueWithOptionalState } from "linki/dist/processors/reduce";
 
 import { LinkedDataWithContent } from "../../functions/content-processors";
 import { ContentSaver } from "../../functions/content-saver";
-import {
-  select,
-  split,
-  withMultiState,
-  withState,
-} from "../../libs/connections";
-import { map, passUndefined, pick, pipe } from "../../libs/connections/mappers";
 import { throwIfUndefined } from "../../libs/errors";
 import { LinkedData } from "../../libs/jsonld-format";
 import {
@@ -17,6 +25,7 @@ import {
   htmlMediaType,
   pdfMediaType,
 } from "../../libs/ld-schemas";
+import { indexOf, select } from "../../libs/linki";
 import {
   Component,
   div,
@@ -55,26 +64,26 @@ export const contentDisplayComponent: Component<
   onDisplay,
 }) => (render, onClose) => {
   // multi state with linkedData and fallback for update
-  const [
-    saveNewContent,
-    [setLinkedDataForSave, setCallbackForUpdate],
-  ] = withMultiState<[LinkedData, Callback | undefined], Blob>(
-    ([linkedData, callback], blob) => {
+  const [saveNewContent, setLinkedDataForSave, setCallbackForUpdate] = link(
+    withMultiState<[LinkedData, Callback | undefined], Blob>(
+      undefined,
+      undefined
+    ),
+    ([linkedData, callback, blob]) => {
       contentSaver({
         linkedData: throwIfUndefined(linkedData),
         content: blob,
       }).then(() => throwIfUndefined(callback)());
-    },
-    undefined,
-    undefined
+    }
   );
 
-  const [goToFragment, setCallbackForFragment] = withState<
-    Callback<string>,
-    string
-  >((goToFragment, fragment) => {
-    goToFragment(fragment);
-  }, undefined);
+  const [goToFragment, setCallbackForFragment] = link(
+    valueWithOptionalState<Callback<string>, string>(undefined),
+    filter(definedTuple),
+    ([goToFragment, fragment]) => {
+      goToFragment(fragment);
+    }
+  );
 
   const [
     requestCurrentFragment,
@@ -88,14 +97,13 @@ export const contentDisplayComponent: Component<
   // put start view date to context
   // figure out epub
 
-  const [
-    closeContentComponent,
-    [setCallbackForCloseComponent],
-  ] = withMultiState<[Callback]>(([closeComponent]) => {
-    if (closeComponent) {
+  const [closeContentComponent, setCallbackForCloseComponent] = link(
+    withOptionalState<Callback>(undefined),
+    filter(defined),
+    (closeComponent) => {
       closeComponent();
     }
-  }, undefined);
+  );
 
   onClose(closeContentComponent);
 
@@ -139,22 +147,24 @@ export const contentDisplayComponent: Component<
 
   return {
     displayContent: fork(
-      map(pick("linkedData"), setLinkedDataForSave),
-      select<LinkedDataWithContent, string | undefined>(
-        pipe(pick("linkedData"), passUndefined(getEncoding)),
+      link(map(pick("linkedData")), setLinkedDataForSave),
+      link<LinkedDataWithContent, LinkedDataWithContent[]>(
+        select(
+          pipe(
+            pick("linkedData"),
+            getEncoding,
+            indexOf([htmlMediaType, pdfMediaType, epubMediaType, undefined])
+          )
+        ),
         [
-          [
-            htmlMediaType,
-            split(
-              pipe(pick("linkedData"), isEditable),
-              displayContentComponent(htmlEditableDisplay),
-              displayContentComponent(htmlDisplay)
-            ),
-          ],
-          [pdfMediaType, displayContentComponent(pdfDisplay)],
-          [epubMediaType, displayContentComponent(epubDisplay)],
-        ],
-        displayNotSupported
+          link(split(pipe(pick("linkedData"), isEditable)), [
+            displayContentComponent(htmlEditableDisplay),
+            displayContentComponent(htmlDisplay),
+          ]),
+          displayContentComponent(pdfDisplay),
+          displayContentComponent(epubDisplay),
+          displayNotSupported,
+        ]
       )
     ),
     goToFragment,

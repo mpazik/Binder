@@ -1,16 +1,26 @@
-import { CATEGORIES_ENABLED } from "../../config";
 import {
+  and,
   Callback,
-  delayed,
+  defined,
+  filter,
   fork,
+  link,
+  map,
+  or,
   passOnlyChanged,
-  withState,
-  withState2,
-} from "../../libs/connections";
-import { and, defined, filter, or } from "../../libs/connections/filters";
-import { head, map, to } from "../../libs/connections/mappers";
+  to,
+  withOptionalState,
+} from "linki";
+import { valueWithOptionalState } from "linki/dist/processors/reduce";
+
+import { CATEGORIES_ENABLED } from "../../config";
 import { throwIfNull } from "../../libs/errors";
-import { newStateHandler, newStateMapper } from "../../libs/named-state";
+import { clearableDelay } from "../../libs/linki";
+import {
+  filterState,
+  newStateHandler,
+  newStateMapper,
+} from "../../libs/named-state";
 import {
   button,
   Component,
@@ -129,25 +139,31 @@ export const annotationDisplay: Component<
     onHoverOut: () => delayedHide(),
   });
 
-  const renderPopup = map(
-    newStateMapper<AnnotationDisplayState, JsonHtml | undefined>(undefined, {
-      visible: (state) => {
-        const { position, annotation } = state;
-        return annotationView({
-          position,
-          annotation,
-          state,
-        });
-      },
-    }),
+  const renderPopup = link(
+    map(
+      newStateMapper<AnnotationDisplayState, JsonHtml | undefined>(undefined, {
+        visible: (state) => {
+          const { position, annotation } = state;
+          return annotationView({
+            position,
+            annotation,
+            state,
+          });
+        },
+      })
+    ),
     render
   );
 
-  const handleData = passOnlyChanged(renderPopup);
+  const handleData: Callback<AnnotationDisplayState> = link(
+    passOnlyChanged<AnnotationDisplayState>(),
+    renderPopup
+  );
 
-  const [delayedHide, cleanDelay] = delayed<void>(
-    300,
-    map(to(["hidden"] as AnnotationDisplayState), handleData)
+  const [delayedHide, cleanDelay] = link(
+    clearableDelay<void>(300),
+    map(to(["hidden"] as AnnotationDisplayState)),
+    handleData
   );
 
   const displayAnnotation: Callback<DisplayAnnotation> = fork(
@@ -191,8 +207,11 @@ const commentFormView: View<{
           style: { "min-height": "80px", width: "300px" },
           contenteditable: true,
           onKeydown: fork(
-            filter(and(isKey("Enter"), or(hasMetaKey, hasCtrlKey)), onSave),
-            filter(isKey("Escape"), onCancel)
+            link(
+              filter(and(isKey("Enter"), or(hasMetaKey, hasCtrlKey))),
+              onSave
+            ),
+            link(filter(isKey("Escape")), onCancel)
           ),
           onDisplay: map(getTarget, fork(focusElement, onDisplay)),
           onPaste: (event) => {
@@ -240,8 +259,9 @@ export const commentForm: Component<
   },
   { displayCommentForm: CommentFormState }
 > = ({ onCreatedComment, onHide }) => (render) => {
-  const [createComment, setContainer] = withState<HTMLElement, Selection>(
-    (editor, { selector }) => {
+  const [createComment, setContainer] = link(
+    valueWithOptionalState<HTMLElement, Selection>(),
+    ([editor, { selector }]) => {
       onCreatedComment({
         comment: throwIfNull(editor).innerHTML,
         selector,
@@ -249,34 +269,38 @@ export const commentForm: Component<
     }
   );
 
-  const [hide, setSelectionForHide, resetSelection] = withState2<Selection>(
-    map(head, filter(defined, onHide))
+  const [hide, setSelectionForHide, resetSelection] = link(
+    withOptionalState<Selection>(),
+    filter(defined),
+    onHide
   );
 
-  const renderForm = map(
-    newStateMapper<CommentFormState, OptionalJsonHtml>(undefined, {
-      visible: ({ position, ...selection }) =>
-        commentFormView({
-          position,
-          onDisplay: setContainer,
-          onCancel: () => {
-            hide();
-            renderForm(["hidden"]);
-          },
-          onSave: () => {
-            hide();
-            createComment(selection);
-            renderForm(["hidden"]);
-          },
-        }),
-    }),
+  const renderForm = link(
+    map(
+      newStateMapper<CommentFormState, OptionalJsonHtml>(undefined, {
+        visible: ({ position, ...selection }) =>
+          commentFormView({
+            position,
+            onDisplay: setContainer,
+            onCancel: () => {
+              hide();
+              renderForm(["hidden"]);
+            },
+            onSave: () => {
+              hide();
+              createComment(selection);
+              renderForm(["hidden"]);
+            },
+          }),
+      })
+    ),
     render
   );
 
   return {
     displayCommentForm: fork(
       renderForm,
-      filter<CommentFormState>(([name]) => name === "hidden", hide),
+      link(filterState("hidden"), hide),
       newStateHandler({
         visible: setSelectionForHide,
         hidden: resetSelection,

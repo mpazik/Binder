@@ -39,12 +39,12 @@ export const contentComponent: Component<
     ldStoreRead: LinkedDataStoreRead;
     onSave: Callback<LinkedDataWithHashId>;
     annotationsIndex: AnnotationsIndex["search"];
-    creatorProvider: () => string | null;
     onDisplay: Callback;
   },
   {
     displayContent: LinkedDataWithContentAndFragment;
     goToFragment: string;
+    setCreator: string | null;
   }
 > = ({
   contentSaver,
@@ -52,7 +52,6 @@ export const contentComponent: Component<
   ldStoreRead,
   onSave,
   annotationsIndex,
-  creatorProvider,
   onDisplay,
 }) => (render, onClose) => {
   const storeData = (data: LinkedDataWithContent, retry: () => void) => {
@@ -118,7 +117,7 @@ export const contentComponent: Component<
 
   const [
     annotationSupportSlot,
-    { displayDocumentAnnotations, setReference, setContainer },
+    { displayDocumentAnnotations, setReference, setContainer, setCreator },
   ] = newSlot(
     "annotation-support",
     annotationsSupport({
@@ -126,7 +125,6 @@ export const contentComponent: Component<
       ldStoreRead,
       annotationsIndex,
       requestDocumentSave: saveContent,
-      creatorProvider,
     })
   );
 
@@ -188,5 +186,6 @@ export const contentComponent: Component<
       )
     ),
     goToFragment,
+    setCreator,
   };
 };

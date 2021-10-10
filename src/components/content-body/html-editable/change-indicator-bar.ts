@@ -1,5 +1,7 @@
+import { Callback, link } from "linki";
+
 import { firstOf, lastOf } from "../../../libs/array";
-import { Consumer, splitOnUndefined } from "../../../libs/connections";
+import { splitDefined } from "../../../libs/linki";
 import { Component, div, View } from "../../../libs/simple-ui/render";
 
 import { DocumentChange } from "./document-change";
@@ -21,7 +23,7 @@ export const documentChangeHeight = ({ newLines }: DocumentChange): number => {
 
 const changeIndicator: View<{
   docDiff: DocumentChange;
-  onClick: Consumer<DocumentChange>;
+  onClick: Callback<DocumentChange>;
 }> = ({ docDiff, onClick }) => {
   const { changeType } = docDiff;
   const elementTop = documentChangeTopRelativePosition(docDiff);
@@ -46,21 +48,23 @@ const changeIndicator: View<{
 
 export const changesIndicatorBar: Component<
   {
-    onDiffBarClick: Consumer<DocumentChange>;
+    onDiffBarClick: Callback<DocumentChange>;
   },
   { displayChangesOnBar: DocumentChange[] | undefined }
 > = ({ onDiffBarClick }) => (render) => ({
-  displayChangesOnBar: splitOnUndefined(render, (changes: DocumentChange[]) =>
-    render(
-      div(
-        {
-          class: "color-bg-tertiary position-absolute",
-          style: { height: "100%", width: 8, left: -20, top: 0 },
-        },
-        ...changes.map((docDiff) =>
-          changeIndicator({ docDiff, onClick: onDiffBarClick })
+  displayChangesOnBar: link(splitDefined<DocumentChange[]>(), [
+    (changes: DocumentChange[]) =>
+      render(
+        div(
+          {
+            class: "color-bg-tertiary position-absolute",
+            style: { height: "100%", width: 8, left: -20, top: 0 },
+          },
+          ...changes.map((docDiff) =>
+            changeIndicator({ docDiff, onClick: onDiffBarClick })
+          )
         )
-      )
-    )
-  ),
+      ),
+    render,
+  ]),
 });

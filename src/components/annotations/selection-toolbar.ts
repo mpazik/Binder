@@ -1,6 +1,14 @@
-import { fork, passOnlyChanged } from "../../libs/connections";
-import { and, filter, not } from "../../libs/connections/filters";
-import { map, mapTo } from "../../libs/connections/mappers";
+import {
+  fork,
+  passOnlyChanged,
+  filter,
+  not,
+  map,
+  link,
+  and,
+  Callback,
+} from "linki";
+
 import { keyNameTooltip } from "../../libs/key-events";
 import { button, Component, div, View } from "../../libs/simple-ui/render";
 import { hasNoKeyModifier, isKey } from "../../libs/simple-ui/utils/funtions";
@@ -59,19 +67,22 @@ export const selectionToolbar: Component<
   },
   { selectionHandler: OptSelection }
 > = ({ buttons }) => (render, onClose) => {
-  const renderState = map((selection: OptSelection) => {
-    if (!selection) return;
-    return selectionToolbarView({
-      position: selectionPosition(selection),
-      buttons: buttons.map(({ handler, ...rest }) => ({
-        handler: () => {
-          handler(selection);
-          selectionHandler(undefined);
-        },
-        ...rest,
-      })),
-    });
-  }, render);
+  const renderState = link(
+    map((selection: OptSelection) => {
+      if (!selection) return;
+      return selectionToolbarView({
+        position: selectionPosition(selection),
+        buttons: buttons.map(({ handler, ...rest }) => ({
+          handler: () => {
+            handler(selection);
+            selectionHandler(undefined);
+          },
+          ...rest,
+        })),
+      });
+    }),
+    render
+  );
 
   let lastButtonHandlers: ((e: KeyboardEvent) => void)[] = [];
 
@@ -85,9 +96,12 @@ export const selectionToolbar: Component<
       lastButtonHandlers = buttons
         .filter((it) => Boolean(it.shortCutKey))
         .map(({ shortCutKey, handler }) =>
-          filter(
-            and(isKey(shortCutKey!), hasNoKeyModifier),
-            fork(() => handler(selection), mapTo(undefined, selectionHandler))
+          link(
+            filter(and(isKey(shortCutKey!), hasNoKeyModifier)),
+            fork(
+              () => handler(selection),
+              () => selectionHandler(undefined)
+            )
           )
         );
       lastButtonHandlers.forEach((handler) =>
@@ -96,12 +110,12 @@ export const selectionToolbar: Component<
     }
   };
 
-  const selectionHandler = passOnlyChanged(
+  const selectionHandler: Callback<OptSelection> = link(
+    passOnlyChanged(),
     fork(renderState, registerButtonHandler)
   );
-  const mouseUpHandler = filter(
-    not(selectionExists),
-    mapTo(undefined, selectionHandler)
+  const mouseUpHandler = link(filter(not(selectionExists)), () =>
+    selectionHandler(undefined)
   );
   document.addEventListener("mouseup", mouseUpHandler);
   onClose(() => {

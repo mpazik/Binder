@@ -1,6 +1,6 @@
-import { Callback, fork } from "../../libs/connections";
-import { defined, filter } from "../../libs/connections/filters";
-import { mapState, newStateMachine } from "../../libs/named-state";
+import { Callback, fork, link, defined, filter, map } from "linki";
+
+import { newStateMapper, newStateMachine } from "../../libs/named-state";
 import {
   clearLastLogin,
   GlobalDb,
@@ -124,62 +124,70 @@ export const gdrive = (
           return ["loggingIn", profile];
         },
       },
-    },
-    fork((state) => {
-      filter<Promise<GDriveAction> | undefined, Promise<GDriveAction>>(
-        defined,
+    }
+  )(
+    fork(
+      link(
+        map(
+          newStateMapper<GDriveState, Promise<GDriveAction> | undefined>(
+            undefined,
+            {
+              loading: () =>
+                initializeGoogleDrive()
+                  .then<GDriveAction>((gapi) => ["initialize", gapi])
+                  .catch(handleError),
+              loggingIn: ({ gapi }) =>
+                signIn(gapi)
+                  .then<GDriveAction>(() => ["retrieveProfile"])
+                  .catch(handleError),
+              profileRetrieving: async ({
+                gapi,
+                repository,
+                alreadyLogged,
+              }) => {
+                try {
+                  const profile = await getUserProfile(gapi);
+                  const account = gdriveUserToAccount(profile.user);
+                  if (alreadyLogged) {
+                    await setLastConnected(globalDb);
+                  } else {
+                    await setLastLogin(globalDb, account);
+                  }
+                  return [
+                    "loggedIn",
+                    {
+                      gapi,
+                      repository: alreadyLogged
+                        ? repository
+                        : await openAccountRepository(account),
+                      config: await createGDriveConfig(gapi, repository),
+                      ...profile,
+                    },
+                  ];
+                } catch (error) {
+                  if (error.status === 403) {
+                    return handleError("insufficient-permission");
+                  }
+                  return handleError(error);
+                }
+              },
+              loggingOut: ({ gapi }) =>
+                signOut(gapi)
+                  .then(() => clearLastLogin(globalDb))
+                  .then<GDriveAction>(() => ["loggedOut"])
+                  .catch(handleError),
+            }
+          )
+        ),
+        filter<Promise<GDriveAction> | undefined, Promise<GDriveAction>>(
+          defined
+        ),
         (promise: Promise<GDriveAction>) => {
           promise.then(stateMachine);
         }
-      )(
-        mapState<GDriveState, Promise<GDriveAction> | undefined>(
-          state,
-          undefined,
-          {
-            loading: () =>
-              initializeGoogleDrive()
-                .then<GDriveAction>((gapi) => ["initialize", gapi])
-                .catch(handleError),
-            loggingIn: ({ gapi }) =>
-              signIn(gapi)
-                .then<GDriveAction>(() => ["retrieveProfile"])
-                .catch(handleError),
-            profileRetrieving: async ({ gapi, repository, alreadyLogged }) => {
-              try {
-                const profile = await getUserProfile(gapi);
-                const account = gdriveUserToAccount(profile.user);
-                if (alreadyLogged) {
-                  await setLastConnected(globalDb);
-                } else {
-                  await setLastLogin(globalDb, account);
-                }
-                return [
-                  "loggedIn",
-                  {
-                    gapi,
-                    repository: alreadyLogged
-                      ? repository
-                      : await openAccountRepository(account),
-                    config: await createGDriveConfig(gapi, repository),
-                    ...profile,
-                  },
-                ];
-              } catch (error) {
-                if (error.status === 403) {
-                  return handleError("insufficient-permission");
-                }
-                return handleError(error);
-              }
-            },
-            loggingOut: ({ gapi }) =>
-              signOut(gapi)
-                .then(() => clearLastLogin(globalDb))
-                .then<GDriveAction>(() => ["loggedOut"])
-                .catch(handleError),
-          }
-        )
-      );
-    }, callback)
+      ),
+      callback
+    )
   );
   return stateMachine;
 };

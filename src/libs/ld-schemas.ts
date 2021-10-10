@@ -2,10 +2,14 @@ import { Article, CreativeWork, WithContext } from "schema-dts";
 
 import { LinkedData } from "./jsonld-format";
 
-export type EncodingFormat = "text/html" | "application/pdf" | string;
 export const htmlMediaType = "text/html";
 export const pdfMediaType = "application/pdf";
 export const epubMediaType = "application/epub+zip";
+export type EncodingFormat =
+  | typeof htmlMediaType
+  | typeof pdfMediaType
+  | typeof epubMediaType
+  | string;
 
 export const createCreativeWork = ({
   id,
@@ -40,5 +44,5 @@ export const createArticle = (props: {
 }): WithContext<Article> =>
   createCreativeWork({ ...props, type: "Article" }) as WithContext<Article>;
 
-export const getEncoding = (ld: LinkedData): string | undefined =>
+export const getEncoding = (ld: LinkedData): EncodingFormat | undefined =>
   ld["encodingFormat"] as string;

@@ -1,4 +1,5 @@
-import { Callback } from "../../libs/connections";
+import { Callback } from "linki";
+
 import {
   computeLinkedDataWithHashId,
   hashBlob,

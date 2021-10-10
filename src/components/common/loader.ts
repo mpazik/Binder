@@ -1,9 +1,8 @@
 import "./loading.css";
 
-import { defined, filter, link } from "linki";
+import { Callback, fork, map, pick, defined, filter, link } from "linki";
 
-import { Callback, closable, Consumer, fork } from "../../libs/connections";
-import { map, pick } from "../../libs/connections/mappers";
+import { closable } from "../../libs/linki";
 import {
   handleState,
   newStateMachine,
@@ -37,8 +36,8 @@ export type LoaderState<C, R, V extends Prop> =
   | ["error", { reason: string; request: R; context: C }];
 
 const newLoaderStateMachine = <C, R, V extends Prop>(
-  callback: Consumer<LoaderState<C, R, V>>
-): Consumer<LoaderAction<C, R, V>> =>
+  callback: Callback<LoaderState<C, R, V>>
+): Callback<LoaderAction<C, R, V>> =>
   newStateMachine<LoaderState<C, R, V>, LoaderAction<C, R, V>>(
     ["idle", {}],
     {
@@ -91,12 +90,11 @@ const newLoaderStateMachine = <C, R, V extends Prop>(
         ],
       },
     },
-    callback,
     {
       stop: () => ["idle", {}],
       init: (context) => ["idle", { context }],
     }
-  );
+  )(callback);
 
 type ErrorView = View<{ reason: string; retry: () => void }>;
 
@@ -155,14 +153,16 @@ export const loaderWithContext = <C, R, V extends Prop>({
         return ["fail", error.toString()] as LoaderAction<C, R, V>;
       });
 
-  const stateMachine: Consumer<LoaderAction<C, R, V>> = newLoaderStateMachine(
+  const stateMachine: Callback<LoaderAction<C, R, V>> = newLoaderStateMachine(
     fork(
-      map(
-        loaderView({
-          contentSlot,
-          errorView,
-          retry: () => stateMachine(["retry"]),
-        }),
+      link(
+        map(
+          loaderView({
+            contentSlot,
+            errorView,
+            retry: () => stateMachine(["retry"]),
+          })
+        ),
         render
       ),
       closable((state, signal) => {
@@ -177,7 +177,7 @@ export const loaderWithContext = <C, R, V extends Prop>({
               link(filter(defined), stateMachine)
             );
           },
-          ready: map(pick("data"), onLoaded),
+          ready: link(map(pick("data")), onLoaded),
         });
       })
     )

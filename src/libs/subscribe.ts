@@ -1,4 +1,4 @@
-import { Callback } from "./connections";
+import { Callback } from "linki";
 
 export const createQueue = <T>(): [
   push: (value: T) => void,

@@ -13,12 +13,13 @@ import {
   withState,
   valueWithState,
   definedTuple,
+  nextTick,
+  withMultiState,
 } from "linki";
 
 import { AnnotationsIndex } from "../../functions/indexes/annotations-index";
 import { LinkedDataStoreWrite } from "../../functions/store";
 import { LinkedDataStoreRead } from "../../functions/store/local-store";
-import { nextTick, withMultiState } from "../../libs/connections";
 import { throwIfNull } from "../../libs/errors";
 import { HashUri } from "../../libs/hash";
 import { Component, div, newSlot } from "../../libs/simple-ui/render";
@@ -68,40 +69,40 @@ export const annotationsSupport: Component<
     ldStoreRead: LinkedDataStoreRead;
     annotationsIndex: AnnotationsIndex["search"];
     requestDocumentSave: () => void;
-    creatorProvider: () => string | null;
   },
   {
     displayDocumentAnnotations: AnnotationDisplayRequest;
     setContainer: HTMLElement;
     setReference: HashUri | undefined;
+    setCreator: string | null;
   }
-> = ({
-  ldStoreWrite,
-  ldStoreRead,
-  requestDocumentSave,
-  annotationsIndex,
-  creatorProvider,
-}) => (render, onClose) => {
-  const [saveAnnotation, [setReference]] = withMultiState<
-    [HashUri | undefined],
-    AnnotationSaveArgs
-  >(([reference], annotationSaveArgs) => {
-    if (!reference) {
-      keepAnnotationForSave(annotationSaveArgs);
-      requestDocumentSave();
-      return;
+> = ({ ldStoreWrite, ldStoreRead, requestDocumentSave, annotationsIndex }) => (
+  render,
+  onClose
+) => {
+  const [saveAnnotation, setReference, setCreator] = link(
+    withMultiState<[HashUri | undefined, string | null], AnnotationSaveArgs>(
+      undefined,
+      null
+    ),
+    ([reference, creator, annotationSaveArgs]) => {
+      if (!reference) {
+        keepAnnotationForSave(annotationSaveArgs);
+        requestDocumentSave();
+        return;
+      }
+      const { selector, content } = annotationSaveArgs;
+      const annotation = createAnnotation(
+        reference,
+        selector,
+        content,
+        creator ?? undefined
+      );
+      ldStoreWrite(annotation).then(() => {
+        changeSelection(["display", annotation]);
+      });
     }
-    const { selector, content } = annotationSaveArgs;
-    const annotation = createAnnotation(
-      reference,
-      selector,
-      content,
-      creatorProvider() ?? undefined
-    );
-    ldStoreWrite(annotation).then(() => {
-      changeSelection(["display", annotation]);
-    });
-  }, undefined);
+  );
 
   const [saveKeptAnnotation, keepAnnotationForSave] = link(
     withState<AnnotationSaveArgs | null>(null),
@@ -111,12 +112,16 @@ export const annotationsSupport: Component<
 
   const [
     changeSelection,
-    [setContainerForSelector, setTextLayerForSelector],
-  ] = withMultiState<
-    [HTMLElement, HTMLElement | undefined],
-    ["display", Annotation] | ["select", Selection] | ["remove", QuoteSelector]
-  >(
-    ([container, textLayer], change) => {
+    setContainerForSelector,
+    setTextLayerForSelector,
+  ] = link(
+    withMultiState<
+      [HTMLElement, HTMLElement | undefined],
+      | ["display", Annotation]
+      | ["select", Selection]
+      | ["remove", QuoteSelector]
+    >(undefined, undefined),
+    ([container, textLayer, change]) => {
       if (!container || !textLayer) {
         return;
       }
@@ -166,9 +171,7 @@ export const annotationsSupport: Component<
         const selector = change[1];
         removeSelector(textLayer, text, selector);
       }
-    },
-    undefined,
-    undefined
+    }
   );
 
   const [selectionToolbarSlot, { selectionHandler }] = newSlot(
@@ -198,23 +201,20 @@ export const annotationsSupport: Component<
     })
   );
 
-  const [
-    handleSelection,
-    [setFragmentForToolbar, setContainerForToolbar],
-  ] = withMultiState<[DocFragment | undefined, HTMLElement], void>(
-    link(
-      map(([fragment, container]) => {
-        if (!container) return;
-        const range = currentSelection();
-        if (!range) return;
-        if (!container.contains(range.commonAncestorContainer)) return;
-        return { range, fragment, container };
-      }),
-      passOnlyChanged(),
-      selectionHandler
+  const [handleSelection, setFragmentForToolbar, setContainerForToolbar] = link(
+    withMultiState<[DocFragment | undefined, HTMLElement], void>(
+      undefined,
+      undefined
     ),
-    undefined,
-    undefined
+    map(([fragment, container]) => {
+      if (!container) return;
+      const range = currentSelection();
+      if (!range) return;
+      if (!container.contains(range.commonAncestorContainer)) return;
+      return { range, fragment, container };
+    }),
+    passOnlyChanged(),
+    selectionHandler
   );
 
   const [
@@ -257,7 +257,7 @@ export const annotationsSupport: Component<
   );
 
   // next tick to make sure current selection would be calculated for even handling
-  const detectSelection = link(ignoreParam(), nextTick(handleSelection));
+  const detectSelection = link(ignoreParam(), nextTick(), handleSelection);
   document.addEventListener("mouseup", detectSelection);
   onClose(() => {
     document.removeEventListener("mouseup", detectSelection);
@@ -283,5 +283,6 @@ export const annotationsSupport: Component<
       () => displayCommentForm(["hidden"]),
       () => hideAnnotation()
     ),
+    setCreator,
   };
 };

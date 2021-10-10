@@ -1,13 +1,13 @@
-import { Provider } from "../libs/connections";
+import { Provider } from "linki";
 
-export const urlHashProvider: Provider<string> = (onClose, push) => {
+export const urlHashProvider: Provider<string> = (push) => {
   const update = () => {
     const hash = location.hash;
     push(hash);
   };
   update();
   window.addEventListener("hashchange", update);
-  onClose(() => {
+  return () => {
     window.removeEventListener("hashchange", update);
-  });
+  };
 };

@@ -1,3 +1,5 @@
+import { Callback } from "linki";
+
 import {
   defaultSettings,
   DisplaySettings,
@@ -8,7 +10,6 @@ import {
   ReplaceAction,
   settingValueFromCustomSchema,
 } from "../../../components/display-settings/replace-action";
-import { Callback, Consumer } from "../../../libs/connections";
 import { HashUri } from "../../../libs/hash";
 import {
   storeGet,
@@ -76,7 +77,7 @@ export const createSettingsSubscription = (
 ): [
   displaySettings: DisplaySettings,
   update: (record: SettingsRecord) => void,
-  subscribe: (c: Consumer<Settings>) => void
+  subscribe: (c: Callback<Settings>) => void
 ] => {
   const settings = defaultSettings;
   const applyRecord = <T extends keyof Settings>(record: SettingsRecord) => {
@@ -86,7 +87,7 @@ export const createSettingsSubscription = (
 
   initSettings.forEach(applyRecord);
 
-  const subscriptions: Consumer<Settings>[] = [];
+  const subscriptions: Callback<Settings>[] = [];
 
   return [
     settings,
