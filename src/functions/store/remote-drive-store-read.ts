@@ -1,6 +1,6 @@
 import { Consumer } from "../../libs/connections";
 import { HashUri } from "../../libs/hash";
-import { mapState } from "../../libs/named-state";
+import { handleState, mapState } from "../../libs/named-state";
 import { RemoteDrive, RemoteDriverState } from "../remote-drive";
 
 import { ResourceStoreRead } from "./local-store";
@@ -18,30 +18,38 @@ export const createStatefulRemoteDriveResourceRead = (): [
 
   return [
     async (hash) =>
-      mapState(state, {
-        off: () => Promise.resolve(undefined),
-        loading: (queue) =>
-          new Promise((resolve) => {
-            queue.push({ hash, resolve });
-          }),
-        ready: (reader) => reader(hash),
-      }),
+      mapState<ReaderState, Promise<Blob | undefined>>(
+        state,
+        Promise.resolve(undefined),
+        {
+          loading: (queue) =>
+            new Promise((resolve) => {
+              queue.push({ hash, resolve });
+            }),
+          ready: (reader) => reader(hash),
+        }
+      ),
     (driveState) => {
-      state = mapState(driveState, {
+      state = mapState<RemoteDriverState, ReaderState>(driveState, ["off"], {
         off: () => ["off"],
-        loading: () => (state[0] === "loading" ? state : ["loading", []]),
+        loading: () =>
+          mapState<ReaderState, ReaderState>(state, ["loading", []], {
+            loading: () => state,
+          }),
         on: (drive) => {
           const readStore = drive.downloadResourceFileByHash;
-          if (state[0] === "loading") {
-            state[1].forEach(({ hash, resolve }) => {
-              readStore(hash)
-                .then(resolve)
-                .catch((err) => {
-                  console.log(err);
-                  resolve(undefined);
-                });
-            });
-          }
+          handleState(state, {
+            loading: (queue) => {
+              queue.forEach(({ hash, resolve }) => {
+                readStore(hash)
+                  .then(resolve)
+                  .catch((err) => {
+                    console.log(err);
+                    resolve(undefined);
+                  });
+              });
+            },
+          });
           return ["ready", readStore];
         },
       });

@@ -32,32 +32,42 @@ type StatesHandler<S extends SomeState> = {
 };
 
 export const newStateHandler = <S extends SomeState>(
-  handlers: StatesHandler<S>
-) => ([key, data]: S): void => handlers[key as S[0]]?.(data);
+  handlers: StatesHandler<S>,
+  defaultHandler: () => void = () => {}
+) => ([key, data]: S): void => {
+  const handler = handlers[key as S[0]];
+  return handler ? handler(data) : defaultHandler();
+};
 
 export const handleState = <S extends SomeState>(
   [key, data]: S,
-  handlers: StatesHandler<S>
-): void => handlers[key as S[0]]?.(data);
+  handlers: StatesHandler<S>,
+  defaultHandler: () => void = () => {}
+): void => {
+  const handler = handlers[key as S[0]];
+  return handler ? handler(data) : defaultHandler();
+};
 
 export const newStateMapper = <S extends SomeState, T>(
-  mappers: {
-    [SK in S[0]]: (state: StateByName<S, SK>[1]) => T;
-  }
-) => ([key, data]: S): T => mappers[key as S[0]](data);
-
-export const newStateOptionalMapper = <S extends SomeState, T>(
+  defaultValue: T,
   mappers: {
     [SK in S[0]]?: (state: StateByName<S, SK>[1]) => T;
   }
-) => ([key, data]: S): T | undefined => mappers[key as S[0]]?.(data);
+) => ([key, data]: S): T => {
+  const mapper = mappers[key as S[0]];
+  return mapper ? mapper(data) : defaultValue;
+};
 
 export const mapState = <S extends SomeState, T>(
   [key, data]: S,
+  defaultValue: T,
   mappers: {
-    [SK in S[0]]: (state: StateByName<S, SK>[1]) => T;
+    [SK in S[0]]?: (state: StateByName<S, SK>[1]) => T;
   }
-): T => mappers[key as S[0]](data);
+): T => {
+  const mapper = mappers[key as S[0]];
+  return mapper ? mapper(data) : defaultValue;
+};
 
 type Behaviours<S extends SomeState, A extends SomeAction> = {
   [SK in S[0]]: {

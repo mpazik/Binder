@@ -185,7 +185,7 @@ export const createProfileView: ViewSetup<ProfileActions, ProfileState> = ({
   logout,
   upload,
 }) =>
-  newStateMapper<ProfileState, JsonHtml>({
+  newStateMapper<ProfileState, JsonHtml>(loading(), {
     loading: () => loading(),
     error: (error) => errorView({ error, login }),
     signedOut: () =>
@@ -201,7 +201,11 @@ export const createProfileView: ViewSetup<ProfileActions, ProfileState> = ({
           li(
             { class: "px-4 py-2", style: { width: "200px" } },
             a(
-              { type: "button", onClick: login, style: { cursor: "pointer" } },
+              {
+                type: "button",
+                onClick: login,
+                style: { cursor: "pointer" },
+              },
               "Sign In"
             ),
             " you cloud storage session expired, please login it again"
@@ -240,24 +244,15 @@ export const profilePanel: Component<ProfileActions, ProfilePanelControl> = (
     combine<[GDriveState, StoreState]>(undefined, undefined),
     filter(definedTuple),
     map<[GDriveState, StoreState], ProfileState>(([gdriveState, storeState]) =>
-      mapState<GDriveState, ProfileState>(gdriveState, {
-        idle: () => ["loading"],
-        loading: () => ["loading"],
-        loggingIn: () => ["loading"],
-        profileRetrieving: () => ["loading"],
-        loggingOut: () => ["loading"],
+      mapState<GDriveState, ProfileState>(gdriveState, ["loading"], {
         disconnected: () => ["disconnected"],
         signedOut: () => ["signedOut"],
         logged: (profile) =>
-          mapState<StoreState, ProfileState>(storeState, {
-            idle: () => ["logged", profile],
+          mapState<StoreState, ProfileState>(storeState, ["logged", profile], {
             uploading: () => ["uploading", profile],
             downloading: () => ["downloading", profile],
             error: ({ error }) => ["error", error.message],
-            ready: () => ["logged", profile],
             uploadNeeded: () => ["uploadNeeded", profile],
-            remoteDriveNeeded: () => ["logged", profile],
-            loaded: () => ["logged", profile],
           }),
         loadingError: ({ error }) => ["error", error],
         loggingInError: ({ error }) => ["error", error],

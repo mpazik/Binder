@@ -116,9 +116,7 @@ const loaderView = <C, R, V extends Prop>({
   errorView: ErrorView;
   retry: () => void;
 }): View<LoaderState<C, R, V>> =>
-  newStateMapper({
-    idle: () => centerLoading(),
-    initializing: () => centerLoading(),
+  newStateMapper(centerLoading(), {
     ready: () => div(contentSlot),
     loading: () => div(centerLoading(), contentSlot),
     error: ({ reason }) =>

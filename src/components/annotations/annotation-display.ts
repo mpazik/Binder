@@ -17,6 +17,7 @@ import {
   div,
   JsonHtml,
   newSlot,
+  OptionalJsonHtml,
   Slot,
   span,
   View,
@@ -129,7 +130,7 @@ export const annotationDisplay: Component<
   });
 
   const renderPopup = map(
-    newStateMapper<AnnotationDisplayState, JsonHtml | undefined>({
+    newStateMapper<AnnotationDisplayState, JsonHtml | undefined>(undefined, {
       visible: (state) => {
         const { position, annotation } = state;
         return annotationView({
@@ -137,9 +138,6 @@ export const annotationDisplay: Component<
           annotation,
           state,
         });
-      },
-      hidden: () => {
-        return undefined;
       },
     }),
     render
@@ -256,7 +254,7 @@ export const commentForm: Component<
   );
 
   const renderForm = map(
-    newStateMapper<CommentFormState, JsonHtml | undefined>({
+    newStateMapper<CommentFormState, OptionalJsonHtml>(undefined, {
       visible: ({ position, ...selection }) =>
         commentFormView({
           position,
@@ -271,7 +269,6 @@ export const commentForm: Component<
             renderForm(["hidden"]);
           },
         }),
-      hidden: () => undefined,
     }),
     render
   );

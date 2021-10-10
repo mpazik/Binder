@@ -305,19 +305,12 @@ export const App = asyncLoader(
         ),
         link(
           map(
-            newStateMapper<GDriveState, RemoteDriverState>({
-              idle: () => ["off"],
-              loading: () => ["off"],
-              signedOut: () => ["off"],
-              disconnected: () => ["off"],
+            newStateMapper<GDriveState, RemoteDriverState>(["off"], {
               loggingIn: () => ["loading"],
               profileRetrieving: () => ["loading"],
               logged: ({ config }) => {
                 return ["on", createGDrive(config) as RemoteDrive];
               },
-              loggingOut: () => ["off"],
-              loadingError: () => ["off"],
-              loggingInError: () => ["off"],
             })
           ),
           store.updateRemoteDriveState

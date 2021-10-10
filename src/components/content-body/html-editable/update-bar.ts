@@ -1,6 +1,10 @@
 import { map } from "../../../libs/connections/mappers";
-import { newStateOptionalMapper } from "../../../libs/named-state";
-import { Component, OptionalViewSetup } from "../../../libs/simple-ui/render";
+import { newStateMapper } from "../../../libs/named-state";
+import {
+  Component,
+  OptionalJsonHtml,
+  OptionalViewSetup,
+} from "../../../libs/simple-ui/render";
 import {
   EditBarState,
   errorBar,
@@ -13,7 +17,7 @@ const createUpdateBarView: OptionalViewSetup<
   { onUpdate: () => void; onDiscard: () => void },
   EditBarState
 > = ({ onDiscard, onUpdate }) =>
-  newStateOptionalMapper({
+  newStateMapper<EditBarState, OptionalJsonHtml>(undefined, {
     visible: () =>
       popUpBar(
         "Document has been modified",

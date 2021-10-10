@@ -177,14 +177,15 @@ export const createStore = (
   ] = createStatefulRemoteDriveResourceRead();
   let state: StoreState = ["idle"];
 
-  registerBeforeClose(() => {
-    if (state[0] !== "uploadNeeded") {
-      return;
-    }
-    state[1].stopAutoUpdate();
-    updateState(["uploading", state[1]]);
-    return "Your browser data is uploading to remove drive, please don't leave now";
-  });
+  registerBeforeClose(() =>
+    mapState<StoreState, string | undefined>(state, undefined, {
+      uploadNeeded: (storeSync) => {
+        storeSync.stopAutoUpdate();
+        updateState(["uploading", storeSync]);
+        return "Your browser data is uploading to remove drive, please don't leave now";
+      },
+    })
+  );
 
   const setupStoreSync = (drive: RemoteDrive): StoreSync => {
     return {
@@ -374,12 +375,8 @@ export const createStore = (
     updateRemoteDriveState: (driveState: RemoteDriverState) => {
       updateDriveReaderState(driveState);
       updateState(
-        mapState(driveState, {
-          off: () => ["idle"],
-          loading: () => ["idle"],
-          on: (drive) => {
-            return ["downloading", setupStoreSync(drive)];
-          },
+        mapState(driveState, ["idle"] as StoreState, {
+          on: (drive) => ["downloading", setupStoreSync(drive)],
         })
       );
     },

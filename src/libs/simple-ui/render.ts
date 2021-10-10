@@ -107,9 +107,11 @@ export type Prop =
   | Provider<unknown>;
 type ViewProps = Record<string, Prop> | Prop | void;
 export type View<T extends ViewProps = void> = (props: T) => JsonHtml;
+
+export type OptionalJsonHtml = JsonHtml | undefined;
 export type OptionalView<T extends ViewProps = void> = (
   props: T
-) => JsonHtml | undefined;
+) => OptionalJsonHtml;
 
 // type ViewConfig = Record<string, Prop | Listener<any> | ComponentRuntime> | void;
 export type ViewSetup<C = void, T extends ViewProps = void> = (

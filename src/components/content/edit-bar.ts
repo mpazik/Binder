@@ -1,11 +1,12 @@
 import { fork, link, map } from "linki";
 
-import { newStateOptionalMapper } from "../../libs/named-state";
+import { newStateMapper } from "../../libs/named-state";
 import {
   button,
   Component,
   div,
   JsonHtml,
+  OptionalJsonHtml,
   OptionalViewSetup,
   span,
 } from "../../libs/simple-ui/render";
@@ -80,7 +81,7 @@ const createSaveBarView: OptionalViewSetup<
   { onSave: () => void },
   EditBarState
 > = ({ onSave }) =>
-  newStateOptionalMapper({
+  newStateMapper<EditBarState, OptionalJsonHtml>(undefined, {
     visible: () =>
       popUpBar(
         "External document, not yet saved",
