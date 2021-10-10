@@ -1,17 +1,10 @@
 import { link, map } from "linki";
 
 import { CATEGORIES_ENABLED } from "../../config";
-import { LinkedData } from "../../libs/jsonld-format";
+import type { LinkedData } from "../../libs/jsonld-format";
 import { findUrl } from "../../libs/linked-data";
-import {
-  a,
-  Component,
-  div,
-  newSlot,
-  Slot,
-  span,
-  ViewSetup,
-} from "../../libs/simple-ui/render";
+import type { Component, Slot, ViewSetup } from "../../libs/simple-ui/render";
+import { a, div, newSlot, span } from "../../libs/simple-ui/render";
 import { multiSelect } from "../common/multi-select";
 
 const newContentHeader: ViewSetup<{ categoriesSlot: Slot }, LinkedData> = ({

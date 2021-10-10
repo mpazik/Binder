@@ -1,4 +1,8 @@
-import { AnnotationSelector, DocFragment, QuoteSelector } from "./annotation";
+import type {
+  AnnotationSelector,
+  DocFragment,
+  QuoteSelector,
+} from "./annotation";
 import { expandText } from "./utils/string-expand";
 
 const undefinedForEmptyString = (string: string): string | undefined =>

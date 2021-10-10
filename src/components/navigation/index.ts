@@ -1,30 +1,18 @@
-import {
-  Callback,
-  fork,
-  Close,
-  defined,
-  filter,
-  link,
-  map,
-  not,
-  withState,
-} from "linki";
+import type { Callback, Close } from "linki";
+import { fork, defined, filter, link, map, not, withState } from "linki";
 
-import { GDriveLoadingProfile } from "../../functions/gdrive/app-files";
-import { GDriveAction } from "../../functions/gdrive/controller";
-import { DirectoryIndex } from "../../functions/indexes/directory-index";
-import { WatchHistorySearch } from "../../functions/indexes/watch-history-index";
+import type { GDriveLoadingProfile } from "../../functions/gdrive/app-files";
+import type { GDriveAction } from "../../functions/gdrive/controller";
+import type { DirectoryIndex } from "../../functions/indexes/directory-index";
+import type { WatchHistorySearch } from "../../functions/indexes/watch-history-index";
 import { createRecentDocumentSearch } from "../../functions/recent-document-serach";
-import { UriWithFragment } from "../../functions/url-hijack";
-import {
-  Component,
-  JsonHtml,
-  newSlot,
-  slot,
-} from "../../libs/simple-ui/render";
+import type { UriWithFragment } from "../../functions/url-hijack";
+import type { Component, JsonHtml } from "../../libs/simple-ui/render";
+import { newSlot, slot } from "../../libs/simple-ui/render";
 import { getTarget } from "../../libs/simple-ui/utils/funtions";
 
-import { profilePanel, ProfilePanelControl } from "./profile";
+import type { ProfilePanelControl } from "./profile";
+import { profilePanel } from "./profile";
 import { searchBox } from "./search-box";
 import { appNavContent, navigationView } from "./view";
 

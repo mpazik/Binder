@@ -1,30 +1,24 @@
-import { Callback } from "linki";
+import type { Callback } from "linki";
 
-import {
-  defaultSettings,
+import type {
   DisplaySettings,
   Settings,
 } from "../../../components/display-settings";
+import { defaultSettings } from "../../../components/display-settings";
+import type { ReplaceAction } from "../../../components/display-settings/replace-action";
 import {
   nameFromCustomSchema,
-  ReplaceAction,
   settingValueFromCustomSchema,
 } from "../../../components/display-settings/replace-action";
-import { HashUri } from "../../../libs/hash";
-import {
-  storeGet,
-  StoreName,
-  StoreProvider,
-  storePut,
-} from "../../../libs/indexeddb";
+import type { HashUri } from "../../../libs/hash";
+import type { StoreName, StoreProvider } from "../../../libs/indexeddb";
+import { storeGet, storePut } from "../../../libs/indexeddb";
 import { isTypeEqualTo } from "../../../libs/linked-data";
-import { LinkedDataDelete } from "../../store/local-store";
+import type { LinkedDataDelete } from "../../store/local-store";
 import { registerRepositoryVersion } from "../../store/repository";
-import {
-  createDynamicStoreProvider,
-  DynamicStoreProvider,
-} from "../dynamic-repo-index";
-import { Indexer, UpdateIndex } from "../types";
+import type { DynamicStoreProvider } from "../dynamic-repo-index";
+import { createDynamicStoreProvider } from "../dynamic-repo-index";
+import type { Indexer, UpdateIndex } from "../types";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type SettingsRecord = {

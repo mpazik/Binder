@@ -1,8 +1,8 @@
 import { asyncPool } from "../../libs/async-pool";
-import { RemoteDrive } from "../remote-drive";
+import type { RemoteDrive } from "../remote-drive";
 
-import { LinkDateResponseExtractor } from "./link-data-response-extractor";
-import { ExternalLinkedDataStoreWrite } from "./local-store";
+import type { LinkDateResponseExtractor } from "./link-data-response-extractor";
+import type { ExternalLinkedDataStoreWrite } from "./local-store";
 
 export type DataDownload = (since: Date | undefined) => Promise<void>;
 

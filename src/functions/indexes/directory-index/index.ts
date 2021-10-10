@@ -1,16 +1,13 @@
-import { HashName } from "../../../libs/hash";
-import {
-  storeGetAllWithKeys,
-  StoreName,
-  StoreProvider,
-  storePut,
-} from "../../../libs/indexeddb";
+import type { HashName } from "../../../libs/hash";
+import type { StoreName, StoreProvider } from "../../../libs/indexeddb";
+import { storeGetAllWithKeys, storePut } from "../../../libs/indexeddb";
 import { getType } from "../../../libs/linked-data";
 import { measureAsyncTime } from "../../../libs/performance";
 import { createLinkedDataProvider } from "../../store/local-store";
 import { registerRepositoryVersion } from "../../store/repository";
-import { createDynamicIndex, DynamicRepoIndex } from "../dynamic-repo-index";
-import { IndexRecord } from "../types";
+import type { DynamicRepoIndex } from "../dynamic-repo-index";
+import { createDynamicIndex } from "../dynamic-repo-index";
+import type { IndexRecord } from "../types";
 
 import { createQueryMatcher } from "./utils";
 

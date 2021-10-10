@@ -1,10 +1,12 @@
-import { Callback, link } from "linki";
+import type { Callback } from "linki";
+import { link } from "linki";
 
 import { firstOf, lastOf } from "../../../libs/array";
 import { splitDefined } from "../../../libs/linki";
-import { Component, div, View } from "../../../libs/simple-ui/render";
+import type { Component, View } from "../../../libs/simple-ui/render";
+import { div } from "../../../libs/simple-ui/render";
 
-import { DocumentChange } from "./document-change";
+import type { DocumentChange } from "./document-change";
 
 export const documentChangeTopRelativePosition = ({
   editor,

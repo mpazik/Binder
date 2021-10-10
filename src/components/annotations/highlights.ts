@@ -1,7 +1,7 @@
 import { throwIfNull } from "../../libs/errors";
 
-import { QuoteSelector } from "./annotation";
-import { Position } from "./selection";
+import type { QuoteSelector } from "./annotation";
+import type { Position } from "./selection";
 
 type Rect = {
   top: number;

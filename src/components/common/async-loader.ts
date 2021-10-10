@@ -1,12 +1,9 @@
-import {
+import type {
   Component,
   ComponentBody,
-  div,
-  h1,
-  pre,
-  span,
   View,
 } from "../../libs/simple-ui/render";
+import { div, h1, pre, span } from "../../libs/simple-ui/render";
 
 export const loading: View = () => span("Loading...");
 

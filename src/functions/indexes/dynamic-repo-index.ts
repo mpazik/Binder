@@ -1,8 +1,8 @@
 import { throwIfUndefined } from "../../libs/errors";
-import { StoreName, StoreProvider } from "../../libs/indexeddb";
-import { RepositoryDb } from "../store/repository";
+import type { StoreName, StoreProvider } from "../../libs/indexeddb";
+import type { RepositoryDb } from "../store/repository";
 
-import { Index, SearchIndex, UpdateIndex } from "./types";
+import type { Index, SearchIndex, UpdateIndex } from "./types";
 
 export type DynamicRepoIndex<Q, T> = Index<Q, T> & {
   switchRepo: (db: RepositoryDb) => void;

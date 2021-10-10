@@ -1,6 +1,6 @@
 import { GDRIVE_API_KEY, GDRIVE_CLIENT_ID } from "../../config";
-import { Opaque } from "../../libs/types";
-import { DriverAccount } from "../global-db";
+import type { Opaque } from "../../libs/types";
+import type { DriverAccount } from "../global-db";
 
 const DISCOVERY_DOCS = [
   "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest",
@@ -21,9 +21,11 @@ type AuthInstance = {
 export type GApi = {
   load: (api: string, callback: () => void) => void;
   client: {
-    init: (data: any, a: () => void) => Promise<void>;
+    init: (data: unknown, a: () => void) => Promise<void>;
     drive: {
-      about: { get: (params: any) => any };
+      about: {
+        get: (params: { fields: string }) => Promise<{ body: string }>;
+      };
     };
   };
   auth2: {
@@ -117,4 +119,4 @@ export const gdriveUserToAccount = ({
 export const getUserProfile = async (gapi: GApi): Promise<GDriveUserProfile> =>
   await gapi.client.drive.about
     .get({ fields: "storageQuota,user" })
-    .then((it: any) => JSON.parse(it.body));
+    .then((it) => JSON.parse(it.body));

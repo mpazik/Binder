@@ -1,10 +1,10 @@
-import { Callback } from "linki";
+import type { Callback } from "linki";
 
-import { HashUri } from "../../libs/hash";
+import type { HashUri } from "../../libs/hash";
 import { handleState, mapState } from "../../libs/named-state";
-import { RemoteDrive, RemoteDriverState } from "../remote-drive";
+import type { RemoteDrive, RemoteDriverState } from "../remote-drive";
 
-import { ResourceStoreRead } from "./local-store";
+import type { ResourceStoreRead } from "./local-store";
 
 type ReaderState =
   | ["off"]

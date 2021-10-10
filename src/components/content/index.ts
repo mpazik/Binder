@@ -1,34 +1,38 @@
+import type { Callback } from "linki";
 import {
   link,
   map,
   pick,
   fork,
   withOptionalState,
-  Callback,
   withMultiState,
 } from "linki";
 
-import { LinkedDataWithContent } from "../../functions/content-processors";
-import { ContentSaver } from "../../functions/content-saver";
-import { AnnotationsIndex } from "../../functions/indexes/annotations-index";
-import { LinkedDataStoreWrite } from "../../functions/store";
-import { LinkedDataStoreRead } from "../../functions/store/local-store";
+import type { LinkedDataWithContent } from "../../functions/content-processors";
+import type { ContentSaver } from "../../functions/content-saver";
+import type { AnnotationsIndex } from "../../functions/indexes/annotations-index";
+import type { LinkedDataStoreWrite } from "../../functions/store";
+import type { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { throwIfNull2 } from "../../libs/errors";
-import { HashUri, isHashUri } from "../../libs/hash";
-import { LinkedData, LinkedDataWithHashId } from "../../libs/jsonld-format";
+import type { HashUri } from "../../libs/hash";
+import { isHashUri } from "../../libs/hash";
+import type {
+  LinkedData,
+  LinkedDataWithHashId,
+} from "../../libs/jsonld-format";
 import { findHashUri } from "../../libs/linked-data";
 import { throwOnNull } from "../../libs/linki";
-import { Component, div, newSlot } from "../../libs/simple-ui/render";
+import type { Component } from "../../libs/simple-ui/render";
+import { div, newSlot } from "../../libs/simple-ui/render";
 import { getTarget } from "../../libs/simple-ui/utils/funtions";
 import { annotationsSupport } from "../annotations";
-import {
-  contentDisplayComponent,
-  LinkedDataWithContentAndFragment,
-} from "../content-body";
+import type { LinkedDataWithContentAndFragment } from "../content-body";
+import { contentDisplayComponent } from "../content-body";
 import { createWatchAction } from "../watch-history/watch-action";
 
 import { contentHeader } from "./content-header";
-import { EditBarState, saveBar } from "./edit-bar";
+import type { EditBarState } from "./edit-bar";
+import { saveBar } from "./edit-bar";
 
 const isNew = (linkedData: LinkedData) => !findHashUri(linkedData);
 

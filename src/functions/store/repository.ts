@@ -1,16 +1,15 @@
 import { asyncLoop } from "../../libs/async-pool";
-import { HashUri } from "../../libs/hash";
+import type { HashUri } from "../../libs/hash";
+import type { StoreName, StoreProvider } from "../../libs/indexeddb";
 import {
   createStoreProvider,
   openDb,
   storeClear,
   storeGetNext,
-  StoreName,
-  StoreProvider,
 } from "../../libs/indexeddb";
-import { LinkedDataWithHashId } from "../../libs/jsonld-format";
+import type { LinkedDataWithHashId } from "../../libs/jsonld-format";
 import { measureAsyncTime } from "../../libs/performance";
-import { DriverAccount } from "../global-db";
+import type { DriverAccount } from "../global-db";
 
 export type RepositoryDb = {
   getStoreProvider<T>(name: string): StoreProvider<T>;

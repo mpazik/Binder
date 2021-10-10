@@ -1,18 +1,12 @@
-import { Close, Provider } from "linki";
+import type { Close, Provider } from "linki";
 
-import {
+import type {
   SimplifiedElementsMap,
   SimplifiedEvent,
   SimplifiedEventMap,
 } from "./dom";
-import {
-  Attributes,
-  JsonMl,
-  mapJsonMl,
-  newTagFactory,
-  TagName,
-  TagProps,
-} from "./jsonml";
+import type { Attributes, JsonMl, TagName, TagProps } from "./jsonml";
+import { mapJsonMl, newTagFactory } from "./jsonml";
 
 // todo render should be independent from JsonML and accpet only raw dom
 // there could be another jsonMl (jsonHtml) render that act as a glue code

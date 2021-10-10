@@ -1,9 +1,9 @@
-import {
+import type {
   ExternalLinkedDataStoreWrite,
   LinkedDataStoreRead,
 } from "../../functions/store/local-store";
-import { HashUri } from "../hash";
-import { LinkedDataWithHashId } from "../jsonld-format";
+import type { HashUri } from "../hash";
+import type { LinkedDataWithHashId } from "../jsonld-format";
 
 export interface MockedLinkedDataStore {
   readLinkedData: LinkedDataStoreRead;

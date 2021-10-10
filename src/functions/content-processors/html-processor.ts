@@ -2,12 +2,12 @@ import { Readability } from "docland-readability";
 import * as pdfjsLib from "pdfjs-dist";
 
 import { throwIfNull } from "../../libs/errors";
-import { LinkedData } from "../../libs/jsonld-format";
+import type { LinkedData } from "../../libs/jsonld-format";
 import { htmlMediaType, createArticle } from "../../libs/ld-schemas";
 import { measureTime } from "../../libs/performance";
 import { documentToBlob } from "../content-saver";
 
-import { ContentProcessor } from "./types";
+import type { ContentProcessor } from "./types";
 import { getLinkedDataName } from "./utils";
 
 export const parseArticleContent = (body: string): Document => {

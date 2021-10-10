@@ -1,25 +1,13 @@
-import {
-  fork,
-  passOnlyChanged,
-  filter,
-  not,
-  map,
-  link,
-  and,
-  Callback,
-} from "linki";
+import type { Callback } from "linki";
+import { fork, passOnlyChanged, filter, not, map, link, and } from "linki";
 
 import { keyNameTooltip } from "../../libs/key-events";
-import { button, Component, div, View } from "../../libs/simple-ui/render";
+import type { Component, View } from "../../libs/simple-ui/render";
+import { button, div } from "../../libs/simple-ui/render";
 import { hasNoKeyModifier, isKey } from "../../libs/simple-ui/utils/funtions";
 
-import {
-  OptSelection,
-  Position,
-  Selection,
-  selectionExists,
-  selectionPosition,
-} from "./selection";
+import type { OptSelection, Position, Selection } from "./selection";
+import { selectionExists, selectionPosition } from "./selection";
 
 export type Button = {
   handler: (selection: Selection) => void;

@@ -1,4 +1,5 @@
-import { Processor, reduce } from "linki";
+import type { Processor } from "linki";
+import { reduce } from "linki";
 
 export type NamedAction<N, T = void> = T extends void
   ? [name: N]

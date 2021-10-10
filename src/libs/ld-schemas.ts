@@ -1,6 +1,6 @@
-import { Article, CreativeWork, WithContext } from "schema-dts";
+import type { Article, CreativeWork, WithContext } from "schema-dts";
 
-import { LinkedData } from "./jsonld-format";
+import type { LinkedData } from "./jsonld-format";
 
 export const htmlMediaType = "text/html";
 export const pdfMediaType = "application/pdf";

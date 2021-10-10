@@ -1,4 +1,4 @@
-import * as JSZip from "jszip";
+import type * as JSZip from "jszip";
 
 const domParser = new DOMParser();
 

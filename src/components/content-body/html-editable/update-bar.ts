@@ -1,13 +1,13 @@
 import { link, map } from "linki";
 
 import { newStateMapper } from "../../../libs/named-state";
-import {
+import type {
   Component,
   OptionalJsonHtml,
   OptionalViewSetup,
 } from "../../../libs/simple-ui/render";
+import type { EditBarState } from "../../content/edit-bar";
 import {
-  EditBarState,
   errorBar,
   popUpBar,
   simpleBar,

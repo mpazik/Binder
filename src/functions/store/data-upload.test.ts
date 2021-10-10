@@ -1,4 +1,4 @@
-import { HashUri } from "../../libs/hash";
+import type { HashUri } from "../../libs/hash";
 import { newArgCapture } from "../../libs/test-utils/arg-capture";
 import {
   linkedData1,
@@ -7,7 +7,7 @@ import {
 
 import { createDataUploader } from "./data-upload";
 
-import { SyncRecord } from "./index";
+import type { SyncRecord } from "./index";
 
 describe("dataUploader", () => {
   const resource1 = {

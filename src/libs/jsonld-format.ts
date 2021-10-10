@@ -1,6 +1,6 @@
-import { NodeObject } from "jsonld";
+import type { NodeObject } from "jsonld";
 
-import { HashUri } from "./hash";
+import type { HashUri } from "./hash";
 
 export const jsonldFileExtension = "jsonld";
 export const jsonLdMimeType = "application/ld+json";

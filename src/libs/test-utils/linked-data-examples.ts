@@ -1,5 +1,5 @@
-import { HashUri } from "../hash";
-import { LinkedDataWithHashId } from "../jsonld-format";
+import type { HashUri } from "../hash";
+import type { LinkedDataWithHashId } from "../jsonld-format";
 
 export const linkedData1: LinkedDataWithHashId = {
   "@id": "nih:sha-256;e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" as HashUri,

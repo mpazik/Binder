@@ -1,7 +1,7 @@
+import type { Callback } from "linki";
 import {
   and,
   async,
-  Callback,
   debounce,
   defined,
   definedTuple,
@@ -18,24 +18,24 @@ import {
   withState,
 } from "linki";
 
-import { RecentDocuments } from "../../functions/recent-document-serach";
-import {
-  newUriWithFragment,
-  UriWithFragment,
-} from "../../functions/url-hijack";
-import {
+import type { RecentDocuments } from "../../functions/recent-document-serach";
+import type { UriWithFragment } from "../../functions/url-hijack";
+import { newUriWithFragment } from "../../functions/url-hijack";
+import type {
   Component,
   ComponentBody,
+  JsonHtml,
+  View,
+  ViewSetup,
+} from "../../libs/simple-ui/render";
+import {
   div,
   input,
-  JsonHtml,
   li,
   newSlot,
   small,
   span,
   ul,
-  View,
-  ViewSetup,
 } from "../../libs/simple-ui/render";
 import {
   focusElement,

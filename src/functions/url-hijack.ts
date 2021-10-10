@@ -1,4 +1,5 @@
-import { ClosableProvider, fork, link, map, Predicate } from "linki";
+import type { ClosableProvider, Predicate } from "linki";
+import { fork, link, map } from "linki";
 
 import { isAbsoluteUrl } from "../components/common/link";
 import { currentPath } from "../libs/browser-providers";

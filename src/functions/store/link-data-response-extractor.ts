@@ -1,4 +1,5 @@
-import { jsonLdMimeType, LinkedDataWithHashId } from "../../libs/jsonld-format";
+import type { LinkedDataWithHashId } from "../../libs/jsonld-format";
+import { jsonLdMimeType } from "../../libs/jsonld-format";
 import { openJsonZipFiles, zipMimeType } from "../../libs/zip";
 
 export type LinkDateResponseExtractor = (

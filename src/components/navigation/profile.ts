@@ -1,22 +1,24 @@
 import { definedTuple, filter, link, map } from "linki";
 
-import { GDriveProfile } from "../../functions/gdrive/app-files";
-import { GDriveState } from "../../functions/gdrive/controller";
-import { StoreState } from "../../functions/store";
+import type { GDriveProfile } from "../../functions/gdrive/app-files";
+import type { GDriveState } from "../../functions/gdrive/controller";
+import type { StoreState } from "../../functions/store";
 import { combine } from "../../libs/linki";
 import { mapState, newStateMapper } from "../../libs/named-state";
+import type {
+  Component,
+  JsonHtml,
+  View,
+  ViewSetup,
+} from "../../libs/simple-ui/render";
 import {
   a,
   button,
-  Component,
   dangerousHTML,
   div,
-  JsonHtml,
   li,
   p,
   span,
-  View,
-  ViewSetup,
 } from "../../libs/simple-ui/render";
 
 import { dropdownButton, dropdownMenu, loading } from "./common";

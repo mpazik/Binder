@@ -1,4 +1,5 @@
-import { ClosableProvider, link, map } from "linki";
+import type { ClosableProvider } from "linki";
+import { link, map } from "linki";
 
 export const urlHashProvider: ClosableProvider<string> = (push) => {
   const update = () => {

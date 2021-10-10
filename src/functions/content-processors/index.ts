@@ -1,7 +1,7 @@
 import { epubContentProcessor } from "./epub-processor";
 import { htmlContentProcessor } from "./html-processor";
 import { pdfContentProcessor } from "./pdf-processor";
-import { ContentProcessor, LinkedDataWithContent } from "./types";
+import type { ContentProcessor, LinkedDataWithContent } from "./types";
 import { getNameFromUrl } from "./utils";
 
 export type {

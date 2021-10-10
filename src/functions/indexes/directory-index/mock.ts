@@ -1,8 +1,8 @@
-import { HashUri } from "../../../libs/hash";
+import type { HashUri } from "../../../libs/hash";
 
 import { createQueryMatcher } from "./utils";
 
-import { DirectoryIndex, DirectoryRecord } from "./index";
+import type { DirectoryIndex, DirectoryRecord } from "./index";
 
 export const hydraDocHash = "nih:sha-256;02180c4f7f7deb56c7c77ddbb9a2e7da84461f43deb5ecb192e955df175eb1c0" as HashUri;
 export const hydraDirRecord = {

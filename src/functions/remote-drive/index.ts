@@ -1,5 +1,5 @@
-import { HashUri } from "../../libs/hash";
-import { LinkedDataWithHashId } from "../../libs/jsonld-format";
+import type { HashUri } from "../../libs/hash";
+import type { LinkedDataWithHashId } from "../../libs/jsonld-format";
 
 export interface RemoteDrive<FileId = unknown> {
   downloadLinkedData: (fileId: FileId) => Promise<Response>;

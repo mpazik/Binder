@@ -1,6 +1,7 @@
-import { Store } from "./index";
+import type { Store } from "./index";
 
 describe("store", () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let store: Store;
   test("should require upload after writing resource", async () => {});
 

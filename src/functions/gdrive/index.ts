@@ -1,16 +1,16 @@
 import { filterUndefined } from "../../libs/array";
-import { HashUri } from "../../libs/hash";
+import type { HashUri } from "../../libs/hash";
 import { jsonldFileExtension, jsonLdMimeType } from "../../libs/jsonld-format";
 import { createZip } from "../../libs/zip";
-import { RemoteDrive } from "../remote-drive";
+import type { RemoteDrive } from "../remote-drive";
 
-import { GDriveConfig } from "./app-files";
+import type { GDriveConfig } from "./app-files";
+import type { GDriveFileId } from "./file";
 import {
   createFile,
   findByHash,
   findFileIds,
   findFiles,
-  GDriveFileId,
   getFileContent,
   trashFile,
 } from "./file";

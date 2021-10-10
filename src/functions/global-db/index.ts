@@ -1,9 +1,8 @@
+import type { StoreName, StoreProvider } from "../../libs/indexeddb";
 import {
   createStoreProvider,
   openDb,
   storeGet,
-  StoreName,
-  StoreProvider,
   transactionToPromise,
 } from "../../libs/indexeddb";
 

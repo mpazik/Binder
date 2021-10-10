@@ -1,4 +1,4 @@
-import { DocFragment } from "./annotation";
+import type { DocFragment } from "./annotation";
 
 export type Position = [left: number, right: number];
 

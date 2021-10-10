@@ -1,20 +1,10 @@
-import { DirectoryIndex } from "../../functions/indexes/directory-index";
-import { WatchHistorySearch } from "../../functions/indexes/watch-history-index";
-import {
-  createRecentDocumentSearch,
-  RecentDocuments,
-} from "../../functions/recent-document-serach";
+import type { DirectoryIndex } from "../../functions/indexes/directory-index";
+import type { WatchHistorySearch } from "../../functions/indexes/watch-history-index";
+import type { RecentDocuments } from "../../functions/recent-document-serach";
+import { createRecentDocumentSearch } from "../../functions/recent-document-serach";
 import { combineToUri } from "../../functions/url-hijack";
-import {
-  a,
-  Component,
-  div,
-  h4,
-  nav,
-  p,
-  small,
-  View,
-} from "../../libs/simple-ui/render";
+import type { Component, View } from "../../libs/simple-ui/render";
+import { a, div, h4, nav, p, small } from "../../libs/simple-ui/render";
 import { relativeDate } from "../common/relative-date";
 
 const view: View<{

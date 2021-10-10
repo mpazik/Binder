@@ -1,26 +1,14 @@
-import {
-  fork,
-  link,
-  map,
-  passUndefined,
-  pipe,
-  reduce,
-  Reducer,
-  wrap,
-} from "linki";
+import type { Reducer } from "linki";
+import { fork, link, map, passUndefined, pipe, reduce, wrap } from "linki";
 
 import "./mult-select.css";
-import {
-  button,
+import type {
   Component,
-  div,
-  li,
-  newSlot,
   Slot,
-  ul,
   View,
   ViewSetup,
 } from "../../libs/simple-ui/render";
+import { button, div, li, newSlot, ul } from "../../libs/simple-ui/render";
 
 import { creatAutocomplete } from "./autocomplete";
 
@@ -32,7 +20,7 @@ const categoriesComp: Component<
   {
     renderCategories: string[] | undefined;
   }
-> = ({ onCategoryRemoved }) => (render, onClose) => {
+> = ({ onCategoryRemoved }) => (render) => {
   const categoryView: View<{ categories: string[] }> = ({ categories }) =>
     ul(
       { class: "multi-select-selected d-inline" },

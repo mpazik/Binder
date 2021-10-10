@@ -1,4 +1,5 @@
-import { DisplaySettingListeners, setupDisplaySettingsPanel } from "./index";
+import type { DisplaySettingListeners } from "./index";
+import { setupDisplaySettingsPanel } from "./index";
 
 const createLogger = (what: string) => (newValue: string) => {
   console.log(`Changed ${what} to "${newValue}"`);

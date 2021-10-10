@@ -1,4 +1,4 @@
-import { DirectoryQuery, DirectoryRecord } from "./index";
+import type { DirectoryQuery, DirectoryRecord } from "./index";
 
 export const createQueryMatcher = ({ name, type }: DirectoryQuery) => ({
   props,

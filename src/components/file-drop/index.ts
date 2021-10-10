@@ -1,6 +1,8 @@
-import { map, Callback, passUndefined, link } from "linki";
+import type { Callback } from "linki";
+import { map, passUndefined, link } from "linki";
 
-import { Component, h2 } from "../../libs/simple-ui/render";
+import type { Component } from "../../libs/simple-ui/render";
+import { h2 } from "../../libs/simple-ui/render";
 import { blanket } from "../common/blanket";
 
 export const fileDrop: Component<

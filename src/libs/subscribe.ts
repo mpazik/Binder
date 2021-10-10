@@ -1,4 +1,4 @@
-import { Callback } from "linki";
+import type { Callback } from "linki";
 
 export const createQueue = <T>(): [
   push: (value: T) => void,

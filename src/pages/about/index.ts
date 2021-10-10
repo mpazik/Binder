@@ -3,6 +3,7 @@ import "./styles.css";
 import { inline, stack } from "../../components/common/spacing";
 import { productLogo } from "../../components/logo";
 import { navigationView } from "../../components/navigation";
+import type { JsonHtml } from "../../libs/simple-ui/render";
 import {
   a,
   b,
@@ -10,7 +11,6 @@ import {
   footer,
   fragment,
   img,
-  JsonHtml,
   p,
   small,
   source,

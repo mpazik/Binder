@@ -5,7 +5,8 @@ import {
   emptyNavigation,
   emptyNavigationWithLargeLogo,
 } from "../components/navigation/examples";
-import { div, JsonHtml, jsonHtmlToDom } from "../libs/simple-ui/render";
+import type { JsonHtml } from "../libs/simple-ui/render";
+import { div, jsonHtmlToDom } from "../libs/simple-ui/render";
 
 const displaySettingsPanelExamples = [displaySettingsPanelDark];
 const navigationExamples = [
@@ -15,7 +16,10 @@ const navigationExamples = [
   appNavigationWithConfig,
 ];
 
-const examples: JsonHtml[] = displaySettingsPanelExamples;
+const examples: JsonHtml[] = [
+  ...displaySettingsPanelExamples,
+  ...navigationExamples,
+];
 
 const wrapper = (example: JsonHtml) => div(example);
 

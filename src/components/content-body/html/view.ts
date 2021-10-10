@@ -1,14 +1,14 @@
 import "./style.css";
 
-import { link, map, Callback } from "linki";
+import type { Callback } from "linki";
+import { link, map } from "linki";
 
-import { article, ViewSetup } from "../../../libs/simple-ui/render";
+import type { ViewSetup } from "../../../libs/simple-ui/render";
+import { article } from "../../../libs/simple-ui/render";
 import { getTarget } from "../../../libs/simple-ui/utils/funtions";
 import { throttleArg } from "../../../libs/throttle";
-import {
-  DocumentChange,
-  newDocumentComparator,
-} from "../html-editable/document-change";
+import type { DocumentChange } from "../html-editable/document-change";
+import { newDocumentComparator } from "../html-editable/document-change";
 
 export type HtmlContent = { content: Node };
 

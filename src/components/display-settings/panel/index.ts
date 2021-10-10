@@ -2,20 +2,15 @@ import "./styles.css";
 
 import { link, map, cast } from "linki";
 
-import { SimplifiedElementsMap } from "../../../libs/simple-ui/dom";
-import {
-  fragment,
-  h5,
-  input,
-  label,
-  ViewSetup,
-} from "../../../libs/simple-ui/render";
+import type { SimplifiedElementsMap } from "../../../libs/simple-ui/dom";
+import type { ViewSetup } from "../../../libs/simple-ui/render";
+import { fragment, h5, input, label } from "../../../libs/simple-ui/render";
 import {
   getInputTarget,
   inputValue,
 } from "../../../libs/simple-ui/utils/funtions";
 import { inline, inset, stack } from "../../common/spacing";
-import {
+import type {
   DisplaySettings,
   FontFace,
   FontSize,

@@ -1,9 +1,9 @@
-import { WatchAction } from "../../../components/watch-history/watch-action";
-import { HashUri } from "../../../libs/hash";
-import { LinkedDataWithHashId } from "../../../libs/jsonld-format";
+import type { WatchAction } from "../../../components/watch-history/watch-action";
+import type { HashUri } from "../../../libs/hash";
+import type { LinkedDataWithHashId } from "../../../libs/jsonld-format";
 import { definitionDocHash, hydraDocHash } from "../directory-index/mock";
 
-import { WatchHistoryRecord, WatchHistorySearch } from "./index";
+import type { WatchHistoryRecord, WatchHistorySearch } from "./index";
 
 export const hydraWatchActionHash = "nih:sha-256;1e784540af3bcf44ce196c327d6ffcec8aab064fe3d030c9913905e3243adffe" as HashUri;
 export const hydraWatchActionLd: WatchAction & LinkedDataWithHashId = {

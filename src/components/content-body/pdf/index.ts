@@ -1,5 +1,5 @@
+import type { Callback } from "linki";
 import {
-  Callback,
   defined,
   definedTuple,
   filter,
@@ -22,21 +22,18 @@ import { TextLayerBuilder } from "pdfjs-dist/lib/web/text_layer_builder.js";
 import { EventBus } from "pdfjs-dist/lib/web/ui_utils.js";
 import "./text_layer_builder.css";
 
-import { PDFDocumentProxy } from "pdfjs-dist/types/display/api";
+import type { PDFDocumentProxy } from "pdfjs-dist/types/display/api";
 
-import {
-  a,
+import type {
   Component,
-  div,
-  newSlot,
-  span,
   View,
   ViewSetup,
 } from "../../../libs/simple-ui/render";
+import { a, div, newSlot, span } from "../../../libs/simple-ui/render";
 import { getTarget } from "../../../libs/simple-ui/utils/funtions";
 import { createPdfFragment } from "../../annotations/annotation";
 import { loaderWithContext } from "../../common/loader";
-import { ContentComponent, DisplayContext } from "../types";
+import type { ContentComponent, DisplayContext } from "../types";
 import {
   doesElementReadsInput,
   isFocusedElementStatic,

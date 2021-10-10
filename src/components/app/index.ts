@@ -1,6 +1,6 @@
+import type { Callback } from "linki";
 import {
   asyncMapWithErrorHandler,
-  Callback,
   defined,
   definedTuple,
   filter,
@@ -17,35 +17,33 @@ import {
   to,
 } from "linki";
 
-import {
-  initConfiguredAnalyticsForRepoAccount,
+import type {
   AnalyticsSender,
   UpdateAnalyticsRepoAccount,
-  createErrorSender,
 } from "../../functions/analytics";
 import {
-  LinkedDataWithContent,
-  processFileToContent,
-} from "../../functions/content-processors";
+  initConfiguredAnalyticsForRepoAccount,
+  createErrorSender,
+} from "../../functions/analytics";
+import type { LinkedDataWithContent } from "../../functions/content-processors";
+import { processFileToContent } from "../../functions/content-processors";
 import { createContentSaver } from "../../functions/content-saver";
-import { createProxyFetch, Fetch } from "../../functions/fetch-trough-proxy";
+import type { Fetch } from "../../functions/fetch-trough-proxy";
+import { createProxyFetch } from "../../functions/fetch-trough-proxy";
 import { createGDrive } from "../../functions/gdrive";
 import { gdriveUserToAccount } from "../../functions/gdrive/auth";
-import { gdrive, GDriveState } from "../../functions/gdrive/controller";
-import {
-  DriverAccount,
-  getLastLogin,
-  GlobalDb,
-  openGlobalDb,
-} from "../../functions/global-db";
+import type { GDriveState } from "../../functions/gdrive/controller";
+import { gdrive } from "../../functions/gdrive/controller";
+import type { DriverAccount, GlobalDb } from "../../functions/global-db";
+import { getLastLogin, openGlobalDb } from "../../functions/global-db";
 import { createAnnotationsIndex } from "../../functions/indexes/annotations-index";
 import { createCompositeIndexer } from "../../functions/indexes/composite-indexer";
 import { createDirectoryIndex } from "../../functions/indexes/directory-index";
+import type { SettingsRecord } from "../../functions/indexes/settings-index";
 import {
   createSettingsIndexer,
   createSettingsStore,
   createSettingsSubscription,
-  SettingsRecord,
   settingsStoreName,
 } from "../../functions/indexes/settings-index";
 import { createUriIndex } from "../../functions/indexes/url-index";
@@ -55,27 +53,32 @@ import {
   createWatchHistorySearch,
   createWatchHistoryStore,
 } from "../../functions/indexes/watch-history-index";
-import {
-  createLinkedDataWithDocumentFetcher,
-  LinkedDataWithContentFetcher,
-} from "../../functions/linked-data-fetcher";
-import { RemoteDrive, RemoteDriverState } from "../../functions/remote-drive";
-import { createStore, StoreState } from "../../functions/store";
-import {
-  openAccountRepository,
-  openUnclaimedRepository,
+import type { LinkedDataWithContentFetcher } from "../../functions/linked-data-fetcher";
+import { createLinkedDataWithDocumentFetcher } from "../../functions/linked-data-fetcher";
+import type {
+  RemoteDrive,
+  RemoteDriverState,
+} from "../../functions/remote-drive";
+import type { StoreState } from "../../functions/store";
+import { createStore } from "../../functions/store";
+import type {
   RepositoryDb,
   UnclaimedRepositoryDb,
 } from "../../functions/store/repository";
+import {
+  openAccountRepository,
+  openUnclaimedRepository,
+} from "../../functions/store/repository";
+import type { UriWithFragment } from "../../functions/url-hijack";
 import {
   documentLinksUriProvider,
   newUriWithFragment,
   pathToUri,
   updateBrowserHistory,
-  UriWithFragment,
 } from "../../functions/url-hijack";
 import { browserPathProvider, currentPath } from "../../libs/browser-providers";
-import { HashName, HashUri, isHashUri } from "../../libs/hash";
+import type { HashName, HashUri } from "../../libs/hash";
+import { isHashUri } from "../../libs/hash";
 import { listDbs, storeGetAll } from "../../libs/indexeddb";
 import { combine } from "../../libs/linki";
 import {
@@ -85,21 +88,16 @@ import {
   newStateMapper,
 } from "../../libs/named-state";
 import { measureAsyncTime } from "../../libs/performance";
-import {
-  div,
-  Handlers,
-  newSlot,
-  Slot,
-  slot,
-  ViewSetup,
-} from "../../libs/simple-ui/render";
+import type { Handlers, Slot, ViewSetup } from "../../libs/simple-ui/render";
+import { div, newSlot, slot } from "../../libs/simple-ui/render";
 import { AboutPage } from "../../pages/about";
 import { accountPicker } from "../account-picker";
 import { asyncLoader } from "../common/async-loader";
 import { loader } from "../common/loader";
 import { contentComponent } from "../content";
 import { docsDirectory } from "../directory";
-import { Settings, updateDisplaySettings } from "../display-settings";
+import type { Settings } from "../display-settings";
+import { updateDisplaySettings } from "../display-settings";
 import {
   setupDisplaySettingsPanel,
   typographyIcon,

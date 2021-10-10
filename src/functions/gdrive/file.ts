@@ -1,7 +1,7 @@
-import { HashUri } from "../../libs/hash";
-import { Opaque } from "../../libs/types";
+import type { HashUri } from "../../libs/hash";
+import type { Opaque } from "../../libs/types";
 
-import { GoogleAuthToken } from "./auth";
+import type { GoogleAuthToken } from "./auth";
 
 export type GDriveFileId = Opaque<string>;
 export type GDriveFile = {

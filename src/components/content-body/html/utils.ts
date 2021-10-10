@@ -1,13 +1,13 @@
-import { Callback } from "linki";
+import type { Callback } from "linki";
 
 import {
   getDocumentContentRoot,
   parseArticleContent,
 } from "../../../functions/content-processors/html-processor";
-import { DisplayContext } from "../types";
+import type { DisplayContext } from "../types";
 import { scrollToTop } from "../utils";
 
-import { HtmlContent } from "./view";
+import type { HtmlContent } from "./view";
 
 export const processToDocument = async (content: Blob): Promise<Document> =>
   parseArticleContent(await content.text());

@@ -1,6 +1,6 @@
-import { LinkedData, LinkedDataWithHashId } from "./jsonld-format";
+import type { LinkedData, LinkedDataWithHashId } from "./jsonld-format";
 import { normalizeLinkedData } from "./linked-data";
-import { Opaque } from "./types";
+import type { Opaque } from "./types";
 
 type Hash = ArrayBuffer;
 type HashHex = string;
@@ -82,6 +82,7 @@ export const hashLinkedData = async (
   data: LinkedData,
   algorithm: HashingAlgorithm = "sha-256"
 ): Promise<HashUri> => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { "@id": id, ...rest } = data;
   const normalized = await normalizeLinkedData(rest);
   return hashToUri(normalized, hashBytes, algorithm);

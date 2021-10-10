@@ -1,15 +1,14 @@
-import {
+import type {
   Callback,
   Callbacks,
-  defined,
   PartialTuple,
   Processor,
   ProcessorMultiIn,
-  reduce,
   Transformer,
   Tuple,
 } from "linki";
-import { ProcessorMultiOut } from "linki/dist/processors/processor";
+import { defined, reduce } from "linki";
+import type { ProcessorMultiOut } from "linki/dist/processors/processor";
 
 import { throwIfUndefined } from "../errors";
 

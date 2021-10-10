@@ -1,4 +1,5 @@
-import { JsonHtml, span } from "../../libs/simple-ui/render";
+import type { JsonHtml } from "../../libs/simple-ui/render";
+import { span } from "../../libs/simple-ui/render";
 
 export const maxLengthText = (text: string, limit: number): JsonHtml =>
   text.length <= limit

@@ -1,19 +1,14 @@
-import {
-  Annotation,
-  isFragmentSelector,
-} from "../../components/annotations/annotation";
-import { HashUri } from "../../libs/hash";
-import {
-  storeGet,
-  StoreName,
-  StoreProvider,
-  storePut,
-} from "../../libs/indexeddb";
+import type { Annotation } from "../../components/annotations/annotation";
+import { isFragmentSelector } from "../../components/annotations/annotation";
+import type { HashUri } from "../../libs/hash";
+import type { StoreName, StoreProvider } from "../../libs/indexeddb";
+import { storeGet, storePut } from "../../libs/indexeddb";
 import { isTypeEqualTo } from "../../libs/linked-data";
 import { registerRepositoryVersion } from "../store/repository";
 
-import { createDynamicIndex2, DynamicRepoIndex } from "./dynamic-repo-index";
-import { UpdateIndex } from "./types";
+import type { DynamicRepoIndex } from "./dynamic-repo-index";
+import { createDynamicIndex2 } from "./dynamic-repo-index";
+import type { UpdateIndex } from "./types";
 
 export type DocumentAnnotationsQuery = {
   hash: HashUri;

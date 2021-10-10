@@ -2,7 +2,7 @@ import * as JSZip from "jszip";
 
 import { getXmlFile } from "../../libs/epub";
 import { throwIfNull } from "../../libs/errors";
-import { LinkedData } from "../../libs/jsonld-format";
+import type { LinkedData } from "../../libs/jsonld-format";
 import { createCreativeWork, epubMediaType } from "../../libs/ld-schemas";
 
 import type { ContentProcessor } from "./types";

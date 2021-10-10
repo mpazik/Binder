@@ -1,13 +1,5 @@
-import {
-  a,
-  details,
-  div,
-  li,
-  summary,
-  ul,
-  View,
-  ViewSetup,
-} from "../../libs/simple-ui/render";
+import type { View, ViewSetup } from "../../libs/simple-ui/render";
+import { a, details, div, li, summary, ul } from "../../libs/simple-ui/render";
 
 const moreIcon = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">

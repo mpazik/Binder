@@ -1,13 +1,15 @@
-import { normalize, Options } from "jsonld";
-import { JsonLd } from "jsonld/jsonld-spec";
-import { URL } from "schema-dts";
+import type { Options } from "jsonld";
+import { normalize } from "jsonld";
+import type { JsonLd } from "jsonld/jsonld-spec";
+import type { URL } from "schema-dts";
 
 import annotations from "../schema/anno.json";
 import schemaorg from "../schema/schemaorg.json";
 
 import { throwIfNull } from "./errors";
-import { HashName, HashUri, isHashUri } from "./hash";
-import { LinkedData, LinkedDataWithHashId } from "./jsonld-format";
+import type { HashName, HashUri } from "./hash";
+import { isHashUri } from "./hash";
+import type { LinkedData, LinkedDataWithHashId } from "./jsonld-format";
 
 const contexts = new Map<string, JsonLd>([
   ["http://www.w3.org/ns/anno.jsonld", annotations as JsonLd],

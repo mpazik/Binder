@@ -1,4 +1,4 @@
-import { WatchAction as WatchActionSchema, WithContext } from "schema-dts";
+import type { WatchAction as WatchActionSchema, WithContext } from "schema-dts";
 
 export type WatchAction = WithContext<WatchActionSchema>;
 export const createWatchAction = (

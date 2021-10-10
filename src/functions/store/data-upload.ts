@@ -1,12 +1,15 @@
 import { splitArray } from "../../libs/array";
 import { asyncPool, browserHostConnectionsLimit } from "../../libs/async-pool";
-import { HashUri } from "../../libs/hash";
-import { LinkedDataWithHashId } from "../../libs/jsonld-format";
-import { RemoteDrive } from "../remote-drive";
+import type { HashUri } from "../../libs/hash";
+import type { LinkedDataWithHashId } from "../../libs/jsonld-format";
+import type { RemoteDrive } from "../remote-drive";
 
-import { LinkedDataStoreRead, LinkedDataStoreReadAll } from "./local-store";
+import type {
+  LinkedDataStoreRead,
+  LinkedDataStoreReadAll,
+} from "./local-store";
 
-import { ResourceStoreRead, SyncRecord } from "./index";
+import type { ResourceStoreRead, SyncRecord } from "./index";
 
 export type DataUpload = () => Promise<void>;
 

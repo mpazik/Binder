@@ -2,11 +2,11 @@ import { isHashUri } from "../libs/hash";
 import { htmlMediaType } from "../libs/ld-schemas";
 import { getUrls } from "../libs/linked-data";
 
-import {
+import type {
   LinkedDataWithContent,
   SavedLinkedDataWithContent,
 } from "./content-processors";
-import { LinkedDataStoreWrite, ResourceStoreWrite } from "./store";
+import type { LinkedDataStoreWrite, ResourceStoreWrite } from "./store";
 
 export type ContentSaver = (
   data: LinkedDataWithContent
@@ -28,7 +28,7 @@ export const createContentSaver = (
 ): ContentSaver => {
   return async ({ content, linkedData }) => {
     const contentHash = await storeWrite(content, linkedData.name as string);
-    // eslint-disable-next-line unused-imports/no-unused-vars-ts,@typescript-eslint/no-unused-vars
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { "@id": _, ...linkedDataWithContentHashUri } = linkedData;
     linkedDataWithContentHashUri["url"] = [
       ...getUrls(linkedData).filter((uri) => !isHashUri(uri)),

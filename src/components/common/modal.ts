@@ -1,4 +1,5 @@
-import { Component, div, JsonHtml } from "../../libs/simple-ui/render";
+import type { Component, JsonHtml } from "../../libs/simple-ui/render";
+import { div } from "../../libs/simple-ui/render";
 
 import { blanket } from "./blanket";
 

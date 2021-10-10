@@ -1,4 +1,4 @@
-import { UpdateIndex } from "./types";
+import type { UpdateIndex } from "./types";
 
 export const createCompositeIndexer = (
   indexers: UpdateIndex[]

@@ -1,4 +1,5 @@
-import { a, dangerousHTML, h2, span, View } from "../../libs/simple-ui/render";
+import type { View } from "../../libs/simple-ui/render";
+import { a, dangerousHTML, h2, span } from "../../libs/simple-ui/render";
 
 export const productIcon = `
 <svg class="v-align-middle" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 64 64" stroke="currentColor" fill="currentColor">

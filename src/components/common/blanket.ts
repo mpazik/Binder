@@ -1,9 +1,9 @@
-import {
-  div,
+import type {
   JsonHtml,
   JsonHtmlAttrs,
   JsonHtmlProps,
 } from "../../libs/simple-ui/render";
+import { div } from "../../libs/simple-ui/render";
 
 export const blanketStyles: Partial<CSSStyleDeclaration> = {
   top: "0",

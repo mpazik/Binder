@@ -1,21 +1,15 @@
-import { WatchAction } from "../../../components/watch-history/watch-action";
-import { HashUri, isHashUri } from "../../../libs/hash";
-import {
-  storeGet,
-  storeGetAll,
-  StoreName,
-  StoreProvider,
-  storePut,
-} from "../../../libs/indexeddb";
+import type { WatchAction } from "../../../components/watch-history/watch-action";
+import type { HashUri } from "../../../libs/hash";
+import { isHashUri } from "../../../libs/hash";
+import type { StoreName, StoreProvider } from "../../../libs/indexeddb";
+import { storeGet, storeGetAll, storePut } from "../../../libs/indexeddb";
 import { isTypeEqualTo } from "../../../libs/linked-data";
-import { LinkedDataDelete } from "../../store/local-store";
+import type { LinkedDataDelete } from "../../store/local-store";
 import { registerRepositoryVersion } from "../../store/repository";
 import { newUriWithFragment } from "../../url-hijack";
-import {
-  createDynamicStoreProvider,
-  DynamicStoreProvider,
-} from "../dynamic-repo-index";
-import { Indexer, UpdateIndex } from "../types";
+import type { DynamicStoreProvider } from "../dynamic-repo-index";
+import { createDynamicStoreProvider } from "../dynamic-repo-index";
+import type { Indexer, UpdateIndex } from "../types";
 
 export type WatchHistoryQuery = HashUri;
 export type WatchHistoryRecord = {

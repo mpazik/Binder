@@ -11,16 +11,8 @@ import {
   withState,
 } from "linki";
 
-import {
-  Component,
-  div,
-  input,
-  li,
-  newSlot,
-  ul,
-  View,
-  ViewSetup,
-} from "../../libs/simple-ui/render";
+import type { Component, View, ViewSetup } from "../../libs/simple-ui/render";
+import { div, input, li, newSlot, ul } from "../../libs/simple-ui/render";
 import {
   getInputTarget,
   getTarget,

@@ -1,10 +1,11 @@
 import { createSettingUpdateAction } from "../../../components/display-settings/replace-action";
-import { HashUri } from "../../../libs/hash";
-import { LinkedDataWithHashId } from "../../../libs/jsonld-format";
+import type { HashUri } from "../../../libs/hash";
+import type { LinkedDataWithHashId } from "../../../libs/jsonld-format";
 import { getHash } from "../../../libs/linked-data";
 import { createQueue } from "../../../libs/subscribe";
 
-import { createSettingsSubscription, index, SettingsRecord } from "./index";
+import type { SettingsRecord } from "./index";
+import { createSettingsSubscription, index } from "./index";
 
 const eventStartTime = "2021-07-31T07:00:00.000Z";
 const event = {
@@ -31,7 +32,7 @@ describe("index", () => {
   });
 
   test("ignores event with missing properties", async () => {
-    // eslint-disable-next-line unused-imports/no-unused-vars-ts,@typescript-eslint/no-unused-vars
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { replacer, ...partialEvent } = event;
     const record = index(partialEvent as LinkedDataWithHashId);
     expect(record).toBeUndefined();

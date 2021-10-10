@@ -1,5 +1,5 @@
+import type { Callback } from "linki";
 import {
-  Callback,
   defined,
   filter,
   fork,
@@ -11,13 +11,15 @@ import {
   wrap,
 } from "linki";
 
-import { Component, newSlot } from "../../../libs/simple-ui/render";
+import type { Component } from "../../../libs/simple-ui/render";
+import { newSlot } from "../../../libs/simple-ui/render";
 import { loader } from "../../common/loader";
-import { ContentComponent } from "../types";
+import type { ContentComponent } from "../types";
 import { lastSeenElement, scrollToFragmentOrTop } from "../utils";
 
 import { processToHtml } from "./utils";
-import { HtmlContent, setupHtmlView } from "./view";
+import type { HtmlContent } from "./view";
+import { setupHtmlView } from "./view";
 
 const contentComponent: Component<
   {

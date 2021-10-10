@@ -1,4 +1,4 @@
-import { Opaque } from "./types";
+import type { Opaque } from "./types";
 
 export const openDb = (
   dbName: string,
@@ -25,7 +25,7 @@ export const listDbs = (): Promise<string[]> => {
 export type StoreName = Opaque<string>;
 export const defaultStoreName = "store" as StoreName;
 
-// eslint-disable-next-line unused-imports/no-unused-vars-ts,@typescript-eslint/no-unused-vars
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type SingleStoreDb<T> = IDBDatabase;
 export type StoreDb = IDBDatabase;
 
@@ -65,7 +65,7 @@ export const openStoreDb = async (
   return db;
 };
 
-// eslint-disable-next-line unused-imports/no-unused-vars-ts,@typescript-eslint/no-unused-vars
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type Store<T> = IDBObjectStore;
 export type StoreProvider<T> = (write: boolean | void) => Store<T>;
 

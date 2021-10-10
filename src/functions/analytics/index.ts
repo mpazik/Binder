@@ -1,8 +1,9 @@
 import posthog from "posthog-js";
 
 import { ANALYTICS_KEY } from "../../config";
-import { hashToName, hashString, HashName } from "../../libs/hash";
-import { DriverAccount } from "../global-db";
+import type { HashName } from "../../libs/hash";
+import { hashToName, hashString } from "../../libs/hash";
+import type { DriverAccount } from "../global-db";
 
 export type AnalyticsSender = (key: string, props?: object) => void;
 export type UserId = string;

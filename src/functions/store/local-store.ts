@@ -1,18 +1,16 @@
 import { asyncLoop } from "../../libs/async-pool";
-import { HashUri } from "../../libs/hash";
-import {
-  storeDelete,
-  storeGetNext,
-  StoreName,
-  StoreProvider,
-} from "../../libs/indexeddb";
-import { LinkedData, LinkedDataWithHashId } from "../../libs/jsonld-format";
-import {
-  createDynamicStoreProvider,
-  DynamicStoreProvider,
-} from "../indexes/dynamic-repo-index";
+import type { HashUri } from "../../libs/hash";
+import type { StoreName, StoreProvider } from "../../libs/indexeddb";
+import { storeDelete, storeGetNext } from "../../libs/indexeddb";
+import type {
+  LinkedData,
+  LinkedDataWithHashId,
+} from "../../libs/jsonld-format";
+import type { DynamicStoreProvider } from "../indexes/dynamic-repo-index";
+import { createDynamicStoreProvider } from "../indexes/dynamic-repo-index";
 
-import { registerRepositoryVersion, RepositoryDb } from "./repository";
+import type { RepositoryDb } from "./repository";
+import { registerRepositoryVersion } from "./repository";
 
 const resourcesStoreName = "resources" as StoreName;
 const linkedDataStoreName = "linked-data" as StoreName;

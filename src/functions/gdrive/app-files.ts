@@ -1,27 +1,14 @@
 import { GDRIVE_APP_DIR_NAME } from "../../config";
-import { HashUri } from "../../libs/hash";
-import {
-  openDb,
-  storeGet,
-  StoreName,
-  StoreProvider,
-  storePut,
-} from "../../libs/indexeddb";
-import { registerRepositoryVersion, RepositoryDb } from "../store/repository";
+import type { HashUri } from "../../libs/hash";
+import type { StoreName, StoreProvider } from "../../libs/indexeddb";
+import { openDb, storeGet, storePut } from "../../libs/indexeddb";
+import type { RepositoryDb } from "../store/repository";
+import { registerRepositoryVersion } from "../store/repository";
 
-import {
-  GApi,
-  GDriveQuota,
-  GDriveUser,
-  getUserProfile,
-  GoogleAuthToken,
-} from "./auth";
-import {
-  GDriveFileId,
-  findOrCreateDir,
-  findByHash,
-  getFileContent,
-} from "./file";
+import type { GApi, GDriveQuota, GDriveUser, GoogleAuthToken } from "./auth";
+import { getUserProfile } from "./auth";
+import type { GDriveFileId } from "./file";
+import { findOrCreateDir, findByHash, getFileContent } from "./file";
 
 export type GoogleConfing = {
   authToken: GoogleAuthToken;

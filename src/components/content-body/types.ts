@@ -1,7 +1,7 @@
-import { Callback } from "linki";
+import type { Callback } from "linki";
 
-import { Component } from "../../libs/simple-ui/render";
-import { DocFragment } from "../annotations/annotation";
+import type { Component } from "../../libs/simple-ui/render";
+import type { DocFragment } from "../annotations/annotation";
 
 export type DisplayContext = {
   container: HTMLElement;

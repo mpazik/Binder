@@ -1,18 +1,21 @@
 import { DISPLAY_CONFIG_ENABLED } from "../../config";
+import type {
+  JsonHtml,
+  Listener,
+  Slot,
+  View,
+} from "../../libs/simple-ui/render";
 import {
   button,
   dangerousHTML,
   details,
   div,
   fragment,
-  JsonHtml,
-  Listener,
   nav,
-  Slot,
   summary,
-  View,
 } from "../../libs/simple-ui/render";
-import { productLogo, ProductLogoSize } from "../logo";
+import type { ProductLogoSize } from "../logo";
+import { productLogo } from "../logo";
 
 import { dropdownLink, dropdownMenu } from "./common";
 

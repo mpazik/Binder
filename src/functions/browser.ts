@@ -1,4 +1,4 @@
-import { Provider } from "linki";
+import type { Provider } from "linki";
 
 export const urlHashProvider: Provider<string> = (push) => {
   const update = () => {

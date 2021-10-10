@@ -1,6 +1,6 @@
 import "./style.css";
 
-import {
+import type {
   DisplaySettings,
   FontFace,
   FontSize,

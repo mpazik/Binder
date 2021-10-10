@@ -1,4 +1,5 @@
-import { Component, div, Slot } from "../../libs/simple-ui/render";
+import type { Component, Slot } from "../../libs/simple-ui/render";
+import { div } from "../../libs/simple-ui/render";
 
 export const eitherComponent: Component<
   { slotA: Slot; slotB: Slot },

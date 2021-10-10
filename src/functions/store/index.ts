@@ -1,34 +1,32 @@
-import { Callback } from "linki";
+import type { Callback } from "linki";
 
-import {
-  computeLinkedDataWithHashId,
-  hashBlob,
-  HashName,
-  HashUri,
-} from "../../libs/hash";
+import type { HashName, HashUri } from "../../libs/hash";
+import { computeLinkedDataWithHashId, hashBlob } from "../../libs/hash";
+import type { StoreName, StoreProvider } from "../../libs/indexeddb";
 import {
   storeDelete,
   storeGet,
   storeGetAll,
   storeGetAllWithKeys,
   storeGetFirst,
-  StoreName,
   storeOneWayIterate,
-  StoreProvider,
   storePut,
 } from "../../libs/indexeddb";
-import { LinkedData, LinkedDataWithHashId } from "../../libs/jsonld-format";
+import type {
+  LinkedData,
+  LinkedDataWithHashId,
+} from "../../libs/jsonld-format";
 import { getType } from "../../libs/linked-data";
 import { handleState, mapState } from "../../libs/named-state";
-import {
-  onBrowserClose,
-  RegisterBrowserClose,
-} from "../../libs/on-browser-close";
+import type { RegisterBrowserClose } from "../../libs/on-browser-close";
+import { onBrowserClose } from "../../libs/on-browser-close";
 import { measureAsyncTime } from "../../libs/performance";
-import { browserTimer, SetupTimer, setupTimer } from "../../libs/timer";
-import { AnalyticsSender, createErrorSender } from "../analytics";
-import { UpdateIndex } from "../indexes/types";
-import { RemoteDrive, RemoteDriverState } from "../remote-drive";
+import type { SetupTimer } from "../../libs/timer";
+import { browserTimer, setupTimer } from "../../libs/timer";
+import type { AnalyticsSender } from "../analytics";
+import { createErrorSender } from "../analytics";
+import type { UpdateIndex } from "../indexes/types";
+import type { RemoteDrive, RemoteDriverState } from "../remote-drive";
 
 import { createDataDownloader } from "./data-download";
 import {
@@ -38,23 +36,22 @@ import {
 } from "./data-upload";
 import { newExecutionTimeSaver } from "./execution-time-saver";
 import { extractLinkedDataFromResponse } from "./link-data-response-extractor";
-import {
+import type {
   ExternalLinkedDataStoreWrite,
-  getResourceStore,
   LinkedDataStoreRead,
   LinkedDataStoreWrite,
   ResourceStoreRead,
   ResourceStoreWrite,
   LinkedDataDelete,
+} from "./local-store";
+import {
+  getResourceStore,
   createDynamicLinkedDataStore,
   createLinkedDataDelete,
 } from "./local-store";
 import { createStatefulRemoteDriveResourceRead } from "./remote-drive-store-read";
-import {
-  registerRepositoryVersion,
-  RepositoryDb,
-  UnclaimedRepositoryDb,
-} from "./repository";
+import type { RepositoryDb, UnclaimedRepositoryDb } from "./repository";
+import { registerRepositoryVersion } from "./repository";
 
 export type {
   ResourceStoreWrite,

@@ -1,6 +1,6 @@
+import type { Callback } from "linki";
 import {
   and,
-  Callback,
   defined,
   filter,
   fork,
@@ -21,18 +21,15 @@ import {
   newStateHandler,
   newStateMapper,
 } from "../../libs/named-state";
-import {
-  button,
+import type {
   Component,
-  div,
   JsonHtml,
-  newSlot,
   OptionalJsonHtml,
   Slot,
-  span,
   View,
   ViewSetup,
 } from "../../libs/simple-ui/render";
+import { button, div, newSlot, span } from "../../libs/simple-ui/render";
 import {
   focusElement,
   getTarget,
@@ -44,8 +41,8 @@ import { moreActions } from "../common/drop-down";
 import { multiSelect } from "../common/multi-select";
 import { relativeDateOfAction } from "../common/relative-date";
 
-import { Annotation, AnnotationSelector } from "./annotation";
-import { Position } from "./selection";
+import type { Annotation, AnnotationSelector } from "./annotation";
+import type { Position } from "./selection";
 
 const createAnnotationView: ViewSetup<
   {

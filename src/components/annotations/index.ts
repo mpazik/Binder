@@ -17,25 +17,26 @@ import {
   withMultiState,
 } from "linki";
 
-import { AnnotationsIndex } from "../../functions/indexes/annotations-index";
-import { LinkedDataStoreWrite } from "../../functions/store";
-import { LinkedDataStoreRead } from "../../functions/store/local-store";
+import type { AnnotationsIndex } from "../../functions/indexes/annotations-index";
+import type { LinkedDataStoreWrite } from "../../functions/store";
+import type { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { throwIfNull } from "../../libs/errors";
-import { HashUri } from "../../libs/hash";
-import { Component, div, newSlot } from "../../libs/simple-ui/render";
+import type { HashUri } from "../../libs/hash";
+import type { Component } from "../../libs/simple-ui/render";
+import { div, newSlot } from "../../libs/simple-ui/render";
 
-import {
+import type {
   Annotation,
   AnnotationSelector,
-  createAnnotation,
   DocFragment,
-  isQuoteSelector,
   QuoteSelector,
 } from "./annotation";
+import { createAnnotation, isQuoteSelector } from "./annotation";
 import { annotationDisplay, commentForm } from "./annotation-display";
 import { containerText, removeSelector, renderSelector } from "./highlights";
 import { quoteSelectorForRange } from "./quote-selector";
-import { currentSelection, Selection, selectionPosition } from "./selection";
+import type { Selection } from "./selection";
+import { currentSelection, selectionPosition } from "./selection";
 import { selectionToolbar } from "./selection-toolbar";
 
 type AnnotationSaveArgs = {

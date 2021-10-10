@@ -1,16 +1,12 @@
-import { Callback, link, map, to } from "linki";
+import type { Callback } from "linki";
+import { link, map, to } from "linki";
 
-import {
-  a,
-  button,
+import type {
   Component,
-  div,
-  h3,
   JsonHtml,
-  p,
-  span,
   ViewSetup,
 } from "../../libs/simple-ui/render";
+import { a, button, div, h3, p, span } from "../../libs/simple-ui/render";
 import { blanket } from "../common/blanket";
 import { centerLoading } from "../common/center-loading-component";
 import { stack } from "../common/spacing";

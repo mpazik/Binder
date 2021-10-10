@@ -20,7 +20,7 @@ describe("watch history indexer", () => {
   });
 
   test("should recognise and index WatchAction without start and end time", async () => {
-    // eslint-disable-next-line unused-imports/no-unused-vars-ts,@typescript-eslint/no-unused-vars
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const indexingProps = index(definitionWatchActionWithoutDatesLd);
 
     expect(indexingProps).toEqual({

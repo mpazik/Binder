@@ -1,14 +1,16 @@
 import { throwIfNull } from "../libs/errors";
-import { HashName, isHashUri } from "../libs/hash";
-import { LinkedData } from "../libs/jsonld-format";
+import type { HashName } from "../libs/hash";
+import { isHashUri } from "../libs/hash";
+import type { LinkedData } from "../libs/jsonld-format";
 import { findHashUri } from "../libs/linked-data";
 
-import {
-  LinkedDataWithContent,
-  processResponseToContent,
-} from "./content-processors";
-import { Fetch } from "./fetch-trough-proxy";
-import { LinkedDataStoreRead, ResourceStoreRead } from "./store/local-store";
+import type { LinkedDataWithContent } from "./content-processors";
+import { processResponseToContent } from "./content-processors";
+import type { Fetch } from "./fetch-trough-proxy";
+import type {
+  LinkedDataStoreRead,
+  ResourceStoreRead,
+} from "./store/local-store";
 
 export type LinkedDataWithContentFetcher = (
   uri: string,

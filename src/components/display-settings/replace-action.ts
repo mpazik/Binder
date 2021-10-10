@@ -1,6 +1,9 @@
-import { ReplaceAction as ReplaceActionSchema, WithContext } from "schema-dts";
+import type {
+  ReplaceAction as ReplaceActionSchema,
+  WithContext,
+} from "schema-dts";
 
-import { Settings } from "./type";
+import type { Settings } from "./type";
 
 export type ReplaceAction = WithContext<ReplaceActionSchema>;
 

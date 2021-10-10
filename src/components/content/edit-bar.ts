@@ -1,15 +1,13 @@
 import { fork, link, map } from "linki";
 
 import { newStateMapper } from "../../libs/named-state";
-import {
-  button,
+import type {
   Component,
-  div,
   JsonHtml,
   OptionalJsonHtml,
   OptionalViewSetup,
-  span,
 } from "../../libs/simple-ui/render";
+import { button, div, span } from "../../libs/simple-ui/render";
 
 export type EditBarState =
   | ["hidden"]

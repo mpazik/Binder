@@ -1,5 +1,6 @@
 import "./style.css";
 
+import type { Callback } from "linki";
 import {
   definedTuple,
   filter,
@@ -7,7 +8,6 @@ import {
   pick,
   to,
   wrap,
-  Callback,
   fork,
   passOnlyChanged,
   withMultiState,
@@ -18,17 +18,19 @@ import {
 
 import { documentContentRoodId } from "../../../functions/content-processors/html-processor";
 import { documentToBlob } from "../../../functions/content-saver";
-import { Component, div, newSlot } from "../../../libs/simple-ui/render";
+import type { Component } from "../../../libs/simple-ui/render";
+import { div, newSlot } from "../../../libs/simple-ui/render";
 import { loader } from "../../common/loader";
 import { modal } from "../../common/modal";
-import { EditBarState } from "../../content/edit-bar";
+import type { EditBarState } from "../../content/edit-bar";
 import {
   documentToHtmlContent,
   processToDocument,
   scrollToPageTopWhenNoFragment,
 } from "../html/utils";
-import { HtmlContent, setupEditableHtmlView } from "../html/view";
-import { DisplayContext, ContentComponent } from "../types";
+import type { HtmlContent } from "../html/view";
+import { setupEditableHtmlView } from "../html/view";
+import type { DisplayContext, ContentComponent } from "../types";
 
 import {
   changesIndicatorBar,

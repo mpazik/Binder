@@ -1,6 +1,7 @@
 import "./loading.css";
 
-import { Callback, fork, map, pick, defined, filter, link } from "linki";
+import type { Callback } from "linki";
+import { fork, map, pick, defined, filter, link } from "linki";
 
 import { closable } from "../../libs/linki";
 import {
@@ -8,15 +9,13 @@ import {
   newStateMachine,
   newStateMapper,
 } from "../../libs/named-state";
-import {
-  button,
+import type {
   ComponentBody,
-  div,
-  p,
   Prop,
   Slot,
   View,
 } from "../../libs/simple-ui/render";
+import { button, div, p } from "../../libs/simple-ui/render";
 
 import { centerLoading } from "./center-loading-component";
 

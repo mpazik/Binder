@@ -1,26 +1,21 @@
-import { Callback, fork, link, defined, filter, map } from "linki";
+import type { Callback } from "linki";
+import { fork, link, defined, filter, map } from "linki";
 
 import { newStateMapper, newStateMachine } from "../../libs/named-state";
-import {
-  clearLastLogin,
-  GlobalDb,
-  setLastConnected,
-  setLastLogin,
-} from "../global-db";
-import {
-  openAccountRepository,
-  UnclaimedRepositoryDb,
-} from "../store/repository";
+import type { GlobalDb } from "../global-db";
+import { clearLastLogin, setLastConnected, setLastLogin } from "../global-db";
+import type { UnclaimedRepositoryDb } from "../store/repository";
+import { openAccountRepository } from "../store/repository";
 
-import {
-  createGDriveConfig,
+import type {
   GDriveDisconnectedProfile,
   GDriveLoadingProfile,
   GDriveLoggedOurProfile,
   GDriveProfile,
 } from "./app-files";
+import { createGDriveConfig } from "./app-files";
+import type { GApi } from "./auth";
 import {
-  GApi,
   gdriveUserToAccount,
   getUserProfile,
   initializeGoogleDrive,

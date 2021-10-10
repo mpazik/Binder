@@ -1,7 +1,7 @@
 import * as pdfjsLib from "pdfjs-dist";
 
 import { throwIfUndefined } from "../../libs/errors";
-import { LinkedData } from "../../libs/jsonld-format";
+import type { LinkedData } from "../../libs/jsonld-format";
 import { createCreativeWork, pdfMediaType } from "../../libs/ld-schemas";
 import { measureAsyncTime } from "../../libs/performance";
 

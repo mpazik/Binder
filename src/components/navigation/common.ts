@@ -1,16 +1,15 @@
 import { fork } from "linki";
 
+import type { JsonHtml, View } from "../../libs/simple-ui/render";
 import {
   a,
   dangerousHTML,
   details,
   div,
-  JsonHtml,
   li,
   span,
   summary,
   ul,
-  View,
 } from "../../libs/simple-ui/render";
 import { preventDefault } from "../../libs/simple-ui/utils/funtions";
 import { getLinkTarget } from "../common/link";

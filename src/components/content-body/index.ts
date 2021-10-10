@@ -1,5 +1,5 @@
+import type { Callback } from "linki";
 import {
-  Callback,
   defined,
   definedTuple,
   filter,
@@ -15,10 +15,10 @@ import {
 } from "linki";
 import { valueWithOptionalState } from "linki/dist/processors/reduce";
 
-import { LinkedDataWithContent } from "../../functions/content-processors";
-import { ContentSaver } from "../../functions/content-saver";
+import type { LinkedDataWithContent } from "../../functions/content-processors";
+import type { ContentSaver } from "../../functions/content-saver";
 import { throwIfUndefined } from "../../libs/errors";
-import { LinkedData } from "../../libs/jsonld-format";
+import type { LinkedData } from "../../libs/jsonld-format";
 import {
   epubMediaType,
   getEncoding,
@@ -26,18 +26,19 @@ import {
   pdfMediaType,
 } from "../../libs/ld-schemas";
 import { indexOf, select } from "../../libs/linki";
-import {
-  Component,
-  div,
-  newCloseController,
-} from "../../libs/simple-ui/render";
-import { AnnotationDisplayRequest } from "../annotations";
+import type { Component } from "../../libs/simple-ui/render";
+import { div, newCloseController } from "../../libs/simple-ui/render";
+import type { AnnotationDisplayRequest } from "../annotations";
 
 import { epubDisplay } from "./epub";
 import { htmlDisplay } from "./html";
 import { htmlEditableDisplay } from "./html-editable";
 import { pdfDisplay } from "./pdf";
-import { ContentComponent, DisplayContext, DisplayController } from "./types";
+import type {
+  ContentComponent,
+  DisplayContext,
+  DisplayController,
+} from "./types";
 
 const isEditable: (linkedData: LinkedData) => boolean = () => false;
 

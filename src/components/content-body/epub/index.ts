@@ -1,6 +1,6 @@
 import * as JSZip from "jszip";
+import type { Callback } from "linki";
 import {
-  Callback,
   defined,
   definedTuple,
   filter,
@@ -16,11 +16,12 @@ import {
 } from "linki";
 
 import { newUriWithFragment } from "../../../functions/url-hijack";
-import { getBlobFile, getXmlFile, ZipObject } from "../../../libs/epub";
+import type { ZipObject } from "../../../libs/epub";
+import { getBlobFile, getXmlFile } from "../../../libs/epub";
+import type { EpubCfi } from "../../../libs/epubcfi";
 import {
   customParseFirstSegmentEpubCfi,
   emptyEpubCfi,
-  EpubCfi,
   generateEpubCfiFromNodes,
   generateEpubCfi,
   generateEpubCfiPartForNode,
@@ -30,18 +31,16 @@ import {
 } from "../../../libs/epubcfi";
 import { throwIfNull } from "../../../libs/errors";
 import { measureAsyncTime } from "../../../libs/performance";
-import {
-  a,
+import type {
   Component,
-  div,
-  newSlot,
   View,
   ViewSetup,
 } from "../../../libs/simple-ui/render";
+import { a, div, newSlot } from "../../../libs/simple-ui/render";
 import { createEpubFragment } from "../../annotations/annotation";
 import { loaderWithContext } from "../../common/loader";
 import { setupHtmlView } from "../html/view";
-import { ContentComponent, DisplayContext } from "../types";
+import type { ContentComponent, DisplayContext } from "../types";
 import {
   isFocusedElementStatic,
   lastSeenElement,
