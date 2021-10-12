@@ -1,4 +1,5 @@
-import { App } from "./components/app";
+import { App, initialiseServices } from "./components/app";
+import { measureAsyncTime } from "./libs/performance";
 import { setupComponent } from "./libs/simple-ui/render";
 
 (async () => {
@@ -6,5 +7,7 @@ import { setupComponent } from "./libs/simple-ui/render";
   root.id = "root";
   document.body.appendChild(root);
 
-  setupComponent(App, root);
+  const initialServices = await measureAsyncTime("init", initialiseServices);
+
+  setupComponent(App(initialServices), root);
 })();
