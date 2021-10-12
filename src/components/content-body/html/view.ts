@@ -55,5 +55,5 @@ export const setupHtmlView: ViewSetup<
       lineHeight: "inherit",
     },
     dangerouslySetDom: content,
-    onDisplay: onDisplay ? map(getTarget, onDisplay) : undefined,
+    onDisplay: onDisplay ? link(map(getTarget), onDisplay) : undefined,
   });

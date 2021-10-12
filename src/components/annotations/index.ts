@@ -22,6 +22,7 @@ import type { LinkedDataStoreWrite } from "../../functions/store";
 import type { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { throwIfNull } from "../../libs/errors";
 import type { HashUri } from "../../libs/hash";
+import { handleState } from "../../libs/named-state";
 import type { Component } from "../../libs/simple-ui/render";
 import { div, newSlot } from "../../libs/simple-ui/render";
 
@@ -127,51 +128,52 @@ export const annotationsSupport: Component<
         return;
       }
       const text = containerText(textLayer);
-      if (change[0] === "display") {
-        const annotation = change[1];
-        renderSelector(
-          container,
-          textLayer,
-          text,
-          getQuoteSelector(annotation.target.selector),
-          annotation.motivation === "commenting" ? "yellow" : "green",
-          link(
-            map((position) => ({
-              annotation,
+      handleState(change, {
+        display: (annotation) => {
+          renderSelector(
+            container,
+            textLayer,
+            text,
+            getQuoteSelector(annotation.target.selector),
+            annotation.motivation === "commenting" ? "yellow" : "green",
+            link(
+              map((position) => ({
+                annotation,
+                position,
+              })),
+              displayAnnotation
+            ),
+            hideAnnotationDelayed
+          );
+        },
+        select: (selection) => {
+          const position = selectionPosition(selection);
+          const { fragment, range } = selection;
+          const selector = quoteSelectorForRange(
+            textLayer,
+            text,
+            range,
+            fragment
+          );
+          renderSelector(
+            container,
+            textLayer,
+            text,
+            getQuoteSelector(selector),
+            "purple"
+          );
+          displayCommentForm([
+            "visible",
+            {
+              selector,
               position,
-            })),
-            displayAnnotation
-          ),
-          hideAnnotationDelayed
-        );
-      } else if (change[0] === "select") {
-        const selection = change[1];
-        const position = selectionPosition(selection);
-        const { fragment, range } = selection;
-        const selector = quoteSelectorForRange(
-          textLayer,
-          text,
-          range,
-          fragment
-        );
-        renderSelector(
-          container,
-          textLayer,
-          text,
-          getQuoteSelector(selector),
-          "purple"
-        );
-        displayCommentForm([
-          "visible",
-          {
-            selector,
-            position,
-          },
-        ]);
-      } else {
-        const selector = change[1];
-        removeSelector(textLayer, text, selector);
-      }
+            },
+          ]);
+        },
+        remove: (selector) => {
+          removeSelector(textLayer, text, selector);
+        },
+      });
     }
   );
 

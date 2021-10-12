@@ -15,6 +15,7 @@ import {
   reduce,
   split,
   to,
+  withMultiState,
 } from "linki";
 
 import type {
@@ -274,6 +275,15 @@ export const App = asyncLoader(
         })
     );
 
+    const [pushCreator, setCreator, setContentReady] = link(
+      withMultiState<[string | null, boolean]>(null, false),
+      ([creator, ready]) => {
+        if (ready && typeof creator !== "undefined") {
+          setCreatorForContent(creator);
+        }
+      }
+    );
+
     const updateGdrive = gdrive(
       fork(
         (state) => console.log("gdrive - ", state),
@@ -461,7 +471,10 @@ export const App = asyncLoader(
       store.writeResource,
       store.writeLinkedData
     );
-    const [contentSlot, { displayContent, goToFragment, setCreator }] = newSlot(
+    const [
+      contentSlot,
+      { displayContent, goToFragment, setCreator: setCreatorForContent },
+    ] = newSlot(
       "content-container",
       contentComponent({
         contentSaver,
@@ -480,7 +493,14 @@ export const App = asyncLoader(
       "content-loader",
       loader({
         fetcher: contentFetcherPassingUri,
-        onLoaded: fork(displayContent, link(ignoreParam(), postDisplayHook)),
+        onLoaded: fork(
+          displayContent,
+          link(ignoreParam(), postDisplayHook),
+          () => {
+            setContentReady(true);
+            pushCreator();
+          }
+        ),
         contentSlot,
       })
     );
@@ -558,7 +578,7 @@ export const App = asyncLoader(
       contentOrDirSlot,
       fileDropSlot,
       accountPickerSlot,
-      onFileDrop: link(map(to<true>(true)), displayFileDrop) as Callback<void>,
+      onFileDrop: link(map(to<true>(true)), displayFileDrop) as Callback,
     });
 
     const renderContainer = link(map(containerView), render);

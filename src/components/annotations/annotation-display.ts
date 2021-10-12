@@ -44,6 +44,7 @@ import { relativeDateOfAction } from "../common/relative-date";
 import type { Annotation, AnnotationSelector } from "./annotation";
 import type { Position } from "./selection";
 
+// noinspection JSUnusedGlobalSymbols
 const createAnnotationView: ViewSetup<
   {
     categoriesSlot: Slot;
@@ -210,7 +211,7 @@ const commentFormView: View<{
             ),
             link(filter(isKey("Escape")), onCancel)
           ),
-          onDisplay: map(getTarget, fork(focusElement, onDisplay)),
+          onDisplay: link(map(getTarget), fork(focusElement, onDisplay)),
           onPaste: (event) => {
             event.preventDefault();
             const text = event.clipboardData?.getData("text/plain");

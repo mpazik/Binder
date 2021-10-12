@@ -65,7 +65,7 @@ export const select = <T>(
   extractor: (i: T) => number
 ): ProcessorMultiOut<T, T[]> => (callbacks) => (value) => {
   const callbackNum = extractor(value);
-  if (!callbackNum) {
+  if (callbackNum < 0) {
     throw new Error(`Could not find callback for value '${value}'`);
   }
   const callback = callbacks[callbackNum];
@@ -82,9 +82,10 @@ export const closable = <T>(
   handler: (v: T, signal: AbortSignal) => void
 ): Callback<T> =>
   reduce<[AbortController, T] | undefined, T>((tuple, value) => {
-    if (!tuple) return tuple;
-    const [oldController] = tuple;
-    oldController.abort(); // side effect
+    if (tuple) {
+      const [oldController] = tuple;
+      oldController.abort(); // side effect
+    }
     const newController = new AbortController();
     return [newController, value];
   }, undefined)((tuple) => {
