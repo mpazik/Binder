@@ -64,6 +64,7 @@ const setupAutoCompleteFrame: ViewSetup<
       onMousedown: link(map(to(true)), setInteracting),
       style: {
         "overflow-y": "hidden",
+        maxHeight: "fit-content",
       },
     },
     content,
@@ -84,6 +85,7 @@ const setupSuggestionsView = <T>({
       onDisplay: link(map(getTarget), setDom),
       style: {
         "overflow-y": "auto",
+        maxHeight: "20em",
       },
     },
     ...suggestions.map((suggestion) =>
@@ -235,7 +237,7 @@ export const searchBox: Component<{
       },
       footer: div(
         {
-          class: "py-1 color-text-secondary text-center autocomplete-item",
+          class: "py-1 text-center autocomplete-item",
           onClick: goToDirectory,
         },
         "List all documents [Tab]"

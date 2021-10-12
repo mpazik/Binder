@@ -108,7 +108,7 @@ import { fileDrop } from "../file-drop";
 import { navigation } from "../navigation";
 import { dropdown } from "../navigation/common";
 
-import { specialDirectoryUri } from "./special-uris";
+import { hostPageUri, specialDirectoryUri } from "./special-uris";
 
 const initServices = async (): Promise<{
   fetchTroughProxy: Fetch;
@@ -358,13 +358,13 @@ export const App = asyncLoader(
       ),
       link(split(pick("uriChanged")), [
         (it: UriWithFragment) => {
-          if (it.uri === `${window.location.origin}/${specialDirectoryUri}`) {
+          if (it.uri === specialDirectoryUri) {
             switchDisplayToDirectory();
-          } else if (it.uri === `${window.location.origin}/about`) {
+          } else if (it.uri === hostPageUri("about")) {
             renderAbout2();
           } else if (
             it.uri === window.location.origin ||
-            it.uri === `${window.location.origin}/`
+            it.uri === hostPageUri("")
           ) {
             listDbs().then((list) => {
               list.length ? switchDisplayToDirectory() : renderAbout2();

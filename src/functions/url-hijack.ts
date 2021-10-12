@@ -1,6 +1,7 @@
-import type { ClosableProvider, Predicate } from "linki";
+import type { ClosableProvider } from "linki";
 import { fork, link, map } from "linki";
 
+import { hostPageUri, isHostPageUri } from "../components/app/special-uris";
 import { isAbsoluteUrl } from "../components/common/link";
 import { currentPath } from "../libs/browser-providers";
 
@@ -10,12 +11,10 @@ const findLink = (element: HTMLElement | null): HTMLElement | undefined => {
   if (element.nodeName === "SPAN") return findLink(element.parentElement);
 };
 export const linkHijack = ({
-  predicate = () => true,
   element = document,
 }: {
   element?: Node;
-  predicate?: Predicate<string>;
-}): ClosableProvider<string> => (push) => {
+} = {}): ClosableProvider<string> => (push) => {
   const hijackLink = (event: Event) => {
     const element = findLink(event.target as HTMLElement);
     if (!element) return;
@@ -24,7 +23,6 @@ export const linkHijack = ({
     }
     const uri = element.getAttribute("href");
     if (!uri) return;
-    if (!predicate(uri)) return;
 
     push(uri);
     event.preventDefault();
@@ -39,7 +37,10 @@ export const updateBrowserHistory = ({
   uri = currentPath(),
   fragment,
 }: UriWithFragment | { fragment: string; uri?: string }): void => {
-  window.history.pushState({}, "", `/${uri}${fragment ? `#${fragment}` : ""}`);
+  const url = isHostPageUri(uri)
+    ? uri
+    : `/${uri}${fragment ? `#${fragment}` : ""}`;
+  window.history.pushState({}, "", url);
 };
 
 export type UriWithFragment = {
@@ -59,17 +60,13 @@ export const combineToUri = ({ uri, fragment }: UriWithFragment): string =>
   fragment ? `${uri}#${fragment}` : uri;
 
 export const pathToUri = (path: string): UriWithFragment => {
-  return newUriWithFragment(
-    isAbsoluteUrl(path) ? path : `${window.location.origin}/${path}`
-  );
+  return newUriWithFragment(isAbsoluteUrl(path) ? path : hostPageUri(path));
 };
 
 export const documentLinksUriProvider: ClosableProvider<UriWithFragment> = (
   push
 ) => {
-  return linkHijack({
-    predicate: isAbsoluteUrl,
-  })(
+  return linkHijack()(
     link(
       map(newUriWithFragment, (it) =>
         it.uri === ""
