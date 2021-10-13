@@ -2,6 +2,7 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const TerserPlugin = require("terser-webpack-plugin");
 const SpeedMeasurePlugin = require("speed-measure-webpack-plugin");
+const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 const webpack = require("webpack");
 
 const sharedConfig = ({ envVariables, productIcon }) => ({
@@ -56,6 +57,7 @@ const sharedConfig = ({ envVariables, productIcon }) => ({
       ],
     }),
     new webpack.DefinePlugin(envVariables),
+    // new BundleAnalyzerPlugin()
   ],
   resolve: {
     extensions: [".js", ".ts", ".jsonld"],
