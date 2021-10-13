@@ -493,7 +493,7 @@ export const App: Component<
   const loadContent = (data: LinkedDataWithContent | LinkedDataWithBody) => {
     const pageType = getType(data.linkedData);
     console.log("pageType", pageType);
-    if (pageType === "SearchResultsPage") {
+    if (pageType === "SearchResultsPage" || pageType === "NotFoundPage") {
       switchDisplayToDirectory();
       postDisplayHook();
     } else if (pageType === "AboutPage") {

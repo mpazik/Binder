@@ -38,6 +38,12 @@ const sharedConfig = ({ envVariables, productIcon }) => ({
       chunks: ["main"]
     }),
     new HtmlWebpackPlugin({
+      template: "./src/pages/about.html",
+      filename: "./index.html",
+      productIcon,
+      chunks: ["main"]
+    }),
+    new HtmlWebpackPlugin({
       template: "./src/pages/directory.html",
       filename: "./directory.html",
       productIcon,

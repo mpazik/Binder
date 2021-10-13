@@ -1,6 +1,5 @@
 import { pick, pipe } from "linki";
 
-import { throwIfUndefined } from "../../../libs/errors";
 import type { LinkedData } from "../../../libs/jsonld-format";
 import { htmlMediaType } from "../../../libs/ld-schemas";
 import { measureTime } from "../../../libs/performance";
@@ -16,7 +15,9 @@ export const processInternalDocument = (dom: Document): LinkedData => {
   );
 
   const linkedData = jsonLds[0];
-  throwIfUndefined(linkedData);
+  if (linkedData === undefined) {
+    throw new Error("Loaded page in incorrect format");
+  }
 
   return linkedData;
 };

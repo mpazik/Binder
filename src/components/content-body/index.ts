@@ -141,9 +141,11 @@ export const contentDisplayComponent: Component<
   };
 
   const displayNotSupported = ({ linkedData }: LinkedDataWithContent) => {
-    render(
-      div(`Content type ${linkedData["encodingFormat"]} is not supported`)
-    );
+    const encodingFormat = `${linkedData["encodingFormat"]}`;
+    const message = encodingFormat
+      ? `Content type "${encodingFormat}" is not supported`
+      : `Document does not define encoding format`;
+    render(div({ class: "flash mt-3 flash-error" }, message));
   };
 
   return {
