@@ -28,6 +28,11 @@ import {
 } from "../../functions/analytics";
 import type { LinkedDataWithContent } from "../../functions/content-processors";
 import { processFileToContent } from "../../functions/content-processors";
+import {
+  blobToDocument,
+  createDocument,
+  documentToBlob,
+} from "../../functions/content-processors/html-processor/utils";
 import { createContentSaver } from "../../functions/content-saver";
 import type { Fetch } from "../../functions/fetch-trough-proxy";
 import { createProxyFetch } from "../../functions/fetch-trough-proxy";
@@ -82,8 +87,7 @@ import type { HashName, HashUri } from "../../libs/hash";
 import { isHashUri } from "../../libs/hash";
 import { storeGetAll } from "../../libs/indexeddb";
 import type { LinkedData } from "../../libs/jsonld-format";
-import { htmlMediaType } from "../../libs/ld-schemas";
-import { getType } from "../../libs/linked-data";
+import { getPropertyValue, getType } from "../../libs/linked-data";
 import { combine } from "../../libs/linki";
 import {
   filterState,
@@ -91,7 +95,7 @@ import {
   handleState,
   newStateMapper,
 } from "../../libs/named-state";
-import { measureTime } from "../../libs/performance";
+import { measureAsyncTime } from "../../libs/performance";
 import type {
   Component,
   Handlers,
@@ -375,7 +379,6 @@ export const App: Component<
     ),
     link(split(pick("uriChanged")), [
       (it: UriWithFragment) => {
-        switchDisplayToContent();
         setCurrentUri(it.uri);
         loadResource(it);
       },
@@ -425,6 +428,8 @@ export const App: Component<
   ] = newSlot(
     "navigation",
     navigation({
+      displayed:
+        !initialContent || getType(initialContent.linkedData) != "AboutPage",
       updateGdrive,
       upload: store.upload,
       displayAccountPicker: () => displayAccountPicker({ loading: false }),
@@ -492,43 +497,82 @@ export const App: Component<
 
   const loadContent = (data: LinkedDataWithContent | LinkedDataWithBody) => {
     const pageType = getType(data.linkedData);
-    console.log("pageType", pageType);
     if (pageType === "SearchResultsPage" || pageType === "NotFoundPage") {
       switchDisplayToDirectory();
       postDisplayHook();
     } else if (pageType === "AboutPage") {
       if (isLinkedDataWithBody(data)) {
-        renderAbout(data.body);
+        renderDirectly(data.body);
       } else {
         (async () => {
-          const text = await data.content.text();
-          const domParser = new DOMParser();
-          const dom = measureTime("parse", () =>
-            domParser.parseFromString(text, htmlMediaType)
+          const dom = await measureAsyncTime("parse", () =>
+            blobToDocument(data.content)
           );
-          renderAbout(dom.body);
+          renderDirectly(dom.body);
         })();
       }
     } else {
-      // switchDisplayToContent();
-      if (isLinkedDataWithBody(data)) {
-        throw new Error("Not expected document with body");
-      }
+      const linkedDataWithContent: LinkedDataWithContent = isLinkedDataWithBody(
+        data
+      )
+        ? {
+            linkedData: data.linkedData,
+            content: documentToBlob(
+              createDocument({
+                title: getPropertyValue(data.linkedData, "name"),
+                contentRoot: data.body,
+              })
+            ),
+          }
+        : data;
+      switchDisplayToContent();
       fork(displayContent, link(ignoreParam(), postDisplayHook), () => {
         setContentReady(true);
         pushCreator();
-      })(data);
+      })(linkedDataWithContent);
     }
   };
+
+  const [
+    contentOrDirSlot,
+    { switchDisplayToContent, switchDisplayToDirectory, renderDirectly },
+  ] = newSlot(
+    "either-content",
+    (
+      render
+    ): Handlers<{
+      switchDisplayToContent: void;
+      switchDisplayToDirectory: void;
+      renderDirectly: Node;
+    }> => {
+      render("test test");
+
+      return {
+        switchDisplayToContent: () => {
+          render(); // clean previous dom, to force rerender
+          render(div({ class: "mt-8" }, contentSlot));
+        },
+        switchDisplayToDirectory: () => {
+          render(); // clean previous dom, to force rerender
+          render(div({ class: "mt-8" }, docsDirectorySlot));
+        },
+        renderDirectly: (element) => {
+          hideNavPermanently();
+          render(div({ dangerouslySetDom: element }));
+        },
+      };
+    }
+  );
+
   const [
     contentLoaderSlot,
     { load: loadResource, display: displayFile },
   ] = newSlot(
     "content-loader",
-    loader({
+    loader<UriWithFragment, LinkedDataWithContent | LinkedDataWithBody>({
       fetcher: contentFetcherPassingUri,
       onLoaded: loadContent,
-      contentSlot,
+      contentSlot: contentOrDirSlot,
     })
   );
 
@@ -554,7 +598,6 @@ export const App: Component<
             updateBrowserHistory
           ),
           (it) => {
-            switchDisplayToContent();
             displayFile(it);
           }
         )
@@ -572,36 +615,9 @@ export const App: Component<
     })
   );
 
-  const [
-    contentOrDirSlot,
-    { switchDisplayToContent, switchDisplayToDirectory, renderAbout },
-  ] = newSlot(
-    "either-content",
-    (
-      render
-    ): Handlers<{
-      switchDisplayToContent: void;
-      switchDisplayToDirectory: void;
-      renderAbout: Node;
-    }> => ({
-      switchDisplayToContent: () => {
-        render(); // clean previous dom, to force rerender
-        render(div({ class: "mt-8" }, contentLoaderSlot));
-      },
-      switchDisplayToDirectory: () => {
-        render(); // clean previous dom, to force rerender
-        render(div({ class: "mt-8" }, docsDirectorySlot));
-      },
-      renderAbout: (element) => {
-        render(div({ dangerouslySetDom: element }));
-        hideNavPermanently();
-      },
-    })
-  );
-
   const containerView = createContainerView({
     navigationSlot,
-    contentOrDirSlot,
+    contentOrDirSlot: contentLoaderSlot,
     fileDropSlot,
     accountPickerSlot,
     onFileDrop: link(map(to<true>(true)), displayFileDrop) as Callback,
@@ -616,7 +632,7 @@ export const App: Component<
   onClose(documentLinksUriProvider(loadUri));
 
   if (initialContent) {
-    loadContent(initialContent);
+    displayFile(initialContent);
   } else {
     openPath(currentPath());
   }

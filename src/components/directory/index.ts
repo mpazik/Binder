@@ -4,17 +4,17 @@ import type { RecentDocuments } from "../../functions/recent-document-serach";
 import { createRecentDocumentSearch } from "../../functions/recent-document-serach";
 import { combineToUri } from "../../functions/url-hijack";
 import type { Component, View } from "../../libs/simple-ui/render";
-import { a, div, h4, nav, p, small } from "../../libs/simple-ui/render";
+import { a, div, h3, nav, p, small } from "../../libs/simple-ui/render";
 import { relativeDate } from "../common/relative-date";
 
 const view: View<{
   docs: RecentDocuments[];
 }> = ({ docs }) =>
   div(
-    { class: "with-line-length-settings" },
-    h4("Your documents"),
+    { class: "with-line-length-settings my-10" },
+    h3("Your documents"),
     nav(
-      { class: "menu" },
+      { class: "menu my-3" },
       ...docs.map((it) =>
         a(
           { class: "menu-item", href: combineToUri(it.uriWithFragment) },

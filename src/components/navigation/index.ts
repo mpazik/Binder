@@ -30,11 +30,13 @@ const moveElementOnTopOfTheScreen = (
 };
 
 const hideElement = (element: HTMLElement) => {
-  element.style.setProperty("display", "none", "important");
+  element.classList.remove("d-flex");
+  element.classList.add("d-none");
 };
 
 const showElement = (element: HTMLElement) => {
-  element.style.removeProperty("display");
+  element.classList.add("d-flex");
+  element.classList.remove("d-none");
 };
 
 const registerNavScrollListener = (nav: HTMLElement): Close => {
@@ -95,6 +97,7 @@ export const navigation: Component<
     searchWatchHistory: WatchHistorySearch;
     initProfile: GDriveLoadingProfile;
     displaySettingsSlot: JsonHtml;
+    displayed: boolean;
   },
   ProfilePanelControl & {
     hideNav: void;
@@ -106,6 +109,7 @@ export const navigation: Component<
   updateGdrive,
   displayAccountPicker,
   upload,
+  displayed,
   loadUri,
   searchDirectory,
   searchWatchHistory,
@@ -160,6 +164,7 @@ export const navigation: Component<
 
   render(
     navigationView({
+      displayed,
       onDisplay: fork(
         link(
           map(getTarget),

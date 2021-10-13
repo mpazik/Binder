@@ -41,7 +41,7 @@ const sharedConfig = ({ envVariables, productIcon }) => ({
       template: "./src/pages/about.html",
       filename: "./index.html",
       productIcon,
-      chunks: ["main"]
+      chunks: []
     }),
     new HtmlWebpackPlugin({
       template: "./src/pages/directory.html",
@@ -52,6 +52,12 @@ const sharedConfig = ({ envVariables, productIcon }) => ({
     new HtmlWebpackPlugin({
       template: "./src/pages/404.html",
       filename: "./404.html",
+      productIcon,
+      chunks: ["main"]
+    }),
+    new HtmlWebpackPlugin({
+      template: "./src/pages/privacy.html",
+      filename: "./privacy.html",
       productIcon,
       chunks: ["main"]
     }),
@@ -144,6 +150,7 @@ const devConfig = (() => {
       },
       historyApiFallback: {
         rewrites: [
+          { from: /^\/privacy/, to: '/privacy.html' },
           { from: /^\/directory/, to: '/directory.html' },
           { from: /^\/about/, to: '/about.html' },
           { from: /./, to: '/404.html' },

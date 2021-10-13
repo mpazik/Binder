@@ -5,6 +5,7 @@ import type { LinkedData } from "../../libs/jsonld-format";
 import { findUrl } from "../../libs/linked-data";
 import type { Component, Slot, ViewSetup } from "../../libs/simple-ui/render";
 import { a, div, newSlot, span } from "../../libs/simple-ui/render";
+import { isLocalUrl } from "../common/link";
 import { multiSelect } from "../common/multi-select";
 
 const newContentHeader: ViewSetup<{ categoriesSlot: Slot }, LinkedData> = ({
@@ -14,18 +15,22 @@ const newContentHeader: ViewSetup<{ categoriesSlot: Slot }, LinkedData> = ({
   return div(
     { class: "Subhead with-line-length-settings" },
     div({ class: "Subhead-heading" }, String(linkedData.name)),
-    div(
-      { class: "Subhead-description" },
-      ...(uri
-        ? [
-            span(
-              "From: ",
-              a({ href: uri, target: "_blank" }, new URL(uri).hostname)
-            ),
-          ]
-        : []),
-      ...(CATEGORIES_ENABLED ? [categoriesSlot] : [])
-    )
+    ...(uri && isLocalUrl(uri)
+      ? []
+      : [
+          div(
+            { class: "Subhead-description" },
+            ...(uri
+              ? [
+                  span(
+                    "From: ",
+                    a({ href: uri, target: "_blank" }, new URL(uri).hostname)
+                  ),
+                ]
+              : []),
+            ...(CATEGORIES_ENABLED ? [categoriesSlot] : [])
+          ),
+        ])
   );
 };
 

@@ -3,17 +3,15 @@ import { Readability } from "docland-readability";
 import { isLocalUrl } from "../../../components/common/link";
 import { throwIfNull } from "../../../libs/errors";
 import type { LinkedData } from "../../../libs/jsonld-format";
-import { htmlMediaType, createArticle } from "../../../libs/ld-schemas";
-import { measureTime } from "../../../libs/performance";
-import { documentToBlob } from "../../content-saver";
+import { createArticle, htmlMediaType } from "../../../libs/ld-schemas";
+import { measureAsyncTime, measureTime } from "../../../libs/performance";
 import type { ContentProcessor } from "../types";
 import { getLinkedDataName } from "../utils";
 
-const removeBaseUrlFromFragments = (
-  contentDocument: Document,
-  baseUrl: string
-) => {
-  const links = Array.from(contentDocument.getElementsByTagName("a"));
+import { blobToDocument, createDocument, documentToBlob } from "./utils";
+
+const removeBaseUrlFromFragments = (element: HTMLElement, baseUrl: string) => {
+  const links = Array.from(element.getElementsByTagName("a"));
   links.forEach((it) => {
     const href = it.getAttribute("href");
     if (href && href.startsWith(baseUrl + "#")) {
@@ -66,11 +64,7 @@ export const externalHtmlProcessor: ContentProcessor["process"] = async (
   content,
   { url, name }
 ) => {
-  const text = await content.text();
-  const domParser = new DOMParser();
-  const dom = measureTime("parse", () =>
-    domParser.parseFromString(text, htmlMediaType)
-  );
+  const dom = await measureAsyncTime("parse", () => blobToDocument(content));
 
   if (url) {
     if (isLocalUrl(url)) {
@@ -94,30 +88,21 @@ export const externalHtmlProcessor: ContentProcessor["process"] = async (
     urls: url ? [url] : [],
   });
 
-  const contentDocument = document.implementation.createHTMLDocument(
-    article.title
-  );
-  const contentBody = contentDocument.createElement("body");
-  contentBody.appendChild(article.content as HTMLElement);
-
-  contentDocument.body = contentBody;
-
-  removeRootAndContentWrappers(contentBody);
-  cleanElement(contentBody);
-
-  const metaEl = contentDocument.createElement("meta");
-  metaEl.setAttribute("charset", "UTF-8");
-  contentDocument.head.appendChild(metaEl);
-
+  const contentElement = article.content as HTMLElement;
+  removeRootAndContentWrappers(contentElement);
+  cleanElement(contentElement);
   if (url) {
-    const baseEl = contentDocument.createElement("base");
-    baseEl.setAttribute("href", url);
-    contentDocument.head.appendChild(baseEl);
-    removeBaseUrlFromFragments(contentDocument, url);
+    removeBaseUrlFromFragments(contentElement, url);
   }
 
   return {
-    content: documentToBlob(contentDocument),
+    content: documentToBlob(
+      createDocument({
+        title: article.title,
+        contentRoot: contentElement,
+        url,
+      })
+    ),
     linkedData: articleLd,
   };
 };

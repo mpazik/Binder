@@ -20,12 +20,13 @@ import type {
   LinkedData,
   LinkedDataWithHashId,
 } from "../../libs/jsonld-format";
-import { findHashUri } from "../../libs/linked-data";
+import { findHashUri, getUrls } from "../../libs/linked-data";
 import { throwOnNull } from "../../libs/linki";
 import type { Component } from "../../libs/simple-ui/render";
 import { div, newSlot } from "../../libs/simple-ui/render";
 import { getTarget } from "../../libs/simple-ui/utils/funtions";
 import { annotationsSupport } from "../annotations";
+import { isLocalUrl } from "../common/link";
 import type { LinkedDataWithContentAndFragment } from "../content-body";
 import { contentDisplayComponent } from "../content-body";
 import { createWatchAction } from "../watch-history/watch-action";
@@ -34,7 +35,10 @@ import { contentHeader } from "./content-header";
 import type { EditBarState } from "./edit-bar";
 import { saveBar } from "./edit-bar";
 
-const isNew = (linkedData: LinkedData) => !findHashUri(linkedData);
+const isExisting = (linkedData: LinkedData) => {
+  const urls = getUrls(linkedData);
+  return urls.some((it) => isHashUri(it)) || urls.some((it) => isLocalUrl(it));
+};
 
 export const contentComponent: Component<
   {
@@ -83,7 +87,7 @@ export const contentComponent: Component<
     withOptionalState<LinkedDataWithContent>(),
     throwOnNull(),
     (data) => {
-      if (!isNew(data.linkedData))
+      if (isExisting(data.linkedData))
         throw new Error("Can only save content that was not saved before");
       storeData(data, saveContent);
     }
@@ -114,7 +118,7 @@ export const contentComponent: Component<
 
   const resetSaveBar = link(
     map<LinkedData, EditBarState>((it) =>
-      isNew(it) ? ["visible"] : ["hidden"]
+      isExisting(it) ? ["hidden"] : ["visible"]
     ),
     updateSaveBar
   );

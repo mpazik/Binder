@@ -20,15 +20,17 @@ import { productLogo } from "../logo";
 import { dropdownLink, dropdownMenu } from "./common";
 
 export const navigationView: View<{
+  displayed: boolean;
   onDisplay?: Listener<"display">;
   productLogoSize?: ProductLogoSize;
   body: JsonHtml;
   position?: string;
-}> = ({ onDisplay, body, position = "absolute", productLogoSize }) =>
+}> = ({ displayed, onDisplay, body, position = "absolute", productLogoSize }) =>
   nav(
     {
       class:
-        "d-flex flex-justify-between flex-items-center width-full color-bg-tertiary px-2",
+        "flex-justify-between flex-items-center width-full color-bg-tertiary px-2 " +
+        (displayed ? "d-flex" : "d-none"),
       style: {
         top: "0px",
         position,

@@ -17,7 +17,7 @@ import {
 } from "linki";
 
 import { documentContentRoodId } from "../../../functions/content-processors/html-processor";
-import { documentToBlob } from "../../../functions/content-saver";
+import { documentToBlob } from "../../../functions/content-processors/html-processor/utils";
 import type { Component } from "../../../libs/simple-ui/render";
 import { div, newSlot } from "../../../libs/simple-ui/render";
 import { loader } from "../../common/loader";

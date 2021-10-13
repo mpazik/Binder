@@ -1,9 +1,10 @@
 import { pick, pipe } from "linki";
 
 import type { LinkedData } from "../../../libs/jsonld-format";
-import { htmlMediaType } from "../../../libs/ld-schemas";
-import { measureTime } from "../../../libs/performance";
+import { measureAsyncTime } from "../../../libs/performance";
 import type { ContentProcessor } from "../types";
+
+import { blobToDocument } from "./utils";
 
 export const processInternalDocument = (dom: Document): LinkedData => {
   const jsonLdScripts = dom.querySelectorAll(
@@ -19,16 +20,14 @@ export const processInternalDocument = (dom: Document): LinkedData => {
     throw new Error("Loaded page in incorrect format");
   }
 
+  linkedData["url"] = dom.baseURI;
+
   return linkedData;
 };
 
 export const internalHtmlProcessor: ContentProcessor["process"] = async (
   content
 ) => {
-  const text = await content.text();
-  const domParser = new DOMParser();
-  const dom = measureTime("parse", () =>
-    domParser.parseFromString(text, htmlMediaType)
-  );
+  const dom = await measureAsyncTime("parse", () => blobToDocument(content));
   return { content, linkedData: processInternalDocument(dom) };
 };

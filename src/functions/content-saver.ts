@@ -1,5 +1,4 @@
 import { isHashUri } from "../libs/hash";
-import { htmlMediaType } from "../libs/ld-schemas";
 import { getUrls } from "../libs/linked-data";
 
 import type {
@@ -11,16 +10,6 @@ import type { LinkedDataStoreWrite, ResourceStoreWrite } from "./store";
 export type ContentSaver = (
   data: LinkedDataWithContent
 ) => Promise<SavedLinkedDataWithContent>;
-
-const serializeDocument = (contentDocument: Document) => {
-  const serializer = new XMLSerializer();
-  return "<!DOCTYPE html>\n" + serializer.serializeToString(contentDocument);
-};
-
-export const documentToBlob = (content: Document): Blob =>
-  new Blob([serializeDocument(content)], {
-    type: htmlMediaType,
-  });
 
 export const createContentSaver = (
   storeWrite: ResourceStoreWrite,
