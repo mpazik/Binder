@@ -11,6 +11,7 @@ const sharedConfig = ({ envVariables, productIcon }) => ({
   output: {
     filename: "[name].js",
     path: __dirname + "/build",
+    clean: true
   },
   module: {
     rules: [
@@ -30,23 +31,22 @@ const sharedConfig = ({ envVariables, productIcon }) => ({
   },
   plugins: [
     new HtmlWebpackPlugin({
-      chunks: ["main"],
-      templateContent: ({ htmlWebpackPlugin }) => `
-    <!DOCTYPE html>
-    <html lang="en">
-      <head>
-        <title>docland</title>
-        <link href="primer.css" rel="stylesheet" />
-        <link rel="icon" href="${productIcon}.svg" type="image/svg+xml"/>
-        <link rel="mask-icon" href="${productIcon}.svg" color="#24292e">
-        ${htmlWebpackPlugin.tags.headTags}
-      <body>
-      </head>
-        ${htmlWebpackPlugin.tags.bodyTags}
-      </body>
-    </html>
-  `,
-      inject: false,
+      template: "./src/pages/about.html",
+      filename: "./about.html",
+      productIcon,
+      chunks: ["main"]
+    }),
+    new HtmlWebpackPlugin({
+      template: "./src/pages/directory.html",
+      filename: "./directory.html",
+      productIcon,
+      chunks: ["main"]
+    }),
+    new HtmlWebpackPlugin({
+      template: "./src/pages/404.html",
+      filename: "./404.html",
+      productIcon,
+      chunks: ["main"]
     }),
     new CopyWebpackPlugin({
       patterns: [
@@ -94,7 +94,7 @@ const devEnv = {
 const devConfig = (() => {
   const sharedDevConfig = sharedConfig({
     envVariables: devEnv,
-    productIcon: "notebook-icon-dev",
+    productIcon: "notebook-icon-dev.svg",
   });
   return {
     ...sharedDevConfig,
@@ -135,7 +135,11 @@ const devConfig = (() => {
         },
       },
       historyApiFallback: {
-        historyApiFallback: true,
+        rewrites: [
+          { from: /^\/directory/, to: '/directory.html' },
+          { from: /^\/about/, to: '/about.html' },
+          { from: /./, to: '/404.html' },
+        ],
       },
     },
   };
@@ -159,7 +163,7 @@ const prodEnv = {
 const prodConfig = {
   ...sharedConfig({
     envVariables: prodEnv,
-    productIcon: "notebook-icon",
+    productIcon: "notebook-icon.svg",
   }),
   mode: "production",
 };

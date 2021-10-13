@@ -26,6 +26,9 @@ export const processResponseToContent = async (
   response: Response,
   url: string
 ): Promise<LinkedDataWithContent> => {
+  if (response.status >= 300) {
+    throw new Error(`Invalid response "${response.status}" from "${url}"`);
+  }
   const header = response.headers.get("content-type");
   if (!header) {
     throw new Error(`Response content type was not specified`);

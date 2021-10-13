@@ -80,7 +80,10 @@ import {
 import { browserPathProvider, currentPath } from "../../libs/browser-providers";
 import type { HashName, HashUri } from "../../libs/hash";
 import { isHashUri } from "../../libs/hash";
-import { listDbs, storeGetAll } from "../../libs/indexeddb";
+import { storeGetAll } from "../../libs/indexeddb";
+import type { LinkedData } from "../../libs/jsonld-format";
+import { htmlMediaType } from "../../libs/ld-schemas";
+import { getType } from "../../libs/linked-data";
 import { combine } from "../../libs/linki";
 import {
   filterState,
@@ -88,6 +91,7 @@ import {
   handleState,
   newStateMapper,
 } from "../../libs/named-state";
+import { measureTime } from "../../libs/performance";
 import type {
   Component,
   Handlers,
@@ -95,7 +99,6 @@ import type {
   ViewSetup,
 } from "../../libs/simple-ui/render";
 import { div, newSlot, slot } from "../../libs/simple-ui/render";
-import { AboutPage } from "../../pages/about";
 import { accountPicker } from "../account-picker";
 import { loader } from "../common/loader";
 import { contentComponent } from "../content";
@@ -110,8 +113,6 @@ import { createSettingUpdateAction } from "../display-settings/replace-action";
 import { fileDrop } from "../file-drop";
 import { navigation } from "../navigation";
 import { dropdown } from "../navigation/common";
-
-import { hostPageUri, specialDirectoryUri } from "./special-uris";
 
 type InitServices = {
   fetchTroughProxy: Fetch;
@@ -201,7 +202,19 @@ const createContainerView: ViewSetup<{
     )
   );
 
-export const App: Component<InitServices> = ({
+export type LinkedDataWithBody = {
+  linkedData: LinkedData;
+  body: Node;
+};
+const isLinkedDataWithBody = (
+  content: LinkedDataWithBody | LinkedDataWithContent
+): content is LinkedDataWithBody => {
+  return !!(content as LinkedDataWithBody).body;
+};
+
+export const App: Component<
+  InitServices & { initialContent?: LinkedDataWithBody }
+> = ({
   fetchTroughProxy,
   globalDb,
   unclaimedRepository,
@@ -210,6 +223,7 @@ export const App: Component<InitServices> = ({
   initialSettings,
   sendAnalytics,
   updateAnalyticsRepoAccount,
+  initialContent,
 }) => (render, onClose) => {
   const urlIndex = createUriIndex();
   const directoryIndex = createDirectoryIndex();
@@ -361,22 +375,9 @@ export const App: Component<InitServices> = ({
     ),
     link(split(pick("uriChanged")), [
       (it: UriWithFragment) => {
-        if (it.uri === specialDirectoryUri) {
-          switchDisplayToDirectory();
-        } else if (it.uri === hostPageUri("about")) {
-          renderAbout2();
-        } else if (
-          it.uri === window.location.origin ||
-          it.uri === hostPageUri("")
-        ) {
-          listDbs().then((list) => {
-            list.length ? switchDisplayToDirectory() : renderAbout2();
-          });
-        } else {
-          switchDisplayToContent();
-          setCurrentUri(it.uri);
-          loadResource(it);
-        }
+        switchDisplayToContent();
+        setCurrentUri(it.uri);
+        loadResource(it);
       },
       link(
         map<UriWithFragment, string | undefined>(pick("fragment")),
@@ -489,6 +490,36 @@ export const App: Component<InitServices> = ({
     })
   );
 
+  const loadContent = (data: LinkedDataWithContent | LinkedDataWithBody) => {
+    const pageType = getType(data.linkedData);
+    console.log("pageType", pageType);
+    if (pageType === "SearchResultsPage") {
+      switchDisplayToDirectory();
+      postDisplayHook();
+    } else if (pageType === "AboutPage") {
+      if (isLinkedDataWithBody(data)) {
+        renderAbout(data.body);
+      } else {
+        (async () => {
+          const text = await data.content.text();
+          const domParser = new DOMParser();
+          const dom = measureTime("parse", () =>
+            domParser.parseFromString(text, htmlMediaType)
+          );
+          renderAbout(dom.body);
+        })();
+      }
+    } else {
+      // switchDisplayToContent();
+      if (isLinkedDataWithBody(data)) {
+        throw new Error("Not expected document with body");
+      }
+      fork(displayContent, link(ignoreParam(), postDisplayHook), () => {
+        setContentReady(true);
+        pushCreator();
+      })(data);
+    }
+  };
   const [
     contentLoaderSlot,
     { load: loadResource, display: displayFile },
@@ -496,14 +527,7 @@ export const App: Component<InitServices> = ({
     "content-loader",
     loader({
       fetcher: contentFetcherPassingUri,
-      onLoaded: fork(
-        displayContent,
-        link(ignoreParam(), postDisplayHook),
-        () => {
-          setContentReady(true);
-          pushCreator();
-        }
-      ),
+      onLoaded: loadContent,
       contentSlot,
     })
   );
@@ -558,7 +582,7 @@ export const App: Component<InitServices> = ({
     ): Handlers<{
       switchDisplayToContent: void;
       switchDisplayToDirectory: void;
-      renderAbout: void;
+      renderAbout: Node;
     }> => ({
       switchDisplayToContent: () => {
         render(); // clean previous dom, to force rerender
@@ -568,13 +592,12 @@ export const App: Component<InitServices> = ({
         render(); // clean previous dom, to force rerender
         render(div({ class: "mt-8" }, docsDirectorySlot));
       },
-      renderAbout: () => {
-        render(AboutPage);
+      renderAbout: (element) => {
+        render(div({ dangerouslySetDom: element }));
+        hideNavPermanently();
       },
     })
   );
-
-  const renderAbout2 = fork(renderAbout, hideNavPermanently);
 
   const containerView = createContainerView({
     navigationSlot,
@@ -589,7 +612,12 @@ export const App: Component<InitServices> = ({
   subscribeToSettings(updateDisplaySettings);
 
   const openPath = link(map(pathToUri), loadUriWithRecentFragment);
-  openPath(currentPath());
   onClose(browserPathProvider(openPath));
   onClose(documentLinksUriProvider(loadUri));
+
+  if (initialContent) {
+    loadContent(initialContent);
+  } else {
+    openPath(currentPath());
+  }
 };

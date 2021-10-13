@@ -10,3 +10,6 @@ export const isAbsoluteUrl = (url: string): boolean =>
 export function getLinkTarget(url: string): LinkTarget {
   return isAbsoluteUrl(url) ? "_blank" : "_self";
 }
+
+export const isLocalUrl = (url: string): boolean =>
+  url.startsWith(window.location.origin);

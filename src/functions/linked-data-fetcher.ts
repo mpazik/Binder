@@ -52,7 +52,6 @@ export const createLinkedDataWithDocumentFetcher = (
         content,
       };
     }
-
     const response = await fetchTroughProxy(url, {
       signal,
     });
