@@ -12,6 +12,7 @@ const sharedConfig = ({ envVariables, productIcon }) => ({
   output: {
     filename: "[name].js",
     path: __dirname + "/build",
+    publicPath: '/',
     clean: true
   },
   module: {
@@ -108,7 +109,7 @@ const devEnv = {
 const devConfig = (() => {
   const sharedDevConfig = sharedConfig({
     envVariables: devEnv,
-    productIcon: "notebook-icon-dev.svg",
+    productIcon: "/notebook-icon-dev.svg",
   });
   return {
     ...sharedDevConfig,
@@ -178,7 +179,7 @@ const prodEnv = {
 const prodConfig = {
   ...sharedConfig({
     envVariables: prodEnv,
-    productIcon: "notebook-icon.svg",
+    productIcon: "/notebook-icon.svg",
   }),
   mode: "production",
 };
