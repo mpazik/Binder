@@ -23,19 +23,34 @@
 .with-display-settings h5,
 .with-display-settings h6,
 .with-display-settings figcaption,
+.with-display-settings address,
+.with-display-settings blockquote,
+.with-display-settings dl,
 .with-display-settings ul,
-.with-display-settings ol {
+.with-display-settings ol,
+.with-display-settings form,
+.with-display-settings hr,
+.with-display-settings pre
+{
     width: var(--line-width) !important;
     margin-left: auto;
     margin-right: auto;
 }
 
+.with-display-settings figure {
+    margin: 0
+}
+
 .with-display-settings img {
+    margin: 0 auto;
     max-width: var(--img-max-width);
-    margin-left: auto;
-    margin-right: auto;
-    width: auto;
     height: auto;
+}
+
+@media only screen and (max-width: 852px) {
+    .with-display-settings img {
+        max-width: 100%;
+    }
 }
 
 .with-display-settings p > img {

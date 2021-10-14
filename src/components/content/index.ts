@@ -161,7 +161,7 @@ export const contentComponent: Component<
       div(
         {
           id: "content-body",
-          class: "mb-3 position-relative",
+          class: "mb-3 position-relative px-4",
           onDisplay: link(map(getTarget), setContainer),
         },
         contentSlot,
