@@ -3,7 +3,7 @@ import { fork, link, map } from "linki";
 
 import { hostPageUri, isHostPageUri } from "../components/app/special-uris";
 import { isAbsoluteUrl } from "../components/common/link";
-import { currentPath } from "../libs/browser-providers";
+import { currentFragment, currentPath } from "../libs/browser-providers";
 
 const findLink = (element: HTMLElement | null): HTMLElement | undefined => {
   if (!element) return;
@@ -60,7 +60,10 @@ export const combineToUri = ({ uri, fragment }: UriWithFragment): string =>
   fragment ? `${uri}#${fragment}` : uri;
 
 export const pathToUri = (path: string): UriWithFragment => {
-  return newUriWithFragment(isAbsoluteUrl(path) ? path : hostPageUri(path));
+  return {
+    uri: isAbsoluteUrl(path) ? path : hostPageUri(path),
+    fragment: currentFragment(),
+  };
 };
 
 export const documentLinksUriProvider: ClosableProvider<UriWithFragment> = (

@@ -16,7 +16,12 @@ export const urlHashProvider: ClosableProvider<string> = (push) => {
 export const getQueryParams = (): URLSearchParams =>
   new URLSearchParams(window.location.search);
 
-export const getUriFragment = (): string | undefined =>
+export const currentPath = (): string => {
+  const path = window.location.pathname;
+  return path.startsWith("/") ? path.substring(1) : path;
+};
+
+export const currentFragment = (): string | undefined =>
   window.location.hash ? window.location.hash.substring(1) : undefined;
 
 export const queryParamProvider: ClosableProvider<{
@@ -26,17 +31,12 @@ export const queryParamProvider: ClosableProvider<{
   const update = () =>
     push({
       queryParams: getQueryParams(),
-      fragment: getUriFragment(),
+      fragment: currentFragment(),
     });
 
   setImmediate(update);
   window.addEventListener("popstate", update);
   return () => document.removeEventListener("popstate", update);
-};
-
-export const currentPath = (): string => {
-  const path = window.location.pathname;
-  return path.startsWith("/") ? path.substring(1) : path;
 };
 
 export const browserPathProvider: ClosableProvider<string> = (push) => {
