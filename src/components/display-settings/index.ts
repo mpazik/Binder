@@ -29,26 +29,26 @@ const fontFaceMap = new Map<FontFace, string>([
 ]);
 
 const fontSizeMap = new Map<FontSize, number>([
-  ["x-small", 14],
-  ["small", 16],
-  ["medium", 18],
-  ["large", 20],
-  ["x-large", 24],
+  ["x-small", 16],
+  ["small", 18],
+  ["medium", 20],
+  ["large", 24],
+  ["x-large", 28],
 ]);
 
 const lineLengthMap = new Map<LineLength, number>([
-  ["x-small", 400],
-  ["small", 500],
+  ["x-small", 300],
+  ["small", 450],
   ["medium", 600],
   ["large", 800],
   ["x-large", 1200],
 ]);
 
 const imgMaxWidthMap = new Map<LineLength, number>([
-  ["x-small", 600],
-  ["small", 700],
-  ["medium", 800],
-  ["large", 1000],
+  ["x-small", 500],
+  ["small", 600],
+  ["medium", 700],
+  ["large", 850],
   ["x-large", 1200],
 ]);
 
