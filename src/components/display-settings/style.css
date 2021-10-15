@@ -13,7 +13,6 @@
 }
 
 .with-line-length-settings,
-.with-display-settings div > div, /* ignore intitial wrapping div */
 .with-display-settings table,
 .with-display-settings p,
 .with-display-settings h1,
@@ -30,11 +29,13 @@
 .with-display-settings ol,
 .with-display-settings form,
 .with-display-settings hr,
-.with-display-settings pre
+.with-display-settings pre,
+.with-display-settings svg
 {
     width: var(--line-width) !important;
     margin-left: auto;
     margin-right: auto;
+    display: block;
 }
 
 .with-display-settings figure {
