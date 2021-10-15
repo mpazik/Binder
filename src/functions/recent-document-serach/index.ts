@@ -1,6 +1,6 @@
+import type { UriWithFragment } from "../../libs/browser-providers";
 import type { DirectoryIndex } from "../indexes/directory-index";
 import type { WatchHistorySearch } from "../indexes/watch-history-index";
-import type { UriWithFragment } from "../url-hijack";
 
 import { recentDateComparator } from "./utils";
 

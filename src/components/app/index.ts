@@ -75,14 +75,14 @@ import {
   openAccountRepository,
   openUnclaimedRepository,
 } from "../../functions/store/repository";
-import type { UriWithFragment } from "../../functions/url-hijack";
+import { documentLinksUriProvider } from "../../functions/url-hijack";
+import type { UriWithFragment } from "../../libs/browser-providers";
 import {
-  documentLinksUriProvider,
+  browserPathProvider,
+  currentUriWithFragment,
   newUriWithFragment,
-  pathToUri,
   updateBrowserHistory,
-} from "../../functions/url-hijack";
-import { browserPathProvider, currentPath } from "../../libs/browser-providers";
+} from "../../libs/browser-providers";
 import type { HashName, HashUri } from "../../libs/hash";
 import { isHashUri } from "../../libs/hash";
 import { storeGetAll } from "../../libs/indexeddb";
@@ -627,13 +627,13 @@ export const App: Component<
   renderContainer();
   subscribeToSettings(updateDisplaySettings);
 
-  const openPath = link(map(pathToUri), loadUriWithRecentFragment);
+  const openPath = link(loadUriWithRecentFragment);
   onClose(browserPathProvider(openPath));
   onClose(documentLinksUriProvider(loadUri));
 
   if (initialContent) {
     displayFile(initialContent);
   } else {
-    openPath(currentPath());
+    openPath(currentUriWithFragment());
   }
 };

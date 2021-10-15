@@ -19,8 +19,8 @@ import {
 } from "linki";
 
 import type { RecentDocuments } from "../../functions/recent-document-serach";
-import type { UriWithFragment } from "../../functions/url-hijack";
-import { newUriWithFragment } from "../../functions/url-hijack";
+import type { UriWithFragment } from "../../libs/browser-providers";
+import { newUriWithFragment } from "../../libs/browser-providers";
 import type {
   Component,
   ComponentBody,

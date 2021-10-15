@@ -6,7 +6,7 @@ import type { GDriveAction } from "../../functions/gdrive/controller";
 import type { DirectoryIndex } from "../../functions/indexes/directory-index";
 import type { WatchHistorySearch } from "../../functions/indexes/watch-history-index";
 import { createRecentDocumentSearch } from "../../functions/recent-document-serach";
-import type { UriWithFragment } from "../../functions/url-hijack";
+import type { UriWithFragment } from "../../libs/browser-providers";
 import type { Component, JsonHtml } from "../../libs/simple-ui/render";
 import { newSlot, slot } from "../../libs/simple-ui/render";
 import { getTarget } from "../../libs/simple-ui/utils/funtions";

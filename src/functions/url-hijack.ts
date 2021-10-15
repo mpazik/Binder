@@ -1,9 +1,12 @@
 import type { ClosableProvider } from "linki";
 import { fork, link, map } from "linki";
 
-import { hostPageUri, isHostPageUri } from "../components/app/special-uris";
-import { isAbsoluteUrl } from "../components/common/link";
-import { currentFragment, currentPath } from "../libs/browser-providers";
+import type { UriWithFragment } from "../libs/browser-providers";
+import {
+  currentPath,
+  newUriWithFragment,
+  updateBrowserHistory,
+} from "../libs/browser-providers";
 
 const findLink = (element: HTMLElement | null): HTMLElement | undefined => {
   if (!element) return;
@@ -31,39 +34,6 @@ export const linkHijack = ({
   element.addEventListener("click", hijackLink);
 
   return () => element.removeEventListener("click", hijackLink);
-};
-
-export const updateBrowserHistory = ({
-  uri = currentPath(),
-  fragment,
-}: UriWithFragment | { fragment: string; uri?: string }): void => {
-  const url = isHostPageUri(uri)
-    ? uri
-    : `/${uri}${fragment ? `#${fragment}` : ""}`;
-  window.history.pushState({}, "", url);
-};
-
-export type UriWithFragment = {
-  uri: string;
-  fragment?: string;
-};
-
-export const newUriWithFragment = (url: string): UriWithFragment => {
-  const fragmentPos = url.lastIndexOf("#");
-  return {
-    uri: fragmentPos < 0 ? url : url.substring(0, fragmentPos),
-    fragment: fragmentPos < 0 ? undefined : url.substring(fragmentPos + 1),
-  };
-};
-
-export const combineToUri = ({ uri, fragment }: UriWithFragment): string =>
-  fragment ? `${uri}#${fragment}` : uri;
-
-export const pathToUri = (path: string): UriWithFragment => {
-  return {
-    uri: isAbsoluteUrl(path) ? path : hostPageUri(path),
-    fragment: currentFragment(),
-  };
 };
 
 export const documentLinksUriProvider: ClosableProvider<UriWithFragment> = (

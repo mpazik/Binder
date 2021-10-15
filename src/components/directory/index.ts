@@ -2,7 +2,7 @@ import type { DirectoryIndex } from "../../functions/indexes/directory-index";
 import type { WatchHistorySearch } from "../../functions/indexes/watch-history-index";
 import type { RecentDocuments } from "../../functions/recent-document-serach";
 import { createRecentDocumentSearch } from "../../functions/recent-document-serach";
-import { combineToUri } from "../../functions/url-hijack";
+import { combineToUri } from "../../libs/browser-providers";
 import type { Component, View } from "../../libs/simple-ui/render";
 import { a, div, h3, nav, p, small } from "../../libs/simple-ui/render";
 import { relativeDate } from "../common/relative-date";

@@ -15,7 +15,10 @@ import {
   withOptionalState,
 } from "linki";
 
-import { newUriWithFragment } from "../../../functions/url-hijack";
+import {
+  newUriWithFragment,
+  updateFragment,
+} from "../../../libs/browser-providers";
 import type { ZipObject } from "../../../libs/epub";
 import { getBlobFile, getXmlFile } from "../../../libs/epub";
 import type { EpubCfi } from "../../../libs/epubcfi";
@@ -102,9 +105,9 @@ const prepareEpubPage = async (
       const src = img.getAttribute("src")!;
       // reset src for the time we fetch the data as it seems that browser tries prefetch the image even if dom is not printed yet
       img.setAttribute("src", "");
-      getBlobFile(zip, absolute(filePath, src)).then((it) =>
-        img.setAttribute("src", URL.createObjectURL(it))
-      );
+      getBlobFile(zip, absolute(filePath, src))
+        .then((it) => img.setAttribute("src", URL.createObjectURL(it)))
+        .catch((it) => console.error(it));
     })
   );
 
@@ -303,9 +306,9 @@ export const epubDisplay: ContentComponent = ({
     filter(isFocusedElementStatic),
     ([chapter, keyboardEvent]) => {
       if (keyboardEvent.key === "ArrowLeft" && chapter.previousChapter) {
-        load(chapter.previousChapter);
+        updateFragment(chapter.previousChapter);
       } else if (keyboardEvent.key === "ArrowRight" && chapter.nextChapter) {
-        load(chapter.nextChapter);
+        updateFragment(chapter.nextChapter);
       }
     }
   );
