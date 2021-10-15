@@ -181,13 +181,13 @@ const createContainerView: ViewSetup<{
   contentOrDirSlot: Slot;
   accountPickerSlot: Slot;
   fileDropSlot: Slot;
-  onFileDrop: () => void;
+  onDragenter: (event: DragEvent) => void;
 }> = ({
   navigationSlot,
   contentOrDirSlot,
   accountPickerSlot,
   fileDropSlot,
-  onFileDrop,
+  onDragenter,
 }) => () =>
   div(
     navigationSlot,
@@ -198,7 +198,7 @@ const createContainerView: ViewSetup<{
           margin: "0 auto",
           minHeight: "100%",
         },
-        onDragenter: onFileDrop,
+        onDragenter,
       },
       fileDropSlot,
       accountPickerSlot,
@@ -584,7 +584,7 @@ export const App: Component<
     })
   );
 
-  const [fileDropSlot, { displayFileDrop }] = newSlot(
+  const [fileDropSlot, { handleDragEvent }] = newSlot(
     "file-drop",
     fileDrop({
       onFile: link(
@@ -620,7 +620,7 @@ export const App: Component<
     contentOrDirSlot: contentLoaderSlot,
     fileDropSlot,
     accountPickerSlot,
-    onFileDrop: link(map(to<true>(true)), displayFileDrop) as Callback,
+    onDragenter: handleDragEvent,
   });
 
   const renderContainer = link(map(containerView), render);
