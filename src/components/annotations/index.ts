@@ -184,7 +184,7 @@ export const annotationsSupport: Component<
         {
           handler: (it) => changeSelection(["select", it]),
           label: "comment",
-          shortCutKey: "KeyC",
+          shortCutKey: "c",
         },
         {
           handler: ({ container, range, fragment }) => {
@@ -198,7 +198,7 @@ export const annotationsSupport: Component<
             saveAnnotation({ selector });
           },
           label: "highlight",
-          shortCutKey: "KeyH",
+          shortCutKey: "h",
         },
       ],
     })

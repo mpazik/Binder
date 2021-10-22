@@ -24,8 +24,13 @@ export const preventDefault = (event: Event): void => event.preventDefault();
 export const inputValue = (input: HTMLInputElement): string => input.value;
 export const trim = (text: string): string => text.trim();
 
+export const getKey = (event: KeyboardEvent): string => event.key;
 export const isKey = (key: string) => (event: KeyboardEvent): boolean =>
-  event.code === key;
+  getKey(event) === key;
+
+export const getKeyCode = (event: KeyboardEvent): string => event.code;
+export const isKeyCode = (code: string) => (event: KeyboardEvent): boolean =>
+  getKeyCode(event) === code;
 
 export const hasMetaKey = (event: KeyboardEvent): boolean => event.metaKey;
 
