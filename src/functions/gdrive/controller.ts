@@ -160,7 +160,12 @@ export const gdrive = (
                     },
                   ];
                 } catch (error) {
-                  if (error.status === 403) {
+                  if (
+                    error &&
+                    typeof error === "object" &&
+                    "status" in error &&
+                    (error as { status: number }).status === 403
+                  ) {
                     return handleError("insufficient-permission");
                   }
                   return handleError(error);

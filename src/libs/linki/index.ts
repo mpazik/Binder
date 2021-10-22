@@ -16,6 +16,18 @@ export const attach = <T, S>(t: Transformer<T, S>): Transformer<T, [T, S]> => (
   v
 ) => [v, t(v)];
 
+export const withEffect = <T>(handler: (data: T) => void) => (data: T): T => {
+  handler(data);
+  return data;
+};
+
+export const effect = <T>(handler: (data: T) => void): Processor<T> => (
+  callback
+) => (data) => {
+  handler(data);
+  callback(data);
+};
+
 export const throwOnNull = <T>(): Processor<T | undefined, T> => (callback) => (
   v
 ) => {

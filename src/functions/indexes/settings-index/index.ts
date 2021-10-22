@@ -111,7 +111,7 @@ export const createSettingsIndexer = (
 ): UpdateIndex => async (ld) => {
   const record = index(ld);
   if (!record) return;
-  const previous = await storeGet(store, record.key);
+  const previous = await storeGet<SettingsRecord>(store, record.key);
   if (
     previous &&
     record.props.startTime &&

@@ -66,7 +66,8 @@ const contentComponent: Component<
     try {
       updateUpdateBar(["saving"]);
       onContentModified(newContent);
-    } catch (reason) {
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "unknown error";
       updateUpdateBar(["error", { reason, onTryAgain: retry }]);
     }
   };

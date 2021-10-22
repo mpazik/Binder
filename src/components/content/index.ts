@@ -78,7 +78,8 @@ export const contentComponent: Component<
           )
         )
       );
-    } catch (reason) {
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "unknown error";
       updateSaveBar(["error", { reason, onTryAgain: retry }]);
     }
   };

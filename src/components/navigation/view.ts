@@ -20,12 +20,18 @@ import { productLogo } from "../logo";
 import { dropdownLink, dropdownMenu } from "./common";
 
 export const navigationView: View<{
-  displayed: boolean;
+  displayed?: boolean;
   onDisplay?: Listener<"display">;
   productLogoSize?: ProductLogoSize;
   body: JsonHtml;
   position?: string;
-}> = ({ displayed, onDisplay, body, position = "absolute", productLogoSize }) =>
+}> = ({
+  displayed = true,
+  onDisplay,
+  body,
+  position = "absolute",
+  productLogoSize,
+}) =>
   nav(
     {
       class:

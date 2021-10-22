@@ -67,7 +67,7 @@ export const createWatchHistoryIndex = (
 export const createWatchHistorySearch = (
   watchHistoryStore: WatchHistoryStore
 ): WatchHistorySearch => async (hashUris) => {
-  const all = await storeGetAll(watchHistoryStore);
+  const all = await storeGetAll<WatchHistoryRecord>(watchHistoryStore);
   if (hashUris === undefined) return all;
   return all.filter((it) => hashUris.includes(it.uri));
 };
@@ -86,7 +86,10 @@ export const createWatchHistoryIndexer = (
 ): UpdateIndex => async (ld) => {
   const record = index(ld);
   if (!record) return;
-  const previous = await storeGet(watchHistoryStore, record.key);
+  const previous = await storeGet<WatchHistoryRecord>(
+    watchHistoryStore,
+    record.key
+  );
   if (
     previous &&
     record.props.startTime &&

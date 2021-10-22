@@ -77,11 +77,11 @@ export const getLastLogin = async (
 ): Promise<LastLogin | undefined> => {
   const store = createSettingsStore(db);
   const [driver, email, name, logged, connected] = await Promise.all([
-    storeGet(store, "account.driver"),
-    storeGet(store, "account.email"),
-    storeGet(store, "account.name"),
-    storeGet(store, "account.logged"),
-    storeGet(store, "account.connected"),
+    storeGet<string>(store, "account.driver"),
+    storeGet<string>(store, "account.email"),
+    storeGet<string>(store, "account.name"),
+    storeGet<number>(store, "account.logged"),
+    storeGet<string>(store, "account.connected"),
   ]);
 
   if (
