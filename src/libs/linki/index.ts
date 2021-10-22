@@ -1,7 +1,6 @@
 import type {
   Callback,
   Callbacks,
-  PartialTuple,
   Processor,
   ProcessorMultiIn,
   Transformer,
@@ -35,13 +34,14 @@ export const throwOnNull = <T>(): Processor<T | undefined, T> => (callback) => (
 };
 
 export const combine = <S extends Tuple>(
-  ...init: PartialTuple<S>
-): ProcessorMultiIn<S, PartialTuple<S>> => (callback) => {
-  const state = init.slice(0);
+  ...init: S
+): ProcessorMultiIn<S, S> => (callback) => {
+  const state = init;
 
   return (init.map((s, n) => (newStateN: unknown) => {
+    // @ts-ignore
     state[n] = newStateN;
-    callback((state as unknown) as PartialTuple<S>);
+    callback(state);
   }) as unknown) as Callbacks<S>;
 };
 

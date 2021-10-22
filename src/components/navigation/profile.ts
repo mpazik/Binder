@@ -243,7 +243,10 @@ export const profilePanel: Component<ProfileActions, ProfilePanelControl> = (
   const renderProfile = link(map(createProfileView(props)), render);
 
   const [gdriveStateForProfile, storeStateForProfile] = link(
-    combine<[GDriveState, StoreState]>(undefined, undefined),
+    combine<[GDriveState | undefined, StoreState | undefined]>(
+      undefined,
+      undefined
+    ),
     filter(definedTuple),
     map<[GDriveState, StoreState], ProfileState>(([gdriveState, storeState]) =>
       mapState<GDriveState, ProfileState>(gdriveState, ["loading"], {

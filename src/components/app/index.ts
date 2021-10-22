@@ -283,7 +283,10 @@ export const App: Component<
   const sendError = createErrorSender(sendAnalytics);
 
   const [gdriveStateForAccountPicker, storeStateForAccountPicker] = link(
-    combine<[GDriveState, StoreState]>(undefined, undefined),
+    combine<[GDriveState | undefined, StoreState | undefined]>(
+      undefined,
+      undefined
+    ),
     filter(definedTuple),
     ([gdriveState, storeState]) =>
       handleState<GDriveState>(gdriveState, {
@@ -363,7 +366,7 @@ export const App: Component<
         })),
         sendError
       ),
-      gdriveStateForAccountPicker
+      (it) => gdriveStateForAccountPicker(it)
     ),
     globalDb,
     unclaimedRepository
