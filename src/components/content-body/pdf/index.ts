@@ -56,7 +56,6 @@ const openPage = async (
   pageNumber: number,
   abortSignal: AbortSignal
 ): Promise<PdfPage | undefined> => {
-  const containerWidth = 696;
   let canceled = false;
   abortSignal.addEventListener("abort", () => (canceled = true));
 
@@ -69,17 +68,21 @@ const openPage = async (
   const textContent = await page.getTextContent();
   if (canceled) return;
 
-  const originalViewport = page.getViewport({ scale: 1 });
-  const viewport = page.getViewport({
-    scale: containerWidth / originalViewport.width,
-  });
-  canvas.height = viewport.height;
-  canvas.width = viewport.width;
+  const viewport = page.getViewport({ scale: 1.3 });
+  const devicePixelRatio = window.devicePixelRatio;
+  canvas.height = viewport.height * devicePixelRatio;
+  canvas.width = viewport.width * devicePixelRatio;
+  canvas.style.height = viewport.height + "px";
+  canvas.style.width = viewport.width + "px";
   textLayer.style.width = viewport.width + "px";
   textLayer.style.height = viewport.height + "px";
+  textLayer.style.left = "50%";
+  textLayer.style.transform = "translateX(-50%)";
 
+  const canvasContext = canvas.getContext("2d")!;
+  canvasContext.scale(devicePixelRatio, devicePixelRatio);
   await page.render({
-    canvasContext: canvas.getContext("2d")!,
+    canvasContext,
     viewport: viewport,
   });
   if (canceled) return;
@@ -145,7 +148,7 @@ const setupPdfPageView: ViewSetup<
     }),
     div(
       {
-        class: "position-relative",
+        class: "position-relative d-flex flex-justify-center",
         onDisplay: link(map(getTarget), (container) =>
           onDisplay({
             container,
@@ -156,7 +159,9 @@ const setupPdfPageView: ViewSetup<
           })
         ),
       },
-      div({ dangerouslySetDom: canvas }),
+      div({
+        dangerouslySetDom: canvas,
+      }),
       div({
         dangerouslySetDom: textLayer,
       })
