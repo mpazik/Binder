@@ -89,6 +89,7 @@ import { storeGetAll } from "../../libs/indexeddb";
 import type { LinkedData } from "../../libs/jsonld-format";
 import { getPropertyValue, getType } from "../../libs/linked-data";
 import { combine } from "../../libs/linki";
+import { startChain } from "../../libs/linki/chain";
 import {
   filterState,
   filterStates,
@@ -587,20 +588,20 @@ export const App: Component<
   const [fileDropSlot, { handleDragEvent }] = newSlot(
     "file-drop",
     fileDrop({
-      onFile: link(
-        asyncMapWithErrorHandler(
-          (it) => processFileToContent(it).then(contentSaver),
-          (error) => console.error(error)
-        ),
-        fork(
-          link(
-            map(pipe(pick("linkedData"), pick("@id"), newUriWithFragment)),
-            updateBrowserHistory
-          ),
-          (it) => {
-            displayFile(it);
-          }
-        )
+      onFile: startChain((start) =>
+        start
+          .process(
+            asyncMapWithErrorHandler(
+              (it) => processFileToContent(it).then(contentSaver),
+              (error) => console.error(error)
+            )
+          )
+          .withEffect((start) =>
+            start
+              .map(pipe(pick("linkedData"), pick("@id"), newUriWithFragment))
+              .handle(updateBrowserHistory)
+          )
+          .handle(displayFile)
       ),
     })
   );
