@@ -105,3 +105,10 @@ export const closable = <T>(
     const [controller, value] = tuple;
     handler(value, controller.signal); // side effect
   });
+
+export const match = <T, S>(
+  entries: readonly (readonly [T, S])[]
+): Transformer<T, S | undefined> => {
+  const map = new Map(entries);
+  return (v: T) => map.get(v);
+};
