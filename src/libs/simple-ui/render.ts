@@ -1,5 +1,7 @@
 import type { Close, Provider } from "linki";
 
+import { throwIfNull } from "../errors";
+
 import type {
   SimplifiedElementsMap,
   SimplifiedEvent,
@@ -127,49 +129,76 @@ export const classList = (classes: Record<string, boolean>): string =>
     }, [] as string[])
     .join(" ");
 
-function handleChildren(node: Node, slots: Slots, children: [Node, Slots][]) {
-  children.forEach(([child, childSlots]) => {
-    node.appendChild(child);
-    childSlots.forEach((value, key) => {
-      if (process.env.NODE_ENV !== "production") {
-        if (slots.has(key)) {
-          throw new Error(
-            `Slot with the key "${key}" is duplicated. Slot key must be unique`
-          );
-        }
-      }
-      slots.set(key, value);
-    });
-  });
-}
-
 const trueBooleanAttributes = ["contenteditable"];
 
-const convertToDom = (elem: JsonHtml): [Node, Slots] =>
-  mapJsonMl<Nodes, [Node, Slots]>(
+const getSlots = (elem: JsonHtml, dom: Node): Slots => {
+  if (dom.nodeType !== Node.ELEMENT_NODE) {
+    return new Map();
+  }
+  const slotMap = new Map<string, Element>();
+  const slots = (dom as Element).getElementsByTagName("slot");
+
+  for (let i = 0; i < slots.length; i++) {
+    const slot = slots[i];
+    const name = throwIfNull(slot.getAttribute("name"));
+    slotMap.set(name, slot);
+  }
+
+  return mapJsonMl<Nodes, Slots>(
     elem,
-    (string) => [document.createTextNode(string), new Map()],
+    () => new Map(),
     ([tag, attrs, children]) => {
       const slots: Slots = new Map();
 
+      if (tag === "slot") {
+        const { key, componentHandler } = attrs as CustomElements["slot"];
+        slots.set(key, {
+          runtime: componentHandler,
+          element: throwIfNull(slotMap.get(key)),
+        });
+      }
+      children.forEach((childSlots) => {
+        childSlots.forEach((value, key) => {
+          if (process.env.NODE_ENV !== "production") {
+            if (slots.has(key)) {
+              throw new Error(
+                `Slot with the key "${key}" is duplicated. Slot key must be unique`
+              );
+            }
+          }
+          slots.set(key, value);
+        });
+      });
+      return slots;
+    }
+  );
+};
+
+const convertToDom = (elem: JsonHtml): Node =>
+  mapJsonMl<Nodes, Node>(
+    elem,
+    (string) => document.createTextNode(string),
+    ([tag, attrs, children]) => {
       if (tag === "fragment") {
         const node = document.createDocumentFragment();
-        handleChildren(node, slots, children);
-        return [node, slots];
+        children.forEach((child) => {
+          node.appendChild(child);
+        });
+        return node;
       }
       if (tag === "dangerousHTML") {
         const node = document.createElement("div");
         node.innerHTML = (attrs as Attributes<Nodes, typeof tag>)[
           "dangerouslySetInnerHTML" as keyof Attributes<Nodes, typeof tag>
         ];
-        return [node.children[0], slots];
+        return node.children[0];
       }
 
       const node = document.createElement(tag);
       if (tag === "slot") {
-        const { key, componentHandler } = attrs as CustomElements["slot"];
-        slots.set(key, { runtime: componentHandler, element: node });
-        return [node, slots];
+        const { key } = attrs as CustomElements["slot"];
+        node.setAttribute("name", key);
+        return node;
       }
 
       for (const attrKey of Object.keys(attrs)) {
@@ -217,9 +246,11 @@ const convertToDom = (elem: JsonHtml): [Node, Slots] =>
         }
       }
 
-      handleChildren(node, slots, children);
+      children.forEach((child) => {
+        node.appendChild(child);
+      });
 
-      return [node, slots];
+      return node;
     }
   );
 
@@ -242,7 +273,8 @@ const slotHandler = (parent: Element): Renderer => {
       }
       return;
     }
-    const [newChild, renderedSlots] = convertToDom(jsonml);
+    const newChild = convertToDom(jsonml);
+    const renderedSlots = getSlots(jsonml, newChild);
 
     const rendered = new Set<string>(renderedSlots.keys());
     const existing = new Set<string>(existingSlots.keys());
@@ -377,6 +409,5 @@ export const slotForEntity = (
 ];
 
 export const jsonHtmlToDom = (json: JsonHtml): Node => {
-  const [node] = convertToDom(json);
-  return node;
+  return convertToDom(json);
 };
