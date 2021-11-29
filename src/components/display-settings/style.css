@@ -30,7 +30,8 @@
 .with-display-settings form,
 .with-display-settings hr,
 .with-display-settings pre,
-.with-display-settings svg
+.with-display-settings svg,
+.with-display-settings div > div > div
 {
     width: var(--line-width) !important;
     margin-left: auto;
