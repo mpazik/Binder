@@ -1,7 +1,13 @@
+import { map } from "linki";
+
 export const recentDateComparator = (
   date1: Date | undefined,
   date2: Date | undefined
 ): number => {
+  map(() => {
+    return 2;
+  });
+
   if (date1 === undefined) {
     if (date2 === undefined) return 0;
     return 1;

@@ -1,21 +1,20 @@
 import { fork } from "linki";
-
-import type { JsonHtml, View } from "../../libs/simple-ui/render";
+import type { JsonHtml, View } from "linki-ui";
 import {
   a,
-  dangerousHTML,
+  dangerousHtml,
   details,
   div,
   li,
   span,
   summary,
   ul,
-} from "../../libs/simple-ui/render";
+} from "linki-ui";
+
 import { preventDefault } from "../../libs/simple-ui/utils/funtions";
 import { getLinkTarget } from "../common/link";
 
-const loadingIcon = `
-<svg xmlns="http://www.w3.org/2000/svg" class=" v-align-middle" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+const loadingIcon = `<svg xmlns="http://www.w3.org/2000/svg" class=" v-align-middle" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
    <title>Loading your profile</title>
    <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
    <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"></path>
@@ -23,7 +22,7 @@ const loadingIcon = `
 </svg>`;
 
 export const loading: View = () =>
-  span({ class: "btn-octicon" }, dangerousHTML(loadingIcon));
+  span({ class: "btn-octicon" }, dangerousHtml(loadingIcon));
 
 export const dropdown: View<
   { children: JsonHtml[] } & (
@@ -36,11 +35,10 @@ export const dropdown: View<
     summary(
       {
         class: "btn-octicon",
-        role: "button",
         title: (props as { icon: string }).icon ? props.title : undefined,
       },
       (props as { icon: string }).icon
-        ? dangerousHTML((props as { icon: string }).icon)
+        ? dangerousHtml((props as { icon: string }).icon)
         : (props as { title: string }).title,
       div({ class: "dropdown-caret" })
     ),
@@ -64,10 +62,9 @@ export const dropdownMenu: View<
     summary(
       {
         class: "btn-octicon",
-        role: "button",
       },
       (props as { icon: string }).icon
-        ? dangerousHTML((props as { icon: string }).icon)
+        ? dangerousHtml((props as { icon: string }).icon)
         : (props as { title: string }).title,
       div({ class: "dropdown-caret" })
     ),

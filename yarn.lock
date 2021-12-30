@@ -4974,10 +4974,30 @@ lines-and-columns@^1.1.6:
   resolved "https://registry.yarnpkg.com/lines-and-columns/-/lines-and-columns-1.1.6.tgz"
   integrity sha1-HADHQ7QzzQpOgHWPe2SldEDZ/wA=
 
-linki@^0.1.2:
+linki-experimental@^0.4.0:
+  version "0.4.0"
+  resolved "https://registry.yarnpkg.com/linki-experimental/-/linki-experimental-0.4.0.tgz#1e9ed8a801a0ddadc2da9c64b220e6634e28fd0b"
+  integrity sha512-pn1f7bDohsu1WMDOfU1kJwQfUWi3KxhEbhKWg6r7RXmWGB14WCwMc8CY3+ZySkyOQYMjbj9250+0DhgyKcwyoQ==
+  dependencies:
+    linki "^0.1.2"
+
+linki-ui@^0.1.2:
   version "0.1.2"
-  resolved "https://registry.yarnpkg.com/linki/-/linki-0.1.2.tgz#be673fdc5d3c78a42e3cf82de3a172a417a59a13"
-  integrity sha512-QZh2/wNKb5egjpbatdSIhh5iMXTp357cyCNjEb4d3iCHIeUQ+7XuEnL8SXF4q/slFJFP/YHQ6ANTqS7KOs8qOg==
+  resolved "https://registry.yarnpkg.com/linki-ui/-/linki-ui-0.1.2.tgz#43bbb971e06f8c8bd0c363328ffd2222347a8659"
+  integrity sha512-l28AKpTNFSFr8SfydE22/y9LvJM8XWBGpfVek/1IMvvSSFEOjON/F1dFtyV7UQjpxJa8Bxe3/jz1JbjCwPjJ6A==
+  dependencies:
+    linki "^0.1.7"
+    linki-experimental "^0.4.0"
+
+linki@^0.1.2:
+  version "0.1.5"
+  resolved "https://registry.yarnpkg.com/linki/-/linki-0.1.5.tgz#4292036413045e6437da68fb37672577a0f80a86"
+  integrity sha512-QJryIjpjxTIHrUXcI8RyBHy3NikzPei5r3dfhuIiP/DoK8EC9UOxmKdTQMkpoUbF+OEQSU64JiXoxTniQliKnw==
+
+linki@^0.1.7:
+  version "0.1.7"
+  resolved "https://registry.yarnpkg.com/linki/-/linki-0.1.7.tgz#41877ba377b88480889e181595750d93caf0e3f8"
+  integrity sha512-rAIbEO+gIyzFTjfEh9qi1D9h0ffp4NN+kUdpNY/qCxVuBRnkt31C8fLBEt8vufv6eC3w8CxMMNWjBKzVovFxAQ==
 
 load-json-file@^2.0.0:
   version "2.0.0"

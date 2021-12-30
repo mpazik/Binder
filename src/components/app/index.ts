@@ -428,42 +428,41 @@ export const App: Component<
       hideNav,
       hideNavPermanently,
       setCurrentUri,
+      start: startNav,
+      stop: stopNav,
     },
-  ] = newSlot(
-    "navigation",
-    navigation({
-      displayed:
-        !initialContent || getType(initialContent.linkedData) != "AboutPage",
-      updateGdrive,
-      upload: store.upload,
-      displayAccountPicker: () => displayAccountPicker({ loading: false }),
-      initProfile: {
-        repository: initRepo,
-        user: lastLogin
-          ? {
-              emailAddress: lastLogin.email,
-              displayName: lastLogin.name,
-            }
-          : undefined,
-      },
-      loadUri: fork(updateBrowserHistory, loadUri),
-      searchDirectory: directoryIndex.search,
-      searchWatchHistory,
-      displaySettingsSlot: dropdown({
-        icon: typographyIcon,
-        title: "display settings",
-        children: [
-          setupDisplaySettingsPanel({
-            onFontFaceChange: createDisplaySettingUpdater("fontFace"),
-            onFontSizeChange: createDisplaySettingUpdater("fontSize"),
-            onLineLengthChange: createDisplaySettingUpdater("lineLength"),
-            onLineHeightChange: createDisplaySettingUpdater("lineHeight"),
-            onThemeChange: createDisplaySettingUpdater("theme"),
-          })(displaySettings),
-        ],
-      }),
-    })
-  );
+  ] = navigation({
+    displayed:
+      !initialContent || getType(initialContent.linkedData) != "AboutPage",
+    updateGdrive,
+    upload: store.upload,
+    displayAccountPicker: () => displayAccountPicker({ loading: false }),
+    initProfile: {
+      repository: initRepo,
+      user: lastLogin
+        ? {
+            emailAddress: lastLogin.email,
+            displayName: lastLogin.name,
+          }
+        : undefined,
+    },
+    loadUri: fork(updateBrowserHistory, loadUri),
+    searchDirectory: directoryIndex.search,
+    searchWatchHistory,
+    displaySettingsSlot: dropdown({
+      icon: typographyIcon,
+      title: "display settings",
+      children: [
+        setupDisplaySettingsPanel({
+          onFontFaceChange: createDisplaySettingUpdater("fontFace"),
+          onFontSizeChange: createDisplaySettingUpdater("fontSize"),
+          onLineLengthChange: createDisplaySettingUpdater("lineLength"),
+          onLineHeightChange: createDisplaySettingUpdater("lineHeight"),
+          onThemeChange: createDisplaySettingUpdater("theme"),
+        })(displaySettings),
+      ],
+    }),
+  });
 
   const contentFetcherPassingUri = createContentFetcherPassingUri(
     createLinkedDataWithDocumentFetcher(
@@ -620,7 +619,7 @@ export const App: Component<
   );
 
   const containerView = createContainerView({
-    navigationSlot,
+    navigationSlot: div({ dangerouslySetDom: navigationSlot }),
     contentOrDirSlot: contentLoaderSlot,
     fileDropSlot,
     accountPickerSlot,
@@ -630,10 +629,12 @@ export const App: Component<
   const renderContainer = link(map(containerView), render);
   renderContainer();
   subscribeToSettings(updateDisplaySettings);
+  startNav();
 
   const openPath = link(loadUriWithRecentFragment);
   onClose(browserPathProvider(openPath));
   onClose(documentLinksUriProvider(loadUri));
+  onClose(stopNav);
 
   if (initialContent) {
     displayFile(initialContent);
