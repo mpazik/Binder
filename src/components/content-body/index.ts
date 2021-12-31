@@ -10,10 +10,9 @@ import {
   pick,
   pipe,
   split,
-  withMultiState,
   withOptionalState,
+  valueWithOptionalState,
 } from "linki";
-import { valueWithOptionalState } from "linki/dist/processors/reduce";
 
 import type { LinkedDataWithContent } from "../../functions/content-processors";
 import type { ContentSaver } from "../../functions/content-saver";
@@ -25,7 +24,7 @@ import {
   htmlMediaType,
   pdfMediaType,
 } from "../../libs/ld-schemas";
-import { indexOf, select } from "../../libs/linki";
+import { indexOf, select, withMultiState } from "../../libs/linki";
 import type { Component } from "../../libs/simple-ui/render";
 import { div, newCloseController } from "../../libs/simple-ui/render";
 import type { AnnotationDisplayRequest } from "../annotations";

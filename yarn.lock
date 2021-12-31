@@ -4999,6 +4999,11 @@ linki@^0.1.7:
   resolved "https://registry.yarnpkg.com/linki/-/linki-0.1.7.tgz#41877ba377b88480889e181595750d93caf0e3f8"
   integrity sha512-rAIbEO+gIyzFTjfEh9qi1D9h0ffp4NN+kUdpNY/qCxVuBRnkt31C8fLBEt8vufv6eC3w8CxMMNWjBKzVovFxAQ==
 
+linki@^0.1.8:
+  version "0.1.8"
+  resolved "https://registry.yarnpkg.com/linki/-/linki-0.1.8.tgz#e6aeb1831098d51ceac316343214b029049977a6"
+  integrity sha512-z82fKGqJ4p1Y58Lpm6U663ZpeyTbetAVAIjkrRjK+H5IfPCexJOH3faPm9ry+5Q/jt8hAQm8HZU/1B3XbmsA6w==
+
 load-json-file@^2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/load-json-file/-/load-json-file-2.0.0.tgz"

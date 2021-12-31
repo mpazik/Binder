@@ -15,7 +15,7 @@ import {
   reduce,
   split,
   to,
-  withMultiState,
+  withState,
 } from "linki";
 
 import type {
@@ -300,13 +300,16 @@ export const App: Component<
       })
   );
 
-  const [pushCreator, setCreator, setContentReady] = link(
-    withMultiState<[string | null, boolean]>(null, false),
-    ([creator, ready]) => {
-      if (ready && typeof creator !== "undefined") {
-        setCreatorForContent(creator);
-      }
-    }
+  const [pushCreator, updateCreatorState] = link(
+    withState<[string | null, boolean]>([null, false]),
+    filter(([, ready]) => ready),
+    map(([creator]) => creator),
+    filter((creator) => typeof creator !== "undefined"),
+    (it) => setCreatorForContent(it)
+  );
+  const [setCreator, setContentReady] = link(
+    combine(null as string | null, false),
+    updateCreatorState
   );
 
   const updateGdrive = gdrive(

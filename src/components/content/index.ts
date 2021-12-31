@@ -1,12 +1,5 @@
 import type { Callback } from "linki";
-import {
-  link,
-  map,
-  pick,
-  fork,
-  withOptionalState,
-  withMultiState,
-} from "linki";
+import { link, map, pick, fork, withOptionalState } from "linki";
 
 import type { LinkedDataWithContent } from "../../functions/content-processors";
 import type { ContentSaver } from "../../functions/content-saver";
@@ -21,7 +14,7 @@ import type {
   LinkedDataWithHashId,
 } from "../../libs/jsonld-format";
 import { findHashUri, getUrls } from "../../libs/linked-data";
-import { throwOnNull } from "../../libs/linki";
+import { throwOnNull, withMultiState } from "../../libs/linki";
 import type { Component } from "../../libs/simple-ui/render";
 import { div, newSlot } from "../../libs/simple-ui/render";
 import { getTarget } from "../../libs/simple-ui/utils/funtions";
