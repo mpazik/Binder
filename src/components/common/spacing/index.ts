@@ -1,5 +1,5 @@
-import type { JsonHtml } from "../../../libs/simple-ui/render";
-import { div } from "../../../libs/simple-ui/render";
+import { div } from "linki-ui";
+import type { JsonHtml } from "linki-ui";
 
 export type ChildrenProps<T> = [Partial<T>, ...JsonHtml[]] | [...JsonHtml[]];
 const parseProps = <T extends object>(

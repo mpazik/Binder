@@ -1,7 +1,6 @@
 import type { JsonHtml, View } from "linki-ui";
 import { button, dangerousHtml, details, div, nav, summary } from "linki-ui";
 
-import { DISPLAY_CONFIG_ENABLED } from "../../config";
 import type { ProductLogoSize } from "../logo";
 import { productLogo } from "../logo";
 
@@ -93,11 +92,11 @@ export const appNavContent: View<{
   searchBoxSlot: JsonHtml;
   profilePanelSlot: JsonHtml;
   displaySettingsSlot: JsonHtml;
-  displayConfig?: boolean;
+  displayConfig: boolean;
 }> = ({
   searchBoxSlot,
   profilePanelSlot,
-  displayConfig = DISPLAY_CONFIG_ENABLED,
+  displayConfig = false,
   displaySettingsSlot,
 }) => [
   div(
@@ -118,7 +117,7 @@ export const appNavContent: View<{
                 {
                   class: "btn-octicon",
                 },
-                navigationIcon,
+                dangerousHtml(navigationIcon),
                 div({ class: "dropdown-caret" })
               ),
               div(

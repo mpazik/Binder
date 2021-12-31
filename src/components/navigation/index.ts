@@ -3,6 +3,7 @@ import { fork, not } from "linki";
 import type { JsonHtml } from "linki-ui";
 import { renderJsonHtmlToDom, dom } from "linki-ui";
 
+import { DISPLAY_CONFIG_ENABLED } from "../../config";
 import type { GDriveLoadingProfile } from "../../functions/gdrive/app-files";
 import type { GDriveAction } from "../../functions/gdrive/controller";
 import type { DirectoryIndex } from "../../functions/indexes/directory-index";
@@ -190,6 +191,7 @@ export const navigation: ElementComponent<
       profilePanelSlot: dom(profilePanelSlot),
       searchBoxSlot: dom(searchBoxSlot),
       displaySettingsSlot,
+      displayConfig: DISPLAY_CONFIG_ENABLED,
     }),
   });
 

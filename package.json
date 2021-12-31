@@ -10,7 +10,9 @@
     "build:clean": "rm -rf build",
     "lint": "yarn eslint . --ext .ts",
     "fix": "prettier --write src && yarn eslint:fix",
-    "test": "jest"
+    "test": "jest",
+    "storybook": "start-storybook -p 6006",
+    "build-storybook": "build-storybook"
   },
   "dependencies": {
     "@primer/css": "^17.5.2",
@@ -49,8 +51,11 @@
     "eslint-plugin-unused-imports": "^1.1.1",
     "html-webpack-plugin": "^5.3.2",
     "jest": "^26.6.3",
+    "linki-ui-storybook": "^0.2.0",
     "prettier": "^2.2.1",
     "speed-measure-webpack-plugin": "^1.5.0",
+    "storybook": "^6.4.9",
+    "storybook-addon-turbo-build": "^1.0.1",
     "style-loader": "^1.2.1",
     "ts-loader": "^8.0.4",
     "typescript": "^4.2.4",

@@ -27,7 +27,7 @@ export const loading: View = () =>
 export const dropdown: View<
   { children: JsonHtml[] } & (
     | { title: string }
-    | { icon: string; title?: string }
+    | { icon: JsonHtml; title?: string }
   )
 > = (props) =>
   details(
@@ -38,7 +38,7 @@ export const dropdown: View<
         title: (props as { icon: string }).icon ? props.title : undefined,
       },
       (props as { icon: string }).icon
-        ? dangerousHtml((props as { icon: string }).icon)
+        ? (props as { icon: JsonHtml }).icon
         : (props as { title: string }).title,
       div({ class: "dropdown-caret" })
     ),

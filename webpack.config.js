@@ -2,7 +2,7 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const TerserPlugin = require("terser-webpack-plugin");
 const SpeedMeasurePlugin = require("speed-measure-webpack-plugin");
-const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
+// const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
 const webpack = require("webpack");
 
 const sharedConfig = ({ envVariables, productIcon }) => ({
@@ -115,7 +115,6 @@ const devConfig = (() => {
     ...sharedDevConfig,
     entry: {
       ...sharedDevConfig.entry,
-      examples: "./src/examples/index.ts",
     },
     mode: "development",
     devtool: "eval-source-map",
