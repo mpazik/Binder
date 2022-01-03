@@ -114,7 +114,7 @@ import {
   setupDisplaySettingsPanel,
   typographyIcon,
 } from "../display-settings/panel";
-import { createSettingUpdateAction } from "../display-settings/replace-action";
+import { createSettingUpdateAction } from "../display-settings/setting-update";
 import { fileDrop } from "../file-drop";
 import { navigation } from "../navigation";
 import { dropdown } from "../navigation/common";
