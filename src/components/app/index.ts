@@ -15,7 +15,7 @@ import {
   reduce,
   split,
   to,
-  withMultiState,
+  withState,
 } from "linki";
 
 import type {
@@ -114,7 +114,7 @@ import {
   setupDisplaySettingsPanel,
   typographyIcon,
 } from "../display-settings/panel";
-import { createSettingUpdateAction } from "../display-settings/replace-action";
+import { createSettingUpdateAction } from "../display-settings/setting-update";
 import { fileDrop } from "../file-drop";
 import { navigation } from "../navigation";
 import { dropdown } from "../navigation/common";
@@ -300,13 +300,16 @@ export const App: Component<
       })
   );
 
-  const [pushCreator, setCreator, setContentReady] = link(
-    withMultiState<[string | null, boolean]>(null, false),
-    ([creator, ready]) => {
-      if (ready && typeof creator !== "undefined") {
-        setCreatorForContent(creator);
-      }
-    }
+  const [pushCreator, updateCreatorState] = link(
+    withState<[string | null, boolean]>([null, false]),
+    filter(([, ready]) => ready),
+    map(([creator]) => creator),
+    filter((creator) => typeof creator !== "undefined"),
+    (it) => setCreatorForContent(it)
+  );
+  const [setCreator, setContentReady] = link(
+    combine(null as string | null, false),
+    updateCreatorState
   );
 
   const updateGdrive = gdrive(
@@ -428,42 +431,41 @@ export const App: Component<
       hideNav,
       hideNavPermanently,
       setCurrentUri,
+      start: startNav,
+      stop: stopNav,
     },
-  ] = newSlot(
-    "navigation",
-    navigation({
-      displayed:
-        !initialContent || getType(initialContent.linkedData) != "AboutPage",
-      updateGdrive,
-      upload: store.upload,
-      displayAccountPicker: () => displayAccountPicker({ loading: false }),
-      initProfile: {
-        repository: initRepo,
-        user: lastLogin
-          ? {
-              emailAddress: lastLogin.email,
-              displayName: lastLogin.name,
-            }
-          : undefined,
-      },
-      loadUri: fork(updateBrowserHistory, loadUri),
-      searchDirectory: directoryIndex.search,
-      searchWatchHistory,
-      displaySettingsSlot: dropdown({
-        icon: typographyIcon,
-        title: "display settings",
-        children: [
-          setupDisplaySettingsPanel({
-            onFontFaceChange: createDisplaySettingUpdater("fontFace"),
-            onFontSizeChange: createDisplaySettingUpdater("fontSize"),
-            onLineLengthChange: createDisplaySettingUpdater("lineLength"),
-            onLineHeightChange: createDisplaySettingUpdater("lineHeight"),
-            onThemeChange: createDisplaySettingUpdater("theme"),
-          })(displaySettings),
-        ],
-      }),
-    })
-  );
+  ] = navigation({
+    displayed:
+      !initialContent || getType(initialContent.linkedData) != "AboutPage",
+    updateGdrive,
+    upload: store.upload,
+    displayAccountPicker: () => displayAccountPicker({ loading: false }),
+    initProfile: {
+      repository: initRepo,
+      user: lastLogin
+        ? {
+            emailAddress: lastLogin.email,
+            displayName: lastLogin.name,
+          }
+        : undefined,
+    },
+    loadUri: fork(updateBrowserHistory, loadUri),
+    searchDirectory: directoryIndex.search,
+    searchWatchHistory,
+    displaySettingsSlot: dropdown({
+      icon: typographyIcon,
+      title: "display settings",
+      children: [
+        setupDisplaySettingsPanel({
+          onFontFaceChange: createDisplaySettingUpdater("fontFace"),
+          onFontSizeChange: createDisplaySettingUpdater("fontSize"),
+          onLineLengthChange: createDisplaySettingUpdater("lineLength"),
+          onLineHeightChange: createDisplaySettingUpdater("lineHeight"),
+          onThemeChange: createDisplaySettingUpdater("theme"),
+        })(displaySettings),
+      ],
+    }),
+  });
 
   const contentFetcherPassingUri = createContentFetcherPassingUri(
     createLinkedDataWithDocumentFetcher(
@@ -620,7 +622,7 @@ export const App: Component<
   );
 
   const containerView = createContainerView({
-    navigationSlot,
+    navigationSlot: div({ dangerouslySetDom: navigationSlot }),
     contentOrDirSlot: contentLoaderSlot,
     fileDropSlot,
     accountPickerSlot,
@@ -630,10 +632,12 @@ export const App: Component<
   const renderContainer = link(map(containerView), render);
   renderContainer();
   subscribeToSettings(updateDisplaySettings);
+  startNav();
 
   const openPath = link(loadUriWithRecentFragment);
   onClose(browserPathProvider(openPath));
   onClose(documentLinksUriProvider(loadUri));
+  onClose(stopNav);
 
   if (initialContent) {
     displayFile(initialContent);

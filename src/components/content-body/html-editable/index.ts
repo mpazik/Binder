@@ -10,7 +10,6 @@ import {
   wrap,
   fork,
   passOnlyChanged,
-  withMultiState,
   link,
   withOptionalState,
   defined,
@@ -18,6 +17,7 @@ import {
 
 import { documentContentRoodId } from "../../../functions/content-processors/html-processor";
 import { documentToBlob } from "../../../functions/content-processors/html-processor/utils";
+import { withMultiState } from "../../../libs/linki";
 import type { Component } from "../../../libs/simple-ui/render";
 import { div, newSlot } from "../../../libs/simple-ui/render";
 import { loader } from "../../common/loader";

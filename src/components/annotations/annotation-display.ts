@@ -10,8 +10,8 @@ import {
   passOnlyChanged,
   to,
   withOptionalState,
+  valueWithOptionalState,
 } from "linki";
-import { valueWithOptionalState } from "linki/dist/processors/reduce";
 
 import { CATEGORIES_ENABLED } from "../../config";
 import { throwIfNull } from "../../libs/errors";
@@ -154,7 +154,7 @@ export const annotationDisplay: Component<
   );
 
   const handleData: Callback<AnnotationDisplayState> = link(
-    passOnlyChanged<AnnotationDisplayState>(),
+    passOnlyChanged<AnnotationDisplayState>(["hidden"]),
     renderPopup
   );
 

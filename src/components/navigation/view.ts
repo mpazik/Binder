@@ -1,19 +1,6 @@
-import { DISPLAY_CONFIG_ENABLED } from "../../config";
-import type {
-  JsonHtml,
-  Listener,
-  Slot,
-  View,
-} from "../../libs/simple-ui/render";
-import {
-  button,
-  dangerousHTML,
-  details,
-  div,
-  fragment,
-  nav,
-  summary,
-} from "../../libs/simple-ui/render";
+import type { JsonHtml, View } from "linki-ui";
+import { button, dangerousHtml, details, div, nav, summary } from "linki-ui";
+
 import type { ProductLogoSize } from "../logo";
 import { productLogo } from "../logo";
 
@@ -21,17 +8,10 @@ import { dropdownLink, dropdownMenu } from "./common";
 
 export const navigationView: View<{
   displayed?: boolean;
-  onDisplay?: Listener<"display">;
   productLogoSize?: ProductLogoSize;
   body: JsonHtml;
   position?: string;
-}> = ({
-  displayed = true,
-  onDisplay,
-  body,
-  position = "absolute",
-  productLogoSize,
-}) =>
+}> = ({ displayed = true, body, position = "absolute", productLogoSize }) =>
   nav(
     {
       class:
@@ -40,9 +20,8 @@ export const navigationView: View<{
       style: {
         top: "0px",
         position,
-        "z-index": 1,
+        zIndex: "1",
       },
-      onDisplay,
     },
     div(
       { class: "flex-1 my-2" },
@@ -110,49 +89,47 @@ export const zoomOut = `
 </svg>`;
 
 export const appNavContent: View<{
-  searchBoxSlot: Slot;
-  profilePanelSlot: Slot;
-  displaySettingsSlot: Slot;
-  displayConfig?: boolean;
+  searchBoxSlot: JsonHtml;
+  profilePanelSlot: JsonHtml;
+  displaySettingsSlot: JsonHtml;
+  displayConfig: boolean;
 }> = ({
   searchBoxSlot,
   profilePanelSlot,
-  displayConfig = DISPLAY_CONFIG_ENABLED,
+  displayConfig = false,
   displaySettingsSlot,
-}) =>
-  fragment(
+}) => [
+  div(
+    { class: "flex-auto mx-auto my-2", style: { maxWidth: "500px" } },
+    searchBoxSlot
+  ),
+  div(
+    { class: "flex-1 d-flex flex-sm-row-reverse" },
     div(
-      { class: "flex-auto mx-auto my-2", style: { maxWidth: "500px" } },
-      searchBoxSlot
-    ),
-    div(
-      { class: "flex-1 d-flex flex-sm-row-reverse" },
-      div(
-        { class: "d-flex" },
-        ...(displayConfig
-          ? [
-              button({ class: "btn-octicon" }, dangerousHTML(zoomOut)),
-              button({ class: "btn-octicon" }, dangerousHTML(zoomIn)),
-              details(
-                { class: "dropdown details-reset details-overlay" },
-                summary(
-                  {
-                    class: "btn-octicon",
-                    role: "button",
-                  },
-                  dangerousHTML(navigationIcon),
-                  div({ class: "dropdown-caret" })
-                ),
-                div(
-                  { class: "dropdown-menu dropdown-menu-sw right-0" },
-                  "something"
-                )
+      { class: "d-flex" },
+      ...(displayConfig
+        ? [
+            button({ class: "btn-octicon" }, dangerousHtml(zoomOut)),
+            button({ class: "btn-octicon" }, dangerousHtml(zoomIn)),
+            details(
+              { class: "dropdown details-reset details-overlay" },
+              summary(
+                {
+                  class: "btn-octicon",
+                },
+                dangerousHtml(navigationIcon),
+                div({ class: "dropdown-caret" })
               ),
-            ]
-          : []),
-        displaySettingsSlot,
-        helpMenu,
-        profilePanelSlot
-      )
+              div(
+                { class: "dropdown-menu dropdown-menu-sw right-0" },
+                "something"
+              )
+            ),
+          ]
+        : []),
+      displaySettingsSlot,
+      helpMenu,
+      profilePanelSlot
     )
-  );
+  ),
+];

@@ -1,3 +1,5 @@
+import type { JsonHtml } from "linki-ui";
+
 import type { DisplaySettingListeners } from "./index";
 import { setupDisplaySettingsPanel } from "./index";
 
@@ -13,18 +15,22 @@ const newVar: DisplaySettingListeners = {
   onThemeChange: createLogger("theme"),
 };
 
-export const displaySettingsPanelDark = setupDisplaySettingsPanel(newVar)({
-  fontFace: "sans-serif",
-  fontSize: "x-large",
-  lineLength: "small",
-  lineHeight: "large",
-  theme: "dark",
-});
+export default {};
 
-export const displaySettingsPanelLight = setupDisplaySettingsPanel(newVar)({
-  fontFace: "serif",
-  fontSize: "x-small",
-  lineLength: "medium",
-  lineHeight: "large",
-  theme: "light",
-});
+export const displaySettingsPanelDark = (): JsonHtml =>
+  setupDisplaySettingsPanel(newVar)({
+    fontFace: "sans-serif",
+    fontSize: "x-large",
+    lineLength: "small",
+    lineHeight: "large",
+    theme: "dark",
+  });
+
+export const displaySettingsPanelLight = (): JsonHtml =>
+  setupDisplaySettingsPanel(newVar)({
+    fontFace: "serif",
+    fontSize: "x-small",
+    lineLength: "medium",
+    lineHeight: "large",
+    theme: "light",
+  });

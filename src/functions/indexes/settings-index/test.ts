@@ -1,4 +1,4 @@
-import { createSettingUpdateAction } from "../../../components/display-settings/replace-action";
+import { createSettingUpdateAction } from "../../../components/display-settings/setting-update";
 import type { HashUri } from "../../../libs/hash";
 import type { LinkedDataWithHashId } from "../../../libs/jsonld-format";
 import { getHash } from "../../../libs/linked-data";

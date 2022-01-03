@@ -6,13 +6,11 @@ import type {
 } from "../../../components/display-settings";
 import { defaultSettings } from "../../../components/display-settings";
 import type { ReplaceAction } from "../../../components/display-settings/replace-action";
-import {
-  nameFromCustomSchema,
-  settingValueFromCustomSchema,
-} from "../../../components/display-settings/replace-action";
+import { settingValueFromCustomSchema } from "../../../components/display-settings/setting-update";
 import type { HashUri } from "../../../libs/hash";
 import type { StoreName, StoreProvider } from "../../../libs/indexeddb";
 import { storeGet, storePut } from "../../../libs/indexeddb";
+import { nameFromCustomDoclandSchema } from "../../../libs/jsonld-custom";
 import { isTypeEqualTo } from "../../../libs/linked-data";
 import type { LinkedDataDelete } from "../../store/local-store";
 import { registerRepositoryVersion } from "../../store/repository";
@@ -75,7 +73,7 @@ export const createSettingsSubscription = (
 ] => {
   const settings = defaultSettings;
   const applyRecord = <T extends keyof Settings>(record: SettingsRecord) => {
-    const setting = nameFromCustomSchema(record.setting) as T;
+    const setting = nameFromCustomDoclandSchema(record.setting) as T;
     settings[setting] = settingValueFromCustomSchema(record.value, setting);
   };
 

@@ -14,7 +14,6 @@ import {
   valueWithState,
   definedTuple,
   nextTick,
-  withMultiState,
 } from "linki";
 
 import type { AnnotationsIndex } from "../../functions/indexes/annotations-index";
@@ -22,6 +21,7 @@ import type { LinkedDataStoreWrite } from "../../functions/store";
 import type { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { throwIfNull } from "../../libs/errors";
 import type { HashUri } from "../../libs/hash";
+import { withMultiState } from "../../libs/linki";
 import { handleState } from "../../libs/named-state";
 import type { Component } from "../../libs/simple-ui/render";
 import { div, newSlot } from "../../libs/simple-ui/render";

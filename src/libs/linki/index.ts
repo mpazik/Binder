@@ -1,6 +1,7 @@
 import type {
   Callback,
   Callbacks,
+  PartialTuple,
   Processor,
   ProcessorMultiIn,
   Transformer,
@@ -10,10 +11,6 @@ import { defined, reduce } from "linki";
 import type { ProcessorMultiOut } from "linki/dist/processors/processor";
 
 import { throwIfUndefined } from "../errors";
-
-export const attach = <T, S>(t: Transformer<T, S>): Transformer<T, [T, S]> => (
-  v
-) => [v, t(v)];
 
 export const withEffect = <T>(handler: (data: T) => void) => (data: T): T => {
   handler(data);
@@ -111,4 +108,23 @@ export const match = <T, S>(
 ): Transformer<T, S | undefined> => {
   const map = new Map(entries);
   return (v: T) => map.get(v);
+};
+
+export const withMultiState = <S extends Tuple, V = void>(
+  ...init: PartialTuple<S>
+): ProcessorMultiIn<[V, ...S], [...PartialTuple<S>, V]> => (callback) => {
+  const state = init.slice(0);
+
+  return [
+    ((v) => {
+      callback([...((state as unknown) as PartialTuple<S>), v]);
+    }) as Callback<V>,
+    ...(((init.map((s, n) => {
+      return (newStateN: unknown) => {
+        state[n] = newStateN;
+      };
+    }) as unknown) as {
+      [K in keyof S]: Callback<S[K]>;
+    }) as Callbacks<S>),
+  ];
 };

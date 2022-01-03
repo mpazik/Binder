@@ -1,15 +1,16 @@
-import type { Callback, Close } from "linki";
-import { fork, defined, filter, link, map, not, withState } from "linki";
+import type { Callback } from "linki";
+import { fork, not } from "linki";
+import type { JsonHtml } from "linki-ui";
+import { renderJsonHtmlToDom, dom } from "linki-ui";
 
+import { DISPLAY_CONFIG_ENABLED } from "../../config";
 import type { GDriveLoadingProfile } from "../../functions/gdrive/app-files";
 import type { GDriveAction } from "../../functions/gdrive/controller";
 import type { DirectoryIndex } from "../../functions/indexes/directory-index";
 import type { WatchHistorySearch } from "../../functions/indexes/watch-history-index";
 import { createRecentDocumentSearch } from "../../functions/recent-document-serach";
 import type { UriWithFragment } from "../../libs/browser-providers";
-import type { Component, JsonHtml } from "../../libs/simple-ui/render";
-import { newSlot, slot } from "../../libs/simple-ui/render";
-import { getTarget } from "../../libs/simple-ui/utils/funtions";
+import type { ElementComponent } from "../../libs/simple-ui/new-renderer";
 
 import type { ProfilePanelControl } from "./profile";
 import { profilePanel } from "./profile";
@@ -39,11 +40,11 @@ const showElement = (element: HTMLElement) => {
   element.classList.remove("d-none");
 };
 
-const registerNavScrollListener = (nav: HTMLElement): Close => {
+const createOnScrollHandler = (nav: HTMLElement): (() => void) => {
   let lastPosition = window.pageYOffset;
   let directionWasUp = false;
 
-  const onScroll = () => {
+  return () => {
     const newPosition = window.pageYOffset;
     const goingUp = newPosition < lastPosition;
     if (goingUp) {
@@ -82,12 +83,46 @@ const registerNavScrollListener = (nav: HTMLElement): Close => {
     }
     lastPosition = newPosition;
   };
-
-  document.addEventListener("scroll", onScroll);
-  return () => document.removeEventListener("scroll", onScroll);
 };
 
-export const navigation: Component<
+export const navigationElement: ElementComponent<
+  {
+    displayed: boolean;
+    body: JsonHtml;
+  },
+  {
+    hideNav: void;
+    showNav: void;
+    hideNavPermanently: void;
+    start: void;
+    stop: void;
+  }
+> = ({ displayed, body }) => {
+  const element = renderJsonHtmlToDom(
+    navigationView({
+      displayed,
+      body,
+    })
+  ) as HTMLElement;
+
+  const onScroll = createOnScrollHandler(element);
+  return [
+    element,
+    {
+      hideNav: () => moveElementOnTopOfTheScreen(element),
+      showNav: () => showElement(element),
+      hideNavPermanently: () => hideElement(element),
+      start: () => {
+        document.addEventListener("scroll", onScroll);
+      },
+      stop: () => {
+        document.removeEventListener("scroll", onScroll);
+      },
+    },
+  ];
+};
+
+export const navigation: ElementComponent<
   {
     updateGdrive: Callback<GDriveAction>;
     displayAccountPicker: Callback;
@@ -104,6 +139,8 @@ export const navigation: Component<
     showNav: void;
     hideNavPermanently: void;
     setCurrentUri: string;
+    start: void;
+    stop: void;
   }
 > = ({
   updateGdrive,
@@ -115,15 +152,16 @@ export const navigation: Component<
   searchWatchHistory,
   displaySettingsSlot,
   initProfile,
-}) => (render, onClose) => {
-  const [profilePanelSlot, { updateStoreState, updateGdriveState }] = newSlot(
-    "profile",
-    profilePanel({
-      login: displayAccountPicker,
-      logout: () => updateGdrive(["logout"]),
-      upload,
-    })
-  );
+}) => {
+  const [
+    profilePanelSlot,
+    { updateStoreState, updateGdriveState },
+  ] = profilePanel({
+    login: displayAccountPicker,
+    logout: () => updateGdrive(["logout"]),
+    upload,
+  });
+
   const searchRecentDocuments = createRecentDocumentSearch(
     searchDirectory,
     searchWatchHistory
@@ -136,63 +174,46 @@ export const navigation: Component<
     );
   };
 
-  const searchBoxSlot = slot(
-    "search-box",
-    searchBox({
-      onSelected: loadUri,
-      onSearch: search,
-    })
-  );
+  const [
+    searchBoxSlot,
+    { start: startSearchBox, stop: stopSearchBox },
+  ] = searchBox({
+    onSelected: loadUri,
+    onSearch: search,
+  });
 
-  const [hideNav, setNavContext] = link(
-    withState<HTMLElement | undefined>(undefined),
-    filter(defined),
-    moveElementOnTopOfTheScreen
-  );
+  const [
+    navElement,
+    { hideNavPermanently, hideNav, showNav, stop: stopNav, start: startNav },
+  ] = navigationElement({
+    displayed,
+    body: appNavContent({
+      profilePanelSlot: dom(profilePanelSlot),
+      searchBoxSlot: dom(searchBoxSlot),
+      displaySettingsSlot,
+      displayConfig: DISPLAY_CONFIG_ENABLED,
+    }),
+  });
 
-  const [hideNavPermanently, setNavContext2] = link(
-    withState<HTMLElement | undefined>(undefined),
-    filter(defined),
-    hideElement
-  );
-
-  const [showNav, setNavContext3] = link(
-    withState<HTMLElement | undefined>(undefined),
-    filter(defined),
-    showElement
-  );
-
-  render(
-    navigationView({
-      displayed,
-      onDisplay: fork(
-        link(
-          map(getTarget),
-          fork(
-            (e) => onClose(registerNavScrollListener(e)),
-            (e) => setNavContext(e),
-            (e) => setNavContext2(e),
-            (e) => setNavContext3(e)
-          )
-        ),
-        () => updateGdrive(["load", initProfile])
+  return [
+    navElement,
+    {
+      updateStoreState,
+      updateGdriveState,
+      hideNav,
+      showNav,
+      hideNavPermanently,
+      setCurrentUri: (uri) => {
+        currentUri = uri;
+      },
+      start: fork(
+        () => {
+          updateGdrive(["load", initProfile]);
+        },
+        startNav,
+        startSearchBox
       ),
-      body: appNavContent({
-        profilePanelSlot,
-        searchBoxSlot,
-        displaySettingsSlot,
-      }),
-    })
-  );
-
-  return {
-    updateStoreState,
-    updateGdriveState,
-    hideNav,
-    showNav,
-    hideNavPermanently,
-    setCurrentUri: (uri) => {
-      currentUri = uri;
+      stop: fork(stopNav, stopSearchBox),
     },
-  };
+  ];
 };
