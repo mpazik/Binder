@@ -6,7 +6,6 @@ import {
   filter,
   fork,
   ignore,
-  ignoreParam,
   link,
   map,
   passOnlyChanged,
@@ -351,7 +350,7 @@ export const App: Component<
         map(pick("repository")),
         filter(defined),
         passOnlyChanged<RepositoryDb>(initRepo),
-        fork(updateRepo, () => switchDisplayToDirectory())
+        fork(updateRepo, () => displayPage(docsDirectorySlot))
       ),
       link(
         filterState("loadingError"),
@@ -394,7 +393,7 @@ export const App: Component<
         filter(defined),
         fork(
           (it) => goToFragment(it),
-          () => postDisplayHook()
+          () => hideNav()
         )
       ),
     ])
@@ -480,7 +479,6 @@ export const App: Component<
       store.readResource
     )
   );
-  const postDisplayHook: Callback = fork(hideNav);
 
   const contentSaver = createContentSaver(
     store.writeResource,
@@ -497,30 +495,28 @@ export const App: Component<
       ldStoreRead: store.readLinkedData,
       annotationsIndex: annotationsIndex.search,
       onSave: ignore,
-      onDisplay: postDisplayHook,
+      onDisplay: hideNav,
     })
   );
 
   const loadContent = (data: LinkedDataWithContent | LinkedDataWithBody) => {
     const pageType = getType(data.linkedData);
     if (pageType === "SearchResultsPage" || pageType === "NotFoundPage") {
-      switchDisplayToDirectory();
-      postDisplayHook();
+      displayPage(docsDirectorySlot);
     } else if (
       pageType === "Page" &&
       data.linkedData.name === "Docland - Store"
     ) {
-      switchDisplayToStore();
-      postDisplayHook();
+      displayPage("hello world");
     } else if (pageType === "AboutPage") {
       if (isLinkedDataWithBody(data)) {
-        renderDirectly(data.body);
+        displayFullScreen(data.body);
       } else {
         (async () => {
           const dom = await measureAsyncTime("parse", () =>
             blobToDocument(data.content)
           );
-          renderDirectly(dom.body);
+          displayFullScreen(dom.body);
         })();
       }
     } else {
@@ -537,50 +533,32 @@ export const App: Component<
             ),
           }
         : data;
-      switchDisplayToContent();
-      fork(displayContent, link(ignoreParam(), postDisplayHook), () => {
-        setContentReady(true);
-        pushCreator();
-      })(linkedDataWithContent);
+      displayPage(contentSlot);
+      displayContent(linkedDataWithContent);
+      setContentReady(true);
+      pushCreator();
     }
   };
 
-  const [
-    contentOrDirSlot,
-    {
-      switchDisplayToContent,
-      switchDisplayToDirectory,
-      renderDirectly,
-      switchDisplayToStore,
-    },
-  ] = newSlot(
+  const [contentOrDirSlot, { displayPage, displayFullScreen }] = newSlot(
     "either-content",
     (
       render
     ): Handlers<{
-      switchDisplayToContent: void;
-      switchDisplayToDirectory: void;
-      switchDisplayToStore: void;
-      renderDirectly: Node;
+      displayPage: Slot;
+      displayFullScreen: Node;
     }> => {
       render("test test");
 
       return {
-        switchDisplayToContent: () => {
+        displayPage: (element) => {
           render(); // clean previous dom, to force rerender
-          render(div({ class: "mt-8" }, contentSlot));
+          render(div({ class: "mt-8" }, element));
+          hideNav();
         },
-        switchDisplayToDirectory: () => {
-          render(); // clean previous dom, to force rerender
-          render(div({ class: "mt-8" }, docsDirectorySlot));
-        },
-        renderDirectly: (element) => {
+        displayFullScreen: (element) => {
           hideNavPermanently();
           render(div({ dangerouslySetDom: element }));
-        },
-        switchDisplayToStore: () => {
-          render(); // clean previous dom, to force rerender
-          render(div({ class: "mt-8" }, "hello world"));
         },
       };
     }
