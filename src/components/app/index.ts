@@ -506,6 +506,12 @@ export const App: Component<
     if (pageType === "SearchResultsPage" || pageType === "NotFoundPage") {
       switchDisplayToDirectory();
       postDisplayHook();
+    } else if (
+      pageType === "Page" &&
+      data.linkedData.name === "Docland - Store"
+    ) {
+      switchDisplayToStore();
+      postDisplayHook();
     } else if (pageType === "AboutPage") {
       if (isLinkedDataWithBody(data)) {
         renderDirectly(data.body);
@@ -541,7 +547,12 @@ export const App: Component<
 
   const [
     contentOrDirSlot,
-    { switchDisplayToContent, switchDisplayToDirectory, renderDirectly },
+    {
+      switchDisplayToContent,
+      switchDisplayToDirectory,
+      renderDirectly,
+      switchDisplayToStore,
+    },
   ] = newSlot(
     "either-content",
     (
@@ -549,6 +560,7 @@ export const App: Component<
     ): Handlers<{
       switchDisplayToContent: void;
       switchDisplayToDirectory: void;
+      switchDisplayToStore: void;
       renderDirectly: Node;
     }> => {
       render("test test");
@@ -565,6 +577,10 @@ export const App: Component<
         renderDirectly: (element) => {
           hideNavPermanently();
           render(div({ dangerouslySetDom: element }));
+        },
+        switchDisplayToStore: () => {
+          render(); // clean previous dom, to force rerender
+          render(div({ class: "mt-8" }, "hello world"));
         },
       };
     }

@@ -34,34 +34,17 @@ const sharedConfig = ({ envVariables, productIcon }) => ({
   plugins: [
     new HtmlWebpackPlugin({
       template: "./src/pages/about.html",
-      filename: "./about.html",
-      productIcon,
-      chunks: ["main"]
-    }),
-    new HtmlWebpackPlugin({
-      template: "./src/pages/about.html",
       filename: "./index.html",
       productIcon,
       chunks: []
     }),
-    new HtmlWebpackPlugin({
-      template: "./src/pages/directory.html",
-      filename: "./directory.html",
-      productIcon,
-      chunks: ["main"]
-    }),
-    new HtmlWebpackPlugin({
-      template: "./src/pages/404.html",
-      filename: "./404.html",
-      productIcon,
-      chunks: ["main"]
-    }),
-    new HtmlWebpackPlugin({
-      template: "./src/pages/privacy.html",
-      filename: "./privacy.html",
-      productIcon,
-      chunks: ["main"]
-    }),
+    ...["about", "directory", "storage", "404", "privacy"].map((page) =>
+      new HtmlWebpackPlugin({
+        template: `./src/pages/${page}.html`,
+        filename: `./${page}.html`,
+        productIcon,
+        chunks: ["main"]
+      })),
     new CopyWebpackPlugin({
       patterns: [
         { from: "assets" },
