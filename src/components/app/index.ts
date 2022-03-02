@@ -17,6 +17,8 @@ import {
   withState,
 } from "linki";
 
+import { mountComponent } from "../../../../linki-ui";
+import { renderJsonHtmlToDom } from "../../../../linki-ui/src";
 import type {
   AnalyticsSender,
   UpdateAnalyticsRepoAccount,
@@ -102,7 +104,7 @@ import type {
   Slot,
   ViewSetup,
 } from "../../libs/simple-ui/render";
-import { div, newSlot, slot } from "../../libs/simple-ui/render";
+import { div, newSlot } from "../../libs/simple-ui/render";
 import { accountPicker } from "../account-picker";
 import { loader } from "../common/loader";
 import { contentComponent } from "../content";
@@ -350,7 +352,7 @@ export const App: Component<
         map(pick("repository")),
         filter(defined),
         passOnlyChanged<RepositoryDb>(initRepo),
-        fork(updateRepo, () => displayPage(docsDirectorySlot))
+        fork(updateRepo, () => displayPage(directorySlot))
       ),
       link(
         filterState("loadingError"),
@@ -502,7 +504,7 @@ export const App: Component<
   const loadContent = (data: LinkedDataWithContent | LinkedDataWithBody) => {
     const pageType = getType(data.linkedData);
     if (pageType === "SearchResultsPage" || pageType === "NotFoundPage") {
-      displayPage(docsDirectorySlot);
+      displayPage(directorySlot);
     } else if (
       pageType === "Page" &&
       data.linkedData.name === "Docland - Store"
@@ -576,13 +578,15 @@ export const App: Component<
     })
   );
 
-  const docsDirectorySlot = slot(
-    "docs-directory",
+  const [docsDirectorySlot] = mountComponent(
     docsDirectory({
       searchDirectory: directoryIndex.search,
       searchWatchHistory,
     })
   );
+  const directorySlot = div({
+    dangerouslySetDom: renderJsonHtmlToDom(docsDirectorySlot),
+  });
 
   const [fileDropSlot, { handleDragEvent }] = newSlot(
     "file-drop",
