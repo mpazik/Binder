@@ -1,5 +1,5 @@
 import { definedTuple, filter, link, map } from "linki";
-import type { JsonHtml, View } from "linki-ui";
+import type { JsonHtml, UiComponent, View } from "linki-ui";
 import { a, button, dangerousHtml, div, li, p, span } from "linki-ui";
 
 import type { GDriveProfile } from "../../functions/gdrive/app-files";
@@ -7,11 +7,6 @@ import type { GDriveState } from "../../functions/gdrive/controller";
 import type { StoreState } from "../../functions/store";
 import { combine } from "../../libs/linki";
 import { mapState, newStateMapper } from "../../libs/named-state";
-import type {
-  ElementComponent,
-  ViewSetup,
-} from "../../libs/simple-ui/new-renderer";
-import { createUiComponent } from "../../libs/simple-ui/new-renderer";
 
 import { dropdownButton, dropdownMenu, loading } from "./common";
 
@@ -149,14 +144,15 @@ type ProfileState =
   | ["downloading", GDriveProfile]
   | ["error", string];
 
-const profileDropdown: ViewSetup<
-  {
-    logout: () => void;
-    icon: string;
-    status?: string;
-  },
-  GDriveProfile
-> = ({ icon, logout, status }) => (profile) =>
+const profileDropdown = ({
+  icon,
+  logout,
+  status,
+}: {
+  logout: () => void;
+  icon: string;
+  status?: string;
+}): View<GDriveProfile> => (profile) =>
   dropdownMenu({
     icon,
     children: [
@@ -170,11 +166,11 @@ const profileDropdown: ViewSetup<
     ],
   });
 
-export const createProfileView: ViewSetup<ProfileActions, ProfileState> = ({
+export const createProfileView = ({
   login,
   logout,
   upload,
-}) =>
+}: ProfileActions): View<ProfileState> =>
   newStateMapper<ProfileState, JsonHtml>(loading(), {
     loading: () => loading(),
     error: (error) => errorView({ error, login }),
@@ -227,11 +223,14 @@ export type ProfilePanelControl = {
   updateGdriveState: GDriveState;
 };
 
-export const profilePanel: ElementComponent<
-  ProfileActions,
-  ProfilePanelControl
-> = createUiComponent((props, render) => {
-  const renderProfile = link(map(createProfileView(props)), render);
+export const profilePanel: UiComponent<
+  ProfilePanelControl,
+  { login: void; logout: void; upload: void }
+> = ({ render, logout, upload, login }) => {
+  const renderProfile = link(
+    map(createProfileView({ logout, login, upload })),
+    render
+  );
 
   const [gdriveStateForProfile, storeStateForProfile] = link(
     combine<[GDriveState | undefined, StoreState | undefined]>(
@@ -263,4 +262,4 @@ export const profilePanel: ElementComponent<
     updateStoreState: storeStateForProfile,
     updateGdriveState: gdriveStateForProfile,
   };
-});
+};

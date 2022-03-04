@@ -1,10 +1,9 @@
 import "./styles.css";
 
 import { cast, link, map } from "linki";
-import type { JsonHtml } from "linki-ui";
+import type { JsonHtml, View } from "linki-ui";
 import { h5, input, label, dangerousHtml } from "linki-ui";
 
-import type { ViewSetup } from "../../../libs/simple-ui/new-renderer";
 import {
   getInputTarget,
   inputValue,
@@ -139,17 +138,20 @@ export type DisplaySettingListeners = {
   onLineHeightChange: (v: LineHeight) => void;
   onThemeChange: (v: Theme) => void;
 };
-console.log(serifIcon);
-export const setupDisplaySettingsPanel: ViewSetup<
-  DisplaySettingListeners,
-  DisplaySettings
-> = ({
+
+export const setupDisplaySettingsPanel = ({
   onFontFaceChange,
   onFontSizeChange,
   onLineLengthChange,
   onLineHeightChange,
   onThemeChange,
-}) => ({ fontFace, fontSize, lineLength, lineHeight, theme }) => {
+}: DisplaySettingListeners): View<DisplaySettings> => ({
+  fontFace,
+  fontSize,
+  lineLength,
+  lineHeight,
+  theme,
+}) => {
   return inset(
     { size: "medium" },
     stack(

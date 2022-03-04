@@ -10,6 +10,7 @@ import {
   ignoreParam,
   is,
   link,
+  logError,
   map,
   pick,
   split,
@@ -17,13 +18,15 @@ import {
   valueWithState,
   withState,
 } from "linki";
-import type { JsonHtml, View } from "linki-ui";
+import type { JsonHtml, UiComponent, View } from "linki-ui";
 import {
   div,
   dom,
   input,
   li,
+  mountComponent,
   renderJsonHtmlToDom,
+  setupView,
   small,
   span,
   ul,
@@ -32,11 +35,6 @@ import {
 import type { RecentDocuments } from "../../functions/recent-document-serach";
 import type { UriWithFragment } from "../../libs/browser-providers";
 import { newUriWithFragment } from "../../libs/browser-providers";
-import type {
-  ElementComponent,
-  ViewSetup,
-} from "../../libs/simple-ui/new-renderer";
-import { createUiComponent } from "../../libs/simple-ui/new-renderer";
 import {
   focusElement,
   getInputTarget,
@@ -53,10 +51,11 @@ import { isFocusedElementStatic } from "../content-body/utils";
 // @ts-ignore
 export const blur = (): void => document.activeElement?.blur();
 
-const setupAutoCompleteFrame: ViewSetup<
-  { setInteracting: () => void; footer?: JsonHtml },
-  JsonHtml
-> = ({ setInteracting, footer }) => (content) =>
+const autoCompleteFrame: View<{
+  setInteracting: () => void;
+  footer?: JsonHtml;
+  content: JsonHtml;
+}> = ({ setInteracting, footer, content }) =>
   div(
     {
       class: "autocomplete-results",
@@ -70,13 +69,11 @@ const setupAutoCompleteFrame: ViewSetup<
     ...(footer ? [footer] : [])
   );
 
-const setupSuggestionsView = <T>({
-  onSelected,
-  getOptionLabel,
-}: {
+const suggestionsView = <T>(): View<{
+  suggestions: T[];
   onSelected: Callback<T>;
   getOptionLabel: (item: T) => JsonHtml;
-}): View<{ suggestions: T[] }> => ({ suggestions }) =>
+}> => ({ suggestions, onSelected, getOptionLabel }) =>
   ul(
     {
       style: {
@@ -97,99 +94,105 @@ const setupSuggestionsView = <T>({
 
 const noItemsView = () => div({ class: "p-2" }, "No results");
 
-export const createAutocompleteList = <T>(): ElementComponent<
-  {
-    onSelected: (s: T) => void;
-    getOptionLabel: (item: T) => JsonHtml;
-    footer?: JsonHtml;
-  },
+export const autocompleteList = <T>(
+  getOptionLabel: (item: T) => JsonHtml,
+  footer?: JsonHtml
+): UiComponent<
   {
     renderList: T[];
     hideList: void;
     highlightNextItem: void;
     highlightPreviousItem: void;
     selectHighlighted: void;
+  },
+  {
+    onSelected: T;
   }
-> =>
-  createUiComponent(({ onSelected, getOptionLabel, footer }, render) => {
-    const [selectHighlighted, setHighlighted] = link(
-      withState<HTMLElement | undefined>(undefined),
-      filter(defined),
-      (element) => {
-        element.click();
+> => ({ onSelected, render }) => {
+  const [selectHighlighted, setHighlighted] = link(
+    withState<HTMLElement | undefined>(undefined),
+    filter(defined),
+    (element) => {
+      element.click();
+    }
+  );
+
+  const [move, setDom] = link(
+    valueWithState<HTMLElement | undefined, "next" | "previous">(undefined),
+    filter(definedTuple),
+    ([dom, direction]) => {
+      const selected = dom.querySelector('[aria-selected="true"]');
+      if (selected) selected.removeAttribute("aria-selected");
+
+      const newSelected =
+        direction === "next"
+          ? selected?.nextElementSibling
+            ? selected.nextElementSibling
+            : dom.querySelector("li")
+          : selected?.previousElementSibling
+          ? selected.previousElementSibling
+          : dom.querySelector("li:last-child");
+
+      if (newSelected) {
+        setHighlighted(newSelected as HTMLElement);
+        newSelected.setAttribute("aria-selected", "true");
       }
-    );
+    }
+  );
 
-    const [move, setDom] = link(
-      valueWithState<HTMLElement | undefined, "next" | "previous">(undefined),
-      filter(definedTuple),
-      ([dom, direction]) => {
-        const selected = dom.querySelector('[aria-selected="true"]');
-        if (selected) selected.removeAttribute("aria-selected");
-
-        const newSelected =
-          direction === "next"
-            ? selected?.nextElementSibling
-              ? selected.nextElementSibling
-              : dom.querySelector("li")
-            : selected?.previousElementSibling
-            ? selected.previousElementSibling
-            : dom.querySelector("li:last-child");
-
-        if (newSelected) {
-          setHighlighted(newSelected as HTMLElement);
-          newSelected.setAttribute("aria-selected", "true");
-        }
-      }
-    );
-
-    const autoCompleteFrame = setupAutoCompleteFrame({
+  const setupAutoCompleteFrame: View<{ content: JsonHtml }> = setupView(
+    autoCompleteFrame,
+    {
       setInteracting: () => setInteracting(true),
       footer,
-    });
-    const suggestionsView = setupSuggestionsView({
+    }
+  );
+  const setupSuggestionsView: View<{ suggestions: T[] }> = setupView(
+    suggestionsView<T>(),
+    {
       getOptionLabel,
       onSelected,
-    });
+    }
+  );
 
-    const renderList = fork<T[] | undefined>(
-      link(map(to(undefined)), fork(setDom)),
-      link(map(to(undefined)), setHighlighted),
-      link(
-        map((suggestions) => {
-          if (suggestions === undefined) return undefined;
-          if (suggestions.length > 0) {
-            const suggestionsDom = renderJsonHtmlToDom(
-              suggestionsView({ suggestions })
-            ) as HTMLElement;
-            setDom(suggestionsDom);
-            return autoCompleteFrame(dom(suggestionsDom));
-          }
-          return autoCompleteFrame(noItemsView());
-        }),
-        render
-      )
-    );
+  const renderList = fork<T[] | undefined>(
+    link(map(to(undefined)), fork(setDom)),
+    link(map(to(undefined)), setHighlighted),
+    link(
+      map((suggestions) => {
+        if (suggestions === undefined) return undefined;
+        if (suggestions.length > 0) {
+          const suggestionsDom = renderJsonHtmlToDom(
+            setupSuggestionsView({ suggestions })
+          ) as HTMLElement;
+          setDom(suggestionsDom);
+          return setupAutoCompleteFrame({ content: dom(suggestionsDom) });
+        }
+        return setupAutoCompleteFrame({ content: noItemsView() });
+      }),
+      render
+    )
+  );
 
-    const [hideList, setInteracting] = link(
-      withState(false),
-      // ignore hide command triggered by on-blur from input when mouse click on the dropdown list
-      filter(is(false)),
-      map(to(undefined)),
-      renderList
-    );
+  const [hideList, setInteracting] = link(
+    withState(false),
+    // ignore hide command triggered by on-blur from input when mouse click on the dropdown list
+    filter(is(false)),
+    map(to(undefined)),
+    renderList
+  );
 
-    return {
-      renderList,
-      hideList: fork(hideList, link(map(to(false)), setInteracting)),
-      highlightNextItem: () => move("next"),
-      highlightPreviousItem: () => move("previous"),
-      selectHighlighted,
-    };
-  });
+  return {
+    renderList,
+    hideList: fork(hideList, link(map(to(false)), setInteracting)),
+    highlightNextItem: () => move("next"),
+    highlightPreviousItem: () => move("previous"),
+    selectHighlighted,
+  };
+};
 
 const toUrl = (s: string) => new URL(s);
-const isUrl = (s: string) => {
+const isUrl = (s: string): boolean => {
   try {
     toUrl(s);
     return true;
@@ -200,13 +203,14 @@ const isUrl = (s: string) => {
 
 const searchFocusShortCutKey = "Slash";
 
-export const searchBox: ElementComponent<
+export const searchBox = (
+  onSearch: (term: string) => Promise<RecentDocuments[]>
+): UiComponent<
+  { start: void; stop: void },
   {
-    onSearch: (term: string) => Promise<RecentDocuments[]>;
-    onSelected: (url: UriWithFragment) => void;
-  },
-  { start: void; stop: void }
-> = ({ onSearch, onSelected }) => {
+    onSelected: UriWithFragment;
+  }
+> => ({ onSelected, render }) => {
   const selectUrl = (url: UriWithFragment) => {
     hideList();
     resetSearchInput();
@@ -223,27 +227,34 @@ export const searchBox: ElementComponent<
       selectHighlighted,
       hideList,
     },
-  ] = createAutocompleteList<RecentDocuments>()({
-    onSelected: link(map(pick("uriWithFragment")), selectUrl),
-    getOptionLabel: ({ name, startDate }) => {
-      if (startDate)
-        return span(
-          name,
-          small(
-            { class: "float-right text-normal" },
-            relativeDate({ date: startDate })
-          )
-        );
-      return name;
-    },
-    footer: div(
-      {
-        class: "py-1 text-center autocomplete-item",
-        onClick: goToDirectory,
+  ] = mountComponent(
+    autocompleteList<RecentDocuments>(
+      ({ name, startDate }) => {
+        if (startDate)
+          return span(
+            name,
+            small(
+              { class: "float-right text-normal" },
+              relativeDate({ date: startDate })
+            )
+          );
+        return name;
       },
-      "List all documents [Tab]"
+      div(
+        {
+          class: "py-1 text-center autocomplete-item",
+          onClick: goToDirectory,
+        },
+        "List all documents [Tab]"
+      )
     ),
-  });
+    {
+      onSelected: link(
+        map<RecentDocuments, UriWithFragment>(pick("uriWithFragment")),
+        selectUrl
+      ),
+    }
+  );
 
   const trigger = (): void => selectHighlighted();
 
@@ -255,10 +266,7 @@ export const searchBox: ElementComponent<
     ["ArrowUp", () => highlightPreviousItem()],
   ]);
 
-  const renderSearch = link(map(onSearch), async(), [
-    renderList,
-    (e) => console.error(e),
-  ]);
+  const renderSearch = link(map(onSearch), logError(async()), renderList);
 
   const inputElement = renderJsonHtmlToDom(
     input({
@@ -271,7 +279,7 @@ export const searchBox: ElementComponent<
       onInput: link(
         map(getInputTarget, (input) => input.value.trim()),
         debounce(100),
-        link(split(isUrl), [
+        link(split<string>(isUrl), [
           link(map(newUriWithFragment), selectUrl),
           renderSearch,
         ])
@@ -300,21 +308,16 @@ export const searchBox: ElementComponent<
     fork(link(ignoreParam(), focusInput), preventDefault)
   );
 
-  return [
-    renderJsonHtmlToDom(
-      div(
-        { class: "position-relative" },
-        dom(inputElement),
-        dom(suggestionsSlot)
-      )
-    ) as HTMLElement,
-    {
-      start: () => {
-        document.addEventListener("keydown", keyHandler);
-      },
-      stop: () => {
-        document.removeEventListener("keydown", keyHandler);
-      },
+  render(
+    div({ class: "position-relative" }, dom(inputElement), suggestionsSlot)
+  );
+
+  return {
+    start: () => {
+      document.addEventListener("keydown", keyHandler);
     },
-  ];
+    stop: () => {
+      document.removeEventListener("keydown", keyHandler);
+    },
+  };
 };

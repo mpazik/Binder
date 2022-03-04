@@ -1,5 +1,6 @@
 import type { Options } from "jsonld";
 import { normalize } from "jsonld";
+import type { NodeObject } from "jsonld/jsonld";
 import type { JsonLd } from "jsonld/jsonld-spec";
 import type { URL } from "schema-dts";
 
@@ -32,6 +33,16 @@ export const getHash = (ld: LinkedDataWithHashId): HashName => ld["@id"];
 
 export const getType = (ld: LinkedData): string | undefined =>
   ld["@type"] ?? (ld["type"] as string);
+
+export const getContext = (ld: LinkedData): NodeObject["@context"] =>
+  ld["@context"];
+
+export const isLinkedData = (data: unknown): data is LinkedData => {
+  if (!data || typeof data !== "object") return false;
+  const type = getType(data as LinkedData);
+  const context = getContext(data as LinkedData);
+  return type !== undefined && context !== undefined;
+};
 
 export const isTypeEqualTo = (ld: LinkedData, type: string): boolean => {
   const ldType = getType(ld);

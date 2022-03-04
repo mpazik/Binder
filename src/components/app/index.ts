@@ -16,9 +16,9 @@ import {
   to,
   withState,
 } from "linki";
+import type { JsonHtml } from "linki-ui";
+import { mountComponent, renderJsonHtmlToDom } from "linki-ui";
 
-import { mountComponent } from "../../../../linki-ui";
-import { renderJsonHtmlToDom } from "../../../../linki-ui/src";
 import type {
   AnalyticsSender,
   UpdateAnalyticsRepoAccount,
@@ -119,6 +119,7 @@ import { createSettingUpdateAction } from "../display-settings/setting-update";
 import { fileDrop } from "../file-drop";
 import { navigation } from "../navigation";
 import { dropdown } from "../navigation/common";
+import { storePage } from "../store";
 
 type InitServices = {
   fetchTroughProxy: Fetch;
@@ -352,7 +353,7 @@ export const App: Component<
         map(pick("repository")),
         filter(defined),
         passOnlyChanged<RepositoryDb>(initRepo),
-        fork(updateRepo, () => displayPage(directorySlot))
+        fork(updateRepo, () => displayJsonHtml(docsDirectorySlot))
       ),
       link(
         filterState("loadingError"),
@@ -376,7 +377,7 @@ export const App: Component<
     unclaimedRepository
   );
 
-  const loadUri = link(
+  const loadUri: Callback<UriWithFragment> = link(
     reduce<UriWithFragment & { uriChanged: boolean }, UriWithFragment>(
       (old, { uri, fragment }) => ({
         uri,
@@ -385,20 +386,23 @@ export const App: Component<
       }),
       { uri: "", uriChanged: false }
     ),
-    link(split(pick("uriChanged")), [
-      (it: UriWithFragment) => {
-        setCurrentUri(it.uri);
-        loadResource(it);
-      },
-      link(
-        map<UriWithFragment, string | undefined>(pick("fragment")),
-        filter(defined),
-        fork(
-          (it) => goToFragment(it),
-          () => hideNav()
-        )
-      ),
-    ])
+    link(
+      split<UriWithFragment & { uriChanged: boolean }>((it) => it.uriChanged),
+      [
+        (it: UriWithFragment) => {
+          setCurrentUri(it.uri);
+          loadResource(it);
+        },
+        link(
+          map<UriWithFragment, string | undefined>(pick("fragment")),
+          filter(defined),
+          fork(
+            (it) => goToFragment(it),
+            () => hideNav()
+          )
+        ),
+      ]
+    )
   );
 
   const loadUriWithRecentFragment: Callback<UriWithFragment> = link(
@@ -435,38 +439,42 @@ export const App: Component<
       start: startNav,
       stop: stopNav,
     },
-  ] = navigation({
-    displayed:
-      !initialContent || getType(initialContent.linkedData) != "AboutPage",
-    updateGdrive,
-    upload: store.upload,
-    displayAccountPicker: () => displayAccountPicker({ loading: false }),
-    initProfile: {
-      repository: initRepo,
-      user: lastLogin
-        ? {
-            emailAddress: lastLogin.email,
-            displayName: lastLogin.name,
-          }
-        : undefined,
-    },
-    loadUri: fork(updateBrowserHistory, loadUri),
-    searchDirectory: directoryIndex.search,
-    searchWatchHistory,
-    displaySettingsSlot: dropdown({
-      icon: typographyIcon,
-      title: "display settings",
-      children: [
-        setupDisplaySettingsPanel({
-          onFontFaceChange: createDisplaySettingUpdater("fontFace"),
-          onFontSizeChange: createDisplaySettingUpdater("fontSize"),
-          onLineLengthChange: createDisplaySettingUpdater("lineLength"),
-          onLineHeightChange: createDisplaySettingUpdater("lineHeight"),
-          onThemeChange: createDisplaySettingUpdater("theme"),
-        })(displaySettings),
-      ],
+  ] = mountComponent(
+    navigation({
+      displayed:
+        !initialContent || getType(initialContent.linkedData) != "AboutPage",
+      initProfile: {
+        repository: initRepo,
+        user: lastLogin
+          ? {
+              emailAddress: lastLogin.email,
+              displayName: lastLogin.name,
+            }
+          : undefined,
+      },
+      searchDirectory: directoryIndex.search,
+      searchWatchHistory,
+      displaySettingsSlot: dropdown({
+        icon: typographyIcon,
+        title: "display settings",
+        children: [
+          setupDisplaySettingsPanel({
+            onFontFaceChange: createDisplaySettingUpdater("fontFace"),
+            onFontSizeChange: createDisplaySettingUpdater("fontSize"),
+            onLineLengthChange: createDisplaySettingUpdater("lineLength"),
+            onLineHeightChange: createDisplaySettingUpdater("lineHeight"),
+            onThemeChange: createDisplaySettingUpdater("theme"),
+          })(displaySettings),
+        ],
+      }),
     }),
-  });
+    {
+      updateGdrive,
+      upload: store.upload,
+      loadUri: fork(updateBrowserHistory, loadUri),
+      displayAccountPicker: () => displayAccountPicker({ loading: false }),
+    }
+  );
 
   const contentFetcherPassingUri = createContentFetcherPassingUri(
     createLinkedDataWithDocumentFetcher(
@@ -504,12 +512,17 @@ export const App: Component<
   const loadContent = (data: LinkedDataWithContent | LinkedDataWithBody) => {
     const pageType = getType(data.linkedData);
     if (pageType === "SearchResultsPage" || pageType === "NotFoundPage") {
-      displayPage(directorySlot);
+      displayJsonHtml(docsDirectorySlot);
     } else if (
       pageType === "Page" &&
       data.linkedData.name === "Docland - Store"
     ) {
-      displayPage("hello world");
+      displayJsonHtml(
+        storePage({
+          writeLinkedData: store.writeLinkedData,
+          realAllLinkedData: store.readAllLinkedData,
+        })
+      );
     } else if (pageType === "AboutPage") {
       if (isLinkedDataWithBody(data)) {
         displayFullScreen(data.body);
@@ -535,27 +548,41 @@ export const App: Component<
             ),
           }
         : data;
-      displayPage(contentSlot);
+      displaySlot(contentSlot);
       displayContent(linkedDataWithContent);
       setContentReady(true);
       pushCreator();
     }
   };
 
-  const [contentOrDirSlot, { displayPage, displayFullScreen }] = newSlot(
+  const [
+    contentOrDirSlot,
+    { displayJsonHtml, displayFullScreen, displaySlot },
+  ] = newSlot(
     "either-content",
     (
       render
     ): Handlers<{
-      displayPage: Slot;
+      displaySlot: Slot;
+      displayJsonHtml: JsonHtml;
       displayFullScreen: Node;
     }> => {
       render("test test");
 
       return {
-        displayPage: (element) => {
+        displaySlot: (slot) => {
           render(); // clean previous dom, to force rerender
-          render(div({ class: "mt-8" }, element));
+          render(div({ class: "mt-8" }, slot));
+          hideNav();
+        },
+        displayJsonHtml: (jsonHtml) => {
+          render(); // clean previous dom, to force rerender
+          render(
+            div({
+              class: "mt-8",
+              dangerouslySetDom: renderJsonHtmlToDom(jsonHtml),
+            })
+          );
           hideNav();
         },
         displayFullScreen: (element) => {
@@ -584,10 +611,6 @@ export const App: Component<
       searchWatchHistory,
     })
   );
-  const directorySlot = div({
-    dangerouslySetDom: renderJsonHtmlToDom(docsDirectorySlot),
-  });
-
   const [fileDropSlot, { handleDragEvent }] = newSlot(
     "file-drop",
     fileDrop({
@@ -620,7 +643,9 @@ export const App: Component<
   );
 
   const containerView = createContainerView({
-    navigationSlot: div({ dangerouslySetDom: navigationSlot }),
+    navigationSlot: div({
+      dangerouslySetDom: renderJsonHtmlToDom(navigationSlot),
+    }),
     contentOrDirSlot: contentLoaderSlot,
     fileDropSlot,
     accountPickerSlot,

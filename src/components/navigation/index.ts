@@ -1,7 +1,6 @@
-import type { Callback } from "linki";
 import { fork, not } from "linki";
-import type { JsonHtml } from "linki-ui";
-import { renderJsonHtmlToDom, dom } from "linki-ui";
+import type { JsonHtml, UiComponent } from "linki-ui";
+import { renderJsonHtmlToDom, mountComponent, dom } from "linki-ui";
 
 import { DISPLAY_CONFIG_ENABLED } from "../../config";
 import type { GDriveLoadingProfile } from "../../functions/gdrive/app-files";
@@ -10,7 +9,6 @@ import type { DirectoryIndex } from "../../functions/indexes/directory-index";
 import type { WatchHistorySearch } from "../../functions/indexes/watch-history-index";
 import { createRecentDocumentSearch } from "../../functions/recent-document-serach";
 import type { UriWithFragment } from "../../libs/browser-providers";
-import type { ElementComponent } from "../../libs/simple-ui/new-renderer";
 
 import type { ProfilePanelControl } from "./profile";
 import { profilePanel } from "./profile";
@@ -85,19 +83,19 @@ const createOnScrollHandler = (nav: HTMLElement): (() => void) => {
   };
 };
 
-export const navigationElement: ElementComponent<
-  {
-    displayed: boolean;
-    body: JsonHtml;
-  },
-  {
-    hideNav: void;
-    showNav: void;
-    hideNavPermanently: void;
-    start: void;
-    stop: void;
-  }
-> = ({ displayed, body }) => {
+export const navigationElement = ({
+  displayed,
+  body,
+}: {
+  displayed: boolean;
+  body: JsonHtml;
+}): UiComponent<{
+  hideNav: void;
+  showNav: void;
+  hideNavPermanently: void;
+  start: void;
+  stop: void;
+}> => ({ render }) => {
   const element = renderJsonHtmlToDom(
     navigationView({
       displayed,
@@ -106,34 +104,33 @@ export const navigationElement: ElementComponent<
   ) as HTMLElement;
 
   const onScroll = createOnScrollHandler(element);
-  return [
-    element,
-    {
-      hideNav: () => moveElementOnTopOfTheScreen(element),
-      showNav: () => showElement(element),
-      hideNavPermanently: () => hideElement(element),
-      start: () => {
-        document.addEventListener("scroll", onScroll);
-      },
-      stop: () => {
-        document.removeEventListener("scroll", onScroll);
-      },
+  render(dom(element));
+  return {
+    hideNav: () => moveElementOnTopOfTheScreen(element),
+    showNav: () => showElement(element),
+    hideNavPermanently: () => hideElement(element),
+    start: () => {
+      document.addEventListener("scroll", onScroll);
     },
-  ];
+    stop: () => {
+      document.removeEventListener("scroll", onScroll);
+    },
+  };
 };
 
-export const navigation: ElementComponent<
-  {
-    updateGdrive: Callback<GDriveAction>;
-    displayAccountPicker: Callback;
-    upload: () => void;
-    loadUri: Callback<UriWithFragment>;
-    searchDirectory: DirectoryIndex["search"];
-    searchWatchHistory: WatchHistorySearch;
-    initProfile: GDriveLoadingProfile;
-    displaySettingsSlot: JsonHtml;
-    displayed: boolean;
-  },
+export const navigation = ({
+  displayed,
+  searchDirectory,
+  searchWatchHistory,
+  displaySettingsSlot,
+  initProfile,
+}: {
+  searchDirectory: DirectoryIndex["search"];
+  searchWatchHistory: WatchHistorySearch;
+  initProfile: GDriveLoadingProfile;
+  displaySettingsSlot: JsonHtml;
+  displayed: boolean;
+}): UiComponent<
   ProfilePanelControl & {
     hideNav: void;
     showNav: void;
@@ -141,22 +138,18 @@ export const navigation: ElementComponent<
     setCurrentUri: string;
     start: void;
     stop: void;
+  },
+  {
+    upload: void;
+    displayAccountPicker: void;
+    updateGdrive: GDriveAction;
+    loadUri: UriWithFragment;
   }
-> = ({
-  updateGdrive,
-  displayAccountPicker,
-  upload,
-  displayed,
-  loadUri,
-  searchDirectory,
-  searchWatchHistory,
-  displaySettingsSlot,
-  initProfile,
-}) => {
+> => ({ render, upload, displayAccountPicker, loadUri, updateGdrive }) => {
   const [
     profilePanelSlot,
     { updateStoreState, updateGdriveState },
-  ] = profilePanel({
+  ] = mountComponent(profilePanel, {
     login: displayAccountPicker,
     logout: () => updateGdrive(["logout"]),
     upload,
@@ -177,43 +170,42 @@ export const navigation: ElementComponent<
   const [
     searchBoxSlot,
     { start: startSearchBox, stop: stopSearchBox },
-  ] = searchBox({
+  ] = mountComponent(searchBox(search), {
     onSelected: loadUri,
-    onSearch: search,
   });
 
   const [
     navElement,
     { hideNavPermanently, hideNav, showNav, stop: stopNav, start: startNav },
-  ] = navigationElement({
-    displayed,
-    body: appNavContent({
-      profilePanelSlot: dom(profilePanelSlot),
-      searchBoxSlot: dom(searchBoxSlot),
-      displaySettingsSlot,
-      displayConfig: DISPLAY_CONFIG_ENABLED,
-    }),
-  });
+  ] = mountComponent(
+    navigationElement({
+      displayed,
+      body: appNavContent({
+        profilePanelSlot: profilePanelSlot,
+        searchBoxSlot: searchBoxSlot,
+        displaySettingsSlot,
+        displayConfig: DISPLAY_CONFIG_ENABLED,
+      }),
+    })
+  );
 
-  return [
-    navElement,
-    {
-      updateStoreState,
-      updateGdriveState,
-      hideNav,
-      showNav,
-      hideNavPermanently,
-      setCurrentUri: (uri) => {
-        currentUri = uri;
-      },
-      start: fork(
-        () => {
-          updateGdrive(["load", initProfile]);
-        },
-        startNav,
-        startSearchBox
-      ),
-      stop: fork(stopNav, stopSearchBox),
+  render(navElement);
+  return {
+    updateStoreState,
+    updateGdriveState,
+    hideNav,
+    showNav,
+    hideNavPermanently,
+    setCurrentUri: (uri) => {
+      currentUri = uri;
     },
-  ];
+    start: fork(
+      () => {
+        updateGdrive(["load", initProfile]);
+      },
+      startNav,
+      startSearchBox
+    ),
+    stop: fork(stopNav, stopSearchBox),
+  };
 };
