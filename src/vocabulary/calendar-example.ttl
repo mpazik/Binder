@@ -1,0 +1,458 @@
+@prefix ns0: <http://reference.data.gov.uk/def/intervals/> .
+@prefix time: <http://www.w3.org/2006/time#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix ns1: <http://reference.data.gov.uk/def/reference/> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix ns2: <http://purl.org/NET/scovo#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix void: <http://rdfs.org/ns/void#> .
+@prefix ns3: <http://purl.org/net/provenance/ns#> .
+@prefix dc: <http://purl.org/dc/terms/> .
+@prefix doap: <http://usefulinc.com/ns/doap#> .
+
+<http://reference.data.gov.uk/id/gregorian-day/1960-03-12>
+    a <http://reference.data.gov.uk/def/intervals/Day>, <http://purl.org/NET/scovo#Dimension>, <http://reference.data.gov.uk/def/intervals/CalendarDay> ;
+    ns0:intervalContainsHour <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T20>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T13>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T14>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T06>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T07>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T00>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T01>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T17>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T18>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T11>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T12>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T05>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T04>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T23>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T22>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T15>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T16>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T08>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T09>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T10>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T03>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T02>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T21>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T19> ;
+    ns0:ordinalDayOfMonth 12 ;
+    ns0:nextInterval <http://reference.data.gov.uk/id/gregorian-day/1960-03-13> ;
+    time:intervalContains <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T00>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T06>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T21>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T01>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T13>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T14>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T20>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T18>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T10>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T22>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T02>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T23>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T03>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T15>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T07>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T16>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T19>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T05>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T11>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T17>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T12>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T04>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T08>, <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T09> ;
+    ns0:ordinalYear 1960 ;
+    ns0:intervalContainsHours (
+          <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T00>
+          <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T01>
+          <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T02>
+          <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T03>
+          <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T04>
+          <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T05>
+          <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T06>
+          <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T07>
+          <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T08>
+          <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T09>
+          <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T10>
+          <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T11>
+          <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T12>
+          <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T13>
+          <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T14>
+          <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T15>
+          <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T16>
+          <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T17>
+          <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T18>
+          <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T19>
+          <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T20>
+          <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T21>
+          <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T22>
+          <http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T23>
+      ) ;
+    rdfs:label "Gregorian Day:1960-03-12"@en ;
+    time:intervalDuring <http://reference.data.gov.uk/id/gregorian-week/1960-W10>, <http://reference.data.gov.uk/id/gregorian-year/1960>, <http://reference.data.gov.uk/id/gregorian-quarter/1960-Q1>, <http://reference.data.gov.uk/id/gregorian-month/1960-03>, <http://reference.data.gov.uk/id/gregorian-half/1960-H1> ;
+    ns0:ordinalDayOfWeek 6 ;
+    ns0:ordinalMonthOfYear 3 ;
+    rdfs:comment "Saturday the 12th of March in the Gregorian calendar year 1960"@en ;
+    ns0:ordinalDayOfYear 72 ;
+    time:hasDurationDescription ns0:one-day ;
+    ns0:monthOfYear ns0:March ;
+    time:dayOfWeek time:Saturday ;
+    ns0:ordinalQuarterOfYear 1 ;
+    time:intervalMeets <http://reference.data.gov.uk/id/gregorian-day/1960-03-13> ;
+    skos:prefLabel "Gregorian Day:1960-03-12"@en ;
+    ns1:uriSet <http://reference.data.gov.uk/id/gregorian-day> ;
+    ns0:ordinalWeekOfYearYear 1960 ;
+    time:hasEnd <http://reference.data.gov.uk/id/gregorian-instant/1960-03-13T00:00:00> ;
+    foaf:isPrimaryTopicOf <http://reference.data.gov.uk/doc/gregorian-day/1960-03-12> ;
+    ns0:ordinalHalfOfYear 1 ;
+    ns0:ordinalWeekOfYear 10 ;
+    time:intervalEquals <http://reference.data.gov.uk/id/gregorian-interval/1960-03-12T00:00:00/P1D> ;
+    ns2:max "1960-03-12T23:59:59"^^xsd:dateTime ;
+    time:hasBeginning <http://reference.data.gov.uk/id/gregorian-instant/1960-03-12T00:00:00> ;
+    time:intervalMetBy <http://reference.data.gov.uk/id/gregorian-day/1960-03-11> ;
+    ns0:dayOfWeek time:Saturday ;
+    ns0:previousInterval <http://reference.data.gov.uk/id/gregorian-day/1960-03-11> ;
+    ns2:min "1960-03-12T00:00:00"^^xsd:dateTime ;
+    ns0:hasXsdDurationDescription "P1D"^^xsd:duration .
+
+<http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T20>
+    a ns0:Hour, ns0:CalendarHour ;
+    time:intervalDuring <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The 21st hour of Saturday the 12th March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Hour:1960-03-12T20"@en ;
+    skos:prefLabel "Gregorian Hour:1960-03-12T20"@en .
+
+<http://reference.data.gov.uk/id/gregorian-day/1960-03-13>
+    a ns0:Day, ns0:CalendarDay ;
+    time:intervalMetBy <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "Sunday the 13th of March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Day:1960-03-13"@en ;
+    skos:prefLabel "Gregorian Day:1960-03-13"@en .
+
+<http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T00>
+    a ns0:Hour, ns0:CalendarHour ;
+    time:intervalDuring <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The 1st hour of Saturday the 12th March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Hour:1960-03-12T00"@en ;
+    skos:prefLabel "Gregorian Hour:1960-03-12T00"@en .
+
+<http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T13>
+    a ns0:Hour, ns0:CalendarHour ;
+    time:intervalDuring <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The 14th hour of Saturday the 12th March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Hour:1960-03-12T13"@en ;
+    skos:prefLabel "Gregorian Hour:1960-03-12T13"@en .
+
+<http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T14>
+    a ns0:Hour, ns0:CalendarHour ;
+    time:intervalDuring <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The 15th hour of Saturday the 12th March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Hour:1960-03-12T14"@en ;
+    skos:prefLabel "Gregorian Hour:1960-03-12T14"@en .
+
+<http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T06>
+    a ns0:Hour, ns0:CalendarHour ;
+    time:intervalDuring <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The 7th hour of Saturday the 12th March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Hour:1960-03-12T06"@en ;
+    skos:prefLabel "Gregorian Hour:1960-03-12T06"@en .
+
+<http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T21>
+    a ns0:Hour, ns0:CalendarHour ;
+    time:intervalDuring <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The 22nd hour of Saturday the 12th March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Hour:1960-03-12T21"@en ;
+    skos:prefLabel "Gregorian Hour:1960-03-12T21"@en .
+
+<http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T01>
+    a ns0:Hour, ns0:CalendarHour ;
+    time:intervalDuring <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The 2nd hour of Saturday the 12th March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Hour:1960-03-12T01"@en ;
+    skos:prefLabel "Gregorian Hour:1960-03-12T01"@en .
+
+<http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T07>
+    a ns0:Hour, ns0:CalendarHour ;
+    time:intervalDuring <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The 8th hour of Saturday the 12th March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Hour:1960-03-12T07"@en ;
+    skos:prefLabel "Gregorian Hour:1960-03-12T07"@en .
+
+<http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T02>
+    a ns0:Hour, ns0:CalendarHour ;
+    time:intervalDuring <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The 3rd hour of Saturday the 12th March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Hour:1960-03-12T02"@en ;
+    skos:prefLabel "Gregorian Hour:1960-03-12T02"@en .
+
+<http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T03>
+    a ns0:Hour, ns0:CalendarHour ;
+    time:intervalDuring <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The 4th hour of Saturday the 12th March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Hour:1960-03-12T03"@en ;
+    skos:prefLabel "Gregorian Hour:1960-03-12T03"@en .
+
+<http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T04>
+    a ns0:Hour, ns0:CalendarHour ;
+    time:intervalDuring <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The 5th hour of Saturday the 12th March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Hour:1960-03-12T04"@en ;
+    skos:prefLabel "Gregorian Hour:1960-03-12T04"@en .
+
+<http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T05>
+    a ns0:Hour, ns0:CalendarHour ;
+    time:intervalDuring <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The 6th hour of Saturday the 12th March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Hour:1960-03-12T05"@en ;
+    skos:prefLabel "Gregorian Hour:1960-03-12T05"@en .
+
+<http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T08>
+    a ns0:Hour, ns0:CalendarHour ;
+    time:intervalDuring <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The 9th hour of Saturday the 12th March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Hour:1960-03-12T08"@en ;
+    skos:prefLabel "Gregorian Hour:1960-03-12T08"@en .
+
+<http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T09>
+    a ns0:Hour, ns0:CalendarHour ;
+    time:intervalDuring <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The 10th hour of Saturday the 12th March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Hour:1960-03-12T09"@en ;
+    skos:prefLabel "Gregorian Hour:1960-03-12T09"@en .
+
+<http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T10>
+    a ns0:Hour, ns0:CalendarHour ;
+    time:intervalDuring <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The 11th hour of Saturday the 12th March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Hour:1960-03-12T10"@en ;
+    skos:prefLabel "Gregorian Hour:1960-03-12T10"@en .
+
+<http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T11>
+    a ns0:Hour, ns0:CalendarHour ;
+    time:intervalDuring <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The 12th hour of Saturday the 12th March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Hour:1960-03-12T11"@en ;
+    skos:prefLabel "Gregorian Hour:1960-03-12T11"@en .
+
+<http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T12>
+    a ns0:Hour, ns0:CalendarHour ;
+    time:intervalDuring <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The 13th hour of Saturday the 12th March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Hour:1960-03-12T12"@en ;
+    skos:prefLabel "Gregorian Hour:1960-03-12T12"@en .
+
+<http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T15>
+    a ns0:Hour, ns0:CalendarHour ;
+    time:intervalDuring <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The 16th hour of Saturday the 12th March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Hour:1960-03-12T15"@en ;
+    skos:prefLabel "Gregorian Hour:1960-03-12T15"@en .
+
+<http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T16>
+    a ns0:Hour, ns0:CalendarHour ;
+    time:intervalDuring <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The 17th hour of Saturday the 12th March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Hour:1960-03-12T16"@en ;
+    skos:prefLabel "Gregorian Hour:1960-03-12T16"@en .
+
+<http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T17>
+    a ns0:Hour, ns0:CalendarHour ;
+    time:intervalDuring <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The 18th hour of Saturday the 12th March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Hour:1960-03-12T17"@en ;
+    skos:prefLabel "Gregorian Hour:1960-03-12T17"@en .
+
+<http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T18>
+    a ns0:Hour, ns0:CalendarHour ;
+    time:intervalDuring <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The 19th hour of Saturday the 12th March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Hour:1960-03-12T18"@en ;
+    skos:prefLabel "Gregorian Hour:1960-03-12T18"@en .
+
+<http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T19>
+    a ns0:Hour, ns0:CalendarHour ;
+    time:intervalDuring <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The 20th hour of Saturday the 12th March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Hour:1960-03-12T19"@en ;
+    skos:prefLabel "Gregorian Hour:1960-03-12T19"@en .
+
+<http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T22>
+    a ns0:Hour, ns0:CalendarHour ;
+    time:intervalDuring <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The 23rd hour of Saturday the 12th March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Hour:1960-03-12T22"@en ;
+    skos:prefLabel "Gregorian Hour:1960-03-12T22"@en .
+
+<http://reference.data.gov.uk/id/gregorian-hour/1960-03-12T23>
+    a ns0:Hour, ns0:CalendarHour ;
+    time:intervalDuring <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The 24th hour of Saturday the 12th March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Hour:1960-03-12T23"@en ;
+    skos:prefLabel "Gregorian Hour:1960-03-12T23"@en .
+
+<http://reference.data.gov.uk/id/gregorian-week/1960-W10>
+    a ns0:Week, ns2:Dimension, ns0:Iso8601Week ;
+    time:hasBeginning <http://reference.data.gov.uk/id/gregorian-instant/1960-03-07T00:00:00> ;
+    ns0:intervalContainsDay <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    ns2:min "1960-03-07"^^xsd:date ;
+    rdfs:label "Gregorian Week:1960-W10"@en ;
+    time:hasDurationDescription ns0:one-week ;
+    ns2:max "1960-03-13"^^xsd:date ;
+    ns0:ordinalWeekOfYearYear 1960 ;
+    time:hasEnd <http://reference.data.gov.uk/id/gregorian-instant/1960-03-14T00:00:00> ;
+    skos:prefLabel "Gregorian Week:1960-W10"@en ;
+    time:intervalContains <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    ns0:hasXsdDurationDescription "P7D"^^xsd:duration ;
+    rdfs:comment "Week 10 of the Gregorian calendar year 1960" ;
+    ns0:ordinalWeekOfYear 10 .
+
+<http://reference.data.gov.uk/id/gregorian-instant/1960-03-07T00:00:00>
+    a time:Instant ;
+    ns0:monthOfYear ns0:March ;
+    ns0:ordinalHourOfDay 0 ;
+    ns0:ordinalSecondOfMinute 0 ;
+    time:inXSDDateTime "1960-03-07T00:00:00"^^xsd:dateTime ;
+    ns0:dayOfWeek time:Monday ;
+    ns0:ordinalMinuteOfHour 0 ;
+    ns0:ordinalDayOfMonth 7 ;
+    skos:prefLabel "Gregorian Instant:1960-03-07T00:00:00"@en ;
+    ns0:ordinalWeekOfYearYear 1960 ;
+    ns0:ordinalDayOfWeek 1 ;
+    rdfs:comment "The instant at start of the 1st second of 1st minute of 1st hour of Monday the 7th March of the Gregorian calendar year 1960"@en ;
+    ns0:ordinalDayOfYear 67 ;
+    ns0:ordinalHalfOfYear 1 ;
+    ns0:ordinalQuarterOfYear 1 ;
+    rdfs:label "Gregorian Instant:1960-03-07T00:00:00"@en ;
+    ns0:ordinalYear 1960 ;
+    ns0:ordinalMonthOfYear 3 ;
+    ns0:ordinalWeekOfYear 10 .
+
+<http://reference.data.gov.uk/id/gregorian-instant/1960-03-14T00:00:00>
+    a time:Instant ;
+    ns0:ordinalWeekOfYear 11 ;
+    ns0:ordinalMonthOfYear 3 ;
+    rdfs:label "Gregorian Instant:1960-03-14T00:00:00"@en ;
+    rdfs:comment "The instant at start of the 1st second of 1st minute of 1st hour of Monday the 14th March of the Gregorian calendar year 1960"@en ;
+    ns0:ordinalMinuteOfHour 0 ;
+    ns0:monthOfYear ns0:March ;
+    ns0:ordinalDayOfYear 74 ;
+    ns0:dayOfWeek time:Monday ;
+    ns0:ordinalDayOfMonth 14 ;
+    ns0:ordinalWeekOfYearYear 1960 ;
+    ns0:ordinalYear 1960 ;
+    ns0:ordinalHalfOfYear 1 ;
+    skos:prefLabel "Gregorian Instant:1960-03-14T00:00:00"@en ;
+    ns0:ordinalDayOfWeek 1 ;
+    ns0:ordinalSecondOfMinute 0 ;
+    ns0:ordinalHourOfDay 0 ;
+    time:inXSDDateTime "1960-03-14T00:00:00"^^xsd:dateTime ;
+    ns0:ordinalQuarterOfYear 1 .
+
+<http://reference.data.gov.uk/id/gregorian-year/1960>
+    a ns0:Year, ns0:CalendarYear ;
+    time:intervalContains <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    ns0:intervalContainsDay <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The Gregorian calendar year of 1960"@en ;
+    rdfs:label "Gregorian Year:1960"@en ;
+    skos:prefLabel "Gregorian Year:1960"@en .
+
+<http://reference.data.gov.uk/id/gregorian-quarter/1960-Q1>
+    a ns0:Q1, ns0:Quarter, ns0:CalendarQuarter ;
+    time:intervalContains <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    ns0:intervalContainsDay <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The first quarter of the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Quarter:1960-Q1"@en ;
+    skos:prefLabel "Gregorian Quarter:1960-Q1"@en .
+
+<http://reference.data.gov.uk/id/gregorian-month/1960-03>
+    a ns0:Month, ns0:CalendarMonth ;
+    time:intervalContains <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    ns0:intervalContainsDay <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The month of March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Month:1960-03"@en ;
+    skos:prefLabel "Gregorian Month:1960-03"@en .
+
+<http://reference.data.gov.uk/id/gregorian-day>
+    a ns1:URIset, void:Dataset ;
+    skos:prefLabel "Gregorian calendar aligned one day intervals."@en ;
+    rdfs:label "Gregorian calendar aligned one day intervals."@en .
+
+<http://reference.data.gov.uk/id/gregorian-half/1960-H1>
+    a ns0:H1, ns0:Half, ns0:CalendarHalf ;
+    time:intervalContains <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    ns0:intervalContainsDay <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "The first half of Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Half:1960-H1"@en ;
+    skos:prefLabel "Gregorian Half:1960-H1"@en .
+
+<http://reference.data.gov.uk/id/gregorian-instant/1960-03-13T00:00:00>
+    a time:Instant ;
+    ns0:ordinalMonthOfYear 3 ;
+    ns0:ordinalHalfOfYear 1 ;
+    ns0:dayOfWeek time:Sunday ;
+    skos:prefLabel "Gregorian Instant:1960-03-13T00:00:00"@en ;
+    ns0:ordinalDayOfYear 73 ;
+    ns0:ordinalSecondOfMinute 0 ;
+    ns0:monthOfYear ns0:March ;
+    ns0:ordinalQuarterOfYear 1 ;
+    ns0:ordinalDayOfMonth 13 ;
+    ns0:ordinalHourOfDay 0 ;
+    rdfs:comment "The instant at start of the 1st second of 1st minute of 1st hour of Sunday the 13th March of the Gregorian calendar year 1960"@en ;
+    time:inXSDDateTime "1960-03-13T00:00:00"^^xsd:dateTime ;
+    rdfs:label "Gregorian Instant:1960-03-13T00:00:00"@en ;
+    ns0:ordinalWeekOfYearYear 1960 ;
+    ns0:ordinalWeekOfYear 10 ;
+    ns0:ordinalYear 1960 ;
+    ns0:ordinalMinuteOfHour 0 ;
+    ns0:ordinalDayOfWeek 7 .
+
+<http://reference.data.gov.uk/doc/gregorian-day/1960-03-12>
+    a <http://purl.org/net/provenance/ns#DataItem>, foaf:Document ;
+    ns3:createdBy [
+          a ns3:DataCreation ;
+          ns3:performedAt "2011-09-09"^^xsd:date ;
+          ns3:performedBy _:genid26
+      ] ;
+    foaf:primaryTopic <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    dc:hasFormat <http://reference.data.gov.uk/doc/gregorian-day/1960-03-12.nt>, <http://reference.data.gov.uk/doc/gregorian-day/1960-03-12.ttl>, <http://reference.data.gov.uk/doc/gregorian-day/1960-03-12.n3>, <http://reference.data.gov.uk/doc/gregorian-day/1960-03-12.json>, <http://reference.data.gov.uk/doc/gregorian-day/1960-03-12.rdf> ;
+    dc:rightsHolder _:genid28 ;
+    dc:license <http://reference.data.gov.uk/id/open-government-licence> ;
+    dc:creator _:genid26 ;
+    rdfs:label "Generic Dataset document about: Gregorian Day:1960-03-12"@en ;
+    dc:dateCopyrighted "2011-09-09"^^xsd:date ;
+    dc:publisher _:genid28 .
+
+<http://reference.data.gov.uk/doc/gregorian-day/1960-03-12.nt>
+    a foaf:Document ;
+    rdfs:label "N-Triple document about: Gregorian Day:1960-03-12"@en ;
+    dc:format [ rdfs:label "text/plain" ] .
+
+<http://reference.data.gov.uk/doc/gregorian-day/1960-03-12.ttl>
+    a foaf:Document ;
+    rdfs:label "Turtle document about: Gregorian Day:1960-03-12"@en ;
+    dc:format [ rdfs:label "text/turtle" ] .
+
+<http://reference.data.gov.uk/doc/gregorian-day/1960-03-12.n3>
+    a foaf:Document ;
+    rdfs:label "N3 document about: Gregorian Day:1960-03-12"@en ;
+    dc:format [ rdfs:label "text/n3" ] .
+
+<http://reference.data.gov.uk/doc/gregorian-day/1960-03-12.json>
+    a foaf:Document ;
+    rdfs:label "JSON document about: Gregorian Day:1960-03-12"@en ;
+    dc:format [ rdfs:label "application/json" ] .
+
+<http://reference.data.gov.uk/doc/gregorian-day/1960-03-12.rdf>
+    a foaf:Document ;
+    rdfs:label "RDF/XML document about: Gregorian Day:1960-03-12"@en ;
+    dc:format [ rdfs:label "application/rdf+xml" ] .
+
+<http://reference.data.gov.uk/id/gregorian-interval/1960-03-12T00:00:00/P1D>
+    a time:Interval ;
+    rdfs:comment "An interval of 1 day beginning at the start of the 1st second of 1st minute of 1st hour of Saturday the 12th March 1960 in the Gregorian Calendar"@en ;
+    rdfs:label "Gregorian Interval:1960-03-12T00:00:00/P1D"@en ;
+    skos:prefLabel "Gregorian Interval:1960-03-12T00:00:00/P1D"@en .
+
+<http://reference.data.gov.uk/id/gregorian-instant/1960-03-12T00:00:00>
+    a time:Instant ;
+    ns0:ordinalDayOfYear 72 ;
+    ns0:dayOfWeek time:Saturday ;
+    ns0:ordinalDayOfMonth 12 ;
+    skos:prefLabel "Gregorian Instant:1960-03-12T00:00:00"@en ;
+    ns0:ordinalDayOfWeek 6 ;
+    time:inXSDDateTime "1960-03-12T00:00:00"^^xsd:dateTime ;
+    rdfs:comment "The instant at start of the 1st second of 1st minute of 1st hour of Saturday the 12th March of the Gregorian calendar year 1960"@en ;
+    ns0:ordinalMinuteOfHour 0 ;
+    ns0:ordinalYear 1960 ;
+    ns0:ordinalQuarterOfYear 1 ;
+    ns0:ordinalWeekOfYear 10 ;
+    ns0:ordinalWeekOfYearYear 1960 ;
+    rdfs:label "Gregorian Instant:1960-03-12T00:00:00"@en ;
+    ns0:ordinalHourOfDay 0 ;
+    ns0:monthOfYear ns0:March ;
+    ns0:ordinalSecondOfMinute 0 ;
+    ns0:ordinalMonthOfYear 3 ;
+    ns0:ordinalHalfOfYear 1 .
+
+<http://reference.data.gov.uk/id/gregorian-day/1960-03-11>
+    a ns0:Day, ns0:CalendarDay ;
+    time:intervalMeets <http://reference.data.gov.uk/id/gregorian-day/1960-03-12> ;
+    rdfs:comment "Friday the 11th of March in the Gregorian calendar year 1960"@en ;
+    rdfs:label "Gregorian Day:1960-03-11"@en ;
+    skos:prefLabel "Gregorian Day:1960-03-11"@en .
+
+_:genid26
+    a ns3:DataProvidingService ;
+    ns3:employedArtifact [
+          a doap:Project ;
+          ns3:usedBy _:genid28 ;
+          doap:release [
+                a doap:Version ;
+                doap:revision "0.0.3" ;
+                doap:created "2011-09-09"^^xsd:date ;
+                doap:name "Harrison"@en
+            ] ;
+          doap:name "UK Gov. Intervals and Instants URI Set Server"
+      ] ;
+    ns3:operatedBy _:genid28 ;
+    doap:name "Intervals and Instants URI Set Service"@en .
+
+_:genid28
+    a <http://purl.org/vocab/frbr/core#CorporateBody>, ns3:DataPublisher ;
+    foaf:name "data.gov.uk"@en .

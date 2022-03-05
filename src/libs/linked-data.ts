@@ -5,9 +5,9 @@ import type { JsonLd } from "jsonld/jsonld-spec";
 import type { URL } from "schema-dts";
 
 import { isAbsoluteUrl } from "../components/common/link";
-import activitystream from "../schema/activitystreams.json";
-import annotations from "../schema/anno.json";
-import schemaorg from "../schema/schemaorg.json";
+import activitystream from "../vocabulary/activitystreams-context.json";
+import annotations from "../vocabulary/annoations-context.json";
+import schemaorg from "../vocabulary/schema-org-context.json";
 
 import { throwIfNull } from "./errors";
 import type { HashName, HashUri } from "./hash";
