@@ -1,9 +1,11 @@
 import type { Options } from "jsonld";
-import { normalize } from "jsonld";
+import { expand, normalize } from "jsonld";
 import type { NodeObject } from "jsonld/jsonld";
 import type { JsonLd } from "jsonld/jsonld-spec";
 import type { URL } from "schema-dts";
 
+import { isAbsoluteUrl } from "../components/common/link";
+import activitystream from "../schema/activitystreams.json";
 import annotations from "../schema/anno.json";
 import schemaorg from "../schema/schemaorg.json";
 
@@ -72,8 +74,55 @@ export const findHashUri = (ld: LinkedData): HashUri | undefined =>
   getUrls(ld).find((it) => isHashUri(it)) as HashUri;
 
 const textEncoder = new TextEncoder();
-export const normalizeLinkedData = (data: LinkedData): Promise<ArrayBuffer> =>
-  normalize(data, {
+
+export const normalizeLinkedData = async (
+  data: LinkedData
+): Promise<ArrayBuffer> => {
+  const normalized = await normalize(data, {
     documentLoader: contextLoader,
     algorithm: "URDNA2015",
-  }).then((normalized) => textEncoder.encode(normalized).buffer);
+  });
+  return textEncoder.encode(normalized).buffer;
+};
+
+export const validateLinkedData = async (
+  data: LinkedData
+): Promise<string[]> => {
+  const validateObject = (objs: Record<string, unknown>[]): string[] => {
+    const errors = [];
+    for (const obj of objs) {
+      const keys = Object.keys(obj);
+      for (const key of keys) {
+        if (key.startsWith("@")) {
+          if (key === "@id") {
+            const id = obj[key] as string;
+            if (!isAbsoluteUrl(id)) {
+              errors.push(`id '${id}' is not an absolute URI`);
+            }
+          }
+          if (key === "@type") {
+            const types = (Array.isArray(obj[key])
+              ? obj[key]
+              : [obj[key]]) as string[];
+            for (const type of types) {
+              if (!isAbsoluteUrl(type)) {
+                errors.push(`type '${type}' is not an absolute URI`);
+              }
+            }
+          }
+        } else {
+          if (!isAbsoluteUrl(key)) {
+            errors.push(
+              `property '${key}' has not have absolute URI to the definition`
+            );
+          }
+          errors.push(...validateObject(obj[key] as Record<string, unknown>[]));
+        }
+      }
+    }
+    return errors;
+  };
+
+  const expanded = await expand(data, { documentLoader: contextLoader });
+  return validateObject(expanded);
+};
