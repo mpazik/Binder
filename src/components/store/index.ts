@@ -1,4 +1,4 @@
-import type { Callback } from "linki";
+import type { Callback, ProcessorMultiOut } from "linki";
 import {
   asyncMap,
   asyncMapWithErrorHandler,
@@ -8,6 +8,8 @@ import {
   map,
   split,
   to,
+  onSecondOutput,
+  tryMap,
 } from "linki";
 import type { JsonHtml, UiComponent, View } from "linki-ui";
 import {
@@ -30,8 +32,6 @@ import {
   ul,
 } from "linki-ui";
 
-import type { ProcessorMultiOut } from "../../../../linki/src";
-import { onSecondOutput, tryMap } from "../../../../linki/src";
 import type {
   LinkedDataStoreReadAll,
   LinkedDataStoreWrite,
