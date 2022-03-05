@@ -1,6 +1,6 @@
 type LinkTarget = "_blank" | "_self";
 
-const ABSOLUTE_URL_REGEX = /^[a-zA-Z][a-zA-Z\d+\-.]*?:/;
+const ABSOLUTE_URL_REGEX = /^[a-zA-Z][a-zA-Z0-9+-.]*?:[^\s]*$/;
 
 // Scheme: https://tools.ietf.org/html/rfc3986#section-3.1
 // Absolute URL: https://tools.ietf.org/html/rfc3986#section-4.3
