@@ -14,6 +14,7 @@ import type { LinkedData, LinkedDataWithHashId } from "./jsonld-format";
 
 const contexts = new Map<string, JsonLd>([
   ["http://www.w3.org/ns/anno.jsonld", annotations as JsonLd],
+  ["https://www.w3.org/ns/activitystreams", activitystream as JsonLd],
   ["https://schema.org", schemaorg as JsonLd],
 ]);
 
