@@ -43,6 +43,7 @@ import type {
   ResourceStoreRead,
   ResourceStoreWrite,
   LinkedDataDelete,
+  LinkedDataStoreReadAll,
 } from "./local-store";
 import {
   getResourceStore,
@@ -63,6 +64,7 @@ export type Store = {
   readResource: ResourceStoreRead;
   writeResource: ResourceStoreWrite;
   readLinkedData: LinkedDataStoreRead;
+  readAllLinkedData: LinkedDataStoreReadAll;
   writeLinkedData: LinkedDataStoreWrite;
   removeLinkedData: LinkedDataDelete;
   updateRemoteDriveState: (driveState: RemoteDriverState) => void;
@@ -359,6 +361,7 @@ export const createStore = (
       await removeLinkedData(hash);
     },
     readLinkedData: async (hash) => storeGet(linkedDataStore, hash),
+    readAllLinkedData: async () => storeGetAll(linkedDataStore),
     writeLinkedData: async (linkedData) => {
       if (Array.isArray(linkedData)) {
         throw new Error("Array linked data are not supported");
