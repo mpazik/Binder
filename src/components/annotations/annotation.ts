@@ -65,13 +65,13 @@ export type Annotation = {
   body?: TextualBody;
   target: {
     source: string;
-    selector: AnnotationSelector;
+    selector?: AnnotationSelector;
   };
 };
 
 export const createAnnotation = (
   source: string,
-  selector: AnnotationSelector,
+  selector?: AnnotationSelector,
   htmlBody?: string,
   creator?: string
 ): Annotation => ({

@@ -43,7 +43,11 @@ const createAnnotationsIndexer = (store: AnnotationsStore): UpdateIndex => {
     if (!source) return;
 
     const selector = annotation.target.selector;
-    const fragment = isFragmentSelector(selector) ? selector.value : undefined;
+    const fragment = selector
+      ? isFragmentSelector(selector)
+        ? selector.value
+        : undefined
+      : undefined;
     const key: string = recordKey(source, fragment);
 
     const annotations = await storeGet<HashUri[]>(store, key);

@@ -130,6 +130,9 @@ export const annotationsSupport: Component<
       const text = containerText(textLayer);
       handleState(change, {
         display: (annotation) => {
+          if (!annotation.target.selector) {
+            return;
+          }
           renderSelector(
             container,
             textLayer,
