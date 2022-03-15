@@ -1,24 +1,29 @@
 import type { Callback } from "linki";
 import { link, map, to } from "linki";
+import type { JsonHtml, UiComponent, View } from "linki-ui";
+import {
+  a,
+  button,
+  dangerousHtml,
+  div,
+  h3,
+  p,
+  setupView,
+  span,
+} from "linki-ui";
 
-import type {
-  Component,
-  JsonHtml,
-  ViewSetup,
-} from "../../libs/simple-ui/render";
-import { a, button, div, h3, p, span } from "../../libs/simple-ui/render";
 import { blanket } from "../common/blanket";
 import { centerLoading } from "../common/center-loading-component";
 import { stack } from "../common/spacing";
 
-const gdriveLogoIcon = `
+const gdriveLogoIcon = dangerousHtml(`
 <svg xmlns="http://www.w3.org/2000/svg" class="v-align-middle" width="25" height="22" viewBox="0 0 1443.061 1249.993" role="img">
   <title>Google Drive</title>
   <path fill="#3777e3" d="M240.525 1249.993l240.492-416.664h962.044l-240.514 416.664z"/>
   <path fill="#ffcf63" d="M962.055 833.329h481.006L962.055 0H481.017z" />
   <path fill="#11a861" d="M0 833.329l240.525 416.664 481.006-833.328L481.017 0z"/>
 </svg>
-`;
+`);
 
 const modalFrame = (...content: JsonHtml[]) =>
   div(
@@ -51,10 +56,11 @@ const modalFrame = (...content: JsonHtml[]) =>
     })
   );
 
-const modalView: ViewSetup<
-  { gdriveLogin: () => void; closeModal: () => void },
-  { loading: boolean }
-> = ({ gdriveLogin, closeModal }) => ({ loading }) =>
+const modalView: View<{
+  gdriveLogin: () => void;
+  closeModal: () => void;
+  loading: boolean;
+}> = ({ gdriveLogin, closeModal, loading }) =>
   modalFrame(
     stack(
       { class: "Box-body", gap: "large" },
@@ -65,7 +71,7 @@ const modalView: ViewSetup<
       ...(loading ? [centerLoading()] : []),
       button(
         { class: "btn f3", onClick: gdriveLogin, disabled: loading },
-        span({ dangerouslySetInnerHTML: gdriveLogoIcon }),
+        span(gdriveLogoIcon),
         span(
           { class: "v-align-middle color-text-secondary px-2" },
           "Google Drive"
@@ -96,12 +102,15 @@ const modalView: ViewSetup<
     )
   );
 
-export const accountPicker: Component<
-  { gdriveLogin: () => void },
-  { displayAccountPicker: { loading: boolean }; closeAccountPicker: void }
-> = ({ gdriveLogin }) => (render) => {
+export const accountPicker: UiComponent<
+  { displayAccountPicker: { loading: boolean }; closeAccountPicker: void },
+  { gdriveLogin: void }
+> = ({ gdriveLogin, render }) => {
   const closeModal: Callback = link(map(to(undefined)), render);
-  const renderModal = link(map(modalView({ gdriveLogin, closeModal })), render);
+  const renderModal = link(
+    map(setupView(modalView, { gdriveLogin, closeModal })),
+    render
+  );
 
   return {
     displayAccountPicker: renderModal,

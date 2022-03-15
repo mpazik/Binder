@@ -635,12 +635,9 @@ export const App: Component<
   const [
     accountPickerSlot,
     { displayAccountPicker, closeAccountPicker },
-  ] = newSlot(
-    "account-picker",
-    accountPicker({
-      gdriveLogin: () => updateGdrive(["login"]),
-    })
-  );
+  ] = mountComponent(accountPicker, {
+    gdriveLogin: () => updateGdrive(["login"]),
+  });
 
   const containerView = createContainerView({
     navigationSlot: div({
@@ -648,7 +645,9 @@ export const App: Component<
     }),
     contentOrDirSlot: contentLoaderSlot,
     fileDropSlot,
-    accountPickerSlot,
+    accountPickerSlot: div({
+      dangerouslySetDom: renderJsonHtmlToDom(accountPickerSlot),
+    }),
     onDragenter: handleDragEvent,
   });
 

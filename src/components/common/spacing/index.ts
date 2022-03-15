@@ -1,5 +1,5 @@
-import { div } from "linki-ui";
 import type { JsonHtml } from "linki-ui";
+import { div } from "linki-ui";
 
 export type ChildrenProps<T> = [Partial<T>, ...JsonHtml[]] | [...JsonHtml[]];
 const parseProps = <T extends object>(
@@ -84,59 +84,53 @@ const gapPixels = new Map<Size, string>([
   ["large", "16px"],
   ["x-large", "24px"],
 ]);
-const mktgGapPixels = new Map<Size, string>([
-  ["none", ""],
-  ["small", "16px"],
-  ["medium", "32px"],
-  ["large", "48px"],
-  ["x-large", "64px"],
-]);
 
 export type ListOrientation = "horizontal" | "vertical";
-type ListProps = {
+
+const defaultListProps: {
   gap: Size;
   orientation: ListOrientation;
-  marketing: boolean;
   class: string;
-};
-type ListPropsWithChildren = ChildrenProps<ListProps>;
-const defaultListProps: ListProps = {
+} = {
   gap: "medium",
   orientation: "horizontal",
-  marketing: false,
   class: "",
 };
 
-const listPure = (
-  { gap, orientation, marketing, class: className }: ListProps,
-  children: JsonHtml[]
-): JsonHtml =>
-  div(
+export const stack = (
+  ...props: ChildrenProps<{
+    gap: Size;
+    class: string;
+  }>
+): JsonHtml => {
+  const [{ gap, class: cssClass }, children] = parseProps(
+    props,
+    defaultListProps
+  );
+  return div(
     {
-      class:
-        (orientation === "vertical"
-          ? "d-flex flex-column"
-          : "d-flex flex-items-center") + (className ? " " + className : ""),
-      style: { gap: (marketing ? mktgGapPixels : gapPixels).get(gap) },
+      class: `d-flex flex-column${cssClass ? " " + cssClass : ""}`,
+      style: { gap: gapPixels.get(gap) },
     },
     ...children
   );
-
-export const list = (...props: ListPropsWithChildren): JsonHtml => {
-  const [propsClean, children] = parseProps(props, defaultListProps);
-  return listPure(propsClean, children);
-};
-
-export const stack = (
-  ...props: ChildrenProps<Omit<ListProps, "orientation">>
-): JsonHtml => {
-  const [propsClean, children] = parseProps(props, defaultListProps);
-  return listPure({ ...propsClean, orientation: "vertical" }, children);
 };
 
 export const inline = (
-  ...props: ChildrenProps<Omit<ListProps, "orientation">>
+  ...props: ChildrenProps<{
+    gap: Size;
+    class: string;
+  }>
 ): JsonHtml => {
-  const [propsClean, children] = parseProps(props, defaultListProps);
-  return listPure({ ...propsClean, orientation: "horizontal" }, children);
+  const [{ gap, class: cssClass }, children] = parseProps(
+    props,
+    defaultListProps
+  );
+  return div(
+    {
+      class: `d-flex flex-items-center${cssClass ? " " + cssClass : ""}`,
+      style: { gap: gapPixels.get(gap) },
+    },
+    ...children
+  );
 };
