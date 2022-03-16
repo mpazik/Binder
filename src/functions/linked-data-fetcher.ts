@@ -1,3 +1,4 @@
+import { getIntervalData } from "../libs/calendar-ld";
 import { throwIfNull } from "../libs/errors";
 import type { HashName } from "../libs/hash";
 import { isHashUri } from "../libs/hash";
@@ -31,6 +32,24 @@ const createLinkedDataContentFetcher = (
   );
 };
 
+type BuildInFetcher = (uri: string) => LinkedDataWithContent | undefined;
+const intervalFetcher: BuildInFetcher = (uri) => {
+  const data = getIntervalData(uri);
+  if (data) {
+    return {
+      linkedData: data,
+      content: new Blob(),
+    };
+  }
+};
+const buildInFetchers = [intervalFetcher];
+const fetchFromBuildInFetchers: BuildInFetcher = (uri) => {
+  for (const fetcher of buildInFetchers) {
+    const result = fetcher(uri);
+    if (result) return result;
+  }
+};
+
 export const createLinkedDataWithDocumentFetcher = (
   getHash: (uri: string) => Promise<HashName | undefined>,
   fetchTroughProxy: Fetch,
@@ -42,6 +61,9 @@ export const createLinkedDataWithDocumentFetcher = (
   );
 
   return async (url: string, signal?: AbortSignal) => {
+    const data = fetchFromBuildInFetchers(url);
+    if (data) return data;
+
     const hash = isHashUri(url) ? url : await getHash(url);
     if (hash) {
       const linkedData = throwIfNull(await linkedDataStoreRead(hash));

@@ -84,6 +84,8 @@ import {
   newUriWithFragment,
   updateBrowserHistory,
 } from "../../libs/browser-providers";
+import type { Day } from "../../libs/calendar-ld";
+import { dayType } from "../../libs/calendar-ld";
 import type { HashName, HashUri } from "../../libs/hash";
 import { isHashUri } from "../../libs/hash";
 import { storeGetAll } from "../../libs/indexeddb";
@@ -121,6 +123,7 @@ import {
 } from "../display-settings/panel";
 import { createSettingUpdateAction } from "../display-settings/setting-update";
 import { fileDrop } from "../file-drop";
+import { dayJournal } from "../journal";
 import { navigation } from "../navigation";
 import { dropdown } from "../navigation/common";
 import { storePage } from "../store";
@@ -528,11 +531,11 @@ export const App: Component<
   );
 
   const loadContent = (data: LinkedDataWithContent | LinkedDataWithBody) => {
-    const pageType = getType(data.linkedData);
-    if (pageType === "SearchResultsPage" || pageType === "NotFoundPage") {
+    const dataType = getType(data.linkedData);
+    if (dataType === "SearchResultsPage" || dataType === "NotFoundPage") {
       displayJsonHtml(docsDirectorySlot);
     } else if (
-      pageType === "Page" &&
+      dataType === "Page" &&
       data.linkedData.name === "Docland - Store"
     ) {
       displayJsonHtml(
@@ -541,7 +544,7 @@ export const App: Component<
           realAllLinkedData: store.readAllLinkedData,
         })
       );
-    } else if (pageType === "AboutPage") {
+    } else if (dataType === "AboutPage") {
       if (isLinkedDataWithBody(data)) {
         displayFullScreen(data.body);
       } else {
@@ -552,6 +555,8 @@ export const App: Component<
           displayFullScreen(dom.body);
         })();
       }
+    } else if (dataType === dayType) {
+      displayJsonHtml(dayJournal(data.linkedData as Day));
     } else {
       const linkedDataWithContent: LinkedDataWithContent = isLinkedDataWithBody(
         data

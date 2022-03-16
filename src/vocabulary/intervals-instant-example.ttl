@@ -1,0 +1,100 @@
+@prefix time: <http://www.w3.org/2006/time#> .
+@prefix ns0: <http://reference.data.gov.uk/def/intervals/> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix ns1: <http://reference.data.gov.uk/def/reference/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix dc: <http://purl.org/dc/terms/> .
+@prefix ns2: <http://purl.org/net/provenance/ns#> .
+@prefix void: <http://rdfs.org/ns/void#> .
+@prefix doap: <http://usefulinc.com/ns/doap#> .
+
+<http://reference.data.gov.uk/id/gregorian-instant/1960-03-13T00:00:00>
+    a time:Instant ;
+    ns0:ordinalMonthOfYear 3 ;
+    foaf:isPrimaryTopicOf <http://reference.data.gov.uk/doc/gregorian-instant/1960-03-13T00:00:00> ;
+    ns0:ordinalHalfOfYear 1 ;
+    ns0:dayOfWeek time:Sunday ;
+    skos:prefLabel "Gregorian Instant:1960-03-13T00:00:00"@en ;
+    ns0:ordinalDayOfYear 73 ;
+    ns1:uriSet <http://reference.data.gov.uk/id/gregorian-instant> ;
+    ns0:ordinalSecondOfMinute 0 ;
+    ns0:monthOfYear ns0:March ;
+    ns0:ordinalQuarterOfYear 1 ;
+    ns0:ordinalDayOfMonth 13 ;
+    ns0:ordinalHourOfDay 0 ;
+    rdfs:comment "The instant at start of the 1st second of 1st minute of 1st hour of Sunday the 13th March of the Gregorian calendar year 1960"@en ;
+    time:inXSDDateTime "1960-03-13T00:00:00"^^xsd:dateTime ;
+    rdfs:label "Gregorian Instant:1960-03-13T00:00:00"@en ;
+    ns0:ordinalWeekOfYearYear 1960 ;
+    ns0:ordinalWeekOfYear 10 ;
+    ns0:ordinalYear 1960 ;
+    ns0:ordinalMinuteOfHour 0 ;
+    ns0:ordinalDayOfWeek 7 .
+
+<http://reference.data.gov.uk/doc/gregorian-instant/1960-03-13T00:00:00>
+    a foaf:Document, <http://purl.org/net/provenance/ns#DataItem> ;
+    foaf:primaryTopic <http://reference.data.gov.uk/id/gregorian-instant/1960-03-13T00:00:00> ;
+    dc:hasFormat <http://reference.data.gov.uk/doc/gregorian-instant/1960-03-13T00:00:00.ttl>, <http://reference.data.gov.uk/doc/gregorian-instant/1960-03-13T00:00:00.json>, <http://reference.data.gov.uk/doc/gregorian-instant/1960-03-13T00:00:00.nt>, <http://reference.data.gov.uk/doc/gregorian-instant/1960-03-13T00:00:00.rdf>, <http://reference.data.gov.uk/doc/gregorian-instant/1960-03-13T00:00:00.n3> ;
+    dc:publisher _:genid2 ;
+    dc:license <http://reference.data.gov.uk/id/open-government-licence> ;
+    rdfs:label "Generic Dataset document about: Gregorian Instant:1960-03-13T00:00:00"@en ;
+    dc:creator _:genid4 ;
+    ns2:createdBy [
+          a ns2:DataCreation ;
+          ns2:performedAt "2011-09-09"^^xsd:date ;
+          ns2:performedBy _:genid4
+      ] ;
+    dc:rightsHolder _:genid2 ;
+    dc:dateCopyrighted "2011-09-09"^^xsd:date .
+
+<http://reference.data.gov.uk/doc/gregorian-instant/1960-03-13T00:00:00.ttl>
+    a foaf:Document ;
+    rdfs:label "Turtle document about: Gregorian Instant:1960-03-13T00:00:00"@en ;
+    dc:format [ rdfs:label "text/turtle" ] .
+
+<http://reference.data.gov.uk/doc/gregorian-instant/1960-03-13T00:00:00.json>
+    a foaf:Document ;
+    rdfs:label "JSON document about: Gregorian Instant:1960-03-13T00:00:00"@en ;
+    dc:format [ rdfs:label "application/json" ] .
+
+<http://reference.data.gov.uk/doc/gregorian-instant/1960-03-13T00:00:00.nt>
+    a foaf:Document ;
+    rdfs:label "N-Triple document about: Gregorian Instant:1960-03-13T00:00:00"@en ;
+    dc:format [ rdfs:label "text/plain" ] .
+
+<http://reference.data.gov.uk/doc/gregorian-instant/1960-03-13T00:00:00.rdf>
+    a foaf:Document ;
+    rdfs:label "RDF/XML document about: Gregorian Instant:1960-03-13T00:00:00"@en ;
+    dc:format [ rdfs:label "application/rdf+xml" ] .
+
+<http://reference.data.gov.uk/doc/gregorian-instant/1960-03-13T00:00:00.n3>
+    a foaf:Document ;
+    rdfs:label "N3 document about: Gregorian Instant:1960-03-13T00:00:00"@en ;
+    dc:format [ rdfs:label "text/n3" ] .
+
+<http://reference.data.gov.uk/id/gregorian-instant>
+    a ns1:URIset, void:Dataset ;
+    skos:prefLabel "Arbitary instants on the Gregorian timeline."@en ;
+    rdfs:label "Arbitary instants on the Gregorian timeline."@en .
+
+_:genid2
+    a <http://purl.org/vocab/frbr/core#CorporateBody>, ns2:DataPublisher ;
+    foaf:name "data.gov.uk"@en .
+
+_:genid4
+    a ns2:DataProvidingService ;
+    ns2:employedArtifact [
+          a doap:Project ;
+          ns2:usedBy _:genid2 ;
+          doap:release [
+                a doap:Version ;
+                doap:revision "0.0.3" ;
+                doap:created "2011-09-09"^^xsd:date ;
+                doap:name "Harrison"@en
+            ] ;
+          doap:name "UK Gov. Intervals and Instants URI Set Server"
+      ] ;
+    ns2:operatedBy _:genid2 ;
+    doap:name "Intervals and Instants URI Set Service"@en .
