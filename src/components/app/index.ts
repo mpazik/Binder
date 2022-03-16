@@ -106,6 +106,10 @@ import type {
 } from "../../libs/simple-ui/render";
 import { div, newSlot } from "../../libs/simple-ui/render";
 import { accountPicker } from "../account-picker";
+import {
+  createAnnotationFeeder,
+  createAnnotationSaverWithContext,
+} from "../annotations/service";
 import { loader } from "../common/loader";
 import { contentComponent } from "../content";
 import { docsDirectory } from "../directory";
@@ -307,7 +311,7 @@ export const App: Component<
     filter(([, ready]) => ready),
     map(([creator]) => creator),
     filter((creator) => typeof creator !== "undefined"),
-    (it) => setCreatorForContent(it)
+    (it) => setCreatorForAnnotations(it ?? undefined)
   );
   const [setCreator, setContentReady] = link(
     combine(null as string | null, false),
@@ -420,12 +424,18 @@ export const App: Component<
     ),
     loadUri
   );
+
+  const storeLinkedData: Callback<LinkedData> = (ld) =>
+    store
+      .writeLinkedData(ld)
+      .catch((error) => console.error("Filed saving lined data", error));
+
   const createDisplaySettingUpdater = <T extends keyof Settings>(
     key: T
   ): ((value: Settings[T]) => void) =>
     link(
       map((it: Settings[T]) => createSettingUpdateAction(key, it)),
-      store.writeLinkedData
+      storeLinkedData
     );
 
   const [
@@ -490,22 +500,30 @@ export const App: Component<
     )
   );
 
+  const annotationFeeder = createAnnotationFeeder({
+    ldStoreRead: store.readLinkedData,
+    subscribe: annotationsIndex.subscribe,
+  });
+  const {
+    saveAnnotation,
+    setCreator: setCreatorForAnnotations,
+  } = createAnnotationSaverWithContext({
+    saveAnnotation: storeLinkedData,
+  });
+
   const contentSaver = createContentSaver(
     store.writeResource,
     store.writeLinkedData
   );
-  const [
-    contentSlot,
-    { displayContent, goToFragment, setCreator: setCreatorForContent },
-  ] = newSlot(
+  const [contentSlot, { displayContent, goToFragment }] = newSlot(
     "content-container",
     contentComponent({
       contentSaver,
       ldStoreWrite: store.writeLinkedData,
-      ldStoreRead: store.readLinkedData,
-      annotationsIndex: annotationsIndex.search,
       onSave: ignore,
       onDisplay: hideNav,
+      saveAnnotation,
+      annotationFeeder,
     })
   );
 

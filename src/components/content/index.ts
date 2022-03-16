@@ -3,9 +3,7 @@ import { link, map, pick, fork, withOptionalState } from "linki";
 
 import type { LinkedDataWithContent } from "../../functions/content-processors";
 import type { ContentSaver } from "../../functions/content-saver";
-import type { AnnotationsIndex } from "../../functions/indexes/annotations-index";
 import type { LinkedDataStoreWrite } from "../../functions/store";
-import type { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { throwIfNull2 } from "../../libs/errors";
 import type { HashUri } from "../../libs/hash";
 import { isHashUri } from "../../libs/hash";
@@ -19,6 +17,10 @@ import type { Component } from "../../libs/simple-ui/render";
 import { div, newSlot } from "../../libs/simple-ui/render";
 import { getTarget } from "../../libs/simple-ui/utils/funtions";
 import { annotationsSupport } from "../annotations";
+import type {
+  AnnotationsFeeder,
+  AnnotationsSaver,
+} from "../annotations/service";
 import { isLocalUrl } from "../common/link";
 import type { LinkedDataWithContentAndFragment } from "../content-body";
 import { contentDisplayComponent } from "../content-body";
@@ -37,23 +39,22 @@ export const contentComponent: Component<
   {
     contentSaver: ContentSaver;
     ldStoreWrite: LinkedDataStoreWrite;
-    ldStoreRead: LinkedDataStoreRead;
     onSave: Callback<LinkedDataWithHashId>;
-    annotationsIndex: AnnotationsIndex["search"];
+    annotationFeeder: AnnotationsFeeder;
+    saveAnnotation: AnnotationsSaver;
     onDisplay: Callback;
   },
   {
     displayContent: LinkedDataWithContentAndFragment;
     goToFragment: string;
-    setCreator: string | null;
   }
 > = ({
   contentSaver,
   ldStoreWrite,
-  ldStoreRead,
   onSave,
-  annotationsIndex,
   onDisplay,
+  saveAnnotation,
+  annotationFeeder,
 }) => (render, onClose) => {
   const storeData = (data: LinkedDataWithContent, retry: () => void) => {
     try {
@@ -119,13 +120,12 @@ export const contentComponent: Component<
 
   const [
     annotationSupportSlot,
-    { displayDocumentAnnotations, setReference, setContainer, setCreator },
+    { displayDocumentAnnotations, setReference, setContainer },
   ] = newSlot(
     "annotation-support",
     annotationsSupport({
-      ldStoreWrite,
-      ldStoreRead,
-      annotationsIndex,
+      annotationFeeder,
+      saveAnnotation,
       requestDocumentSave: saveContent,
     })
   );
@@ -188,6 +188,5 @@ export const contentComponent: Component<
       )
     ),
     goToFragment,
-    setCreator,
   };
 };

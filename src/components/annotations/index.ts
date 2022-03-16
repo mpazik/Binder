@@ -3,7 +3,6 @@ import "./style.css";
 import {
   link,
   filter,
-  nonNull,
   map,
   ignoreParam,
   fork,
@@ -14,11 +13,10 @@ import {
   valueWithState,
   definedTuple,
   nextTick,
+  defined,
+  splitDefinedProp,
 } from "linki";
 
-import type { AnnotationsIndex } from "../../functions/indexes/annotations-index";
-import type { LinkedDataStoreWrite } from "../../functions/store";
-import type { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { throwIfNull } from "../../libs/errors";
 import type { HashUri } from "../../libs/hash";
 import { withMultiState } from "../../libs/linki";
@@ -32,18 +30,18 @@ import type {
   DocFragment,
   QuoteSelector,
 } from "./annotation";
-import { createAnnotation, isQuoteSelector } from "./annotation";
+import { isQuoteSelector } from "./annotation";
 import { annotationDisplay, commentForm } from "./annotation-display";
 import { containerText, removeSelector, renderSelector } from "./highlights";
 import { quoteSelectorForRange } from "./quote-selector";
 import type { Selection } from "./selection";
 import { currentSelection, selectionPosition } from "./selection";
 import { selectionToolbar } from "./selection-toolbar";
+import type { AnnotationSaveProps } from "./service";
+import type { AnnotationsFeeder } from "./service";
+import type { AnnotationsSaver } from "./service";
 
-type AnnotationSaveArgs = {
-  selector: AnnotationSelector;
-  content?: string;
-};
+type AnnotationSavePropsWihoutRef = Omit<AnnotationSaveProps, "reference">;
 
 export type AnnotationDisplayRequest = {
   textLayer: HTMLElement;
@@ -67,49 +65,45 @@ export const getQuoteSelector = (
 
 export const annotationsSupport: Component<
   {
-    ldStoreWrite: LinkedDataStoreWrite;
-    ldStoreRead: LinkedDataStoreRead;
-    annotationsIndex: AnnotationsIndex["search"];
     requestDocumentSave: () => void;
+    saveAnnotation: AnnotationsSaver;
+    annotationFeeder: AnnotationsFeeder;
   },
   {
     displayDocumentAnnotations: AnnotationDisplayRequest;
     setContainer: HTMLElement;
     setReference: HashUri | undefined;
-    setCreator: string | null;
   }
-> = ({ ldStoreWrite, ldStoreRead, requestDocumentSave, annotationsIndex }) => (
+> = ({ annotationFeeder, requestDocumentSave, saveAnnotation }) => (
   render,
   onClose
 ) => {
-  const [saveAnnotation, setReference, setCreator] = link(
-    withMultiState<[HashUri | undefined, string | null], AnnotationSaveArgs>(
-      undefined,
-      null
+  const [saveAnnotationInt, setReference] = link(
+    valueWithState<HashUri | undefined, AnnotationSavePropsWihoutRef>(
+      undefined
     ),
-    ([reference, creator, annotationSaveArgs]) => {
-      if (!reference) {
-        keepAnnotationForSave(annotationSaveArgs);
-        requestDocumentSave();
-        return;
-      }
-      const { selector, content } = annotationSaveArgs;
-      const annotation = createAnnotation(
-        reference,
-        selector,
-        content,
-        creator ?? undefined
-      );
-      ldStoreWrite(annotation).then(() => {
-        changeSelection(["display", annotation]);
-      });
-    }
+    map(
+      ([reference, { selector, content }]) =>
+        ({
+          reference,
+          selector,
+          content,
+        } as AnnotationSaveProps)
+    ),
+    splitDefinedProp("reference"),
+    [
+      saveAnnotation,
+      fork<AnnotationSavePropsWihoutRef>(
+        (it) => keepAnnotationForSave(it),
+        requestDocumentSave
+      ),
+    ]
   );
 
   const [saveKeptAnnotation, keepAnnotationForSave] = link(
-    withState<AnnotationSaveArgs | null>(null),
-    filter(nonNull),
-    fork(saveAnnotation, (): void => keepAnnotationForSave(null))
+    withState<AnnotationSavePropsWihoutRef | undefined>(undefined),
+    filter(defined),
+    fork(saveAnnotationInt, (): void => keepAnnotationForSave(undefined))
   );
 
   const [
@@ -198,7 +192,7 @@ export const annotationsSupport: Component<
               range,
               fragment
             );
-            saveAnnotation({ selector });
+            saveAnnotationInt({ selector });
           },
           label: "highlight",
           shortCutKey: "h",
@@ -234,32 +228,24 @@ export const annotationsSupport: Component<
       onHide: ({ selector }) =>
         changeSelection(["remove", getQuoteSelector(selector)]),
       onCreatedComment: ({ selector, comment }) => {
-        saveAnnotation({ selector, content: comment });
+        saveAnnotationInt({ selector, content: comment });
       },
     })
   );
 
+  const subscribeForAnnotations = link(
+    annotationFeeder,
+    map((annotation): ["display", Annotation] => ["display", annotation]),
+    changeSelection
+  );
   const [displayDocumentAnnotations, setReferenceForAnnotationDisplay] = link(
     valueWithState<HashUri | undefined, AnnotationDisplayRequest>(undefined),
     filter(definedTuple),
-    ([reference, { fragment }]) => {
-      const annotationsHashUris = annotationsIndex({
-        hash: reference,
-        fragment: fragment?.value,
-      });
-      annotationsHashUris.then((docsUris) =>
-        docsUris[0].props.forEach((hashUri) => {
-          ldStoreRead(hashUri).then(
-            link(filter(nonNull), (annotation) => {
-              changeSelection([
-                "display",
-                (annotation as unknown) as Annotation,
-              ]);
-            })
-          );
-        })
-      );
-    }
+    map(([reference, { fragment }]) => ({
+      fragment: fragment?.value,
+      hash: reference,
+    })),
+    subscribeForAnnotations
   );
 
   // next tick to make sure current selection would be calculated for even handling
@@ -289,6 +275,5 @@ export const annotationsSupport: Component<
       () => displayCommentForm(["hidden"]),
       () => hideAnnotation()
     ),
-    setCreator,
   };
 };
