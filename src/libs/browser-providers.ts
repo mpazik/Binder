@@ -2,7 +2,7 @@ import type { ClosableProvider } from "linki";
 import { link, map } from "linki";
 
 import { hostPageUri, isHostPageUri } from "../components/app/special-uris";
-import { isAbsoluteUrl } from "../components/common/link";
+import { isAbsoluteUri } from "../components/common/uri";
 
 export const urlHashProvider: ClosableProvider<string> = (push) => {
   const update = () => {
@@ -35,7 +35,7 @@ export type UriWithFragment = {
 export const currentUriWithFragment = (): UriWithFragment => {
   const path = currentPath();
   return {
-    uri: isAbsoluteUrl(path) ? path : hostPageUri(path),
+    uri: isAbsoluteUri(path) ? path : hostPageUri(path),
     fragment: currentFragment(),
   };
 };

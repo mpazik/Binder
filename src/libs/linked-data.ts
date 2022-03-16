@@ -4,7 +4,7 @@ import type { NodeObject } from "jsonld/jsonld";
 import type { JsonLd } from "jsonld/jsonld-spec";
 import type { URL } from "schema-dts";
 
-import { isAbsoluteUrl } from "../components/common/link";
+import { isAbsoluteUri } from "../components/common/uri";
 import activitystream from "../vocabulary/activitystreams-context.json";
 import annotations from "../vocabulary/annoations-context.json";
 import schemaorg from "../vocabulary/schema-org-context.json";
@@ -96,7 +96,7 @@ export const validateLinkedData = async (
         if (key.startsWith("@")) {
           if (key === "@id") {
             const id = obj[key] as string;
-            if (!isAbsoluteUrl(id)) {
+            if (!isAbsoluteUri(id)) {
               errors.push(`id '${id}' is not an absolute URI`);
             }
           }
@@ -105,13 +105,13 @@ export const validateLinkedData = async (
               ? obj[key]
               : [obj[key]]) as string[];
             for (const type of types) {
-              if (!isAbsoluteUrl(type)) {
+              if (!isAbsoluteUri(type)) {
                 errors.push(`type '${type}' is not an absolute URI`);
               }
             }
           }
         } else {
-          if (!isAbsoluteUrl(key)) {
+          if (!isAbsoluteUri(key)) {
             errors.push(
               `property '${key}' has not have absolute URI to the definition`
             );

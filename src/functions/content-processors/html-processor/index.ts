@@ -1,4 +1,4 @@
-import { isLocalUrl } from "../../../components/common/link";
+import { isLocalUri } from "../../../components/common/uri";
 import { htmlMediaType } from "../../../libs/ld-schemas";
 import type { ContentProcessor } from "../types";
 
@@ -27,7 +27,7 @@ export const htmlContentProcessor: ContentProcessor = {
   mediaType: htmlMediaType,
   process: async (content, props) => {
     const url = props.url;
-    return (url && isLocalUrl(url)
+    return (url && isLocalUri(url)
       ? internalHtmlProcessor
       : externalHtmlProcessor)(content, props);
   },

@@ -1,4 +1,4 @@
-import { isLocalUrl } from "../components/common/link";
+import { isLocalUri } from "../components/common/uri";
 import { PROXY_SERVER } from "../config";
 
 export type Fetch = typeof fetch;
@@ -18,8 +18,8 @@ const createConditionalFetchTroughProxy: Fetch = (
   request: RequestInfo,
   init?: RequestInit
 ) => {
-  const url = typeof request === "string" ? request : request.url;
-  return (isLocalUrl(url) ? fetch : fetchTroughProxy)(request, init);
+  const uri = typeof request === "string" ? request : request.url;
+  return (isLocalUri(uri) ? fetch : fetchTroughProxy)(request, init);
 };
 
 export const createProxyFetch = (): Promise<Fetch> =>

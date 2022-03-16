@@ -21,7 +21,7 @@ import type {
   AnnotationsFeeder,
   AnnotationsSaver,
 } from "../annotations/service";
-import { isLocalUrl } from "../common/link";
+import { isLocalUri } from "../common/uri";
 import type { LinkedDataWithContentAndFragment } from "../content-body";
 import { contentDisplayComponent } from "../content-body";
 import { createWatchAction } from "../watch-history/watch-action";
@@ -32,7 +32,7 @@ import { saveBar } from "./edit-bar";
 
 const isExisting = (linkedData: LinkedData) => {
   const urls = getUrls(linkedData);
-  return urls.some((it) => isHashUri(it)) || urls.some((it) => isLocalUrl(it));
+  return urls.some((it) => isHashUri(it)) || urls.some((it) => isLocalUri(it));
 };
 
 export const contentComponent: Component<

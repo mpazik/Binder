@@ -1,6 +1,6 @@
 import { Readability } from "docland-readability";
 
-import { isLocalUrl } from "../../../components/common/link";
+import { isLocalUri } from "../../../components/common/uri";
 import { throwIfNull } from "../../../libs/errors";
 import type { LinkedData } from "../../../libs/jsonld-format";
 import { createArticle, htmlMediaType } from "../../../libs/ld-schemas";
@@ -67,7 +67,7 @@ export const externalHtmlProcessor: ContentProcessor["process"] = async (
   const dom = await measureAsyncTime("parse", () => blobToDocument(content));
 
   if (url) {
-    if (isLocalUrl(url)) {
+    if (isLocalUri(url)) {
       console.log("localUrl");
     }
     const base = dom.createElement("base");
