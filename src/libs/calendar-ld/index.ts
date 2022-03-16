@@ -151,7 +151,6 @@ const monthOfYear = [
 ];
 
 const monthOfYearUri = (date: Date): Uri => {
-  console.log("day", date.getMonth());
   return `${gregorianVocabUri}#${monthOfYear[date.getMonth()]}`;
 };
 
@@ -194,7 +193,6 @@ const dateFromDayUri = (uri: string) =>
 
 export const getIntervalData = (uri: string): Day | Instant | void => {
   if (uri.startsWith(dayUriPrefix)) {
-    console.log(dateFromDayUri(uri));
     return getDayInterval(dateFromDayUri(uri));
   } else if (uri.startsWith(instanceUriPrefix)) {
     return getInstant(dateFromInstanceUri(uri));
