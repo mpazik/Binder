@@ -23,6 +23,7 @@ import { withMultiState } from "../../libs/linki";
 import { handleState } from "../../libs/named-state";
 import type { Component } from "../../libs/simple-ui/render";
 import { div, newSlot } from "../../libs/simple-ui/render";
+import type { Uri } from "../common/uri";
 
 import type {
   Annotation,
@@ -41,7 +42,7 @@ import type { AnnotationSaveProps } from "./service";
 import type { AnnotationsFeeder } from "./service";
 import type { AnnotationsSaver } from "./service";
 
-type AnnotationSavePropsWihoutRef = Omit<AnnotationSaveProps, "reference">;
+type AnnotationSavePropsWithoutRef = Omit<AnnotationSaveProps, "reference">;
 
 export type AnnotationDisplayRequest = {
   textLayer: HTMLElement;
@@ -79,7 +80,7 @@ export const annotationsSupport: Component<
   onClose
 ) => {
   const [saveAnnotationInt, setReference] = link(
-    valueWithState<HashUri | undefined, AnnotationSavePropsWihoutRef>(
+    valueWithState<HashUri | undefined, AnnotationSavePropsWithoutRef>(
       undefined
     ),
     map(
@@ -93,7 +94,7 @@ export const annotationsSupport: Component<
     splitDefinedProp("reference"),
     [
       saveAnnotation,
-      fork<AnnotationSavePropsWihoutRef>(
+      fork<AnnotationSavePropsWithoutRef>(
         (it) => keepAnnotationForSave(it),
         requestDocumentSave
       ),
@@ -101,7 +102,7 @@ export const annotationsSupport: Component<
   );
 
   const [saveKeptAnnotation, keepAnnotationForSave] = link(
-    withState<AnnotationSavePropsWihoutRef | undefined>(undefined),
+    withState<AnnotationSavePropsWithoutRef | undefined>(undefined),
     filter(defined),
     fork(saveAnnotationInt, (): void => keepAnnotationForSave(undefined))
   );
@@ -239,11 +240,11 @@ export const annotationsSupport: Component<
     changeSelection
   );
   const [displayDocumentAnnotations, setReferenceForAnnotationDisplay] = link(
-    valueWithState<HashUri | undefined, AnnotationDisplayRequest>(undefined),
+    valueWithState<Uri | undefined, AnnotationDisplayRequest>(undefined),
     filter(definedTuple),
     map(([reference, { fragment }]) => ({
       fragment: fragment?.value,
-      hash: reference,
+      reference,
     })),
     subscribeForAnnotations
   );

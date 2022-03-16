@@ -15,7 +15,7 @@ import type {
   AnnotationsQuery,
 } from "../../functions/indexes/annotations-index";
 import type { LinkedDataStoreRead } from "../../functions/store/local-store";
-import type { HashUri } from "../../libs/hash";
+import type { Uri } from "../common/uri";
 
 import type { Annotation, AnnotationSelector } from "./annotation";
 import { createAnnotation } from "./annotation";
@@ -61,7 +61,7 @@ export const createAnnotationFeeder = ({
     callback
   );
 
-export type AnnotationSaveProps = { reference: HashUri } & (
+export type AnnotationSaveProps = { reference: Uri } & (
   | {
       selector: AnnotationSelector;
       content?: string;

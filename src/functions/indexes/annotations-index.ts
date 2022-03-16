@@ -4,6 +4,7 @@ import { link, map, pick, pipe } from "linki";
 import { filter, isEqual } from "../../../../linki/src";
 import type { Annotation } from "../../components/annotations/annotation";
 import { isFragmentSelector } from "../../components/annotations/annotation";
+import type { Uri } from "../../components/common/uri";
 import { removeItem } from "../../libs/async-pool";
 import { throwIfUndefined } from "../../libs/errors";
 import type { HashUri } from "../../libs/hash";
@@ -17,7 +18,7 @@ import type { DynamicRepoIndex } from "./dynamic-repo-index";
 import type { UpdateIndex } from "./types";
 
 export type AnnotationsQuery = {
-  hash: HashUri;
+  reference: Uri;
   fragment?: string;
 };
 
@@ -35,18 +36,8 @@ export type AnnotationsIndex = DynamicRepoIndex<
 const annotationsIndexStoreName = "annotations-index" as StoreName;
 
 type IndexKey = string;
-const recordKey = (documentHashUri: HashUri, fragment?: string): IndexKey =>
-  fragment ? `${documentHashUri}:${fragment}` : documentHashUri;
-
-export const createSearchAnnotationsIndex = (
-  store: AnnotationsStore
-): AnnotationsIndex["search"] => async ({ hash, fragment }) =>
-  storeGet<AnnotationIndexProps>(
-    store,
-    recordKey(hash, fragment)
-  ).then((annotations = [] as AnnotationIndexProps) => [
-    { props: annotations, hash },
-  ]);
+const recordKey = (documentUri: Uri, fragment?: string): IndexKey =>
+  fragment ? `${documentUri}:${fragment}` : documentUri;
 
 type IndexData = { key: IndexKey; hash: HashUri };
 
@@ -57,7 +48,7 @@ const index: Transformer<LinkedDataWithHashId, IndexData | undefined> = (
   const annotation = (ld as unknown) as Annotation;
   const target = annotation.target;
   if (!target || typeof target !== "object") return;
-  const source = target.source as HashUri;
+  const source = target.source as Uri;
   if (!source) return;
 
   const selector = annotation.target.selector;
@@ -94,14 +85,14 @@ export const createSubscribeAnnotationsIndex = (
 ): AnnotationsSubscribeIndex => (callback) => {
   let closeOldListener: Close | undefined;
   let currentKey: IndexKey | undefined;
-  return ({ hash, fragment }) => {
+  return ({ reference, fragment }) => {
     if (closeOldListener) closeOldListener();
-    const key = recordKey(hash, fragment);
+    const key = recordKey(reference, fragment);
     currentKey = key;
-    storeGet<AnnotationIndexProps>(store, recordKey(hash, fragment)).then(
+    storeGet<AnnotationIndexProps>(store, recordKey(reference, fragment)).then(
       (annotations = [] as AnnotationIndexProps) => {
         if (currentKey !== key) {
-          return; // there was another queyr in between so we want to push stale results
+          return; // there was another query in between so we want to push stale results
         }
         annotations.forEach(callback);
       }
@@ -119,19 +110,19 @@ export const createSubscribeAnnotationsIndex = (
 };
 
 export const createAnnotationsIndex = (): AnnotationsIndex => {
-  let search: AnnotationsIndex["search"] | undefined;
   let update: UpdateIndex | undefined;
   let subscribe: AnnotationsSubscribeIndex | undefined;
 
   return {
-    search: (q) => throwIfUndefined(search)(q),
+    search: () => {
+      throw new Error("not implemented");
+    },
     update: (ld) => throwIfUndefined(update)(ld),
     subscribe: (q) => throwIfUndefined(subscribe)(q),
     switchRepo: (db) => {
       const store = db.getStoreProvider(annotationsIndexStoreName);
       const listeners: Callback<IndexData>[] = [];
 
-      search = createSearchAnnotationsIndex(store);
       update = createAnnotationsIndexer(store, (data) => {
         listeners.forEach((listener) => listener(data));
       });

@@ -1,3 +1,5 @@
+import type { Uri } from "../components/common/uri";
+
 import type { LinkedData, LinkedDataWithHashId } from "./jsonld-format";
 import { normalizeLinkedData } from "./linked-data";
 import type { Opaque } from "./types";
@@ -9,7 +11,7 @@ type HashReference = [Hash, HashingAlgorithm];
 
 export const hashUriScheme = "nih"; // named information hex format https://tools.ietf.org/html/rfc6920
 
-export type HashUri = Opaque<string>;
+export type HashUri = Opaque<Uri>;
 export type HashName = Opaque<string>;
 
 export const isHashUri = (uri: string): uri is HashUri =>
