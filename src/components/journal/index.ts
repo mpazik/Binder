@@ -119,7 +119,8 @@ const annotationForm: View<{
   onSave: Callback<AnnotationSaveProps>;
 }> = ({ dayUri, onSave }) => {
   const saveData = () => {
-    const content = (formDom as HTMLElement).innerHTML;
+    const content = formDom.innerHTML;
+    formDom.innerHTML = "";
     onSave({ reference: dayUri, content, selector: undefined });
   };
   const formDom = renderJsonHtmlToDom(
@@ -138,7 +139,7 @@ const annotationForm: View<{
         }
       },
     })
-  );
+  ) as HTMLElement;
   return div(
     div(dom(formDom)),
     div(
