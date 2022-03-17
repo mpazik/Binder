@@ -1,7 +1,6 @@
 import type { Callback, Close, Processor, Transformer } from "linki";
-import { link, map, pick, pipe } from "linki";
+import { link, map, pick, pipe, filter, isEqual } from "linki";
 
-import { filter, isEqual } from "../../../../linki/src";
 import type { Annotation } from "../../components/annotations/annotation";
 import { isFragmentSelector } from "../../components/annotations/annotation";
 import type { Uri } from "../../components/common/uri";
