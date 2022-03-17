@@ -595,14 +595,14 @@ export const App: Component<
       return {
         displaySlot: (slot) => {
           render(); // clean previous dom, to force rerender
-          render(div({ class: "mt-8" }, slot));
+          render(div({ class: "mt-8 ml-2 mr-2" }, slot));
           hideNav();
         },
         displayJsonHtml: (jsonHtml) => {
           render(); // clean previous dom, to force rerender
           render(
             div({
-              class: "mt-8",
+              class: "mt-8 ml-2 mr-2",
               dangerouslySetDom: renderJsonHtmlToDom(jsonHtml),
             })
           );

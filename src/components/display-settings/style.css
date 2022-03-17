@@ -33,7 +33,7 @@
 .with-display-settings svg,
 .with-display-settings div > div > div
 {
-    width: var(--line-width) !important;
+    max-width: var(--line-width) !important;
     margin-left: auto;
     margin-right: auto;
     display: block;
