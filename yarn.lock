@@ -9513,10 +9513,10 @@ linki-ui@^0.1.2:
     linki "^0.1.7"
     linki-experimental "^0.4.0"
 
-linki-ui@^0.1.3:
-  version "0.1.3"
-  resolved "https://registry.yarnpkg.com/linki-ui/-/linki-ui-0.1.3.tgz#81200f966b95d19edde814555f4748dac063ee87"
-  integrity sha512-NuQq0vey7WE/8iP1k+HWzKyDnm8YrC75trYtFG3fFOftGkbKry7GIS47BVYULYXpkfk0j3cFhETvUZhcVd9dlw==
+linki-ui@^0.1.4:
+  version "0.1.4"
+  resolved "https://registry.yarnpkg.com/linki-ui/-/linki-ui-0.1.4.tgz#22630db37a4132565e5ccc35ae4c22523c4b00d8"
+  integrity sha512-dPjV4CryjdMtExtjypj1/N9XaUn11uaD8Qirxr4FEixtjQqf9C1AvKb4WetzfQuxXslhnRnZYzVw6hNH79fr2g==
   dependencies:
     linki "^0.1.10"
     linki-experimental "^0.4.0"

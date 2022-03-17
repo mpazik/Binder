@@ -556,7 +556,13 @@ export const App: Component<
         })();
       }
     } else if (dataType === dayType) {
-      displayJsonHtml(dayJournal(data.linkedData as Day));
+      displayJsonHtml(
+        dayJournal({
+          day: data.linkedData as Day,
+          annotationFeeder,
+          saveAnnotation,
+        })
+      );
     } else {
       const linkedDataWithContent: LinkedDataWithContent = isLinkedDataWithBody(
         data

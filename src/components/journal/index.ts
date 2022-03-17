@@ -1,50 +1,201 @@
-import type { View } from "linki-ui";
-import { div, h2, header, pre } from "linki-ui";
+import type { Callback } from "linki";
+import { and, filter, fork, link, map, or } from "linki";
+import type { JsonHtml, View, Render } from "linki-ui";
+import {
+  a,
+  div,
+  h2,
+  header,
+  renderJsonHtmlToDom,
+  dom,
+  dangerousHtml,
+  h3,
+  button,
+} from "linki-ui";
 
 import type { Day, Instant } from "../../libs/calendar-ld";
 import { getIntervalData } from "../../libs/calendar-ld";
 import { throwIfUndefined } from "../../libs/errors";
-import { a } from "../../libs/simple-ui/render";
-import { inline } from "../common/spacing";
+import { span } from "../../libs/simple-ui/render";
+import {
+  hasCtrlKey,
+  hasMetaKey,
+  isKey,
+} from "../../libs/simple-ui/utils/funtions";
+import { formatDateTime, formatTime } from "../../libs/time";
+import type { Annotation } from "../annotations/annotation";
+import type {
+  AnnotationsFeeder,
+  AnnotationsSaver,
+} from "../annotations/service";
+import type { AnnotationSaveProps } from "../annotations/service";
+import { inline, stack } from "../common/spacing";
+import type { Uri } from "../common/uri";
 
-const formatDateTime = new Intl.DateTimeFormat(undefined, {
+const formatDate = new Intl.DateTimeFormat(undefined, {
   dateStyle: "full",
   timeZone: "UTC",
 }).format;
 
-export const dayJournal: View<Day> = (data) => {
-  const date = new Date(
-    (throwIfUndefined(
-      getIntervalData(data.hasBeginning)
-    ) as Instant).inXSDDateTimeStamp
+const dayJournalHeader: View<{
+  day: Day;
+  dayDate: Date;
+}> = ({ day, dayDate }) =>
+  header(
+    { class: "text-center" },
+    h2(formatDate(dayDate)),
+    inline(
+      { class: "flex-justify-center" },
+      a(
+        {
+          href: day.intervalMetBy,
+        },
+        "← previous"
+      ),
+      // a(
+      //   {
+      //     href: day.intervalMeets,
+      //   },
+      //   "week"
+      // ),
+      a(
+        {
+          href: day.intervalMeets,
+        },
+        "next →"
+      )
+    )
   );
-  return div(
-    { class: "with-line-length-settings my-10" },
-    header(
-      { class: "text-center" },
-      h2(formatDateTime(date)),
-      inline(
-        { class: "flex-justify-center" },
-        a(
-          {
-            href: data.intervalMetBy,
-          },
-          "← yesterday"
-        ),
-        a(
-          {
-            href: data.intervalMeets,
-          },
-          "week"
-        ),
-        a(
-          {
-            href: data.intervalMeets,
-          },
-          "tomorrow →"
-        )
+
+const dateTimeOfAction: View<{ date: Date; action: string }> = ({
+  date,
+  action,
+}) =>
+  span({ class: "color-text-secondary" }, action, " on ", formatDateTime(date));
+
+const timeOfAction: View<{ date: Date; action: string }> = ({ date, action }) =>
+  span({ class: "color-text-secondary" }, action, " at ", formatTime(date));
+
+const sameDay = (date1: Date, date2: Date) =>
+  date1.getFullYear() === date2.getFullYear() &&
+  date1.getMonth() === date2.getMonth() &&
+  date1.getDay() === date2.getDay();
+
+const dateOrTimeOfAction: View<{
+  date: Date;
+  currentDate: Date;
+  action: string;
+}> = ({ date, currentDate, action }) =>
+  sameDay(date, currentDate)
+    ? timeOfAction({ date, action })
+    : dateTimeOfAction({ date, action });
+
+const annotationView = (currentDate: Date): View<Annotation> => (annotation) =>
+  div(
+    {
+      class: "Box Box--condensed",
+    },
+    div(
+      { class: "Box-header d-flex flex-items-center" },
+      div(
+        { class: "flex-auto" },
+        dateOrTimeOfAction({
+          action: "commented",
+          currentDate,
+          date: new Date(annotation.created),
+        })
       )
     ),
-    pre(JSON.stringify(data, null, 4))
+    div(
+      {
+        class: "Box-body",
+      },
+      dangerousHtml(annotation.body!.value)
+    )
+  );
+
+const annotationForm: View<{
+  dayUri: Uri;
+  onSave: Callback<AnnotationSaveProps>;
+}> = ({ dayUri, onSave }) => {
+  const saveData = () => {
+    const content = (formDom as HTMLElement).innerHTML;
+    onSave({ reference: dayUri, content, selector: undefined });
+  };
+  const formDom = renderJsonHtmlToDom(
+    div({
+      class: "form-control p-1",
+      style: { height: "100px" },
+      contentEditable: "true",
+      onKeyDown: fork(
+        link(filter(and(isKey("Enter"), or(hasMetaKey, hasCtrlKey))), saveData)
+      ),
+      onPaste: (event) => {
+        event.preventDefault();
+        const text = event.clipboardData?.getData("text/plain");
+        if (text) {
+          document.execCommand("insertHTML", false, text);
+        }
+      },
+    })
+  );
+  return div(
+    div(dom(formDom)),
+    div(
+      { class: "text-right py-1" },
+      button(
+        { type: "button", class: "btn btn-sm btn-primary", onClick: saveData },
+        "Add"
+      )
+    )
+  );
+};
+
+export const createAppendRenderer = (root: HTMLElement): Render => (
+  jsonHtml
+) => {
+  const dom = renderJsonHtmlToDom(
+    jsonHtml !== null && jsonHtml !== void 0 ? jsonHtml : undefined
+  );
+  root.appendChild(dom);
+};
+
+export const dayJournal = ({
+  day,
+  annotationFeeder,
+  saveAnnotation,
+}: {
+  day: Day;
+  annotationFeeder: AnnotationsFeeder;
+  saveAnnotation: AnnotationsSaver;
+}): JsonHtml => {
+  const annotationsRoot = renderJsonHtmlToDom(stack()) as HTMLElement;
+  const renderAnnotations = createAppendRenderer(annotationsRoot);
+  const dayUri = day["@id"];
+  const dayDate = new Date(
+    (throwIfUndefined(
+      getIntervalData(day.hasBeginning)
+    ) as Instant).inXSDDateTimeStamp
+  );
+  link(
+    annotationFeeder,
+    map(annotationView(dayDate)),
+    renderAnnotations
+  )({ reference: dayUri });
+
+  return div(
+    { class: "with-line-length-settings my-10" },
+    dayJournalHeader({
+      day,
+      dayDate,
+    }),
+    stack(
+      { gap: "large" },
+      div(h2("Comments"), dom(annotationsRoot)),
+      div(
+        h3({ class: "h4" }, "Add comment"),
+        annotationForm({ dayUri, onSave: saveAnnotation })
+      )
+    )
   );
 };
