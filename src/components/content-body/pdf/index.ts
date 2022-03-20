@@ -34,7 +34,7 @@ import type { ContentComponent, DisplayContext } from "../types";
 import { isFocusedElementStatic, scrollToTop } from "../utils";
 
 // The workerSrc property shall be specified.
-pdfJsLib.GlobalWorkerOptions.workerSrc = "./pdf.worker.js";
+pdfJsLib.GlobalWorkerOptions.workerSrc = location.origin + "/pdf.worker.js";
 
 type PdfDocument = PDFDocumentProxy;
 type PdfPage = {
