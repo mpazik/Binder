@@ -1,9 +1,9 @@
-const HtmlWebpackPlugin = require("html-webpack-plugin");
-const CopyWebpackPlugin = require("copy-webpack-plugin");
-const TerserPlugin = require("terser-webpack-plugin");
-const SpeedMeasurePlugin = require("speed-measure-webpack-plugin");
-// const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
-const webpack = require("webpack");
+import HtmlWebpackPlugin from "html-webpack-plugin"
+import CopyWebpackPlugin from "copy-webpack-plugin";
+import TerserPlugin from "terser-webpack-plugin";
+import SpeedMeasurePlugin from "speed-measure-webpack-plugin";
+// import BundleAnalyzerPlugin from 'webpack-bundle-analyzer';
+import webpack from "webpack";
 
 const sharedConfig = ({ envVariables, productIcon }) => ({
   entry: {
@@ -11,7 +11,7 @@ const sharedConfig = ({ envVariables, productIcon }) => ({
   },
   output: {
     filename: "[name].js",
-    path: __dirname + "/build",
+    path: "/build",
     publicPath: '/',
     clean: true
   },
@@ -174,4 +174,4 @@ const prodConfig = {
 
 
 const smp = new SpeedMeasurePlugin();
-module.exports = smp.wrap(process.env.NODE_ENV === "production" ? prodConfig : devConfig);
+export default smp.wrap(process.env.NODE_ENV === "production" ? prodConfig : devConfig);
