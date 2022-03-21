@@ -29,6 +29,12 @@ const sharedConfig = ({ envVariables, productIcon }) => ({
         },
         exclude: [/node_modules/, /\.test\.ts$/i],
       },
+      {
+        test: /\.js$/,
+        resolve: {
+          fullySpecified: false
+        },
+      }
     ],
   },
   plugins: [

@@ -21,7 +21,7 @@
     "docland-readability": "^0.4.7",
     "jsonld": "^3.3.0",
     "jszip": "^3.6.0",
-    "linki": "^0.1.12",
+    "linki": "^0.1.14",
     "linki-ui": "^0.1.4",
     "pdfjs-dist": "^2.6.347",
     "posthog-js": "^1.13.5",

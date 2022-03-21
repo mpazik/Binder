@@ -9526,10 +9526,10 @@ linki@^0.1.10:
   resolved "https://registry.yarnpkg.com/linki/-/linki-0.1.10.tgz#e6b07317bc5a4e60d56f8a00860a307790c0f043"
   integrity sha512-KAr9Jlyh+56BjIuhanxqs+3sf3kB/9rJ2kysoYYJeYa6UBRnyrzKfHkbCPp784rEwdOPSkcfz2nijJu199237g==
 
-linki@^0.1.12:
-  version "0.1.12"
-  resolved "https://registry.yarnpkg.com/linki/-/linki-0.1.12.tgz#fd0b9f4f55446f048b50e9a153efb0cc381c510e"
-  integrity sha512-zKI7Vb75ZwXCYxREwA7AWZihwRM44T9M+i7F0zrS7fHs80/kjRbhHikaVhq4Zptx6e6yxFWC7HEemtf1B8g9Dw==
+linki@^0.1.14:
+  version "0.1.14"
+  resolved "https://registry.yarnpkg.com/linki/-/linki-0.1.14.tgz#c7480ca80dfcb8b8f82ba06647e244c46d536f60"
+  integrity sha512-FIad/kO/CwLmRI0bcPPqHHo1Yc10t6LaQu/hLz7l+BlzBOHDXhfCI+m09a01/ipWVpU5Y+Usg8HKTQnV78buJQ==
 
 linki@^0.1.2:
   version "0.1.5"
