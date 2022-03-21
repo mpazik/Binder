@@ -159,7 +159,7 @@ export const annotationDisplay: Component<
   );
 
   const [delayedHide, cleanDelay] = link(
-    clearableDelay<void>(300),
+    clearableDelay<void>(100),
     map(to(["hidden"] as AnnotationDisplayState)),
     handleData
   );
