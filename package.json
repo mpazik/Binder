@@ -8,7 +8,7 @@
     "start:prod": "yarn build && yarn serve build -p 9090",
     "build": "NODE_ENV=production webpack",
     "build:clean": "rm -rf build",
-    "lint": "yarn eslint . --ext .ts",
+    "lint": "yarn eslint . --ext .ts && tsc --noEmit",
     "fix": "prettier --write src && yarn eslint:fix",
     "test": "jest",
     "storybook": "start-storybook -p 6006",
