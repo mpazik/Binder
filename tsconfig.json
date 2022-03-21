@@ -13,6 +13,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "sourceMap": false,
+    "allowJs": true,
     "types": [
       "node",
       "jest"
