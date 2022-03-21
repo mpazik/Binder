@@ -1,5 +1,6 @@
 import "./style.css";
 
+import type { Callback } from "linki";
 import {
   link,
   filter,
@@ -15,6 +16,7 @@ import {
   nextTick,
   defined,
   splitDefinedProp,
+  combine,
 } from "linki";
 
 import { throwIfNull } from "../../libs/errors";
@@ -239,8 +241,11 @@ export const annotationsSupport: Component<
     map((annotation): ["display", Annotation] => ["display", annotation]),
     changeSelection
   );
-  const [displayDocumentAnnotations, setReferenceForAnnotationDisplay] = link(
-    valueWithState<Uri | undefined, AnnotationDisplayRequest>(undefined),
+  const [setReferenceForAnnotationDisplay, displayDocumentAnnotations] = link(
+    combine<[Uri | undefined, AnnotationDisplayRequest | undefined]>(
+      undefined,
+      undefined
+    ),
     filter(definedTuple),
     map(([reference, { fragment }]) => ({
       fragment: fragment?.value,
@@ -271,7 +276,7 @@ export const annotationsSupport: Component<
     displayDocumentAnnotations: fork(
       link(map(pick("fragment")), setFragmentForToolbar),
       link(map(pick("textLayer")), setTextLayerForSelector),
-      displayDocumentAnnotations,
+      displayDocumentAnnotations as Callback<AnnotationDisplayRequest>,
       link(ignoreParam(), handleSelection),
       () => displayCommentForm(["hidden"]),
       () => hideAnnotation()
