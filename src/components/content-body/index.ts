@@ -1,3 +1,5 @@
+import "../display-settings/style.css";
+
 import type { Callback } from "linki";
 import {
   defined,

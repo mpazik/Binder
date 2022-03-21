@@ -1,5 +1,3 @@
-import "./style.css";
-
 import type {
   DisplaySettings,
   FontFace,

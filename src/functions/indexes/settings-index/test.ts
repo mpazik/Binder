@@ -1,3 +1,4 @@
+import { defaultSettings } from "../../../components/display-settings";
 import { createSettingUpdateAction } from "../../../components/display-settings/setting-update";
 import type { HashUri } from "../../../libs/hash";
 import type { LinkedDataWithHashId } from "../../../libs/jsonld-format";
@@ -44,11 +45,7 @@ describe("createSettingsSubscription", () => {
     const [push, pull] = createQueue();
     const [, , subscribe] = createSettingsSubscription([]);
     subscribe(push);
-    expect(await pull()).toEqual({
-      fontSize: "medium",
-      lineLength: "small",
-      theme: "light",
-    });
+    expect(await pull()).toEqual(defaultSettings);
   });
 
   test("push initial settings upon subscription", async () => {
@@ -56,9 +53,8 @@ describe("createSettingsSubscription", () => {
     const [, , subscribe] = createSettingsSubscription([record]);
     subscribe(push);
     expect(await pull()).toEqual({
+      ...defaultSettings,
       fontSize: "x-small",
-      lineLength: "small",
-      theme: "light",
     });
   });
 
@@ -71,9 +67,8 @@ describe("createSettingsSubscription", () => {
     update(record);
 
     expect(await pull()).toEqual({
+      ...defaultSettings,
       fontSize: "x-small",
-      lineLength: "small",
-      theme: "light",
     });
   });
 });
