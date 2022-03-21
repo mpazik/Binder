@@ -1,23 +1,26 @@
 export const minSelectorLength = 20;
 
 const whiteChars = [9, 10, 11, 12, 13, 32, 160];
+const wordSearchLimit = 10; // there are cases when there is no white character used in text or higher Unicode are used
 
 export const indexOfWordStart = (text: string, start: number): number => {
-  for (let i = start - 1; i > 0; i--) {
+  const limit = Math.max(0, start - wordSearchLimit);
+  for (let i = start - 1; i > limit; i--) {
     if (whiteChars.includes(text.charCodeAt(i))) {
       return i + 1;
     }
   }
-  return 0;
+  return limit;
 };
 
 export const indexOfWordEnd = (text: string, end: number): number => {
-  for (let i = end + 1; i < text.length; i++) {
+  const limit = Math.min(text.length, end + wordSearchLimit);
+  for (let i = end + 1; i < limit; i++) {
     if (whiteChars.includes(text.charCodeAt(i))) {
       return i;
     }
   }
-  return text.length;
+  return limit;
 };
 
 const isUnique = (text: string, start: number, end: number): boolean => {
@@ -34,10 +37,10 @@ const expandTextRange = (
   end: number,
   expandSuffix = true
 ): [start: number, end: number] => {
-  if (
-    (end - start >= minSelectorLength && isUnique(text, start, end)) ||
-    (start === 0 && end === text.length)
-  ) {
+  const min = end - start >= minSelectorLength;
+  const unique = isUnique(text, start, end);
+  const finished = start === 0 && end === text.length;
+  if ((min && unique) || finished) {
     return [start, end];
   }
 

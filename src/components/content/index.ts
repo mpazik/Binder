@@ -150,17 +150,16 @@ export const contentComponent: Component<
 
   render(
     div(
-      { id: "content-container" },
+      { id: "content-container", class: "mb-3 position-relative px-4" },
       contentFieldsSlot,
       div(
         {
           id: "content-body",
-          class: "mb-3 position-relative px-4",
           onDisplay: link(map(getTarget), setContainer),
         },
-        contentSlot,
-        annotationSupportSlot
+        contentSlot
       ),
+      annotationSupportSlot,
       saveBarSlot
     )
   );

@@ -29,6 +29,9 @@ describe("indexOfWordStart", () => {
   test("returns start when trying to search back first word", () => {
     expect(indexOfWordStart("some text and", -1)).toEqual(0);
   });
+  test("returns position no lower than limit", () => {
+    expect(indexOfWordStart("some-very-long-word", 14)).toEqual(4);
+  });
   test("ignores multiple types of white spaces", () => {
     // unicode not supported
     expect(indexOfWordStart("some\ntext and", 8)).toEqual(5);
@@ -48,6 +51,9 @@ describe("indexOfWordEnd", () => {
   });
   test("returns start if on start", () => {
     expect(indexOfWordEnd("some text and", 13)).toEqual(13);
+  });
+  test("returns position no higher than limit", () => {
+    expect(indexOfWordEnd("some-very-long-word", 4)).toEqual(14);
   });
 });
 
