@@ -11,6 +11,7 @@ import {
   dangerousHtml,
   h3,
   button,
+  textarea,
 } from "linki-ui";
 
 import type { CompletionSubscribeIndex } from "../../functions/indexes/completion-index";
@@ -127,9 +128,10 @@ const annotationForm: View<{
     onSave({ reference: dayUri, content, selector: undefined });
   };
   const formDom = renderJsonHtmlToDom(
-    div({
+    textarea({
       class: "form-control p-1",
-      style: { height: "100px" },
+      style: { width: "100%" },
+      rows: 4,
       contentEditable: "true",
       onKeyDown: fork(
         link(filter(and(isKey("Enter"), or(hasMetaKey, hasCtrlKey))), saveData)
