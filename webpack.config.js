@@ -128,6 +128,8 @@ const devConfig = (() => {
       }),
     ],
     devServer: {
+      liveReload: true,
+      hot: false,
       proxy: {
         "/proxy": {
           target: "ignored",
