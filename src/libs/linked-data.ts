@@ -7,6 +7,7 @@ import type { URL } from "schema-dts";
 import { isAbsoluteUri } from "../components/common/uri";
 import activitystream from "../vocabulary/activitystreams-context.json";
 import annotations from "../vocabulary/annoations-context.json";
+import productivity from "../vocabulary/productivity-context.json";
 import schemaorg from "../vocabulary/schema-org-context.json";
 
 import { throwIfNull } from "./errors";
@@ -18,6 +19,7 @@ const contexts = new Map<string, JsonLd>([
   ["http://www.w3.org/ns/anno.jsonld", annotations as JsonLd],
   ["https://www.w3.org/ns/activitystreams", activitystream as JsonLd],
   ["https://schema.org", schemaorg as JsonLd],
+  ["http://docland.app/productivity.jsonld", productivity as JsonLd],
 ]);
 
 const contextLoader: Options.DocLoader["documentLoader"] = (url) => {

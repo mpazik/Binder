@@ -19,6 +19,7 @@ import {
 import type { JsonHtml } from "linki-ui";
 import { mountComponent, renderJsonHtmlToDom } from "linki-ui";
 
+import { createComponentRenderer } from "../../../../linki-ui/src";
 import type {
   AnalyticsSender,
   UpdateAnalyticsRepoAccount,
@@ -44,6 +45,7 @@ import { gdrive } from "../../functions/gdrive/controller";
 import type { DriverAccount, GlobalDb } from "../../functions/global-db";
 import { getLastLogin, openGlobalDb } from "../../functions/global-db";
 import { createAnnotationsIndex } from "../../functions/indexes/annotations-index";
+import { createCompletionIndex } from "../../functions/indexes/completion-index";
 import { createCompositeIndexer } from "../../functions/indexes/composite-indexer";
 import { createDirectoryIndex } from "../../functions/indexes/directory-index";
 import type { SettingsRecord } from "../../functions/indexes/settings-index";
@@ -102,6 +104,7 @@ import {
 import { measureAsyncTime } from "../../libs/performance";
 import type {
   Component,
+  ComponentBody,
   Handlers,
   Slot,
   ViewSetup,
@@ -242,6 +245,7 @@ export const App: Component<
   const urlIndex = createUriIndex();
   const directoryIndex = createDirectoryIndex();
   const annotationsIndex = createAnnotationsIndex();
+  const completionIndex = createCompletionIndex();
   const [
     watchHistoryStore,
     switchRepoForWatchHistory,
@@ -268,6 +272,7 @@ export const App: Component<
       (hash) => store.removeLinkedData(hash),
       updateSettings
     ),
+    completionIndex.update,
   ]);
   const store = createStore(
     indexLinkedData,
@@ -286,7 +291,8 @@ export const App: Component<
     directoryIndex.switchRepo,
     annotationsIndex.switchRepo,
     switchRepoForWatchHistory,
-    switchRepoForSettings
+    switchRepoForSettings,
+    completionIndex.switchRepo
   );
   updateRepo(initRepo);
   const sendError = createErrorSender(sendAnalytics);
@@ -561,6 +567,8 @@ export const App: Component<
           day: data.linkedData as Day,
           annotationFeeder,
           saveAnnotation,
+          saveTask: storeLinkedData,
+          subscribe: completionIndex.subscribe(store.readLinkedData),
         })
       );
     } else {
@@ -596,8 +604,25 @@ export const App: Component<
       displayJsonHtml: JsonHtml;
       displayFullScreen: Node;
     }> => {
-      render("test test");
-
+      const runtime: ComponentBody<{ pushJsonHtml: JsonHtml }> = (
+        render,
+        onClose
+      ) => {
+        const parent = document.createElement("div");
+        const renderJsonHtml = createComponentRenderer(parent);
+        onClose(() => {
+          parent.dispatchEvent(new CustomEvent("disconnected"));
+        });
+        render(
+          div({
+            dangerouslySetDom: parent,
+          })
+        );
+        return {
+          pushJsonHtml: renderJsonHtml,
+        };
+      };
+      const [slot, { pushJsonHtml }] = newSlot("jsonHtml", runtime);
       return {
         displaySlot: (slot) => {
           render(); // clean previous dom, to force rerender
@@ -606,12 +631,8 @@ export const App: Component<
         },
         displayJsonHtml: (jsonHtml) => {
           render(); // clean previous dom, to force rerender
-          render(
-            div({
-              class: "mt-8 ml-2 mr-2",
-              dangerouslySetDom: renderJsonHtmlToDom(jsonHtml),
-            })
-          );
+          render(div({ class: "mt-8 ml-2 mr-2" }, slot));
+          pushJsonHtml(jsonHtml);
           hideNav();
         },
         displayFullScreen: (element) => {

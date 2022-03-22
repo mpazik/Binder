@@ -25,7 +25,11 @@ type Indexer = {
 };
 type RepositoryVersionUpdate = {
   version: number;
-  stores: { name: string; params?: IDBObjectStoreParameters }[];
+  stores: {
+    name: string;
+    params?: IDBObjectStoreParameters;
+    indexes?: { name: string; keyPath: string; options?: IDBIndexParameters }[];
+  }[];
   afterUpdate?: AfterUpdateHook;
   index?: Indexer;
 };
@@ -106,8 +110,11 @@ export const openRepository = async (
           `Processing repository update number "${processingVersion}"`
         );
         const { stores, afterUpdate, index } = updates[processingVersion];
-        stores.forEach(({ name, params }) => {
-          db.createObjectStore(name, params);
+        stores.forEach(({ name, params, indexes }) => {
+          const store = db.createObjectStore(name, params);
+          (indexes ?? []).forEach(({ name: indexName, keyPath, options }) => {
+            store.createIndex(indexName, keyPath, options);
+          });
         });
         if (index) {
           afterCreationHooks.push((repositoryDb) =>

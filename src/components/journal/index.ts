@@ -13,6 +13,7 @@ import {
   button,
 } from "linki-ui";
 
+import type { CompletionSubscribeIndex } from "../../functions/indexes/completion-index";
 import type { Day, Instant } from "../../libs/calendar-ld";
 import { getIntervalData } from "../../libs/calendar-ld";
 import { throwIfUndefined } from "../../libs/errors";
@@ -31,6 +32,8 @@ import type {
 import type { AnnotationSaveProps } from "../annotations/service";
 import { inline, stack } from "../common/spacing";
 import type { Uri } from "../common/uri";
+import { tasksView } from "../tasks";
+import type { Task } from "../tasks/productivity-vocabulary";
 
 const formatDate = new Intl.DateTimeFormat(undefined, {
   dateStyle: "full",
@@ -165,10 +168,14 @@ export const dayJournal = ({
   day,
   annotationFeeder,
   saveAnnotation,
+  subscribe,
+  saveTask,
 }: {
   day: Day;
   annotationFeeder: AnnotationsFeeder;
   saveAnnotation: AnnotationsSaver;
+  subscribe: CompletionSubscribeIndex;
+  saveTask: Callback<Task>;
 }): JsonHtml => {
   const annotationsRoot = renderJsonHtmlToDom(stack()) as HTMLElement;
   const renderAnnotations = createAppendRenderer(annotationsRoot);
@@ -196,7 +203,8 @@ export const dayJournal = ({
       div(
         h3({ class: "h4" }, "Add comment"),
         annotationForm({ dayUri, onSave: saveAnnotation })
-      )
+      ),
+      div(h2("Tasks"), tasksView({ saveTask, subscribe }))
     )
   );
 };

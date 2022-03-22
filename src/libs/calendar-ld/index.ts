@@ -1,7 +1,7 @@
 type IsoDate = string;
 type Uri = string;
 type InstantUri = Uri;
-type IntervalUri = Uri;
+export type IntervalUri = Uri;
 type DayUri = IntervalUri;
 type WeekUri = IntervalUri;
 type MonthUri = IntervalUri;

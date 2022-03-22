@@ -1,0 +1,17 @@
+{
+    "@context": {
+        "pr": "http://vocabulary.docland.app/productivity#",
+        "Task": "pr:Task",
+        "Complete": "pr:Complete",
+        "Schedule": "pr:Schedule",
+        "content": "as:content",
+        "object": {
+            "@id": "as:object",
+            "@type": "@id"
+        },
+        "published": {
+            "@id": "as:published",
+            "@type": "xsd:dateTime"
+        }
+    }
+}

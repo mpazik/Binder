@@ -10,6 +10,7 @@ import type {
 import { defined, reduce } from "linki";
 import type { ProcessorMultiOut } from "linki/dist/processors/processor";
 
+import type { Predicate } from "../../../../linki/src";
 import { throwIfUndefined } from "../errors";
 
 export const withEffect = <T>(handler: (data: T) => void) => (data: T): T => {
@@ -109,6 +110,22 @@ export const match = <T, S>(
   const map = new Map(entries);
   return (v: T) => map.get(v);
 };
+
+export const withContext = <T, C>(
+  contextCreator: Transformer<T, C>
+): Transformer<T, [T, C]> => (it) => [it, contextCreator(it)];
+
+export const pickContext = <T, C>(): Transformer<[T, C], C> => (it) => it[1];
+export const removeContext = <T, C>(): Transformer<[T, C], T> => (it) => it[0];
+
+export function splitMap<T, S>(
+  predicate: Predicate<T>,
+  transform: Transformer<T, S>
+): ProcessorMultiOut<T, [S, S]> {
+  return ([onFirst, onSecond]) => (value) => {
+    predicate(value) ? onFirst(transform(value)) : onSecond(transform(value));
+  };
+}
 
 export const withMultiState = <S extends Tuple, V = void>(
   ...init: PartialTuple<S>

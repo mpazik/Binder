@@ -1,0 +1,28 @@
+{
+    "@context": {
+        "as": "http://www.w3.org/ns/activitystreams#",
+        "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+        "type": "@type"
+    },
+    "@graph": [
+        {
+            "type": "rdfs:Class",
+            "rdfs:comment": "Indicates that an actor completed an object",
+            "rdfs:label": "Complete",
+            "rdfs:subClassOf": "as:Activity"
+
+        },
+        {
+            "type": "rdfs:Class",
+            "rdfs:comment": "Indicates that an actor scheduled an object on a specific target",
+            "rdfs:label": "Schedule",
+            "rdfs:subClassOf": "as:Activity"
+        },
+        {
+            "type": "rdfs:Class",
+            "rdfs:comment": "Represent a unit of work",
+            "rdfs:label": "Task",
+            "rdfs:subClassOf": "as:Object"
+        }
+    ]
+}
