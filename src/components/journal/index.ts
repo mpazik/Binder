@@ -1,5 +1,5 @@
 import type { Callback } from "linki";
-import { and, filter, fork, link, map, or } from "linki";
+import { and, filter, fork, link, map, or, to } from "linki";
 import type { JsonHtml, View, Render } from "linki-ui";
 import {
   a,
@@ -12,6 +12,8 @@ import {
   h3,
   button,
   textarea,
+  inputValue,
+  resetInput,
 } from "linki-ui";
 
 import type {
@@ -113,23 +115,35 @@ const annotationView = (currentDate: Date): View<Annotation> => (annotation) =>
         })
       )
     ),
-    div(
-      {
-        class: "Box-body",
-      },
-      dangerousHtml(annotation.body!.value)
-    )
+    annotation.body
+      ? div(
+          {
+            class: "Box-body",
+          },
+          dangerousHtml(annotation.body!.value)
+        )
+      : undefined
   );
 
 const annotationForm: View<{
   dayUri: Uri;
   onSave: Callback<AnnotationSaveProps>;
 }> = ({ dayUri, onSave }) => {
-  const saveData = () => {
-    const content = formDom.innerHTML;
-    formDom.innerHTML = "";
-    onSave({ reference: dayUri, content, selector: undefined });
-  };
+  const saveData = link(
+    map(to(() => formDom)),
+    fork(
+      link(
+        map(inputValue, (content) => ({
+          reference: dayUri,
+          content,
+          selector: undefined,
+        })),
+        onSave
+      ),
+      resetInput
+    )
+  );
+
   const formDom = renderJsonHtmlToDom(
     textarea({
       class: "form-control p-1",
@@ -147,7 +161,7 @@ const annotationForm: View<{
         }
       },
     })
-  ) as HTMLElement;
+  ) as HTMLInputElement;
   return div(
     div(dom(formDom)),
     div(
