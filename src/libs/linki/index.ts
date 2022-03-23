@@ -145,3 +145,7 @@ export const withMultiState = <S extends Tuple, V = void>(
     }) as Callbacks<S>),
   ];
 };
+
+export const logIt = <T>(name = "🧐 ㏒: "): Callback<T> => (value) => {
+  console.log(name, value);
+};

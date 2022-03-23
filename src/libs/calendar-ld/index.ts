@@ -198,3 +198,21 @@ export const getIntervalData = (uri: string): Day | Instant | void => {
     return getInstant(dateFromInstanceUri(uri));
   }
 };
+
+export const intervalBeggingDate = <T extends IntervalUri>(
+  interval: Interval<T>
+): Date => dateFromInstanceUri(interval.hasBeginning);
+
+export const intervalEndDate = <T extends IntervalUri>(
+  interval: Interval<T>
+): Date => dateFromInstanceUri(interval.hasEnd);
+
+export const isInstantWithin = <T extends IntervalUri>(
+  interval: Interval<T>,
+  instant: Date
+): boolean => {
+  const begging = intervalBeggingDate(interval);
+  if (instant < begging) return false;
+  const end = intervalEndDate(interval);
+  return instant < end;
+};

@@ -44,28 +44,65 @@ export const completionStoreName = "completed-index" as StoreName;
 
 const completableTypes = ["Task"];
 
-export const index = (
+export const index = async (
+  store: CompletionStore,
   ld: LinkedDataWithHashId
-): CompletionRecord | undefined => {
+): Promise<CompletionRecordChange | undefined> => {
   const type = getType(ld);
   if (!type) return;
   if (type === "Complete") {
     const obj = ((ld as unknown) as Complete).object;
     const published = ((ld as unknown) as Complete).published;
     if (!obj || !published) return;
+    const previous = await storeGet<CompletionRecord>(store, obj);
+    if (!previous) {
+      console.error("Can not complete not existing task", obj);
+      return;
+    }
     return {
-      object: obj,
-      completed: 1,
-      timestamp: Date.parse(published),
-      eventId: getHash(ld),
+      current: {
+        object: obj,
+        completed: 1,
+        timestamp: Date.parse(published),
+        eventId: getHash(ld),
+      },
+      previous,
     };
-  }
-  if (completableTypes.includes(type)) {
+  } else if (type === "Undo") {
+    const completionEventId = ((ld as unknown) as Complete).object;
+    const previous = await reqToPromise<CompletionRecord>(
+      store().index("eventId").get(completionEventId)
+    );
+    if (!previous) return;
+    if (!previous.completed) {
+      console.error("Can not undo uncompleted task", previous.object);
+      return;
+    }
+    return {
+      current: {
+        object: previous.object,
+        completed: 0,
+      },
+      previous,
+    };
+  } else if (completableTypes.includes(type)) {
     const id = ld["@id"];
     if (!id) return;
+
+    const previous = await storeGet<CompletionRecord>(store, id);
+    if (previous) {
+      console.log(
+        "Ignored an older event of completable entity indexing",
+        ld,
+        previous
+      );
+      return;
+    }
     return {
-      object: id,
-      completed: 0,
+      current: {
+        object: id,
+        completed: 0,
+      },
     };
   }
 };
@@ -190,7 +227,7 @@ export const createCompletionSubscribe = (
       reqToPromise<CompletionRecord[]>(
         store()
           .index("timestamp")
-          .getAll(IDBKeyRange.bound(since, until, true, false))
+          .getAll(IDBKeyRange.bound(since, until, false, true))
       )
         .then(taskObjectsBuilder)
         .then((it) => callback(["to", it] as TodosChange));
@@ -228,46 +265,41 @@ export const createCompletionIndexer = (
   store: CompletionStore,
   callback: Callback<CompletionRecordChange>
 ): UpdateIndex => async (ld) => {
-  const record = index(ld);
+  const record = await index(store, ld);
   if (!record) return;
-  const previous = await storeGet<CompletionRecord>(store, record.object);
-  if (
-    previous &&
-    record.completed === 1 &&
-    previous.completed === 1 &&
-    record.timestamp &&
-    previous.timestamp &&
-    record.timestamp < previous.timestamp
-  ) {
-    console.log("Ignored an older event");
-    return;
-  }
 
-  await storePut(store, record, record.object);
-  callback({ current: record, previous });
+  await storePut(store, record.current, record.current.object);
+  callback(record);
 };
 
+export type SearchCompletionIndex = (
+  taskId: HashUri
+) => Promise<CompletionRecord | undefined>;
 export const createCompletionIndex = (): {
+  searchIndex: SearchCompletionIndex;
   switchRepo: (db: RepositoryDb) => void;
   update: UpdateIndex;
   subscribe: (ldRead: LinkedDataStoreRead) => CompletionSubscribeIndex;
 } => {
   let update: UpdateIndex | undefined;
+  let search: SearchCompletionIndex | undefined;
   let subscribe:
     | ((ldRead: LinkedDataStoreRead) => CompletionSubscribeIndex)
     | undefined;
 
   return {
+    searchIndex: (key) => throwIfUndefined(search)(key),
     update: (ld) => throwIfUndefined(update)(ld),
     subscribe: (ldRead: LinkedDataStoreRead) => (q) =>
       throwIfUndefined(subscribe ? subscribe(ldRead) : undefined)(q),
     switchRepo: (db) => {
-      const store = db.getStoreProvider(completionStoreName);
+      const store: CompletionStore = db.getStoreProvider(completionStoreName);
       const listeners: Callback<CompletionRecordChange>[] = [];
 
       update = createCompletionIndexer(store, (data) => {
         listeners.forEach((listener) => listener(data));
       });
+      search = (hash) => storeGet(store, hash);
       subscribe = (ldRead: LinkedDataStoreRead) =>
         createCompletionSubscribe(
           store,

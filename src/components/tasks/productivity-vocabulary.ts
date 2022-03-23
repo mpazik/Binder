@@ -20,6 +20,16 @@ export type Complete = {
   published: string;
 };
 
+export const createComplete = (
+  objectToComplete: HashUri,
+  published = new Date()
+): Complete => ({
+  "@context": "http://docland.app/productivity.jsonld",
+  "@type": "Complete",
+  object: objectToComplete,
+  published: published.toISOString(),
+});
+
 export type Schedule = {
   "@context": "http://docland.app/productivity.jsonld";
   "@type": "Schedule";
@@ -27,3 +37,20 @@ export type Schedule = {
   target: IntervalUri;
   published: string;
 };
+
+export type Undo = {
+  "@context": "https://www.w3.org/ns/activitystreams";
+  "@type": "Undo";
+  object: HashUri;
+  published: string;
+};
+
+export const createUndo = (
+  actionToUndo: HashUri,
+  published = new Date()
+): Undo => ({
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "@type": "Undo",
+  object: actionToUndo,
+  published: published.toISOString(),
+});

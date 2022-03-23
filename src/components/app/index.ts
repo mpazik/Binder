@@ -567,7 +567,8 @@ export const App: Component<
           day: data.linkedData as Day,
           annotationFeeder,
           saveAnnotation,
-          saveTask: storeLinkedData,
+          saveLinkedData: storeLinkedData,
+          searchCompletionIndex: completionIndex.searchIndex,
           subscribe: completionIndex.subscribe(store.readLinkedData),
         })
       );

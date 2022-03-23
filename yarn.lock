@@ -9224,23 +9224,17 @@ linki-ui@^0.1.2:
     linki "^0.1.7"
     linki-experimental "^0.4.0"
 
-linki-ui@^0.1.4:
-  version "0.1.4"
-  resolved "https://registry.yarnpkg.com/linki-ui/-/linki-ui-0.1.4.tgz#22630db37a4132565e5ccc35ae4c22523c4b00d8"
-  integrity sha512-dPjV4CryjdMtExtjypj1/N9XaUn11uaD8Qirxr4FEixtjQqf9C1AvKb4WetzfQuxXslhnRnZYzVw6hNH79fr2g==
+linki-ui@^0.1.5:
+  version "0.1.5"
+  resolved "https://registry.yarnpkg.com/linki-ui/-/linki-ui-0.1.5.tgz#51ebb7f1766fc42b5616e99161cc6a425d477565"
+  integrity sha512-DQCopzFFaBENF+8AO3mtDJzt146opb44UzKIhhsw6DaP7QphI5Jb751JHoXNafUI9/VYLAGjtZXmiUvsE8yJsw==
   dependencies:
-    linki "^0.1.10"
-    linki-experimental "^0.4.0"
+    linki "^0.1.15"
 
-linki@^0.1.10:
-  version "0.1.10"
-  resolved "https://registry.yarnpkg.com/linki/-/linki-0.1.10.tgz#e6b07317bc5a4e60d56f8a00860a307790c0f043"
-  integrity sha512-KAr9Jlyh+56BjIuhanxqs+3sf3kB/9rJ2kysoYYJeYa6UBRnyrzKfHkbCPp784rEwdOPSkcfz2nijJu199237g==
-
-linki@^0.1.14:
-  version "0.1.14"
-  resolved "https://registry.yarnpkg.com/linki/-/linki-0.1.14.tgz#c7480ca80dfcb8b8f82ba06647e244c46d536f60"
-  integrity sha512-FIad/kO/CwLmRI0bcPPqHHo1Yc10t6LaQu/hLz7l+BlzBOHDXhfCI+m09a01/ipWVpU5Y+Usg8HKTQnV78buJQ==
+linki@^0.1.15:
+  version "0.1.15"
+  resolved "https://registry.yarnpkg.com/linki/-/linki-0.1.15.tgz#a129ac950ceeeb51ab79f802f10b967c54ec2072"
+  integrity sha512-wL6AVVUWZ4l9x1XRZy9c92ULzXLQ1/hr4bc6oUZfJbMFcSpd2J70ptRz9cRwaroI4AIZucc0EssjHMFBp8mbOA==
 
 linki@^0.1.2:
   version "0.1.5"
