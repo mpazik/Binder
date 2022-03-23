@@ -14,8 +14,10 @@ import {
   textarea,
 } from "linki-ui";
 
-import type { CompletionSubscribeIndex } from "../../functions/indexes/completion-index";
-import type { SearchCompletionIndex } from "../../functions/indexes/completion-index";
+import type {
+  CompletionSubscribeIndex,
+  SearchCompletionIndex,
+} from "../../functions/indexes/completion-index";
 import type { Day, Instant } from "../../libs/calendar-ld";
 import { getIntervalData } from "../../libs/calendar-ld";
 import { throwIfUndefined } from "../../libs/errors";
@@ -31,11 +33,11 @@ import type { Annotation } from "../annotations/annotation";
 import type {
   AnnotationsFeeder,
   AnnotationsSaver,
+  AnnotationSaveProps,
 } from "../annotations/service";
-import type { AnnotationSaveProps } from "../annotations/service";
 import { inline, stack } from "../common/spacing";
 import type { Uri } from "../common/uri";
-import { tasksView } from "../tasks";
+import { tasksView } from "../productivity/tasks";
 
 const formatDate = new Intl.DateTimeFormat(undefined, {
   dateStyle: "full",

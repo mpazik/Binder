@@ -9,8 +9,8 @@ import {
   pipe,
 } from "linki";
 
-import type { TaskObject } from "../../../components/tasks/model";
-import type { Complete } from "../../../components/tasks/productivity-vocabulary";
+import type { TaskObject } from "../../../components/productivity/model";
+import type { Complete } from "../../../components/productivity/vocabulary";
 import { removeItem } from "../../../libs/async-pool";
 import { throwIfUndefined } from "../../../libs/errors";
 import type { HashUri } from "../../../libs/hash";

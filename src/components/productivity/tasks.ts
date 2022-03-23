@@ -43,11 +43,7 @@ import { splitMap } from "../../libs/linki";
 import { stack } from "../common/spacing";
 
 import type { TaskObject } from "./model";
-import {
-  createComplete,
-  createTask,
-  createUndo,
-} from "./productivity-vocabulary";
+import { createComplete, createTask, createUndo } from "./vocabulary";
 
 const taskComponent: UiItemComponent<
   TaskObject,
