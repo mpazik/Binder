@@ -1,3 +1,4 @@
+import path from 'path';
 import HtmlWebpackPlugin from "html-webpack-plugin"
 import CopyWebpackPlugin from "copy-webpack-plugin";
 import TerserPlugin from "terser-webpack-plugin";
@@ -5,13 +6,14 @@ import SpeedMeasurePlugin from "speed-measure-webpack-plugin";
 // import BundleAnalyzerPlugin from 'webpack-bundle-analyzer';
 import webpack from "webpack";
 
+const __dirname = path.dirname(new URL(import.meta.url).pathname);
 const sharedConfig = ({ envVariables, productIcon }) => ({
   entry: {
     main: "./src/index.ts",
   },
   output: {
     filename: "[name].js",
-    path: "/build",
+    path:  __dirname + "/build",
     publicPath: '/',
     clean: true
   },
