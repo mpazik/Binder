@@ -58,7 +58,7 @@ const taskComponent: UiItemComponent<
     updateItem: ({ completed, content }) => {
       render(
         li(
-          { class: "f3-light pb-1" },
+          { class: "pb-1" },
           input({
             class: "mr-1 v-align-middle",
             style: { width: "0.9em", height: "0.9em" },
