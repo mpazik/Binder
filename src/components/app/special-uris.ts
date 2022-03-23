@@ -6,3 +6,4 @@ export const isHostPageUri = (uri: string): boolean =>
 
 export const specialDirectoryPath = "directory";
 export const specialDirectoryUri = hostPageUri(specialDirectoryPath);
+export const specialTodayUri = hostPageUri("today");

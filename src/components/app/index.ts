@@ -90,7 +90,7 @@ import {
   updateBrowserHistory,
 } from "../../libs/browser-providers";
 import type { Day } from "../../libs/calendar-ld";
-import { dayType } from "../../libs/calendar-ld";
+import { dayType, getTodayUri } from "../../libs/calendar-ld";
 import type { HashName, HashUri } from "../../libs/hash";
 import { isHashUri } from "../../libs/hash";
 import { storeGetAll } from "../../libs/indexeddb";
@@ -133,6 +133,8 @@ import { dayJournal } from "../journal";
 import { navigation } from "../navigation";
 import { dropdown } from "../navigation/common";
 import { storePage } from "../store";
+
+import { specialTodayUri } from "./special-uris";
 
 type InitServices = {
   fetchTroughProxy: Fetch;
@@ -450,6 +452,7 @@ export const App: Component<
       storeLinkedData
     );
 
+  const loadUriWithHistoryUpdate = fork(updateBrowserHistory, loadUri);
   const [
     navigationSlot,
     {
@@ -493,7 +496,7 @@ export const App: Component<
     {
       updateGdrive,
       upload: store.upload,
-      loadUri: fork(updateBrowserHistory, loadUri),
+      loadUri: loadUriWithHistoryUpdate,
       displayAccountPicker: () => displayAccountPicker({ loading: false }),
     }
   );
@@ -710,7 +713,13 @@ export const App: Component<
   subscribeToSettings(updateDisplaySettings);
   startNav();
 
-  const openPath = link(loadUriWithRecentFragment);
+  const openPath = link(
+    split(({ uri }) => uri === specialTodayUri),
+    [
+      link(map(to(getTodayUri), newUriWithFragment), loadUriWithHistoryUpdate),
+      loadUriWithRecentFragment,
+    ]
+  );
   onClose(browserPathProvider(openPath));
   onClose(documentLinksUriProvider(loadUri));
   onClose(stopNav);

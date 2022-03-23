@@ -1,5 +1,6 @@
+import type { Uri } from "../../components/common/uri";
+
 type IsoDate = string;
-type Uri = string;
 type InstantUri = Uri;
 export type IntervalUri = Uri;
 type DayUri = IntervalUri;
@@ -216,3 +217,5 @@ export const isInstantWithin = <T extends IntervalUri>(
   const end = intervalEndDate(interval);
   return instant < end;
 };
+
+export const getTodayUri = (): DayUri => dayUri(new Date());
