@@ -17,9 +17,12 @@ import {
   withState,
 } from "linki";
 import type { JsonHtml } from "linki-ui";
-import { mountComponent, renderJsonHtmlToDom } from "linki-ui";
+import {
+  mountComponent,
+  renderJsonHtmlToDom,
+  createComponentRenderer,
+} from "linki-ui";
 
-import { createComponentRenderer } from "../../../../linki-ui/src";
 import type {
   AnalyticsSender,
   UpdateAnalyticsRepoAccount,

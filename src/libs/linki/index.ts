@@ -1,3 +1,4 @@
+import { defined, reduce } from "linki";
 import type {
   Callback,
   Callbacks,
@@ -6,11 +7,10 @@ import type {
   ProcessorMultiIn,
   Transformer,
   Tuple,
+  Predicate,
+  ProcessorMultiOut,
 } from "linki";
-import { defined, reduce } from "linki";
-import type { ProcessorMultiOut } from "linki/dist/processors/processor";
 
-import type { Predicate } from "../../../../linki/src";
 import { throwIfUndefined } from "../errors";
 
 export const withEffect = <T>(handler: (data: T) => void) => (data: T): T => {
