@@ -40,9 +40,11 @@ import { quoteSelectorForRange } from "./quote-selector";
 import type { Selection } from "./selection";
 import { currentSelection, selectionPosition } from "./selection";
 import { selectionToolbar } from "./selection-toolbar";
-import type { AnnotationSaveProps } from "./service";
-import type { AnnotationsFeeder } from "./service";
-import type { AnnotationsSaver } from "./service";
+import type {
+  AnnotationSaveProps,
+  AnnotationsFeeder,
+  AnnotationsSaver,
+} from "./service";
 
 type AnnotationSavePropsWithoutRef = Omit<AnnotationSaveProps, "reference">;
 

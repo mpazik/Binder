@@ -41,23 +41,6 @@ export type Schedule = {
   published: string;
 };
 
-export type Undo = {
-  "@context": "https://www.w3.org/ns/activitystreams";
-  "@type": "Undo";
-  object: HashUri;
-  published: string;
-};
-
-export const createUndo = (
-  actionToUndo: HashUri,
-  published = new Date()
-): Undo => ({
-  "@context": "https://www.w3.org/ns/activitystreams",
-  "@type": "Undo",
-  object: actionToUndo,
-  published: published.toISOString(),
-});
-
 export type Habit = {
   "@context": "http://docland.app/productivity.jsonld";
   "@type": "Habit";

@@ -1,7 +1,7 @@
 {
     "@context": {
         "as": "https://www.w3.org/ns/activitystreams#",
-        "dc":      "http://purl.org/dc/elements/1.1/",
+        "dc": "http://purl.org/dc/elements/1.1/",
         "pr": "http://vocabulary.docland.app/productivity#",
         "Task": "pr:Task",
         "Habit": "pr:Habit",

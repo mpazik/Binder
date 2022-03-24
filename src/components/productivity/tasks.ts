@@ -40,10 +40,11 @@ import { throwIfUndefined } from "../../libs/errors";
 import type { HashUri } from "../../libs/hash";
 import type { LinkedData } from "../../libs/jsonld-format";
 import { splitMap } from "../../libs/linki";
+import { createUndo } from "../../vocabulary/activity-streams";
 import { stack } from "../common/spacing";
 
 import type { TaskObject } from "./model";
-import { createComplete, createTask, createUndo } from "./vocabulary";
+import { createComplete, createTask } from "./vocabulary";
 
 const taskComponent: UiItemComponent<
   TaskObject,
