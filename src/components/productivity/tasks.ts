@@ -109,15 +109,12 @@ const completionCreator = (completionDay: Day) => (taskId: HashUri) =>
 export const tasksView: View<{
   subscribe: CompletionSubscribeIndex;
   saveLinkedData: Callback<LinkedData>;
-  completionDay: Day;
+  day: Day;
   searchCompletionIndex: SearchCompletionIndex;
-}> = ({ subscribe, saveLinkedData, completionDay, searchCompletionIndex }) => {
+}> = ({ subscribe, saveLinkedData, day, searchCompletionIndex }) => {
   const createTaskList = () =>
     mountItemComponent(getId, taskComponent, {
-      onCompleted: link(
-        map(head(), completionCreator(completionDay)),
-        saveLinkedData
-      ),
+      onCompleted: link(map(head(), completionCreator(day)), saveLinkedData),
       onUndone: async ([id]) => {
         const record = throwIfUndefined(await searchCompletionIndex(id));
         if (record.completed === 0)
@@ -145,12 +142,12 @@ export const tasksView: View<{
     reduce(arrayChanger(getId), []),
     updateCompletedTasks
   )({
-    since: intervalBeggingDate(completionDay).getTime(),
-    until: intervalEndDate(completionDay).getTime(),
+    since: intervalBeggingDate(day).getTime(),
+    until: intervalEndDate(day).getTime(),
   });
 
   return stack(
-    { gap: "large" },
+    { gap: "medium" },
     h2("Tasks"),
     div(
       h3({ class: "h4" }, "To do"),

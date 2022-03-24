@@ -28,7 +28,11 @@ type RepositoryVersionUpdate = {
   stores: {
     name: string;
     params?: IDBObjectStoreParameters;
-    indexes?: { name: string; keyPath: string; options?: IDBIndexParameters }[];
+    indexes?: {
+      name: string;
+      keyPath: string | string[];
+      options?: IDBIndexParameters;
+    }[];
   }[];
   afterUpdate?: AfterUpdateHook;
   index?: Indexer;

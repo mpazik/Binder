@@ -20,6 +20,7 @@ import type {
   CompletionSubscribeIndex,
   SearchCompletionIndex,
 } from "../../functions/indexes/completion-index";
+import type { HabitSubscribeIndex } from "../../functions/indexes/habit-index";
 import type { Day, Instant } from "../../libs/calendar-ld";
 import { getIntervalData } from "../../libs/calendar-ld";
 import { throwIfUndefined } from "../../libs/errors";
@@ -39,6 +40,7 @@ import type {
 } from "../annotations/service";
 import { inline, stack } from "../common/spacing";
 import type { Uri } from "../common/uri";
+import { habitsView } from "../productivity/habits";
 import { tasksView } from "../productivity/tasks";
 
 const formatDate = new Intl.DateTimeFormat(undefined, {
@@ -187,14 +189,16 @@ export const dayJournal = ({
   day,
   annotationFeeder,
   saveAnnotation,
-  subscribe,
+  subscribeCompletable,
+  subscribeHabits,
   saveLinkedData,
   searchCompletionIndex,
 }: {
   day: Day;
   annotationFeeder: AnnotationsFeeder;
   saveAnnotation: AnnotationsSaver;
-  subscribe: CompletionSubscribeIndex;
+  subscribeCompletable: CompletionSubscribeIndex;
+  subscribeHabits: HabitSubscribeIndex;
   saveLinkedData: Callback<LinkedData>;
   searchCompletionIndex: SearchCompletionIndex;
 }): JsonHtml => {
@@ -220,17 +224,21 @@ export const dayJournal = ({
     }),
     stack(
       { gap: "large" },
-      div(h2("Comments"), dom(annotationsRoot)),
-      div(
-        h3({ class: "h4" }, "Add comment"),
-        annotationForm({ dayUri, onSave: saveAnnotation })
-      )
-    ),
-    tasksView({
-      saveLinkedData,
-      subscribe,
-      searchCompletionIndex,
-      completionDay: day,
-    })
+      stack(
+        { gap: "medium" },
+        div(h2("Comments"), dom(annotationsRoot)),
+        div(
+          h3({ class: "h4" }, "Add comment"),
+          annotationForm({ dayUri, onSave: saveAnnotation })
+        )
+      ),
+      habitsView({ day, subscribe: subscribeHabits, saveLinkedData }),
+      tasksView({
+        saveLinkedData,
+        subscribe: subscribeCompletable,
+        searchCompletionIndex,
+        day,
+      })
+    )
   );
 };

@@ -51,6 +51,7 @@ import { createAnnotationsIndex } from "../../functions/indexes/annotations-inde
 import { createCompletionIndex } from "../../functions/indexes/completion-index";
 import { createCompositeIndexer } from "../../functions/indexes/composite-indexer";
 import { createDirectoryIndex } from "../../functions/indexes/directory-index";
+import { createHabitIndex } from "../../functions/indexes/habit-index";
 import type { SettingsRecord } from "../../functions/indexes/settings-index";
 import {
   createSettingsIndexer,
@@ -251,6 +252,7 @@ export const App: Component<
   const directoryIndex = createDirectoryIndex();
   const annotationsIndex = createAnnotationsIndex();
   const completionIndex = createCompletionIndex();
+  const habitsIndex = createHabitIndex();
   const [
     watchHistoryStore,
     switchRepoForWatchHistory,
@@ -278,6 +280,7 @@ export const App: Component<
       updateSettings
     ),
     completionIndex.update,
+    habitsIndex.update,
   ]);
   const store = createStore(
     indexLinkedData,
@@ -297,7 +300,8 @@ export const App: Component<
     annotationsIndex.switchRepo,
     switchRepoForWatchHistory,
     switchRepoForSettings,
-    completionIndex.switchRepo
+    completionIndex.switchRepo,
+    habitsIndex.switchRepo
   );
   updateRepo(initRepo);
   const sendError = createErrorSender(sendAnalytics);
@@ -575,7 +579,8 @@ export const App: Component<
           saveAnnotation,
           saveLinkedData: storeLinkedData,
           searchCompletionIndex: completionIndex.searchIndex,
-          subscribe: completionIndex.subscribe(store.readLinkedData),
+          subscribeHabits: habitsIndex.subscribe(store.readLinkedData),
+          subscribeCompletable: completionIndex.subscribe(store.readLinkedData),
         })
       );
     } else {

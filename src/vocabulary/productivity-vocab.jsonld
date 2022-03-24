@@ -7,10 +7,27 @@
     "@graph": [
         {
             "type": "rdfs:Class",
-            "rdfs:comment": "Indicates that an actor completed an object",
+            "rdfs:comment": "Represent a unit of work",
+            "rdfs:label": "Task",
+            "rdfs:subClassOf": "as:Object"
+        },
+        {
+            "type": "rdfs:Class",
+            "rdfs:comment": "Represent a habit",
+            "rdfs:label": "Habit",
+            "rdfs:subClassOf": "as:Object"
+        },
+        {
+            "type": "rdfs:Class",
+            "rdfs:comment": "Represent an event of tracking a habit",
+            "rdfs:label": "HabitTrackEvent",
+            "rdfs:subClassOf": "as:Object"
+        },
+        {
+            "type": "rdfs:Class",
+            "rdfs:comment": "Indicates that an actor completed an object at the time of publishing this event",
             "rdfs:label": "Complete",
             "rdfs:subClassOf": "as:Activity"
-
         },
         {
             "type": "rdfs:Class",
@@ -20,9 +37,21 @@
         },
         {
             "type": "rdfs:Class",
-            "rdfs:comment": "Represent a unit of work",
-            "rdfs:label": "Task",
-            "rdfs:subClassOf": "as:Object"
+            "rdfs:comment": "Indicates that an actor started an object at the time of publishing this event",
+            "rdfs:label": "Start",
+            "rdfs:subClassOf": "as:Activity"
+        },
+        {
+            "type": "rdfs:Class",
+            "rdfs:comment": "Indicates that an actor finished an object at the time of publishing this event",
+            "rdfs:label": "Finish",
+            "rdfs:subClassOf": "as:Activity"
+        },
+        {
+            "type": "rdfs:Property",
+            "rdfs:comment": "A single emoji character representing an icon",
+            "rdfs:label": "emojiIcon",
+            "rdfs:range": "xsd:string"
         }
     ]
 }

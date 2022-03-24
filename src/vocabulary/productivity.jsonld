@@ -1,10 +1,15 @@
 {
     "@context": {
         "as": "https://www.w3.org/ns/activitystreams#",
+        "dc":      "http://purl.org/dc/elements/1.1/",
         "pr": "http://vocabulary.docland.app/productivity#",
         "Task": "pr:Task",
+        "Habit": "pr:Habit",
+        "HabitTrackEvent": "pr:HabitTrackEvent",
         "Complete": "pr:Complete",
         "Schedule": "pr:Schedule",
+        "Start": "pr:Start",
+        "Finish": "pr:Finish",
         "content": "as:content",
         "object": {
             "@id": "as:object",
@@ -13,6 +18,18 @@
         "published": {
             "@id": "as:published",
             "@type": "xsd:dateTime"
+        },
+        "emojiIcon": {
+            "@id": "pr:emojiIcon",
+            "@type": "xsd:string"
+        },
+        "title": {
+            "@id": "dc:title",
+            "@type": "xsd:string"
+        },
+        "description": {
+            "@id": "dc:description",
+            "@type": "xsd:string"
         }
     }
 }

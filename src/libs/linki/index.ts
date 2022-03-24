@@ -149,3 +149,5 @@ export const withMultiState = <S extends Tuple, V = void>(
 export const logIt = <T>(name = "🧐 ㏒: "): Callback<T> => (value) => {
   console.log(name, value);
 };
+
+export const as = <A>() => <T extends A>(x: T): T => x;
