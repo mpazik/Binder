@@ -14,14 +14,15 @@ import {
   textarea,
   inputValue,
   resetInput,
+  mountComponent,
 } from "linki-ui";
 
 import type { AnnotationsSubscribe } from "../../functions/indexes/annotations-index";
 import type {
-  CompletionSubscribeIndex,
+  CompletionSubscribe,
   SearchCompletionIndex,
 } from "../../functions/indexes/completion-index";
-import type { HabitSubscribeIndex } from "../../functions/indexes/habit-index";
+import type { HabitSubscribe } from "../../functions/indexes/habit-index";
 import type { Day, Instant } from "../../libs/calendar-ld";
 import { getIntervalData } from "../../libs/calendar-ld";
 import { throwIfUndefined } from "../../libs/errors";
@@ -40,8 +41,8 @@ import type {
 } from "../annotations/service";
 import { inline, stack } from "../common/spacing";
 import type { Uri } from "../common/uri";
-import { habitsView } from "../productivity/habits";
-import { tasksView } from "../productivity/tasks";
+import { habits } from "../productivity/habits";
+import { tasks } from "../productivity/tasks";
 
 const formatDate = new Intl.DateTimeFormat(undefined, {
   dateStyle: "full",
@@ -197,8 +198,8 @@ export const dayJournal = ({
   day: Day;
   annotationSubscribe: AnnotationsSubscribe;
   saveAnnotation: AnnotationsSaver;
-  subscribeCompletable: CompletionSubscribeIndex;
-  subscribeHabits: HabitSubscribeIndex;
+  subscribeCompletable: CompletionSubscribe;
+  subscribeHabits: HabitSubscribe;
   saveLinkedData: Callback<LinkedData>;
   searchCompletionIndex: SearchCompletionIndex;
 }): UiComponent => ({ render }) => {
@@ -209,6 +210,18 @@ export const dayJournal = ({
     (throwIfUndefined(
       getIntervalData(day.hasBeginning)
     ) as Instant).inXSDDateTimeStamp
+  );
+
+  const [tasksSlot] = mountComponent(
+    tasks({
+      saveLinkedData,
+      subscribe: subscribeCompletable,
+      searchCompletionIndex,
+      day,
+    })
+  );
+  const [habitsSlot] = mountComponent(
+    habits({ day, subscribe: subscribeHabits, saveLinkedData })
   );
 
   render(
@@ -228,13 +241,8 @@ export const dayJournal = ({
             annotationForm({ dayUri, onSave: saveAnnotation })
           )
         ),
-        habitsView({ day, subscribe: subscribeHabits, saveLinkedData }),
-        tasksView({
-          saveLinkedData,
-          subscribe: subscribeCompletable,
-          searchCompletionIndex,
-          day,
-        })
+        habitsSlot,
+        tasksSlot
       )
     )
   );

@@ -1,7 +1,8 @@
-import type { ArrayChange, Callback, Close, Processor } from "linki";
+import type { ArrayChange, Callback, ClosableProvider } from "linki";
 import {
   asyncMapWithErrorHandler,
   cast,
+  filter,
   ignore,
   link,
   map,
@@ -60,7 +61,7 @@ export type HabitQuery = {
   intervals: IntervalUris;
 };
 type HabitChange = ArrayChange<HabitObject, HabitUri>;
-export type HabitSubscribeIndex = Processor<HabitQuery, HabitChange>;
+export type HabitSubscribe = (q: HabitQuery) => ClosableProvider<HabitChange>;
 
 type HabitObjectInput = [HabitUri, IntervalUris];
 const crateHabitObjectBuilder = (
@@ -105,40 +106,46 @@ export const createHabitSubscribe = (
   ldStoreRead: LinkedDataStoreRead,
   addListener: Callback<Callback<HabitUri>>,
   removeListener: Callback<Callback<HabitUri>>
-): HabitSubscribeIndex => (callback) => {
+): HabitSubscribe => ({ intervals }) => (callback) => {
   const habitObjectBuilder = crateHabitObjectBuilder(
     ldStoreRead,
     habitTrackEventStore
   );
+  let closed = false;
   const sendTask: Callback<HabitObjectInput> = link(
     asyncMapWithErrorHandler(habitObjectBuilder, (error) =>
       console.error(error)
     ),
+    filter(() => !closed),
     map((it) => ["set", it] as HabitChange),
     callback
   );
 
-  let closeOldListener: Close | undefined;
+  const withIntervalsContext = withContext<HabitUri, IntervalUris>(
+    () => intervals
+  );
+  storeGetAll<HabitRecord>(habitStore)
+    .then((habits) => {
+      if (closed) return;
+      return Promise.all(
+        habits
+          .map(pipe(pick("habit"), withIntervalsContext))
+          .map(habitObjectBuilder)
+      );
+    })
+    .then((habitObjects) => {
+      if (closed || !habitObjects) return;
+      callback(["to", habitObjects] as HabitChange);
+    });
 
-  return async ({ intervals }) => {
-    if (closeOldListener) closeOldListener();
-    const withIntervalsContext = withContext<HabitUri, IntervalUris>(
-      () => intervals
-    );
-    const habits = await storeGetAll<HabitRecord>(habitStore);
-    const habitObjects = await Promise.all(
-      habits
-        .map(pipe(pick("habit"), withIntervalsContext))
-        .map(habitObjectBuilder)
-    );
-    callback(["to", habitObjects] as HabitChange);
-
-    const listener: Callback<HabitUri> = link(
-      map(withIntervalsContext),
-      sendTask
-    );
-    addListener(listener);
-    closeOldListener = () => removeListener(listener);
+  const listener: Callback<HabitUri> = link(
+    map(withIntervalsContext),
+    sendTask
+  );
+  addListener(listener);
+  return () => {
+    removeListener(listener);
+    closed = true;
   };
 };
 
@@ -192,12 +199,10 @@ export const createHabitTrackEventIndexer = (
 export const createHabitIndex = (): {
   switchRepo: (db: RepositoryDb) => void;
   update: UpdateIndex;
-  subscribe: (ldRead: LinkedDataStoreRead) => HabitSubscribeIndex;
+  subscribe: (ldRead: LinkedDataStoreRead) => HabitSubscribe;
 } => {
   let update: UpdateIndex | undefined;
-  let subscribe:
-    | ((ldRead: LinkedDataStoreRead) => HabitSubscribeIndex)
-    | undefined;
+  let subscribe: ((ldRead: LinkedDataStoreRead) => HabitSubscribe) | undefined;
 
   return {
     update: (ld) => throwIfUndefined(update)(ld),

@@ -1,4 +1,4 @@
-import type { ArrayChange, Callback, Close, Predicate, Processor } from "linki";
+import type { ArrayChange, Callback, ClosableProvider, Predicate } from "linki";
 import {
   asyncMapWithErrorHandler,
   defined,
@@ -122,7 +122,9 @@ export type CompletionQuery =
       until: number;
     };
 type TodosChange = ArrayChange<TaskObject, HashUri>;
-export type CompletionSubscribeIndex = Processor<CompletionQuery, TodosChange>;
+export type CompletionSubscribe = (
+  q: CompletionQuery
+) => ClosableProvider<TodosChange>;
 
 const satisfiesQuery = (
   query: CompletionQuery
@@ -183,14 +185,16 @@ export const createCompletionSubscribe = (
   ldStoreRead: LinkedDataStoreRead,
   addListener: Callback<Callback<CompletionRecordChange>>,
   removeListener: Callback<Callback<CompletionRecordChange>>
-): CompletionSubscribeIndex => (callback) => {
+): CompletionSubscribe => (query) => (callback) => {
   const taskObjectBuilder = crateTaskObjectBuilder(ldStoreRead);
   const taskObjectsBuilder = crateTaskObjectsBuilder(taskObjectBuilder);
-  let closeOldListener: Close | undefined;
+  let closed = false;
+
   const sendTask: Callback<CompletionRecord> = link(
     asyncMapWithErrorHandler(taskObjectBuilder, (error) =>
       console.error(error)
     ),
+    filter(() => !closed),
     map((it) => ["set", it] as TodosChange),
     callback
   );
@@ -199,65 +203,76 @@ export const createCompletionSubscribe = (
     callback
   );
 
-  return (query) => {
-    if (closeOldListener) closeOldListener();
+  if (defined((query as { object: HashUri }).object)) {
+    const objectHash = (query as { object: HashUri }).object;
 
-    if (defined((query as { object: HashUri }).object)) {
-      const objectHash = (query as { object: HashUri }).object;
-
-      storeGet<CompletionRecord>(store, objectHash).then(
-        link(
-          filter<CompletionRecord | undefined, CompletionRecord>(defined),
-          sendTask
-        )
-      );
-    } else if (defined((query as { completed: boolean }).completed)) {
-      const completed = (query as { completed: boolean }).completed ? 1 : 0;
-      reqToPromise<CompletionRecord[]>(
-        store().index("completed").getAll(completed)
+    storeGet<CompletionRecord>(store, objectHash).then(
+      link(
+        filter<CompletionRecord | undefined, CompletionRecord>(defined),
+        sendTask
       )
-        .then(taskObjectsBuilder)
-        .then((it) => callback(["to", it] as TodosChange));
-    } else if (
-      defined((query as { since: number }).since) &&
-      defined((query as { until: number }).until)
-    ) {
-      const since = (query as { since: number }).since;
-      const until = (query as { until: number }).until;
-      reqToPromise<CompletionRecord[]>(
-        store()
-          .index("timestamp")
-          .getAll(IDBKeyRange.bound(since, until, false, true))
-      )
-        .then(taskObjectsBuilder)
-        .then((it) => callback(["to", it] as TodosChange));
-    }
-
-    const queryCheck = satisfiesQuery(query);
-
-    // An experiment of working with contexts. It is a little clunky but possible
-    const listener: Callback<CompletionRecordChange> = link(
-      map(
-        withContext(({ current, previous }) => ({
-          currentMatch: queryCheck(current),
-          previousMatch: previous ? queryCheck(previous) : false,
-        }))
-      ),
-      filter(
-        pipe(
-          pickContext(),
-          ({ currentMatch, previousMatch }) => currentMatch !== previousMatch
-        )
-      ),
-      splitMap<RecordWithContext, CompletionRecord>(
-        pipe(pickContext(), pick("currentMatch")),
-        pipe(removeContext(), pick("current"))
-      ),
-      [sendTask, sendRemove]
     );
+  } else if (defined((query as { completed: boolean }).completed)) {
+    const completed = (query as { completed: boolean }).completed ? 1 : 0;
+    reqToPromise<CompletionRecord[]>(
+      store().index("completed").getAll(completed)
+    )
+      .then((it) => {
+        if (closed) return;
+        return taskObjectsBuilder(it);
+      })
+      .then((it) => {
+        if (closed || !it) return;
+        callback(["to", it] as TodosChange);
+      });
+  } else if (
+    defined((query as { since: number }).since) &&
+    defined((query as { until: number }).until)
+  ) {
+    const since = (query as { since: number }).since;
+    const until = (query as { until: number }).until;
+    reqToPromise<CompletionRecord[]>(
+      store()
+        .index("timestamp")
+        .getAll(IDBKeyRange.bound(since, until, false, true))
+    )
+      .then((it) => {
+        if (closed) return;
+        return taskObjectsBuilder(it);
+      })
+      .then((it) => {
+        if (closed || !it) return;
+        callback(["to", it] as TodosChange);
+      });
+  }
 
-    addListener(listener);
-    closeOldListener = () => removeListener(listener);
+  const queryCheck = satisfiesQuery(query);
+
+  // An experiment of working with contexts. It is a little clunky but possible
+  const listener: Callback<CompletionRecordChange> = link(
+    map(
+      withContext(({ current, previous }) => ({
+        currentMatch: queryCheck(current),
+        previousMatch: previous ? queryCheck(previous) : false,
+      }))
+    ),
+    filter(
+      pipe(
+        pickContext(),
+        ({ currentMatch, previousMatch }) => currentMatch !== previousMatch
+      )
+    ),
+    splitMap<RecordWithContext, CompletionRecord>(
+      pipe(pickContext(), pick("currentMatch")),
+      pipe(removeContext(), pick("current"))
+    ),
+    [sendTask, sendRemove]
+  );
+
+  addListener(listener);
+  return () => {
+    removeListener(listener);
+    closed = true;
   };
 };
 
@@ -279,12 +294,12 @@ export const createCompletionIndex = (): {
   searchIndex: SearchCompletionIndex;
   switchRepo: (db: RepositoryDb) => void;
   update: UpdateIndex;
-  subscribe: (ldRead: LinkedDataStoreRead) => CompletionSubscribeIndex;
+  subscribe: (ldRead: LinkedDataStoreRead) => CompletionSubscribe;
 } => {
   let update: UpdateIndex | undefined;
   let search: SearchCompletionIndex | undefined;
   let subscribe:
-    | ((ldRead: LinkedDataStoreRead) => CompletionSubscribeIndex)
+    | ((ldRead: LinkedDataStoreRead) => CompletionSubscribe)
     | undefined;
 
   return {

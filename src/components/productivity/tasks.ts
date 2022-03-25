@@ -10,7 +10,7 @@ import {
   map,
   reduce,
 } from "linki";
-import type { UiItemComponent, View } from "linki-ui";
+import type { UiComponent, UiItemComponent, View } from "linki-ui";
 import {
   div,
   getTargetInputValue,
@@ -27,7 +27,7 @@ import {
 } from "linki-ui";
 
 import type {
-  CompletionSubscribeIndex,
+  CompletionSubscribe,
   SearchCompletionIndex,
 } from "../../functions/indexes/completion-index";
 import type { Day } from "../../libs/calendar-ld";
@@ -107,12 +107,17 @@ const completionDate = (completionDay: Day) => {
 const completionCreator = (completionDay: Day) => (taskId: HashUri) =>
   createComplete(taskId, completionDate(completionDay));
 
-export const tasksView: View<{
-  subscribe: CompletionSubscribeIndex;
+export const tasks = ({
+  subscribe,
+  saveLinkedData,
+  day,
+  searchCompletionIndex,
+}: {
+  subscribe: CompletionSubscribe;
   saveLinkedData: Callback<LinkedData>;
   day: Day;
   searchCompletionIndex: SearchCompletionIndex;
-}> = ({ subscribe, saveLinkedData, day, searchCompletionIndex }) => {
+}): UiComponent => ({ render }) => {
   const createTaskList = () =>
     mountItemComponent(getId, taskComponent, {
       onCompleted: link(map(head(), completionCreator(day)), saveLinkedData),
@@ -130,34 +135,39 @@ export const tasksView: View<{
     { updateItems: updateCompletedTasks },
   ] = createTaskList();
 
-  link(
-    subscribe,
-    reduce(arrayChanger(getId), []),
-    updateTodoTasks
-  )({
-    completed: false,
-  });
-
-  link(
-    subscribe,
-    reduce(arrayChanger(getId), []),
-    updateCompletedTasks
-  )({
-    since: intervalBeggingDate(day).getTime(),
-    until: intervalEndDate(day).getTime(),
-  });
-
-  return stack(
-    { gap: "medium" },
-    h2("Tasks"),
-    div(
-      h3({ class: "h4" }, "To do"),
-      ul({ class: "list-style-none" }, todoTasks),
-      taskInput({ onSubmit: link(map(createTask), saveLinkedData) })
-    ),
-    div(
-      h3({ class: "h4" }, "Completed that day"),
-      ul({ class: "list-style-none" }, completedTasks)
+  render(
+    stack(
+      { gap: "medium" },
+      h2("Tasks"),
+      div(
+        h3({ class: "h4" }, "To do"),
+        ul({ class: "list-style-none" }, todoTasks),
+        taskInput({ onSubmit: link(map(createTask), saveLinkedData) })
+      ),
+      div(
+        h3({ class: "h4" }, "Completed that day"),
+        ul({ class: "list-style-none" }, completedTasks)
+      )
     )
   );
+
+  return {
+    stop: fork(
+      link(
+        subscribe({
+          completed: false,
+        }),
+        reduce(arrayChanger(getId), []),
+        updateTodoTasks
+      ),
+      link(
+        subscribe({
+          since: intervalBeggingDate(day).getTime(),
+          until: intervalEndDate(day).getTime(),
+        }),
+        reduce(arrayChanger(getId), []),
+        updateCompletedTasks
+      )
+    ),
+  };
 };

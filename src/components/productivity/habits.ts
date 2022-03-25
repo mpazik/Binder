@@ -1,6 +1,6 @@
 import type { Callback } from "linki";
-import { arrayChanger, link, logger, map, reduce } from "linki";
-import type { UiItemComponent, View } from "linki-ui";
+import { arrayChanger, link, map, reduce } from "linki";
+import type { UiComponent, UiItemComponent, View } from "linki-ui";
 import {
   div,
   getTargetInputValue,
@@ -13,7 +13,7 @@ import {
   td,
 } from "linki-ui";
 
-import type { HabitSubscribeIndex } from "../../functions/indexes/habit-index";
+import type { HabitSubscribe } from "../../functions/indexes/habit-index";
 import type { Day, IntervalUri } from "../../libs/calendar-ld";
 import type { HashUri } from "../../libs/hash";
 import type { LinkedData } from "../../libs/jsonld-format";
@@ -89,11 +89,15 @@ const habitComponent = (
 
 const getId = (it: HabitObject): HashUri => it.id;
 
-export const habitsView: View<{
-  subscribe: HabitSubscribeIndex;
+export const habits = ({
+  day,
+  subscribe,
+  saveLinkedData,
+}: {
+  subscribe: HabitSubscribe;
   saveLinkedData: Callback<LinkedData>;
   day: Day;
-}> = ({ day, subscribe, saveLinkedData }) => {
+}): UiComponent => ({ render }) => {
   const [habits, { updateItems }] = mountItemComponent(
     getId,
     habitComponent([day["@id"]]),
@@ -115,16 +119,18 @@ export const habitsView: View<{
     }
   );
 
-  link(
-    subscribe,
-    logger("d"),
-    reduce(arrayChanger(getId), []),
-    updateItems
-  )({ intervals: [day["@id"]] });
-
-  return stack(
-    { gap: "medium" },
-    h2("Habits"),
-    div({ class: "markdown-body" }, table(habits))
+  render(
+    stack(
+      { gap: "medium" },
+      h2("Habits"),
+      div({ class: "markdown-body" }, table(habits))
+    )
   );
+  return {
+    stop: link(
+      subscribe({ intervals: [day["@id"]] }),
+      reduce(arrayChanger(getId), []),
+      updateItems
+    ),
+  };
 };
