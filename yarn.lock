@@ -9224,10 +9224,10 @@ linki-ui@^0.1.2:
     linki "^0.1.7"
     linki-experimental "^0.4.0"
 
-linki-ui@^0.1.6:
-  version "0.1.6"
-  resolved "https://registry.yarnpkg.com/linki-ui/-/linki-ui-0.1.6.tgz#3335a360d5b2af6da051912a3e6072c2267b7362"
-  integrity sha512-/3iDb1on1aiTuBC+6E0keOZCKiqp9DAX2IGB1ueT1ETQbpaPk2P1QVpKt8zJE46AzI+/xtB6VlthNgzSe/SvVw==
+linki-ui@^0.1.7:
+  version "0.1.7"
+  resolved "https://registry.yarnpkg.com/linki-ui/-/linki-ui-0.1.7.tgz#e29319ce0e37659414199cbe572149541eb49584"
+  integrity sha512-GOp01vuikY3Atc9LfM80vVHPcXQH5uOtSs6NqQ5K+3nfS4g6FCYDihvMGU//O1vxCUXlMBoKlYHVfFMmgRdTXQ==
   dependencies:
     linki "^0.1.15"
 

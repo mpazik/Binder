@@ -11,7 +11,6 @@ import {
   span,
   table,
   td,
-  tr,
 } from "linki-ui";
 
 import type { HabitSubscribeIndex } from "../../functions/indexes/habit-index";
@@ -35,10 +34,10 @@ const habitTrackStatusSelect: View<{
   select(
     {
       class: "f1",
-      style: { fontFamily: "serif", border: "none" },
+      style: { fontFamily: "serif", border: "none", background: "inherit" },
       onChange: link(map(getTargetInputValue), onChange),
     },
-    option({ title: `not tracked` }, "➖"),
+    ...(selected ? [] : [option({ title: `not tracked` }, "➖")]),
     ...Object.values(habitTrackStatuses).map(
       ({ title, emojiIcon, description, uri }) =>
         option(
@@ -59,34 +58,31 @@ const habitComponent = (
   onTrack,
 }) => {
   return {
-    updateItem: ({ id, title, emojiIcon, description, trackEvents }) => {
-      render(
-        tr(
-          { dataSet: { id } },
-          td(
-            div(
-              { class: "d-flex flex-items-center", title: description },
-              span({ class: "f1" }, emojiIcon),
-              title
-            )
-          ),
-          ...intervals.map((interval) => {
-            const event = trackEvents.find((it) => it.interval === interval);
-            return td(
-              habitTrackStatusSelect({
-                selected: event?.status,
-                onChange: link(
-                  map((status) => ({
-                    status,
-                    interval,
-                  })),
-                  onTrack
-                ),
-              })
-            );
-          })
-        )
-      );
+    updateItem: ({ title, emojiIcon, description, trackEvents }) => {
+      render([
+        td(
+          div(
+            { class: "d-flex flex-items-center", title: description },
+            span({ class: "f1" }, emojiIcon),
+            title
+          )
+        ),
+        ...intervals.map((interval) => {
+          const event = trackEvents.find((it) => it.interval === interval);
+          return td(
+            habitTrackStatusSelect({
+              selected: event?.status,
+              onChange: link(
+                map((status) => ({
+                  status,
+                  interval,
+                })),
+                onTrack
+              ),
+            })
+          );
+        }),
+      ]);
     },
   };
 };
@@ -108,6 +104,14 @@ export const habitsView: View<{
         ),
         saveLinkedData
       ),
+    },
+    {
+      parentTag: "table",
+      childrenElementFactory: (id) => {
+        const child = document.createElement("tr");
+        child.setAttribute("data-set", id);
+        return child;
+      },
     }
   );
 
