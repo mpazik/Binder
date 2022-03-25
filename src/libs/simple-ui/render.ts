@@ -79,7 +79,9 @@ const getComponentHandlers = <P extends object>(
   return [
     (render, onClose) => {
       handlers = (runtime(render, onClose) as unknown) as Handlers<P>;
-      onClose(() => (handlers = undefined));
+      onClose(() => {
+        handlers = undefined;
+      });
     },
     proxy,
   ];
@@ -325,8 +327,14 @@ export const setupComponent = (
   element: Element
 ): Deactivate => {
   const [onClose, close] = newCloseController();
-  runtime(slotHandler(element), onClose);
-  return close;
+  const render = slotHandler(element);
+  runtime(render, onClose);
+  return () => {
+    close();
+    // empty it to close all the children
+    // done after closing component as parent often ask children before closing
+    render();
+  };
 };
 
 const setDifference = <T>(setA: Set<T>, setB: Set<T>): Set<T> =>
