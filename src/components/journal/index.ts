@@ -1,6 +1,6 @@
 import type { Callback } from "linki";
 import { and, filter, fork, link, map, or, to } from "linki";
-import type { JsonHtml, View, Render } from "linki-ui";
+import type { View, Render, UiComponent } from "linki-ui";
 import {
   a,
   div,
@@ -16,6 +16,7 @@ import {
   resetInput,
 } from "linki-ui";
 
+import type { AnnotationsSubscribe } from "../../functions/indexes/annotations-index";
 import type {
   CompletionSubscribeIndex,
   SearchCompletionIndex,
@@ -34,7 +35,6 @@ import {
 import { formatDateTime, formatTime } from "../../libs/time";
 import type { Annotation } from "../annotations/annotation";
 import type {
-  AnnotationsFeeder,
   AnnotationsSaver,
   AnnotationSaveProps,
 } from "../annotations/service";
@@ -187,7 +187,7 @@ export const createAppendRenderer = (root: HTMLElement): Render => (
 
 export const dayJournal = ({
   day,
-  annotationFeeder,
+  annotationSubscribe,
   saveAnnotation,
   subscribeCompletable,
   subscribeHabits,
@@ -195,13 +195,13 @@ export const dayJournal = ({
   searchCompletionIndex,
 }: {
   day: Day;
-  annotationFeeder: AnnotationsFeeder;
+  annotationSubscribe: AnnotationsSubscribe;
   saveAnnotation: AnnotationsSaver;
   subscribeCompletable: CompletionSubscribeIndex;
   subscribeHabits: HabitSubscribeIndex;
   saveLinkedData: Callback<LinkedData>;
   searchCompletionIndex: SearchCompletionIndex;
-}): JsonHtml => {
+}): UiComponent => ({ render }) => {
   const annotationsRoot = renderJsonHtmlToDom(stack()) as HTMLElement;
   const renderAnnotations = createAppendRenderer(annotationsRoot);
   const dayUri = day["@id"];
@@ -210,35 +210,39 @@ export const dayJournal = ({
       getIntervalData(day.hasBeginning)
     ) as Instant).inXSDDateTimeStamp
   );
-  link(
-    annotationFeeder,
-    map(annotationView(dayDate)),
-    renderAnnotations
-  )({ reference: dayUri });
 
-  return div(
-    { class: "with-line-length-settings my-10" },
-    dayJournalHeader({
-      day,
-      dayDate,
-    }),
-    stack(
-      { gap: "large" },
-      stack(
-        { gap: "medium" },
-        div(h2("Comments"), dom(annotationsRoot)),
-        div(
-          h3({ class: "h4" }, "Add comment"),
-          annotationForm({ dayUri, onSave: saveAnnotation })
-        )
-      ),
-      habitsView({ day, subscribe: subscribeHabits, saveLinkedData }),
-      tasksView({
-        saveLinkedData,
-        subscribe: subscribeCompletable,
-        searchCompletionIndex,
+  render(
+    div(
+      { class: "with-line-length-settings my-10" },
+      dayJournalHeader({
         day,
-      })
+        dayDate,
+      }),
+      stack(
+        { gap: "large" },
+        stack(
+          { gap: "medium" },
+          div(h2("Comments"), dom(annotationsRoot)),
+          div(
+            h3({ class: "h4" }, "Add comment"),
+            annotationForm({ dayUri, onSave: saveAnnotation })
+          )
+        ),
+        habitsView({ day, subscribe: subscribeHabits, saveLinkedData }),
+        tasksView({
+          saveLinkedData,
+          subscribe: subscribeCompletable,
+          searchCompletionIndex,
+          day,
+        })
+      )
     )
   );
+  return {
+    stop: link(
+      annotationSubscribe({ reference: dayUri }),
+      map(annotationView(dayDate)),
+      renderAnnotations
+    ),
+  };
 };

@@ -291,7 +291,7 @@ export const createCompletionIndex = (): {
     searchIndex: (key) => throwIfUndefined(search)(key),
     update: (ld) => throwIfUndefined(update)(ld),
     subscribe: (ldRead: LinkedDataStoreRead) => (q) =>
-      throwIfUndefined(subscribe ? subscribe(ldRead) : undefined)(q),
+      throwIfUndefined(subscribe)(ldRead)(q),
     switchRepo: (db) => {
       const store: CompletionStore = db.getStoreProvider(completionStoreName);
       const listeners: Callback<CompletionRecordChange>[] = [];

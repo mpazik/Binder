@@ -115,10 +115,7 @@ import type {
 } from "../../libs/simple-ui/render";
 import { div, newSlot } from "../../libs/simple-ui/render";
 import { accountPicker } from "../account-picker";
-import {
-  createAnnotationFeeder,
-  createAnnotationSaverWithContext,
-} from "../annotations/service";
+import { createAnnotationSaverWithContext } from "../annotations/service";
 import { loader } from "../common/loader";
 import { contentComponent } from "../content";
 import { docsDirectory } from "../directory";
@@ -519,10 +516,6 @@ export const App: Component<
     )
   );
 
-  const annotationFeeder = createAnnotationFeeder({
-    ldStoreRead: store.readLinkedData,
-    subscribe: annotationsIndex.subscribe,
-  });
   const {
     saveAnnotation,
     setCreator: setCreatorForAnnotations,
@@ -542,7 +535,7 @@ export const App: Component<
       onSave: ignore,
       onDisplay: hideNav,
       saveAnnotation,
-      annotationFeeder,
+      annotationSubscribe: annotationsIndex.subscribe(store.readLinkedData),
     })
   );
 
@@ -572,10 +565,10 @@ export const App: Component<
         })();
       }
     } else if (dataType === dayType) {
-      displayJsonHtml(
+      const [component] = mountComponent(
         dayJournal({
           day: data.linkedData as Day,
-          annotationFeeder,
+          annotationSubscribe: annotationsIndex.subscribe(store.readLinkedData),
           saveAnnotation,
           saveLinkedData: storeLinkedData,
           searchCompletionIndex: completionIndex.searchIndex,
@@ -583,6 +576,7 @@ export const App: Component<
           subscribeCompletable: completionIndex.subscribe(store.readLinkedData),
         })
       );
+      displayJsonHtml(component);
     } else {
       const linkedDataWithContent: LinkedDataWithContent = isLinkedDataWithBody(
         data

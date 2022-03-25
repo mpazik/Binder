@@ -19,6 +19,10 @@ import {
   combine,
 } from "linki";
 
+import type {
+  AnnotationsQuery,
+  AnnotationsSubscribe,
+} from "../../functions/indexes/annotations-index";
 import { throwIfNull } from "../../libs/errors";
 import type { HashUri } from "../../libs/hash";
 import { withMultiState } from "../../libs/linki";
@@ -40,11 +44,7 @@ import { quoteSelectorForRange } from "./quote-selector";
 import type { Selection } from "./selection";
 import { currentSelection, selectionPosition } from "./selection";
 import { selectionToolbar } from "./selection-toolbar";
-import type {
-  AnnotationSaveProps,
-  AnnotationsFeeder,
-  AnnotationsSaver,
-} from "./service";
+import type { AnnotationSaveProps, AnnotationsSaver } from "./service";
 
 type AnnotationSavePropsWithoutRef = Omit<AnnotationSaveProps, "reference">;
 
@@ -72,14 +72,14 @@ export const annotationsSupport: Component<
   {
     requestDocumentSave: () => void;
     saveAnnotation: AnnotationsSaver;
-    annotationFeeder: AnnotationsFeeder;
+    annotationSubscribe: AnnotationsSubscribe;
   },
   {
     displayDocumentAnnotations: AnnotationDisplayRequest;
     setContainer: HTMLElement;
     setReference: HashUri | undefined;
   }
-> = ({ annotationFeeder, requestDocumentSave, saveAnnotation }) => (
+> = ({ annotationSubscribe, requestDocumentSave, saveAnnotation }) => (
   render,
   onClose
 ) => {
@@ -238,11 +238,16 @@ export const annotationsSupport: Component<
     })
   );
 
-  const subscribeForAnnotations = link(
-    annotationFeeder,
-    map((annotation): ["display", Annotation] => ["display", annotation]),
-    changeSelection
-  );
+  let closeSubscription: Callback = () => {};
+  const subscribeForAnnotations: Callback<AnnotationsQuery> = (query) => {
+    closeSubscription();
+    closeSubscription = link(
+      annotationSubscribe(query),
+      map((annotation): ["display", Annotation] => ["display", annotation]),
+      changeSelection
+    );
+  };
+
   const [setReferenceForAnnotationDisplay, displayDocumentAnnotations] = link(
     combine<[Uri | undefined, AnnotationDisplayRequest | undefined]>(
       undefined,
@@ -261,6 +266,7 @@ export const annotationsSupport: Component<
   document.addEventListener("mouseup", detectSelection);
   onClose(() => {
     document.removeEventListener("mouseup", detectSelection);
+    closeSubscription();
   });
 
   render(div(commentFormSlot, annotationDisplaySlot, selectionToolbarSlot));

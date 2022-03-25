@@ -3,6 +3,7 @@ import { link, map, pick, fork, withOptionalState } from "linki";
 
 import type { LinkedDataWithContent } from "../../functions/content-processors";
 import type { ContentSaver } from "../../functions/content-saver";
+import type { AnnotationsSubscribe } from "../../functions/indexes/annotations-index";
 import type { LinkedDataStoreWrite } from "../../functions/store";
 import { throwIfNull2 } from "../../libs/errors";
 import type { HashUri } from "../../libs/hash";
@@ -17,10 +18,7 @@ import type { Component } from "../../libs/simple-ui/render";
 import { div, newSlot } from "../../libs/simple-ui/render";
 import { getTarget } from "../../libs/simple-ui/utils/funtions";
 import { annotationsSupport } from "../annotations";
-import type {
-  AnnotationsFeeder,
-  AnnotationsSaver,
-} from "../annotations/service";
+import type { AnnotationsSaver } from "../annotations/service";
 import { isLocalUri } from "../common/uri";
 import type { LinkedDataWithContentAndFragment } from "../content-body";
 import { contentDisplayComponent } from "../content-body";
@@ -40,7 +38,7 @@ export const contentComponent: Component<
     contentSaver: ContentSaver;
     ldStoreWrite: LinkedDataStoreWrite;
     onSave: Callback<LinkedDataWithHashId>;
-    annotationFeeder: AnnotationsFeeder;
+    annotationSubscribe: AnnotationsSubscribe;
     saveAnnotation: AnnotationsSaver;
     onDisplay: Callback;
   },
@@ -54,7 +52,7 @@ export const contentComponent: Component<
   onSave,
   onDisplay,
   saveAnnotation,
-  annotationFeeder,
+  annotationSubscribe,
 }) => (render, onClose) => {
   const storeData = (data: LinkedDataWithContent, retry: () => void) => {
     try {
@@ -124,7 +122,7 @@ export const contentComponent: Component<
   ] = newSlot(
     "annotation-support",
     annotationsSupport({
-      annotationFeeder,
+      annotationSubscribe,
       saveAnnotation,
       requestDocumentSave: saveContent,
     })

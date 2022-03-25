@@ -1,14 +1,5 @@
-import type { Callback, Component, Processor } from "linki";
-import {
-  asyncMapWithErrorHandler,
-  cast,
-  defined,
-  filter,
-  link,
-  map,
-  nonNull,
-  valueWithState,
-} from "linki";
+import type { Callback, Component } from "linki";
+import { cast, link, map, nonNull, valueWithState } from "linki";
 
 import type {
   AnnotationsIndex,
@@ -23,8 +14,6 @@ import { createAnnotation } from "./annotation";
 export type AnnotationsFetcher = (
   query: AnnotationsQuery
 ) => Promise<Annotation[]>;
-
-export type AnnotationsFeeder = Processor<AnnotationsQuery, Annotation>;
 
 export type AnnotationsSaver = Callback<AnnotationSaveProps>;
 
@@ -45,21 +34,6 @@ export const createAnnotationFetcher = ({
     return result.filter(nonNull).map(cast());
   };
 };
-
-export const createAnnotationFeeder = ({
-  ldStoreRead,
-  subscribe,
-}: {
-  ldStoreRead: LinkedDataStoreRead;
-  subscribe: AnnotationsIndex["subscribe"];
-}): AnnotationsFeeder => (callback) =>
-  link(
-    subscribe,
-    asyncMapWithErrorHandler(ldStoreRead, (error) => console.error(error)),
-    filter(defined),
-    cast(),
-    callback
-  );
 
 export type AnnotationSaveProps = { reference: Uri } & (
   | {

@@ -1,5 +1,15 @@
-import type { Callback, Close, Processor, Transformer } from "linki";
-import { link, map, pick, pipe, filter, isEqual } from "linki";
+import type { Callback, ClosableProvider, Transformer } from "linki";
+import {
+  link,
+  map,
+  pick,
+  pipe,
+  filter,
+  isEqual,
+  asyncMapWithErrorHandler,
+  cast,
+  defined,
+} from "linki";
 
 import type { Annotation } from "../../components/annotations/annotation";
 import { isFragmentSelector } from "../../components/annotations/annotation";
@@ -11,6 +21,7 @@ import type { StoreName, StoreProvider } from "../../libs/indexeddb";
 import { storeGet, storePut } from "../../libs/indexeddb";
 import type { LinkedDataWithHashId } from "../../libs/jsonld-format";
 import { isTypeEqualTo } from "../../libs/linked-data";
+import type { LinkedDataStoreRead } from "../store/local-store";
 import { registerRepositoryVersion } from "../store/repository";
 
 import type { DynamicRepoIndex } from "./dynamic-repo-index";
@@ -21,7 +32,9 @@ export type AnnotationsQuery = {
   fragment?: string;
 };
 
-export type AnnotationsSubscribeIndex = Processor<AnnotationsQuery, HashUri>;
+export type AnnotationsSubscribe = (
+  q: AnnotationsQuery
+) => ClosableProvider<Annotation>;
 
 type AnnotationIndexProps = HashUri[];
 export type AnnotationsStore = StoreProvider<AnnotationIndexProps>;
@@ -29,7 +42,7 @@ export type AnnotationsIndex = DynamicRepoIndex<
   AnnotationsQuery,
   AnnotationIndexProps
 > & {
-  subscribe: AnnotationsSubscribeIndex;
+  subscribe: (ldRead: LinkedDataStoreRead) => AnnotationsSubscribe;
 };
 
 const annotationsIndexStoreName = "annotations-index" as StoreName;
@@ -79,45 +92,50 @@ const createAnnotationsIndexer = (
 
 export const createSubscribeAnnotationsIndex = (
   store: AnnotationsStore,
+  ldStoreRead: LinkedDataStoreRead,
   addListener: Callback<Callback<IndexData>>,
   removeListener: Callback<Callback<IndexData>>
-): AnnotationsSubscribeIndex => (callback) => {
-  let closeOldListener: Close | undefined;
-  let currentKey: IndexKey | undefined;
-  return ({ reference, fragment }) => {
-    if (closeOldListener) closeOldListener();
-    const key = recordKey(reference, fragment);
-    currentKey = key;
-    storeGet<AnnotationIndexProps>(store, recordKey(reference, fragment)).then(
-      (annotations = [] as AnnotationIndexProps) => {
-        if (currentKey !== key) {
-          return; // there was another query in between so we want to push stale results
-        }
-        annotations.forEach(callback);
-      }
-    );
+): AnnotationsSubscribe => ({ reference, fragment }) => (callback) => {
+  const key = recordKey(reference, fragment);
+  let closed = false;
+  storeGet<AnnotationIndexProps>(store, recordKey(reference, fragment))
+    .then((annotationsIds = [] as AnnotationIndexProps) => {
+      if (closed) return;
+      return Promise.all(annotationsIds.map(ldStoreRead));
+    })
+    .then((lds) => {
+      if (closed || !lds) return;
+      const annotations: Annotation[] = lds.filter(defined).map(cast());
+      annotations.forEach(callback);
+    });
 
-    const listener: Callback<IndexData> = link(
-      filter(pipe(pick("key"), isEqual(key))),
-      map(pick("hash")),
-      callback
-    );
+  const listener: Callback<IndexData> = link(
+    filter(pipe(pick("key"), isEqual(key))),
+    map(pick("hash")),
+    asyncMapWithErrorHandler(ldStoreRead, (error) => console.error(error)),
+    link(filter(defined), cast(), callback)
+  );
 
-    addListener(listener);
-    closeOldListener = () => removeListener(listener);
+  addListener(listener);
+  return () => {
+    removeListener(listener);
+    closed = true;
   };
 };
 
 export const createAnnotationsIndex = (): AnnotationsIndex => {
   let update: UpdateIndex | undefined;
-  let subscribe: AnnotationsSubscribeIndex | undefined;
+  let subscribe:
+    | ((ldRead: LinkedDataStoreRead) => AnnotationsSubscribe)
+    | undefined;
 
   return {
     search: () => {
       throw new Error("not implemented");
     },
     update: (ld) => throwIfUndefined(update)(ld),
-    subscribe: (q) => throwIfUndefined(subscribe)(q),
+    subscribe: (ldRead: LinkedDataStoreRead) => (q) =>
+      throwIfUndefined(subscribe)(ldRead)(q),
     switchRepo: (db) => {
       const store = db.getStoreProvider(annotationsIndexStoreName);
       const listeners: Callback<IndexData>[] = [];
@@ -125,11 +143,13 @@ export const createAnnotationsIndex = (): AnnotationsIndex => {
       update = createAnnotationsIndexer(store, (data) => {
         listeners.forEach((listener) => listener(data));
       });
-      subscribe = createSubscribeAnnotationsIndex(
-        store,
-        (l) => listeners.push(l),
-        (l) => removeItem(listeners, l)
-      );
+      subscribe = (ldRead: LinkedDataStoreRead) =>
+        createSubscribeAnnotationsIndex(
+          store,
+          ldRead,
+          (l) => listeners.push(l),
+          (l) => removeItem(listeners, l)
+        );
     },
   };
 };
