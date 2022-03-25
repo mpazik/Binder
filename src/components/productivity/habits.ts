@@ -1,3 +1,5 @@
+import "./style.css";
+
 import type { Callback } from "linki";
 import { arrayChanger, link, map, reduce } from "linki";
 import type { UiComponent, UiItemComponent, View } from "linki-ui";
@@ -11,6 +13,9 @@ import {
   span,
   table,
   td,
+  th,
+  thead,
+  tr,
 } from "linki-ui";
 
 import type { HabitSubscribe } from "../../functions/indexes/habit-index";
@@ -34,7 +39,6 @@ const habitTrackStatusSelect: View<{
   select(
     {
       class: "f1",
-      style: { fontFamily: "serif", border: "none", background: "inherit" },
       onChange: link(map(getTargetInputValue), onChange),
     },
     ...(selected ? [] : [option({ title: `not tracked` }, "➖")]),
@@ -100,7 +104,7 @@ export const habits = ({
 }): UiComponent => ({ render }) => {
   const [habits, { updateItems }] = mountItemComponent(
     getId,
-    habitComponent([day["@id"]]),
+    habitComponent([day.intervalMetBy, day["@id"]]),
     {
       onTrack: link(
         map(([habit, { status, interval }]) =>
@@ -110,7 +114,7 @@ export const habits = ({
       ),
     },
     {
-      parentTag: "table",
+      parentTag: "tbody",
       childrenElementFactory: (id) => {
         const child = document.createElement("tr");
         child.setAttribute("data-set", id);
@@ -123,7 +127,14 @@ export const habits = ({
     stack(
       { gap: "medium" },
       h2("Habits"),
-      div({ class: "markdown-body" }, table(habits))
+      div(
+        { class: "markdown-body" },
+        table(
+          { class: "habits" },
+          thead(tr(th("habit"), th("yesterday"), th("today"))),
+          habits
+        )
+      )
     )
   );
   return {

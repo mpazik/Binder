@@ -1,0 +1,14 @@
+table.habits td {
+    text-align: center;
+}
+
+table.habits td:first-child {
+    text-align: left;
+}
+
+table.habits select {
+    text-align: left;
+    font-family: "serif";
+    border: none;
+    background: inherit
+}
