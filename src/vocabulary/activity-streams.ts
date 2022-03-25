@@ -15,3 +15,20 @@ export const createUndo = (
   object: actionToUndo,
   published: published.toISOString(),
 });
+
+export type Delete = {
+  "@context": "https://www.w3.org/ns/activitystreams";
+  "@type": "Delete";
+  object: Uri;
+  published: string;
+};
+
+export const createDelete = (
+  objectToDelete: Uri,
+  published = new Date()
+): Delete => ({
+  "@context": "https://www.w3.org/ns/activitystreams",
+  "@type": "Delete",
+  object: objectToDelete,
+  published: published.toISOString(),
+});

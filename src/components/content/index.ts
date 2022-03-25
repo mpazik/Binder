@@ -4,7 +4,9 @@ import { link, map, pick, fork, withOptionalState } from "linki";
 import type { LinkedDataWithContent } from "../../functions/content-processors";
 import type { ContentSaver } from "../../functions/content-saver";
 import type { AnnotationsSubscribe } from "../../functions/indexes/annotations-index";
-import type { LinkedDataStoreWrite } from "../../functions/store";
+import type { LinkedDataStoreRead } from "../../functions/store/local-store";
+import { documentLinksUriProvider } from "../../functions/url-hijack";
+import type { UriWithFragment } from "../../libs/browser-providers";
 import { throwIfNull2 } from "../../libs/errors";
 import type { HashUri } from "../../libs/hash";
 import { isHashUri } from "../../libs/hash";
@@ -36,7 +38,8 @@ const isExisting = (linkedData: LinkedData) => {
 export const contentComponent: Component<
   {
     contentSaver: ContentSaver;
-    ldStoreWrite: LinkedDataStoreWrite;
+    saveLinkedData: Callback<LinkedData>;
+    ldStoreRead: LinkedDataStoreRead;
     onSave: Callback<LinkedDataWithHashId>;
     annotationSubscribe: AnnotationsSubscribe;
     saveAnnotation: AnnotationsSaver;
@@ -48,7 +51,8 @@ export const contentComponent: Component<
   }
 > = ({
   contentSaver,
-  ldStoreWrite,
+  saveLinkedData,
+  ldStoreRead,
   onSave,
   onDisplay,
   saveAnnotation,
@@ -92,7 +96,7 @@ export const contentComponent: Component<
       if (startTime === undefined || hashUri === undefined)
         throw new Error("context undefined");
       if (!isHashUri(hashUri)) return; // ignore not saved pages
-      ldStoreWrite(
+      saveLinkedData(
         createWatchAction(
           hashUri + (fragment ? `#${fragment}` : ""),
           startTime,
@@ -122,6 +126,8 @@ export const contentComponent: Component<
   ] = newSlot(
     "annotation-support",
     annotationsSupport({
+      readLd: ldStoreRead,
+      saveLinkedData,
       annotationSubscribe,
       saveAnnotation,
       requestDocumentSave: saveContent,

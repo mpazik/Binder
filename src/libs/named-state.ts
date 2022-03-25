@@ -29,6 +29,10 @@ type StatesHandler<S extends SomeState> = {
   [SK in S[0]]?: (state: StateByName<S, SK>[1]) => void;
 };
 
+type ActionHandler<A extends SomeAction> = {
+  [AK in A[0]]?: (state: ActionByName<A, AK>[1]) => void;
+};
+
 export const newStateHandler = <S extends SomeState>(
   handlers: StatesHandler<S>,
   defaultHandler: () => void = () => {}
@@ -43,6 +47,15 @@ export const handleState = <S extends SomeState>(
   defaultHandler: () => void = () => {}
 ): void => {
   const handler = handlers[key as S[0]];
+  return handler ? handler(data) : defaultHandler();
+};
+
+export const handleAction = <A extends SomeAction>(
+  [key, data]: A,
+  handlers: ActionHandler<A>,
+  defaultHandler: () => void = () => {}
+): void => {
+  const handler = handlers[key as A[0]];
   return handler ? handler(data) : defaultHandler();
 };
 

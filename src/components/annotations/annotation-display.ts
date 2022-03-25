@@ -11,10 +11,13 @@ import {
   to,
   withOptionalState,
   valueWithOptionalState,
+  cast,
 } from "linki";
 
 import { CATEGORIES_ENABLED } from "../../config";
 import { throwIfNull } from "../../libs/errors";
+import type { HashUri } from "../../libs/hash";
+import { getHash } from "../../libs/linked-data";
 import { clearableDelay } from "../../libs/linki";
 import {
   filterState,
@@ -50,13 +53,14 @@ const createAnnotationView: ViewSetup<
     categoriesSlot: Slot;
     onHover: (state: DisplayAnnotation) => void;
     onHoverOut: () => void;
+    onDelete: (id: HashUri) => void;
   },
   {
     state: DisplayAnnotation;
     position: Position;
     annotation: Annotation;
   }
-> = ({ categoriesSlot, onHover, onHoverOut }) => ({
+> = ({ categoriesSlot, onHover, onHoverOut, onDelete }) => ({
   position: [left, top],
   annotation,
   state,
@@ -96,7 +100,11 @@ const createAnnotationView: ViewSetup<
           actions: [
             {
               label: "Delete",
-              handler: () => alert("Deleting is not supported yet"),
+              handler: link(
+                map(to(annotation), cast(), getHash),
+                filter(defined),
+                onDelete
+              ) as Callback,
             },
           ],
         })
@@ -119,13 +127,13 @@ export type AnnotationDisplayState =
   | ["visible", DisplayAnnotation];
 
 export const annotationDisplay: Component<
-  void,
+  { deleteAnnotation: Callback<HashUri> },
   {
     displayAnnotation: DisplayAnnotation;
     hideAnnotation: void;
     hideAnnotationDelayed: void;
   }
-> = () => (render) => {
+> = ({ deleteAnnotation }) => (render) => {
   const [categoriesSlot] = newSlot(
     "categories",
     multiSelect({ extraClass: "p-0 m-0 width-full" })
@@ -135,6 +143,7 @@ export const annotationDisplay: Component<
     categoriesSlot,
     onHover: (state) => displayAnnotation(state),
     onHoverOut: () => delayedHide(),
+    onDelete: fork(deleteAnnotation, () => hide()),
   });
 
   const renderPopup = link(
@@ -158,11 +167,11 @@ export const annotationDisplay: Component<
     renderPopup
   );
 
-  const [delayedHide, cleanDelay] = link(
-    clearableDelay<void>(100),
+  const hide: Callback = link(
     map(to(["hidden"] as AnnotationDisplayState)),
     handleData
   );
+  const [delayedHide, cleanDelay] = link(clearableDelay<void>(100), hide);
 
   const displayAnnotation: Callback<DisplayAnnotation> = fork(
     (data) => handleData(["visible", data]),

@@ -1,6 +1,17 @@
 import type { Callback } from "linki";
-import { and, filter, fork, link, map, or, to } from "linki";
-import type { View, Render, UiComponent } from "linki-ui";
+import {
+  and,
+  arrayChanger,
+  filter,
+  fork,
+  head,
+  link,
+  map,
+  or,
+  reduce,
+  to,
+} from "linki";
+import type { View, UiComponent, UiItemComponent } from "linki-ui";
 import {
   a,
   div,
@@ -8,6 +19,7 @@ import {
   header,
   renderJsonHtmlToDom,
   dom,
+  span,
   dangerousHtml,
   h3,
   button,
@@ -15,6 +27,7 @@ import {
   inputValue,
   resetInput,
   mountComponent,
+  mountItemComponent,
 } from "linki-ui";
 
 import type { AnnotationsSubscribe } from "../../functions/indexes/annotations-index";
@@ -26,19 +39,24 @@ import type { HabitSubscribe } from "../../functions/indexes/habit-index";
 import type { Day, Instant } from "../../libs/calendar-ld";
 import { getIntervalData } from "../../libs/calendar-ld";
 import { throwIfUndefined } from "../../libs/errors";
-import type { LinkedData } from "../../libs/jsonld-format";
-import { span } from "../../libs/simple-ui/render";
+import type {
+  LinkedData,
+  LinkedDataWithHashId,
+} from "../../libs/jsonld-format";
+import { getHash } from "../../libs/linked-data";
 import {
   hasCtrlKey,
   hasMetaKey,
   isKey,
 } from "../../libs/simple-ui/utils/funtions";
 import { formatDateTime, formatTime } from "../../libs/time";
+import { createDelete } from "../../vocabulary/activity-streams";
 import type { Annotation } from "../annotations/annotation";
 import type {
   AnnotationsSaver,
   AnnotationSaveProps,
 } from "../annotations/service";
+import { moreActions } from "../common/drop-down-linki-ui";
 import { inline, stack } from "../common/spacing";
 import type { Uri } from "../common/uri";
 import { habits } from "../productivity/habits";
@@ -102,21 +120,32 @@ const dateOrTimeOfAction: View<{
     ? timeOfAction({ date, action })
     : dateTimeOfAction({ date, action });
 
-const annotationView = (currentDate: Date): View<Annotation> => (annotation) =>
+const createCommentView = (
+  currentDate: Date,
+  onDelete: () => void
+): View<Annotation> => (annotation) =>
   div(
     {
       class: "Box Box--condensed",
     },
     div(
       { class: "Box-header d-flex flex-items-center" },
-      div(
+      span(
         { class: "flex-auto" },
         dateOrTimeOfAction({
           action: "commented",
           currentDate,
           date: new Date(annotation.created),
         })
-      )
+      ),
+      moreActions({
+        actions: [
+          {
+            label: "Delete",
+            handler: () => onDelete(),
+          },
+        ],
+      })
     ),
     annotation.body
       ? div(
@@ -127,6 +156,17 @@ const annotationView = (currentDate: Date): View<Annotation> => (annotation) =>
         )
       : undefined
   );
+
+const createCommentComponent = (
+  currentDate: Date
+): UiItemComponent<Annotation, {}, { onDelete: void }> => ({
+  render,
+  onDelete,
+}) => {
+  return {
+    updateItem: link(map(createCommentView(currentDate, onDelete)), render),
+  };
+};
 
 const annotationForm: View<{
   dayUri: Uri;
@@ -177,15 +217,6 @@ const annotationForm: View<{
   );
 };
 
-export const createAppendRenderer = (root: HTMLElement): Render => (
-  jsonHtml
-) => {
-  const dom = renderJsonHtmlToDom(
-    jsonHtml !== null && jsonHtml !== void 0 ? jsonHtml : undefined
-  );
-  root.appendChild(dom);
-};
-
 export const dayJournal = ({
   day,
   annotationSubscribe,
@@ -203,8 +234,6 @@ export const dayJournal = ({
   saveLinkedData: Callback<LinkedData>;
   searchCompletionIndex: SearchCompletionIndex;
 }): UiComponent => ({ render }) => {
-  const annotationsRoot = renderJsonHtmlToDom(stack()) as HTMLElement;
-  const renderAnnotations = createAppendRenderer(annotationsRoot);
   const dayUri = day["@id"];
   const dayDate = new Date(
     (throwIfUndefined(
@@ -223,6 +252,14 @@ export const dayJournal = ({
   const [habitsSlot] = mountComponent(
     habits({ day, subscribe: subscribeHabits, saveLinkedData })
   );
+  const getId = (it: Annotation) =>
+    getHash((it as unknown) as LinkedDataWithHashId);
+  const [commentsSlot, { updateItems: updateComments }] = mountItemComponent(
+    getId,
+    createCommentComponent(dayDate),
+    { onDelete: link(map(head(), createDelete), saveLinkedData) },
+    { parent: renderJsonHtmlToDom(stack()) as HTMLElement }
+  );
 
   render(
     div(
@@ -235,7 +272,7 @@ export const dayJournal = ({
         { gap: "large" },
         stack(
           { gap: "medium" },
-          div(h2("Comments"), dom(annotationsRoot)),
+          div(h2("Comments"), commentsSlot),
           div(
             h3({ class: "h4" }, "Add comment"),
             annotationForm({ dayUri, onSave: saveAnnotation })
@@ -249,8 +286,8 @@ export const dayJournal = ({
   return {
     stop: link(
       annotationSubscribe({ reference: dayUri }),
-      map(annotationView(dayDate)),
-      renderAnnotations
+      reduce(arrayChanger(getId), []),
+      updateComments
     ),
   };
 };

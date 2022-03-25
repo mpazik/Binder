@@ -17,18 +17,22 @@ import {
   defined,
   splitDefinedProp,
   combine,
+  cast,
 } from "linki";
 
 import type {
   AnnotationsQuery,
   AnnotationsSubscribe,
 } from "../../functions/indexes/annotations-index";
+import type { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { throwIfNull } from "../../libs/errors";
 import type { HashUri } from "../../libs/hash";
+import type { LinkedData } from "../../libs/jsonld-format";
 import { withMultiState } from "../../libs/linki";
-import { handleState } from "../../libs/named-state";
+import { handleAction } from "../../libs/named-state";
 import type { Component } from "../../libs/simple-ui/render";
 import { div, newSlot } from "../../libs/simple-ui/render";
+import { createDelete } from "../../vocabulary/activity-streams";
 import type { Uri } from "../common/uri";
 
 import type {
@@ -68,21 +72,30 @@ export const getQuoteSelector = (
   );
 };
 
+type AnnotationAction =
+  | ["display", Annotation]
+  | ["select", Selection]
+  | ["remove", QuoteSelector];
 export const annotationsSupport: Component<
   {
     requestDocumentSave: () => void;
     saveAnnotation: AnnotationsSaver;
+    saveLinkedData: Callback<LinkedData>;
     annotationSubscribe: AnnotationsSubscribe;
+    readLd: LinkedDataStoreRead;
   },
   {
     displayDocumentAnnotations: AnnotationDisplayRequest;
     setContainer: HTMLElement;
     setReference: HashUri | undefined;
   }
-> = ({ annotationSubscribe, requestDocumentSave, saveAnnotation }) => (
-  render,
-  onClose
-) => {
+> = ({
+  readLd,
+  saveLinkedData,
+  annotationSubscribe,
+  requestDocumentSave,
+  saveAnnotation,
+}) => (render, onClose) => {
   const [saveAnnotationInt, setReference] = link(
     valueWithState<HashUri | undefined, AnnotationSavePropsWithoutRef>(
       undefined
@@ -116,27 +129,26 @@ export const annotationsSupport: Component<
     setContainerForSelector,
     setTextLayerForSelector,
   ] = link(
-    withMultiState<
-      [HTMLElement, HTMLElement | undefined],
-      | ["display", Annotation]
-      | ["select", Selection]
-      | ["remove", QuoteSelector]
-    >(undefined, undefined),
+    withMultiState<[HTMLElement, HTMLElement | undefined], AnnotationAction>(
+      undefined,
+      undefined
+    ),
     ([container, textLayer, change]) => {
       if (!container || !textLayer) {
         return;
       }
       const text = containerText(textLayer);
-      handleState(change, {
+      handleAction(change, {
         display: (annotation) => {
           if (!annotation.target.selector) {
             return;
           }
+          const selector = getQuoteSelector(annotation.target.selector);
           renderSelector(
             container,
             textLayer,
             text,
-            getQuoteSelector(annotation.target.selector),
+            selector,
             annotation.motivation === "commenting" ? "yellow" : "green",
             link(
               map((position) => ({
@@ -225,7 +237,12 @@ export const annotationsSupport: Component<
   const [
     annotationDisplaySlot,
     { displayAnnotation, hideAnnotationDelayed, hideAnnotation },
-  ] = newSlot("annotation-display", annotationDisplay());
+  ] = newSlot(
+    "annotation-display",
+    annotationDisplay({
+      deleteAnnotation: link(map(createDelete), saveLinkedData),
+    })
+  );
 
   const [commentFormSlot, { displayCommentForm }] = newSlot(
     "comment-form",
@@ -241,11 +258,27 @@ export const annotationsSupport: Component<
   let closeSubscription: Callback = () => {};
   const subscribeForAnnotations: Callback<AnnotationsQuery> = (query) => {
     closeSubscription();
-    closeSubscription = link(
-      annotationSubscribe(query),
-      map((annotation): ["display", Annotation] => ["display", annotation]),
-      changeSelection
-    );
+    closeSubscription = link(annotationSubscribe(query), (change) => {
+      handleAction(change, {
+        to: (value) => {
+          value.forEach((it) => changeSelection(["display", it]));
+        },
+        set: (value) => {
+          changeSelection(["display", value]);
+        },
+        del: (id) => {
+          readLd(id).then(
+            link(filter(defined), map(cast()), (annotation: Annotation) => {
+              if (!annotation.target.selector) {
+                return;
+              }
+              const selector = getQuoteSelector(annotation.target.selector);
+              changeSelection(["remove", selector]);
+            })
+          );
+        },
+      });
+    });
   };
 
   const [setReferenceForAnnotationDisplay, displayDocumentAnnotations] = link(

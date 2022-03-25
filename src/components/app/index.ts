@@ -82,7 +82,6 @@ import {
   openAccountRepository,
   openUnclaimedRepository,
 } from "../../functions/store/repository";
-import { documentLinksUriProvider } from "../../functions/url-hijack";
 import type { UriWithFragment } from "../../libs/browser-providers";
 import {
   browserPathProvider,
@@ -125,13 +124,11 @@ import { updateDisplaySettings } from "../display-settings";
 import {
   settingsIcon,
   setupDisplaySettingsPanel,
-  typographyIcon,
 } from "../display-settings/panel";
 import { createSettingUpdateAction } from "../display-settings/setting-update";
 import { fileDrop } from "../file-drop";
 import { dayJournal } from "../journal";
 import { navigation } from "../navigation";
-import { dropdown } from "../navigation/common";
 import { storePage } from "../store";
 
 import { specialTodayUri } from "./special-uris";
@@ -269,7 +266,7 @@ export const App: Component<
   const indexLinkedData = createCompositeIndexer([
     urlIndex.update,
     directoryIndex.update,
-    annotationsIndex.update,
+    annotationsIndex.update((it) => store.readLinkedData(it)),
     createWatchHistoryIndexer(watchHistoryStore, (hash) =>
       store.removeLinkedData(hash)
     ),
@@ -442,7 +439,7 @@ export const App: Component<
     loadUri
   );
 
-  const storeLinkedData: Callback<LinkedData> = (ld) =>
+  const saveLinkedData: Callback<LinkedData> = (ld) =>
     store
       .writeLinkedData(ld)
       .catch((error) => console.error("Filed saving lined data", error));
@@ -452,7 +449,7 @@ export const App: Component<
   ): ((value: Settings[T]) => void) =>
     link(
       map((it: Settings[T]) => createSettingUpdateAction(key, it)),
-      storeLinkedData
+      saveLinkedData
     );
 
   const loadUriWithHistoryUpdate = fork(updateBrowserHistory, loadUri);
@@ -522,7 +519,7 @@ export const App: Component<
     saveAnnotation,
     setCreator: setCreatorForAnnotations,
   } = createAnnotationSaverWithContext({
-    saveAnnotation: storeLinkedData,
+    saveAnnotation: saveLinkedData,
   });
 
   const contentSaver = createContentSaver(
@@ -533,7 +530,8 @@ export const App: Component<
     "content-container",
     contentComponent({
       contentSaver,
-      ldStoreWrite: store.writeLinkedData,
+      saveLinkedData,
+      ldStoreRead: store.readLinkedData,
       onSave: ignore,
       onDisplay: hideNav,
       saveAnnotation,
@@ -572,7 +570,7 @@ export const App: Component<
           day: data.linkedData as Day,
           annotationSubscribe: annotationsIndex.subscribe(store.readLinkedData),
           saveAnnotation,
-          saveLinkedData: storeLinkedData,
+          saveLinkedData,
           searchCompletionIndex: completionIndex.searchIndex,
           subscribeHabits: habitsIndex.subscribe(store.readLinkedData),
           subscribeCompletable: completionIndex.subscribe(store.readLinkedData),
@@ -722,7 +720,6 @@ export const App: Component<
     ]
   );
   onClose(browserPathProvider(openPath));
-  onClose(documentLinksUriProvider(loadUri));
   onClose(stopNav);
 
   if (initialContent) {
