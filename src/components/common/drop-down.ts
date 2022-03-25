@@ -34,6 +34,7 @@ export const moreActions: View<{ actions: Action[] }> = ({ actions }) =>
     )
   );
 
+// todo fix capturing link
 export const createDropDown: ViewSetup<{ actions: Action[] }, void> = ({
   actions,
 }) => () =>

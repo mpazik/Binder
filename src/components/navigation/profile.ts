@@ -7,8 +7,9 @@ import type { GDriveState } from "../../functions/gdrive/controller";
 import type { StoreState } from "../../functions/store";
 import { combine } from "../../libs/linki";
 import { mapState, newStateMapper } from "../../libs/named-state";
+import { dropdown, dropdownItem } from "../common/drop-down-linki-ui";
 
-import { dropdownButton, dropdownMenu, loading } from "./common";
+import { loading } from "./common";
 
 const gdriveLogoIcon = dangerousHtml(`<svg xmlns="http://www.w3.org/2000/svg" width="25" height="22" viewBox="0 0 1443.061 1249.993" role="img">
   <title>Google Drive</title>
@@ -108,7 +109,7 @@ const errorMessage: View<{ error: string; login: () => void }> = ({
 };
 
 const errorView: View<{ error: string; login: () => void }> = (props) =>
-  dropdownMenu({
+  dropdown({
     icon: errorIcon,
     children: [
       li(
@@ -153,7 +154,7 @@ const profileDropdown = ({
   icon: string;
   status?: string;
 }): View<GDriveProfile> => (profile) =>
-  dropdownMenu({
+  dropdown({
     icon,
     children: [
       ...(status ? [profileStatusItem(status)] : []),
@@ -162,7 +163,7 @@ const profileDropdown = ({
       //   onClick: () => {},
       //   text: "Storage settings",
       // }),
-      dropdownButton({ onClick: logout, text: "Logout" }),
+      dropdownItem({ onClick: logout, text: "Logout" }),
     ],
   });
 
@@ -183,7 +184,7 @@ export const createProfileView = ({
         dangerousHtml(cloudOffIcon)
       ),
     disconnected: () =>
-      dropdownMenu({
+      dropdown({
         icon: cloudOffIcon,
         children: [
           li(

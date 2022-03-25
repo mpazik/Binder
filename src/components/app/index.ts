@@ -116,12 +116,14 @@ import type {
 import { div, newSlot } from "../../libs/simple-ui/render";
 import { accountPicker } from "../account-picker";
 import { createAnnotationSaverWithContext } from "../annotations/service";
+import { dropdown } from "../common/drop-down-linki-ui";
 import { loader } from "../common/loader";
 import { contentComponent } from "../content";
 import { docsDirectory } from "../directory";
 import type { Settings } from "../display-settings";
 import { updateDisplaySettings } from "../display-settings";
 import {
+  settingsIcon,
   setupDisplaySettingsPanel,
   typographyIcon,
 } from "../display-settings/panel";
@@ -481,7 +483,7 @@ export const App: Component<
       searchDirectory: directoryIndex.search,
       searchWatchHistory,
       displaySettingsSlot: dropdown({
-        icon: typographyIcon,
+        icon: settingsIcon,
         title: "display settings",
         children: [
           setupDisplaySettingsPanel({

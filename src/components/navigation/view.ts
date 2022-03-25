@@ -1,10 +1,9 @@
 import type { JsonHtml, View } from "linki-ui";
 import { button, dangerousHtml, details, div, nav, summary } from "linki-ui";
 
+import { dropdown, dropdownLink } from "../common/drop-down-linki-ui";
 import type { ProductLogoSize } from "../logo";
 import { productLogo } from "../logo";
-
-import { dropdownLink, dropdownMenu } from "./common";
 
 export const navigationView: View<{
   displayed?: boolean;
@@ -38,7 +37,7 @@ export const helpIcon = `
    <path d="M12 13.5a1.5 1.5 0 0 1 1 -1.5a2.6 2.6 0 1 0 -3 -4"></path>
 </svg>`;
 
-const helpMenu = dropdownMenu({
+const helpMenu = dropdown({
   icon: helpIcon,
   children: [
     dropdownLink({
