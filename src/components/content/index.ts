@@ -84,7 +84,7 @@ export const contentComponent: Component<
     (data) => {
       if (isExisting(data.linkedData))
         throw new Error("Can only save content that was not saved before");
-      storeData(data, saveContent);
+      storeData(data, () => saveContent());
     }
   );
 
@@ -150,12 +150,15 @@ export const contentComponent: Component<
 
   render(
     div(
-      { id: "content-container", class: "mb-3 position-relative px-4" },
+      {
+        id: "content-container",
+        class: "mb-3 position-relative px-4",
+        onDisplay: link(map(getTarget), setContainer),
+      },
       contentFieldsSlot,
       div(
         {
           id: "content-body",
-          onDisplay: link(map(getTarget), setContainer),
         },
         contentSlot
       ),

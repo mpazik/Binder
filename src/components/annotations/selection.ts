@@ -31,9 +31,9 @@ const rangeMiddlePosition = (range: Range): [left: number, top: number] => {
 
 const rangePositionRelative = (
   range: Range,
-  element: HTMLElement
+  container: HTMLElement
 ): [left: number, top: number] => {
-  const { x, y } = element.getBoundingClientRect();
+  const { x, y } = container.getBoundingClientRect();
   const [left, top] = rangeMiddlePosition(range);
   return [left - x, top - y];
 };
