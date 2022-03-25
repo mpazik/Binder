@@ -38,7 +38,7 @@ const habitTrackStatusSelect: View<{
 }> = ({ selected, onChange }) =>
   select(
     {
-      class: "f1",
+      class: "f2",
       onChange: link(map(getTargetInputValue), onChange),
     },
     ...(selected ? [] : [option({ title: `not tracked` }, "➖")]),
@@ -67,7 +67,7 @@ const habitComponent = (
         td(
           div(
             { class: "d-flex flex-items-center", title: description },
-            span({ class: "f1" }, emojiIcon),
+            span({ class: "f2" }, emojiIcon),
             title
           )
         ),

@@ -1,5 +1,6 @@
 table.habits td {
     text-align: center;
+    font-size: 14px;
 }
 
 table.habits td:first-child {
