@@ -33,7 +33,9 @@ export const linkHijack = ({
 
   element.addEventListener("click", hijackLink);
 
-  return () => element.removeEventListener("click", hijackLink);
+  return () => {
+    element.removeEventListener("click", hijackLink);
+  };
 };
 
 export const documentLinksUriProvider = (

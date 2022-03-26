@@ -36,6 +36,8 @@ import type {
   SearchCompletionIndex,
 } from "../../functions/indexes/completion-index";
 import type { HabitSubscribe } from "../../functions/indexes/habit-index";
+import { documentLinksUriProvider } from "../../functions/url-hijack";
+import type { UriWithFragment } from "../../libs/browser-providers";
 import type { Day, Instant } from "../../libs/calendar-ld";
 import { getIntervalData } from "../../libs/calendar-ld";
 import { throwIfUndefined } from "../../libs/errors";
@@ -226,6 +228,7 @@ export const dayJournal = ({
   subscribeHabits,
   saveLinkedData,
   searchCompletionIndex,
+  loadUri,
 }: {
   day: Day;
   annotationSubscribe: AnnotationsSubscribe;
@@ -234,6 +237,7 @@ export const dayJournal = ({
   subscribeHabits: HabitSubscribe;
   saveLinkedData: Callback<LinkedData>;
   searchCompletionIndex: SearchCompletionIndex;
+  loadUri: Callback<UriWithFragment>;
 }): UiComponent => ({ render }) => {
   const dayUri = day["@id"];
   const dayDate = new Date(
@@ -262,13 +266,16 @@ export const dayJournal = ({
     { parent: renderJsonHtmlToDom(stack()) as HTMLElement }
   );
 
+  const navigation = renderJsonHtmlToDom(
+    dayJournalHeader({
+      day,
+      dayDate,
+    })
+  );
   render(
     div(
       { class: "with-line-length-settings my-10" },
-      dayJournalHeader({
-        day,
-        dayDate,
-      }),
+      dom(navigation),
       stack(
         { gap: "large" },
         stack(
@@ -285,10 +292,13 @@ export const dayJournal = ({
     )
   );
   return {
-    stop: link(
-      annotationSubscribe({ reference: dayUri }),
-      reduce(arrayChanger(getId), []),
-      updateComments
+    stop: fork(
+      link(
+        annotationSubscribe({ reference: dayUri }),
+        reduce(arrayChanger(getId), []),
+        updateComments
+      ),
+      link(documentLinksUriProvider(navigation), loadUri)
     ),
   };
 };

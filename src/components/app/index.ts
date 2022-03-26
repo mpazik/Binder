@@ -575,6 +575,7 @@ export const App: Component<
           searchCompletionIndex: completionIndex.searchIndex,
           subscribeHabits: habitsIndex.subscribe(store.readLinkedData),
           subscribeCompletable: completionIndex.subscribe(store.readLinkedData),
+          loadUri,
         })
       );
       displayJsonHtml(component);
