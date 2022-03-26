@@ -1,16 +1,5 @@
 import type { Callback } from "linki";
-import {
-  and,
-  arrayChanger,
-  filter,
-  fork,
-  head,
-  link,
-  map,
-  or,
-  reduce,
-  to,
-} from "linki";
+import { and, filter, fork, head, link, map, or, to } from "linki";
 import type { View, UiComponent, UiItemComponent } from "linki-ui";
 import {
   a,
@@ -162,7 +151,7 @@ const createCommentView = (
 
 const createCommentComponent = (
   currentDate: Date
-): UiItemComponent<Annotation, {}, { onDelete: void }> => ({
+): UiItemComponent<Annotation, { onDelete: void }> => ({
   render,
   onDelete,
 }) => {
@@ -259,7 +248,7 @@ export const dayJournal = ({
   );
   const getId = (it: Annotation) =>
     getHash((it as unknown) as LinkedDataWithHashId);
-  const [commentsSlot, { updateItems: updateComments }] = mountItemComponent(
+  const [commentsSlot, { changeItems: changeComments }] = mountItemComponent(
     getId,
     createCommentComponent(dayDate),
     { onDelete: link(map(head(), createDelete), logIt()) },
@@ -293,11 +282,7 @@ export const dayJournal = ({
   );
   return {
     stop: fork(
-      link(
-        annotationSubscribe({ reference: dayUri }),
-        reduce(arrayChanger(getId), []),
-        updateComments
-      ),
+      link(annotationSubscribe({ reference: dayUri }), changeComments),
       link(documentLinksUriProvider(navigation), loadUri)
     ),
   };

@@ -1,7 +1,7 @@
 import "./style.css";
 
 import type { Callback } from "linki";
-import { arrayChanger, link, map, reduce } from "linki";
+import { link, map } from "linki";
 import type { UiComponent, UiItemComponent, View } from "linki-ui";
 import {
   div,
@@ -57,7 +57,7 @@ const habitTrackStatusSelect: View<{
 
 const habitComponent = (
   intervals: IntervalUri[]
-): UiItemComponent<HabitObject, {}, { onTrack: HabitTrackEventObject }> => ({
+): UiItemComponent<HabitObject, { onTrack: HabitTrackEventObject }> => ({
   render,
   onTrack,
 }) => {
@@ -102,7 +102,7 @@ export const habits = ({
   saveLinkedData: Callback<LinkedData>;
   day: Day;
 }): UiComponent => ({ render }) => {
-  const [habits, { updateItems }] = mountItemComponent(
+  const [habits, { changeItems }] = mountItemComponent(
     getId,
     habitComponent([day.intervalMetBy, day["@id"]]),
     {
@@ -138,10 +138,6 @@ export const habits = ({
     )
   );
   return {
-    stop: link(
-      subscribe({ intervals: [day["@id"]] }),
-      reduce(arrayChanger(getId), []),
-      updateItems
-    ),
+    stop: link(subscribe({ intervals: [day["@id"]] }), changeItems),
   };
 };

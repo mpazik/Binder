@@ -1,15 +1,5 @@
 import type { Callback } from "linki";
-import {
-  arrayChanger,
-  filter,
-  fork,
-  head,
-  identity,
-  ignore,
-  link,
-  map,
-  reduce,
-} from "linki";
+import { filter, fork, head, identity, ignore, link, map } from "linki";
 import type { UiComponent, UiItemComponent, View } from "linki-ui";
 import {
   div,
@@ -48,7 +38,6 @@ import { createComplete, createTask } from "./vocabulary";
 
 const taskComponent: UiItemComponent<
   TaskObject,
-  {},
   { onCompleted: void; onUndone: void }
 > = ({ render, onCompleted, onUndone }) => {
   return {
@@ -129,10 +118,10 @@ export const tasks = ({
       },
     });
 
-  const [todoTasks, { updateItems: updateTodoTasks }] = createTaskList();
+  const [todoTasks, { changeItems: changeTodoTasks }] = createTaskList();
   const [
     completedTasks,
-    { updateItems: updateCompletedTasks },
+    { changeItems: changeCompletedTasks },
   ] = createTaskList();
 
   render(
@@ -157,16 +146,14 @@ export const tasks = ({
         subscribe({
           completed: false,
         }),
-        reduce(arrayChanger(getId), []),
-        updateTodoTasks
+        changeTodoTasks
       ),
       link(
         subscribe({
           since: intervalBeggingDate(day).getTime(),
           until: intervalEndDate(day).getTime(),
         }),
-        reduce(arrayChanger(getId), []),
-        updateCompletedTasks
+        changeCompletedTasks
       )
     ),
   };
