@@ -56,12 +56,13 @@ export type TextualBody = {
   format: "text/html";
 };
 
+export type AnnotationMotivation = "commenting" | "highlighting" | "assessing";
 export type Annotation = {
   "@context": "http://www.w3.org/ns/anno.jsonld";
   type: "Annotation";
   created: string;
   creator?: string;
-  motivation?: "commenting" | "highlighting";
+  motivation?: AnnotationMotivation;
   body?: TextualBody;
   target: {
     source: string;
@@ -73,13 +74,18 @@ export const createAnnotation = (
   source: string,
   selector?: AnnotationSelector,
   htmlBody?: string,
-  creator?: string
+  creator?: string,
+  motivation?: AnnotationMotivation
 ): Annotation => ({
   "@context": "http://www.w3.org/ns/anno.jsonld",
   type: "Annotation",
   created: new Date().toISOString(),
   ...(creator ? { creator: "mailto:" + creator } : {}),
-  motivation: htmlBody ? "commenting" : "highlighting",
+  motivation: motivation
+    ? motivation
+    : htmlBody
+    ? "commenting"
+    : "highlighting",
   ...(htmlBody
     ? {
         body: {

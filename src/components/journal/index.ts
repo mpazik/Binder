@@ -28,7 +28,7 @@ import { inline, stack } from "../common/spacing";
 import { habits } from "../productivity/habits";
 import { tasks } from "../productivity/tasks";
 
-import { comments } from "./comments";
+import { comments, review } from "./comments";
 
 const formatDate = new Intl.DateTimeFormat(undefined, {
   dateStyle: "full",
@@ -110,6 +110,14 @@ export const dayJournal = ({
       saveLinkedData,
     })
   );
+  const [reviewSlot] = mountComponent(
+    review({
+      day,
+      subscribe: annotationSubscribe,
+      saveAnnotation,
+      saveLinkedData,
+    })
+  );
 
   const navigation = renderJsonHtmlToDom(
     dayJournalHeader({
@@ -121,7 +129,7 @@ export const dayJournal = ({
     div(
       { class: "with-line-length-settings my-10" },
       dom(navigation),
-      stack({ gap: "large" }, commentsSlot, habitsSlot, tasksSlot)
+      stack({ gap: "large" }, commentsSlot, habitsSlot, tasksSlot, reviewSlot)
     )
   );
   return {

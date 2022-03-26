@@ -1,7 +1,10 @@
-import type { ArrayChange, Callback, ClosableProvider } from "linki";
-import { link, pipe, filter, isEqual, cast, defined, map } from "linki";
+import type { ArrayChange, Callback, ClosableProvider, Predicate } from "linki";
+import { link, pipe, filter, isEqual, cast, defined, map, pick } from "linki";
 
-import type { Annotation } from "../../components/annotations/annotation";
+import type {
+  Annotation,
+  AnnotationMotivation,
+} from "../../components/annotations/annotation";
 import { isFragmentSelector } from "../../components/annotations/annotation";
 import type { Uri } from "../../components/common/uri";
 import { removeItem } from "../../libs/async-pool";
@@ -9,6 +12,7 @@ import { throwIfUndefined } from "../../libs/errors";
 import type { HashUri } from "../../libs/hash";
 import type { StoreName, StoreProvider } from "../../libs/indexeddb";
 import { storeGet, storePut } from "../../libs/indexeddb";
+import type { LinkedDataWithHashId } from "../../libs/jsonld-format";
 import { getHash, isTypeEqualTo } from "../../libs/linked-data";
 import type { NamedAction } from "../../libs/named-state";
 import { handleAction } from "../../libs/named-state";
@@ -22,6 +26,7 @@ import type { UpdateIndex } from "./types";
 export type AnnotationsQuery = {
   reference: Uri;
   fragment?: string;
+  motivation?: AnnotationMotivation;
 };
 
 type AnnotationChange = ArrayChange<Annotation, HashUri>;
@@ -64,7 +69,7 @@ const recordKeyFromAnnotation = (
 
 type IndexData =
   | NamedAction<"add", { key: IndexKey; annotation: Annotation }>
-  | NamedAction<"remove", { key: IndexKey; hash: HashUri }>;
+  | NamedAction<"remove", { key: IndexKey; annotation: Annotation }>;
 
 const createAnnotationsIndexer = (
   store: AnnotationsStore,
@@ -86,22 +91,32 @@ const createAnnotationsIndexer = (
       if (!objectUri) return;
       const object = await ldStoreRead(objectUri);
       if (!object || !isTypeEqualTo(object, "Annotation")) return;
-      const key = recordKeyFromAnnotation((object as unknown) as Annotation);
+      const annotation = (object as unknown) as Annotation;
+      const key = recordKeyFromAnnotation(annotation);
       if (!key) return;
       const annotations = (await storeGet<HashUri[]>(store, key)) ?? [];
       removeItem(annotations, objectUri);
       await storePut(store, [...annotations], key);
-      onIndexed(["remove", { key, hash: objectUri }]);
+      onIndexed(["remove", { key, annotation }]);
     }
   };
 };
+
+const matchesMotivation = (
+  motivationToMatch?: AnnotationMotivation
+): Predicate<Annotation> =>
+  motivationToMatch
+    ? (annotation) => annotation.motivation === motivationToMatch
+    : () => true;
 
 export const createSubscribeAnnotationsIndex = (
   store: AnnotationsStore,
   ldStoreRead: LinkedDataStoreRead,
   addListener: Callback<Callback<IndexData>>,
   removeListener: Callback<Callback<IndexData>>
-): AnnotationsSubscribe => ({ reference, fragment }) => (callback) => {
+): AnnotationsSubscribe => ({ reference, fragment, motivation }) => (
+  callback
+) => {
   const key = recordKey(reference, fragment);
   let closed = false;
   storeGet<AnnotationIndexProps>(store, recordKey(reference, fragment))
@@ -111,7 +126,10 @@ export const createSubscribeAnnotationsIndex = (
     })
     .then((lds) => {
       if (closed || !lds) return;
-      const annotations: Annotation[] = lds.filter(defined).map(cast());
+      const annotations: Annotation[] = lds
+        .filter(defined)
+        .map(cast<LinkedDataWithHashId, Annotation>())
+        .filter(matchesMotivation(motivation));
       callback(["to", annotations]);
     });
 
@@ -120,11 +138,19 @@ export const createSubscribeAnnotationsIndex = (
     (action) => {
       handleAction(action, {
         add: link(
+          filter(pipe(pick("annotation"), matchesMotivation(motivation))),
           map(({ annotation }) => ["set", annotation] as AnnotationChange),
           callback
         ),
         remove: link(
-          map(({ hash }) => ["del", hash] as AnnotationChange),
+          filter(pipe(pick("annotation"), matchesMotivation(motivation))),
+          map(
+            ({ annotation }) =>
+              [
+                "del",
+                getHash((annotation as unknown) as LinkedDataWithHashId),
+              ] as AnnotationChange
+          ),
           callback
         ),
       });

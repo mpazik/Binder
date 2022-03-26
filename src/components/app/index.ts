@@ -519,7 +519,7 @@ export const App: Component<
     saveAnnotation,
     setCreator: setCreatorForAnnotations,
   } = createAnnotationSaverWithContext({
-    saveAnnotation: saveLinkedData,
+    saveLinkedData,
   });
 
   const contentSaver = createContentSaver(
