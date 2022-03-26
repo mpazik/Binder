@@ -7,7 +7,7 @@ const createLogger = (what: string) => (newValue: string) => {
   console.log(`Changed ${what} to "${newValue}"`);
 };
 
-const newVar: DisplaySettingListeners = {
+const listeners: DisplaySettingListeners = {
   onFontSizeChange: createLogger("font face"),
   onFontFaceChange: createLogger("font size"),
   onLineLengthChange: createLogger("line length"),
@@ -18,7 +18,7 @@ const newVar: DisplaySettingListeners = {
 export default {};
 
 export const displaySettingsPanelDark = (): JsonHtml =>
-  setupDisplaySettingsPanel(newVar)({
+  setupDisplaySettingsPanel(listeners)({
     fontFace: "sans-serif",
     fontSize: "x-large",
     lineLength: "small",
@@ -27,7 +27,7 @@ export const displaySettingsPanelDark = (): JsonHtml =>
   });
 
 export const displaySettingsPanelLight = (): JsonHtml =>
-  setupDisplaySettingsPanel(newVar)({
+  setupDisplaySettingsPanel(listeners)({
     fontFace: "serif",
     fontSize: "x-small",
     lineLength: "medium",
