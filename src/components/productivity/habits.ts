@@ -138,6 +138,9 @@ export const habits = ({
     )
   );
   return {
-    stop: link(subscribe({ intervals: [day["@id"]] }), changeItems),
+    stop: link(
+      subscribe({ intervals: [day.intervalMetBy, day["@id"]] }),
+      changeItems
+    ),
   };
 };
