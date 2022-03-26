@@ -536,6 +536,7 @@ export const App: Component<
       onDisplay: hideNav,
       saveAnnotation,
       annotationSubscribe: annotationsIndex.subscribe(store.readLinkedData),
+      loadUri,
     })
   );
 

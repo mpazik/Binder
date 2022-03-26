@@ -44,6 +44,7 @@ import type {
   LinkedDataWithHashId,
 } from "../../libs/jsonld-format";
 import { getHash } from "../../libs/linked-data";
+import { logIt } from "../../libs/linki";
 import {
   hasCtrlKey,
   hasMetaKey,
@@ -257,7 +258,7 @@ export const dayJournal = ({
   const [commentsSlot, { updateItems: updateComments }] = mountItemComponent(
     getId,
     createCommentComponent(dayDate),
-    { onDelete: link(map(head(), createDelete), saveLinkedData) },
+    { onDelete: link(map(head(), createDelete), logIt()) },
     { parent: renderJsonHtmlToDom(stack()) as HTMLElement }
   );
 

@@ -36,10 +36,10 @@ export const linkHijack = ({
   return () => element.removeEventListener("click", hijackLink);
 };
 
-export const documentLinksUriProvider: ClosableProvider<UriWithFragment> = (
-  push
-) => {
-  return linkHijack()(
+export const documentLinksUriProvider = (
+  element?: Node
+): ClosableProvider<UriWithFragment> => (push) => {
+  return linkHijack({ element })(
     link(
       map(newUriWithFragment, (it) =>
         it.uri === ""

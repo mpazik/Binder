@@ -15,7 +15,11 @@ import type {
   LinkedDataWithHashId,
 } from "../../libs/jsonld-format";
 import { findHashUri, getUrls } from "../../libs/linked-data";
-import { throwOnNull, withMultiState } from "../../libs/linki";
+import {
+  closableProcessorFromProvider,
+  throwOnNull,
+  withMultiState,
+} from "../../libs/linki";
 import type { Component } from "../../libs/simple-ui/render";
 import { div, newSlot } from "../../libs/simple-ui/render";
 import { getTarget } from "../../libs/simple-ui/utils/funtions";
@@ -44,6 +48,7 @@ export const contentComponent: Component<
     annotationSubscribe: AnnotationsSubscribe;
     saveAnnotation: AnnotationsSaver;
     onDisplay: Callback;
+    loadUri: Callback<UriWithFragment>;
   },
   {
     displayContent: LinkedDataWithContentAndFragment;
@@ -57,6 +62,7 @@ export const contentComponent: Component<
   onDisplay,
   saveAnnotation,
   annotationSubscribe,
+  loadUri,
 }) => (render, onClose) => {
   const storeData = (data: LinkedDataWithContent, retry: () => void) => {
     try {
@@ -152,6 +158,12 @@ export const contentComponent: Component<
     contentHeader()
   );
 
+  const [startCapturingLinks, closeLinkProvider] = link(
+    closableProcessorFromProvider(documentLinksUriProvider),
+    loadUri
+  );
+  onClose(closeLinkProvider);
+
   render(
     div(
       {
@@ -163,6 +175,7 @@ export const contentComponent: Component<
       div(
         {
           id: "content-body",
+          onDisplay: link(map(getTarget), startCapturingLinks),
         },
         contentSlot
       ),

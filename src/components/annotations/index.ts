@@ -20,15 +20,15 @@ import {
   cast,
 } from "linki";
 
-import type {
-  AnnotationsQuery,
-  AnnotationsSubscribe,
-} from "../../functions/indexes/annotations-index";
+import type { AnnotationsSubscribe } from "../../functions/indexes/annotations-index";
 import type { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { throwIfNull } from "../../libs/errors";
 import type { HashUri } from "../../libs/hash";
 import type { LinkedData } from "../../libs/jsonld-format";
-import { withMultiState } from "../../libs/linki";
+import {
+  closableProcessorFromProvider,
+  withMultiState,
+} from "../../libs/linki";
 import { handleAction } from "../../libs/named-state";
 import type { Component } from "../../libs/simple-ui/render";
 import { div, newSlot } from "../../libs/simple-ui/render";
@@ -255,10 +255,9 @@ export const annotationsSupport: Component<
     })
   );
 
-  let closeSubscription: Callback = () => {};
-  const subscribeForAnnotations: Callback<AnnotationsQuery> = (query) => {
-    closeSubscription();
-    closeSubscription = link(annotationSubscribe(query), (change) => {
+  const [subscribeForAnnotations, closeSubscription] = link(
+    closableProcessorFromProvider(annotationSubscribe),
+    (change) => {
       handleAction(change, {
         to: (value) => {
           value.forEach((it) => changeSelection(["display", it]));
@@ -278,8 +277,8 @@ export const annotationsSupport: Component<
           );
         },
       });
-    });
-  };
+    }
+  );
 
   const [setReferenceForAnnotationDisplay, displayDocumentAnnotations] = link(
     combine<[Uri | undefined, AnnotationDisplayRequest | undefined]>(
@@ -299,8 +298,8 @@ export const annotationsSupport: Component<
   document.addEventListener("mouseup", detectSelection);
   onClose(() => {
     document.removeEventListener("mouseup", detectSelection);
-    closeSubscription();
   });
+  onClose(closeSubscription);
 
   render(div(commentFormSlot, annotationDisplaySlot, selectionToolbarSlot));
   return {

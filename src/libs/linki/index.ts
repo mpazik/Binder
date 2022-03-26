@@ -9,6 +9,8 @@ import type {
   Tuple,
   Predicate,
   ProcessorMultiOut,
+  ClosableProcessor,
+  ClosableProvider,
 } from "linki";
 
 import { throwIfUndefined } from "../errors";
@@ -151,3 +153,18 @@ export const logIt = <T>(name = "🧐 ㏒: "): Callback<T> => (value) => {
 };
 
 export const as = <A>() => <T extends A>(x: T): T => x;
+
+export const closableProcessorFromProvider = <T, S>(
+  factory: (a: T) => ClosableProvider<S>
+): ClosableProcessor<T, S> => {
+  let close: Callback = () => {};
+  return (callback) => {
+    return [
+      (value: T) => {
+        close();
+        close = factory(value)(callback);
+      },
+      close,
+    ];
+  };
+};
