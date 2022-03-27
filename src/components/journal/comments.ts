@@ -49,15 +49,14 @@ import type {
   AnnotationsSaver,
 } from "../annotations/service";
 import { moreActions } from "../common/drop-down-linki-ui";
-import { stack } from "../common/spacing";
-import type { Uri } from "../common/uri";
-
 import {
   defaultRating,
   ratingForLinkedData,
   ratingProp,
   ratingSelect,
-} from "./rating";
+} from "../common/rating";
+import { stack } from "../common/spacing";
+import type { Uri } from "../common/uri";
 
 const dateTimeOfAction: View<{ date: Date; action: string }> = ({
   date,
