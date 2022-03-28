@@ -25,33 +25,32 @@ export type Interval<T extends IntervalUri> = {
   hasEnd: InstantUri;
 };
 export type Year = Interval<YearUri> & {
-  "@type": "http://reference.data.gov.uk/def/intervals/Year";
+  "@type": "unitYear";
   intervalDuring: [];
   intervalContains: (MonthUri | QuarterUri)[];
 };
-export type Quarter = Interval<QuarterUri> & {
-  "@type": "http://reference.data.gov.uk/def/intervals/Quarter";
-  intervalDuring: [YearUri];
-  intervalContains: [];
-};
 export type Month = Interval<MonthUri> & {
-  "@type": "http://reference.data.gov.uk/def/intervals/Month";
-  intervalDuring: (Quarter | Year)[];
+  "@type": `unitMonth`;
+  intervalDuring: Year[];
   intervalContains: (WeekUri | DayUri)[];
-  monthOfYear: string;
 };
+type WeekContainers =
+  | [MonthUri, QuarterUri, YearUri]
+  | [QuarterUri, YearUri]
+  | [YearUri]
+  | [];
 export type Week = Interval<WeekUri> & {
-  intervalDuring: [Month];
-  intervalContains: DayUri[];
-  week: number;
+  "@type": `unitWeek`;
+  intervalDuring: WeekContainers;
+  intervalContains: [DayUri, DayUri, DayUri, DayUri, DayUri, DayUri, DayUri];
+  intervalOverlappedBy: WeekContainers;
+  intervalOverlaps: WeekContainers;
 };
 
 export type Day = Interval<DayUri> & {
   "@type": `unitDay`;
-  intervalDuring: (WeekUri | MonthUri | QuarterUri | YearUri)[];
+  intervalDuring: [WeekUri, MonthUri, QuarterUri, YearUri];
   intervalContains: [];
-  dayOfWeek: Uri;
-  monthOfYear: Uri;
 };
 
 const timeVocabUri = "http://www.w3.org/2006/time";
@@ -81,13 +80,13 @@ const monthUriPrefix = buildIntervalUri("month/");
 const monthUri = (date: Date): MonthUri =>
   `${monthUriPrefix}${date.toISOString().slice(0, 7)}`;
 
-const weekUriPrefix = buildIntervalUri("week/");
-const week = (date: Date): number => {
+export const dateToWeek = (date: Date): number => {
+  date.toISOString();
   const d = new Date(date.getTime());
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
-  const week1 = new Date(d.getFullYear(), 0, 4);
+  d.setUTCDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+  const week1 = new Date(Date.UTC(d.getFullYear(), 0, 4));
   // Adjust to Thursday in week 1 and count number of weeks from date to week1.
+  // https://en.wikipedia.org/wiki/ISO_week_date#First_week
   return (
     1 +
     Math.round(
@@ -98,61 +97,59 @@ const week = (date: Date): number => {
     )
   );
 };
-const weekUri = (date: Date): WeekUri =>
-  `${weekUriPrefix}${date.getFullYear()}-W${week(date)}`;
+export const weekToDate = (year: number, week: number): Date => {
+  const getZeroBasedIsoWeekDay = (date: Date) => (date.getDay() + 6) % 7;
+  const getIsoWeekDay = (date: Date) => getZeroBasedIsoWeekDay(date) + 1;
+  const zeroBasedWeek = week - 1;
+  let days = zeroBasedWeek * 7;
+  days += 1; // Dates start at 2017-01-01 and not 2017-01-00
+
+  const firstDayOfYear = new Date(Date.UTC(year, 0, 1));
+  const firstIsoWeekDay = getIsoWeekDay(firstDayOfYear);
+  const zeroBasedFirstIsoWeekDay = getZeroBasedIsoWeekDay(firstDayOfYear);
+
+  // If year begins with W52 or W53
+  if (firstIsoWeekDay > 4) {
+    days += 8 - firstIsoWeekDay;
+    // Else begins with W01
+  } else {
+    days -= zeroBasedFirstIsoWeekDay;
+  }
+  return new Date(Date.UTC(year, 0, days));
+};
+const pad = (number: number, size: number): string => {
+  let num = number.toString();
+  while (num.length < size) num = "0" + num;
+  return num;
+};
+const weekUriPrefix = buildIntervalUri("week/");
+const weekUri = (date: Date): WeekUri => {
+  return `${weekUriPrefix}${date.getFullYear()}-W${pad(dateToWeek(date), 2)}`;
+};
 
 const dayUriPrefix = buildIntervalUri("day/");
 const dayUri = (date: Date): DayUri =>
   `${dayUriPrefix}${date.toISOString().slice(0, 10)}`;
 
-const tomorrow = (date: Date): Date => {
-  const tomorrow = new Date(date);
-  tomorrow.setDate(date.getDate() + 1);
+const offsetDay = (day: Date, offset: number): Date => {
+  const tomorrow = new Date(day);
+  tomorrow.setUTCDate(day.getDate() + offset);
   return tomorrow;
 };
 
-const yesterday = (date: Date): Date => {
+const tomorrow = (date: Date): Date => offsetDay(date, 1);
+const yesterday = (date: Date): Date => offsetDay(date, -1);
+
+const nextWeek = (date: Date): Date => {
+  const tomorrow = new Date(date);
+  tomorrow.setUTCDate(date.getDate() + 7);
+  return tomorrow;
+};
+
+const previousWeek = (date: Date): Date => {
   const yesterday = new Date(date);
-  yesterday.setDate(date.getDate() - 1);
+  yesterday.setUTCDate(date.getDate() - 7);
   return yesterday;
-};
-
-const dayOfWeeks = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
-
-const dayOfWeekUri = (date: Date): Uri =>
-  `${timeVocabUri}#${dayOfWeeks[date.getDay()]}`;
-
-export const dayOfWeekName = (uri: string): string | undefined => {
-  if (uri.startsWith(timeVocabUri)) {
-    return uri.replace(timeVocabUri + "#", "");
-  }
-};
-
-const monthOfYear = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
-const monthOfYearUri = (date: Date): Uri => {
-  return `${gregorianVocabUri}#${monthOfYear[date.getMonth()]}`;
 };
 
 export const monthOfYearName = (uri: string): string | undefined => {
@@ -170,33 +167,79 @@ const getInstant = (date: Date): Instant => ({
 const dateFromInstanceUri = (uri: string): Date =>
   new Date(uri.replace(instanceUriPrefix, "") + "Z");
 
-export const dayType: "unitDay" = `unitDay`;
-const getDayInterval = (date: Date): Day => ({
-  "@context": "http://www.w3.org/2006/time",
-  "@id": dayUri(date),
+export const dayType = "unitDay" as const;
+const getDayInterval = (startOfDay: Date): Day => ({
+  "@context": timeVocabUri,
+  "@id": dayUri(startOfDay),
   "@type": dayType,
-  intervalMeets: dayUri(tomorrow(date)),
-  intervalMetBy: dayUri(yesterday(date)),
-  hasBeginning: getInstantUri(date),
-  hasEnd: getInstantUri(tomorrow(date)),
+  intervalMeets: dayUri(tomorrow(startOfDay)),
+  intervalMetBy: dayUri(yesterday(startOfDay)),
+  hasBeginning: getInstantUri(startOfDay),
+  hasEnd: getInstantUri(tomorrow(startOfDay)),
   intervalDuring: [
-    weekUri(date),
-    monthUri(date),
-    quarterUri(date),
-    yearUri(date),
+    weekUri(startOfDay),
+    monthUri(startOfDay),
+    quarterUri(startOfDay),
+    yearUri(startOfDay),
   ],
   intervalContains: [],
-  dayOfWeek: dayOfWeekUri(date),
-  monthOfYear: monthOfYearUri(date),
 });
 const dateFromDayUri = (uri: string) =>
   new Date(uri.replace(dayUriPrefix, "") + "Z");
 
-export const getIntervalData = (uri: string): Day | Instant | void => {
-  if (uri.startsWith(dayUriPrefix)) {
-    return getDayInterval(dateFromDayUri(uri));
-  } else if (uri.startsWith(instanceUriPrefix)) {
+export const weekType = "unitWeek" as const;
+const getWeekInterval = (weekDate: Date): Week => {
+  let intervalDuring: WeekContainers = [];
+  let intervalOverlappedBy: WeekContainers = [];
+  let intervalOverlaps: WeekContainers = [];
+  const lastDayOfWeek = offsetDay(weekDate, 6);
+  if (weekDate.getUTCFullYear() === lastDayOfWeek.getUTCFullYear()) {
+    intervalDuring = [yearUri(weekDate)];
+  } else {
+    intervalOverlappedBy = [yearUri(weekDate)];
+    intervalOverlaps = [yearUri(lastDayOfWeek)];
+  }
+  if (quarter(weekDate) === quarter(lastDayOfWeek)) {
+    intervalDuring = [quarterUri(weekDate), ...intervalDuring];
+  } else {
+    intervalOverlappedBy = [quarterUri(weekDate), ...intervalOverlappedBy];
+    intervalOverlaps = [quarterUri(lastDayOfWeek), ...intervalOverlaps];
+  }
+  if (weekDate.getUTCMonth() === lastDayOfWeek.getUTCMonth()) {
+    intervalDuring = [monthUri(weekDate), ...intervalDuring];
+  } else {
+    intervalOverlappedBy = [monthUri(weekDate), ...intervalOverlappedBy];
+    intervalOverlaps = [monthUri(lastDayOfWeek), ...intervalOverlaps];
+  }
+
+  return {
+    "@context": timeVocabUri,
+    "@id": weekUri(weekDate),
+    "@type": weekType,
+    intervalMeets: weekUri(nextWeek(weekDate)),
+    intervalMetBy: weekUri(previousWeek(weekDate)),
+    hasBeginning: getInstantUri(weekDate),
+    hasEnd: getInstantUri(nextWeek(weekDate)),
+    intervalDuring,
+    intervalOverlappedBy,
+    intervalOverlaps,
+    intervalContains: Array.from(Array(7).keys()).map(
+      (offset): DayUri => dayUri(offsetDay(weekDate, offset))
+    ) as [DayUri, DayUri, DayUri, DayUri, DayUri, DayUri, DayUri],
+  };
+};
+const dateFromWeekUri = (uri: string) => {
+  const [year, week] = uri.replace(weekUriPrefix, "").split("-W");
+  return weekToDate(parseInt(year), parseInt(week));
+};
+
+export const getIntervalData = (uri: string): void | Instant | Day | Week => {
+  if (uri.startsWith(instanceUriPrefix)) {
     return getInstant(dateFromInstanceUri(uri));
+  } else if (uri.startsWith(dayUriPrefix)) {
+    return getDayInterval(dateFromDayUri(uri));
+  } else if (uri.startsWith(weekUriPrefix)) {
+    return getWeekInterval(dateFromWeekUri(uri));
   }
 };
 
