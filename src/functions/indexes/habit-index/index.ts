@@ -12,9 +12,9 @@ import {
 
 import type {
   HabitObject,
-  HabitUri,
   HabitTrackEventObject,
   HabitTrackEventUri,
+  HabitUri,
 } from "../../../components/productivity/model";
 import type {
   Habit,
@@ -58,7 +58,7 @@ export const createHabitStore = (): DynamicStoreProvider<HabitRecord> =>
 
 type IntervalUris = [IntervalUri, ...IntervalUri[]];
 export type HabitQuery = {
-  intervals: IntervalUris;
+  intervals: IntervalUri[];
 };
 type HabitChange = ArrayChange<HabitObject, HabitUri>;
 export type HabitSubscribe = (q: HabitQuery) => ClosableProvider<HabitChange>;
@@ -107,6 +107,8 @@ export const createHabitSubscribe = (
   addListener: Callback<Callback<HabitUri>>,
   removeListener: Callback<Callback<HabitUri>>
 ): HabitSubscribe => ({ intervals }) => (callback) => {
+  if (intervals.length === 0) return () => {};
+
   const habitObjectBuilder = crateHabitObjectBuilder(
     ldStoreRead,
     habitTrackEventStore
@@ -122,7 +124,7 @@ export const createHabitSubscribe = (
   );
 
   const withIntervalsContext = withContext<HabitUri, IntervalUris>(
-    () => intervals
+    () => intervals as IntervalUris
   );
   storeGetAll<HabitRecord>(habitStore)
     .then((habits) => {

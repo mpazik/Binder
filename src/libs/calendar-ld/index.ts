@@ -3,10 +3,10 @@ import type { Uri } from "../../components/common/uri";
 type IsoDate = string;
 type InstantUri = Uri;
 export type IntervalUri = Uri;
-type DayUri = IntervalUri;
-type WeekUri = IntervalUri;
-type MonthUri = IntervalUri;
-type YearUri = IntervalUri;
+export type DayUri = IntervalUri;
+export type WeekUri = IntervalUri;
+export type MonthUri = IntervalUri;
+export type YearUri = IntervalUri;
 
 const timeVocabUri = "http://www.w3.org/2006/time";
 const gregorianVocabUri = "http://www.w3.org/ns/time/gregorian";
@@ -16,6 +16,23 @@ export const weekType = "unitWeek" as const;
 export const monthType = "unitMonth" as const;
 export const yearType = "unitYear" as const;
 export const intervalTypes = [dayType, weekType, monthType, yearType];
+export type IntervalTypes = typeof intervalTypes[number];
+export const intervalTypeParent = {
+  [dayType]: weekType,
+  [weekType]: monthType,
+  [monthType]: yearType,
+};
+export const intervalTypeChildren = {
+  [weekType]: dayType,
+  [monthType]: weekType,
+  [yearType]: monthType,
+};
+export const intervalTypeName = {
+  [dayType]: "day",
+  [weekType]: "week",
+  [monthType]: "month",
+  [yearType]: "year",
+};
 
 export type Instant = {
   "@context": "http://www.w3.org/2006/time";

@@ -18,9 +18,9 @@ import {
 } from "linki";
 import type { JsonHtml } from "linki-ui";
 import {
+  createComponentRenderer,
   mountComponent,
   renderJsonHtmlToDom,
-  createComponentRenderer,
 } from "linki-ui";
 
 import type {
@@ -28,8 +28,8 @@ import type {
   UpdateAnalyticsRepoAccount,
 } from "../../functions/analytics";
 import {
-  initConfiguredAnalyticsForRepoAccount,
   createErrorSender,
+  initConfiguredAnalyticsForRepoAccount,
 } from "../../functions/analytics";
 import type { LinkedDataWithContent } from "../../functions/content-processors";
 import { processFileToContent } from "../../functions/content-processors";
@@ -90,7 +90,7 @@ import {
   updateBrowserHistory,
 } from "../../libs/browser-providers";
 import type { Day } from "../../libs/calendar-ld";
-import { dayType, getTodayUri } from "../../libs/calendar-ld";
+import { getTodayUri, intervalTypes } from "../../libs/calendar-ld";
 import type { HashName, HashUri } from "../../libs/hash";
 import { isHashUri } from "../../libs/hash";
 import { storeGetAll } from "../../libs/indexeddb";
@@ -127,7 +127,7 @@ import {
 } from "../display-settings/panel";
 import { createSettingUpdateAction } from "../display-settings/setting-update";
 import { fileDrop } from "../file-drop";
-import { dayJournal } from "../journal";
+import { journal } from "../journal";
 import { navigation } from "../navigation";
 import { storePage } from "../store";
 
@@ -565,11 +565,13 @@ export const App: Component<
           displayFullScreen(dom.body);
         })();
       }
-    } else if (dataType === dayType) {
+    } else if (dataType && (intervalTypes as string[]).includes(dataType)) {
       const [component] = mountComponent(
-        dayJournal({
-          day: data.linkedData as Day,
-          annotationSubscribe: annotationsIndex.subscribe(store.readLinkedData),
+        journal({
+          interval: data.linkedData as Day,
+          subscribeAnnotations: annotationsIndex.subscribe(
+            store.readLinkedData
+          ),
           saveAnnotation,
           saveLinkedData,
           searchCompletionIndex: completionIndex.searchIndex,

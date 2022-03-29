@@ -25,7 +25,7 @@ export const linkHijack = ({
       return; // ignore anchor with explicitly set target attribute
     }
     const uri = element.getAttribute("href");
-    if (!uri) return;
+    if (!uri || uri === "#") return;
 
     push(uri);
     event.preventDefault();

@@ -19,15 +19,16 @@ import {
 } from "linki-ui";
 
 import type { HabitSubscribe } from "../../functions/indexes/habit-index";
-import type { Day, IntervalUri } from "../../libs/calendar-ld";
+import type { CalendarInterval, IntervalUri } from "../../libs/calendar-ld";
+import { dayType, weekType } from "../../libs/calendar-ld";
 import type { HashUri } from "../../libs/hash";
 import type { LinkedData } from "../../libs/jsonld-format";
 import { stack } from "../common/spacing";
 
 import type {
   HabitObject,
-  HabitTrackStatusUri,
   HabitTrackEventObject,
+  HabitTrackStatusUri,
 } from "./model";
 import { habitTrackStatuses } from "./model";
 import { createHabitTrackEvent } from "./vocabulary";
@@ -94,17 +95,42 @@ const habitComponent = (
 const getId = (it: HabitObject): HashUri => it.id;
 
 export const habits = ({
-  day,
+  interval,
   subscribe,
   saveLinkedData,
 }: {
+  interval: CalendarInterval;
   subscribe: HabitSubscribe;
   saveLinkedData: Callback<LinkedData>;
-  day: Day;
 }): UiComponent => ({ render }) => {
+  const intervalType = interval["@type"];
+  if (intervalType !== weekType && intervalType !== dayType) {
+    return;
+  }
+  const [intervals, headers]: [IntervalUri[], string[]] =
+    intervalType === dayType
+      ? [
+          [interval.intervalMetBy, interval["@id"]],
+          ["Yesterday", "Today"],
+        ]
+      : intervalType === weekType
+      ? [
+          interval.intervalContains,
+          [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday",
+          ],
+        ]
+      : [[], []];
+
   const [habits, { changeItems }] = mountItemComponent(
     getId,
-    habitComponent([day.intervalMetBy, day["@id"]]),
+    habitComponent(intervals),
     {
       onTrack: link(
         map(([habit, { status, interval }]) =>
@@ -131,16 +157,18 @@ export const habits = ({
         { class: "markdown-body" },
         table(
           { class: "habits" },
-          thead(tr(th("habit"), th("yesterday"), th("today"))),
+          thead(
+            tr(
+              th("habit"),
+              headers.map((it) => th(it))
+            )
+          ),
           habits
         )
       )
     )
   );
   return {
-    stop: link(
-      subscribe({ intervals: [day.intervalMetBy, day["@id"]] }),
-      changeItems
-    ),
+    stop: link(subscribe({ intervals: intervals }), changeItems),
   };
 };

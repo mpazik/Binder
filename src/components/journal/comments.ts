@@ -8,6 +8,7 @@ import {
   link,
   map,
   or,
+  splitDefined,
   to,
   valueWithState,
 } from "linki";
@@ -26,8 +27,11 @@ import {
   textarea,
 } from "linki-ui";
 
-import type { AnnotationsSubscribe } from "../../functions/indexes/annotations-index";
-import type { Day } from "../../libs/calendar-ld";
+import type {
+  AnnotationChange,
+  AnnotationsSubscribe,
+} from "../../functions/indexes/annotations-index";
+import type { IntervalUri } from "../../libs/calendar-ld";
 import type {
   LinkedData,
   LinkedDataWithHashId,
@@ -153,15 +157,15 @@ const annotationTextarea = (saveData: Callback) =>
   );
 
 const commentForm: View<{
-  dayUri: Uri;
+  intervalUri: Uri;
   onSave: Callback<AnnotationSaveProps>;
-}> = ({ dayUri, onSave }) => {
+}> = ({ intervalUri, onSave }) => {
   const saveData = link(
     map(to(() => formDom)),
     fork(
       link(
         map(inputValue, (content) => ({
-          reference: dayUri,
+          reference: intervalUri,
           content,
         })),
         onSave
@@ -186,20 +190,18 @@ const getId = (it: Annotation) =>
   getHash((it as unknown) as LinkedDataWithHashId);
 
 export const comments = ({
-  day,
+  intervalUri,
   dayDate,
   subscribe,
   saveAnnotation,
   saveLinkedData,
 }: {
-  day: Day;
+  intervalUri: Uri;
   dayDate: Date;
   subscribe: AnnotationsSubscribe;
   saveAnnotation: AnnotationsSaver;
   saveLinkedData: Callback<LinkedData>;
 }): UiComponent => ({ render }) => {
-  const dayUri = day["@id"];
-
   const [commentsSlot, { changeItems: changeComments }] = mountItemComponent(
     getId,
     createCommentComponent(dayDate),
@@ -211,26 +213,26 @@ export const comments = ({
     stack(
       { gap: "medium" },
       div(h2("Comments"), commentsSlot),
-      div(commentForm({ dayUri, onSave: saveAnnotation }))
+      div(commentForm({ intervalUri, onSave: saveAnnotation }))
     )
   );
   return {
     stop: link(
-      subscribe({ reference: dayUri, motivation: "commenting" }),
+      subscribe({ reference: intervalUri, motivation: "commenting" }),
       changeComments
     ),
   };
 };
 
 const reviewForm: View<{
-  dayUri: Uri;
+  intervalUri: Uri;
   onSave: Callback<AnnotationSaveProps>;
-}> = ({ dayUri, onSave }) => {
+}> = ({ intervalUri, onSave }) => {
   const saveData = link(
     map(to(() => textareaDom)),
     link(
       map(inputValue, (content) => ({
-        reference: dayUri,
+        reference: intervalUri,
         content,
         motivation: "assessing" as AnnotationMotivation,
       })),
@@ -251,31 +253,46 @@ const reviewForm: View<{
   );
 };
 
+const rating: View<Annotation> = (annotation) =>
+  span(
+    { class: "ml-2 flex-auto" },
+    ratingForLinkedData(annotation as LinkedData)
+  );
+
+const pickFirstAnnotation = (op: AnnotationChange): Annotation | undefined => {
+  if (op[0] === "to") {
+    if (op[1].length === 0) {
+      return undefined;
+    } else {
+      return op[1][0];
+    }
+  } else if (op[0] === "set") {
+    return op[1];
+  } else if (op[0] === "del") {
+    return undefined;
+  }
+};
+
 export const review = ({
-  day,
+  intervalUri,
   subscribe,
   saveAnnotation,
   saveLinkedData,
 }: {
-  day: Day;
+  intervalUri: IntervalUri;
   subscribe: AnnotationsSubscribe;
   saveAnnotation: AnnotationsSaver;
   saveLinkedData: Callback<LinkedData>;
 }): UiComponent => ({ render }) => {
-  const dayUri = day["@id"];
-
   const renderAnnotation = link(
     map(
-      (annotation: Annotation): JsonHtml => {
-        return stack(
+      (annotation: Annotation): JsonHtml =>
+        stack(
           { gap: "medium" },
           div(
             { class: "d-flex flex-items-center" },
             h2("Review"),
-            span(
-              { class: "ml-2 flex-auto" },
-              ratingForLinkedData(annotation as LinkedData)
-            ),
+            rating(annotation),
             moreActions({
               actions: [
                 {
@@ -309,8 +326,7 @@ export const review = ({
                 )
               : undefined
           )
-        );
-      }
+        )
     ),
     render
   );
@@ -342,7 +358,7 @@ export const review = ({
         ),
         div(
           reviewForm({
-            dayUri,
+            intervalUri,
             onSave: saveWithRating,
           })
         )
@@ -352,20 +368,59 @@ export const review = ({
 
   return {
     stop: link(
-      subscribe({ reference: dayUri, motivation: "assessing" }),
-      (op) => {
-        if (op[0] === "to") {
-          if (op[1].length === 0) {
-            renderForm();
-          } else {
-            renderAnnotation(op[1][0]);
-          }
-        } else if (op[0] === "set") {
-          renderAnnotation(op[1]);
-        } else if (op[0] === "del") {
-          renderForm();
-        }
-      }
+      subscribe({ reference: intervalUri, motivation: "assessing" }),
+      map(pickFirstAnnotation),
+      splitDefined(),
+      [renderAnnotation, renderForm]
+    ),
+  };
+};
+
+const readOnlyView: View<Annotation> = ({ body }) =>
+  body
+    ? div(
+        {
+          class: "Box Box--condensed",
+        },
+        div(
+          {
+            class: "Box-body",
+          },
+          dangerousHtml(body.value)
+        )
+      )
+    : undefined;
+
+export const readOnlyReviewBody = (
+  intervalUri: IntervalUri,
+  subscribe: AnnotationsSubscribe
+): UiComponent => ({ render }) => {
+  return {
+    stop: link(
+      subscribe({
+        reference: intervalUri,
+        motivation: "assessing",
+      }),
+      map(pickFirstAnnotation),
+      splitDefined(),
+      [link(map(readOnlyView), render), () => render(undefined)]
+    ),
+  };
+};
+
+export const readOnlyReviewRating = (
+  intervalUri: IntervalUri,
+  subscribe: AnnotationsSubscribe
+): UiComponent => ({ render }) => {
+  return {
+    stop: link(
+      subscribe({
+        reference: intervalUri,
+        motivation: "assessing",
+      }),
+      map(pickFirstAnnotation),
+      splitDefined(),
+      [link(map(rating), render), () => render(undefined)]
     ),
   };
 };

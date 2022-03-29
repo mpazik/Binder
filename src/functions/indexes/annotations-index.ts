@@ -1,5 +1,5 @@
 import type { ArrayChange, Callback, ClosableProvider, Predicate } from "linki";
-import { link, pipe, filter, isEqual, cast, defined, map, pick } from "linki";
+import { cast, defined, filter, isEqual, link, map, pick, pipe } from "linki";
 
 import type {
   Annotation,
@@ -29,7 +29,7 @@ export type AnnotationsQuery = {
   motivation?: AnnotationMotivation;
 };
 
-type AnnotationChange = ArrayChange<Annotation, HashUri>;
+export type AnnotationChange = ArrayChange<Annotation, HashUri>;
 export type AnnotationsSubscribe = (
   q: AnnotationsQuery
 ) => ClosableProvider<AnnotationChange>;

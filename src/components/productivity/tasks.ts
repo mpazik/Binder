@@ -20,7 +20,7 @@ import type {
   CompletionSubscribe,
   SearchCompletionIndex,
 } from "../../functions/indexes/completion-index";
-import type { Day } from "../../libs/calendar-ld";
+import type { CalendarInterval, Day } from "../../libs/calendar-ld";
 import {
   intervalBeggingDate,
   intervalEndDate,
@@ -36,40 +36,57 @@ import { stack } from "../common/spacing";
 import type { TaskObject } from "./model";
 import { createComplete, createTask } from "./vocabulary";
 
+const taskView = ({
+  onChange,
+}: {
+  onChange?: Callback<Event>;
+}): View<{ completed: boolean; content: string }> => ({ completed, content }) =>
+  li(
+    { class: "pb-1" },
+    input({
+      class: "mr-1 v-align-middle",
+      style: { width: "0.9em", height: "0.9em" },
+      type: "checkbox",
+      checked: completed,
+      disabled: !onChange,
+      ...(onChange ? { onChange } : {}),
+    }),
+    span(
+      completed
+        ? {
+            class: "color-text-secondary",
+            style: {
+              textDecoration: "line-through",
+            },
+          }
+        : {},
+      content
+    )
+  );
+
+const readOnlyTaskComponent: UiItemComponent<TaskObject> = ({ render }) => {
+  return {
+    updateItem: link(map(taskView({})), render),
+  };
+};
+
 const taskComponent: UiItemComponent<
   TaskObject,
   { onCompleted: void; onUndone: void }
 > = ({ render, onCompleted, onUndone }) => {
   return {
-    updateItem: ({ completed, content }) => {
-      render(
-        li(
-          { class: "pb-1" },
-          input({
-            class: "mr-1 v-align-middle",
-            style: { width: "0.9em", height: "0.9em" },
-            type: "checkbox",
-            checked: completed,
-            onChange: link(
-              map(isTargetInputChecked),
-              splitMap(identity(), ignore),
-              [onCompleted, onUndone]
-            ),
-          }),
-          span(
-            completed
-              ? {
-                  class: "color-text-secondary",
-                  style: {
-                    textDecoration: "line-through",
-                  },
-                }
-              : {},
-            content
-          )
-        )
-      );
-    },
+    updateItem: link(
+      map(
+        taskView({
+          onChange: link(
+            map(isTargetInputChecked),
+            splitMap(identity(), ignore),
+            [onCompleted, onUndone]
+          ),
+        })
+      ),
+      render
+    ),
   };
 };
 
@@ -129,13 +146,13 @@ export const tasks = ({
       { gap: "medium" },
       h2("Tasks"),
       div(
+        h3({ class: "h4" }, "Completed that day"),
+        ul({ class: "list-style-none" }, completedTasks)
+      ),
+      div(
         h3({ class: "h4" }, "To do"),
         ul({ class: "list-style-none" }, todoTasks),
         taskInput({ onSubmit: link(map(createTask), saveLinkedData) })
-      ),
-      div(
-        h3({ class: "h4" }, "Completed that day"),
-        ul({ class: "list-style-none" }, completedTasks)
       )
     )
   );
@@ -155,6 +172,31 @@ export const tasks = ({
         }),
         changeCompletedTasks
       )
+    ),
+  };
+};
+
+export const readOnlyTasks = ({
+  subscribe,
+  interval,
+}: {
+  subscribe: CompletionSubscribe;
+  interval: CalendarInterval;
+}): UiComponent => ({ render }) => {
+  const [tasks, { changeItems }] = mountItemComponent(
+    getId,
+    readOnlyTaskComponent,
+    {}
+  );
+
+  render(ul({ class: "list-style-none" }, tasks));
+  return {
+    stop: link(
+      subscribe({
+        since: intervalBeggingDate(interval).getTime(),
+        until: intervalEndDate(interval).getTime(),
+      }),
+      changeItems
     ),
   };
 };
