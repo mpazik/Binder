@@ -2,22 +2,22 @@ import "./style.css";
 
 import type { Callback } from "linki";
 import {
-  link,
-  filter,
-  map,
-  ignoreParam,
-  fork,
-  pick,
-  to,
-  passOnlyChanged,
-  withState,
-  valueWithState,
-  definedTuple,
-  nextTick,
-  defined,
-  splitDefinedProp,
-  combine,
   cast,
+  combine,
+  defined,
+  definedTuple,
+  filter,
+  fork,
+  ignoreParam,
+  link,
+  map,
+  nextTick,
+  passOnlyChanged,
+  pick,
+  splitDefinedProp,
+  to,
+  valueWithState,
+  withState,
 } from "linki";
 
 import type { AnnotationsSubscribe } from "../../functions/indexes/annotations-index";

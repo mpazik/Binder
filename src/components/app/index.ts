@@ -1,6 +1,6 @@
 import type { Callback } from "linki";
 import {
-  asyncMapWithErrorHandler,
+  asyncMap,
   defined,
   definedTuple,
   filter,
@@ -14,6 +14,7 @@ import {
   reduce,
   split,
   to,
+  withErrorLogging,
   withState,
 } from "linki";
 import type { JsonHtml } from "linki-ui";
@@ -424,8 +425,8 @@ export const App: Component<
   );
 
   const loadUriWithRecentFragment: Callback<UriWithFragment> = link(
-    asyncMapWithErrorHandler(
-      async ({ uri, fragment }) => {
+    withErrorLogging(
+      asyncMap(async ({ uri, fragment }) => {
         if (!fragment && isHashUri(uri)) {
           const record = await watchHistoryIndex(uri as HashUri);
           if (record && record.fragment) {
@@ -433,8 +434,7 @@ export const App: Component<
           }
         }
         return { uri, fragment };
-      },
-      (e) => console.error(e)
+      })
     ),
     loadUri
   );
@@ -677,9 +677,8 @@ export const App: Component<
       onFile: startChain((start) =>
         start
           .process(
-            asyncMapWithErrorHandler(
-              (it) => processFileToContent(it).then(contentSaver),
-              (error) => console.error(error)
+            withErrorLogging(
+              asyncMap((it) => processFileToContent(it).then(contentSaver))
             )
           )
           .withEffect((start) =>

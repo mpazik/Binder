@@ -1,31 +1,19 @@
-import { defined, reduce } from "linki";
 import type {
   Callback,
   Callbacks,
-  PartialTuple,
-  Processor,
-  ProcessorMultiIn,
-  Transformer,
-  Tuple,
-  Predicate,
-  ProcessorMultiOut,
   ClosableProcessor,
   ClosableProvider,
+  PartialTuple,
+  Predicate,
+  Processor,
+  ProcessorMultiIn,
+  ProcessorMultiOut,
+  Transformer,
+  Tuple,
 } from "linki";
+import { defined, reduce } from "linki";
 
 import { throwIfUndefined } from "../errors";
-
-export const withEffect = <T>(handler: (data: T) => void) => (data: T): T => {
-  handler(data);
-  return data;
-};
-
-export const effect = <T>(handler: (data: T) => void): Processor<T> => (
-  callback
-) => (data) => {
-  handler(data);
-  callback(data);
-};
 
 export const throwOnNull = <T>(): Processor<T | undefined, T> => (callback) => (
   v
@@ -146,10 +134,6 @@ export const withMultiState = <S extends Tuple, V = void>(
       [K in keyof S]: Callback<S[K]>;
     }) as Callbacks<S>),
   ];
-};
-
-export const logIt = <T>(name = "🧐 ㏒: "): Callback<T> => (value) => {
-  console.log(name, value);
 };
 
 export const as = <A>() => <T extends A>(x: T): T => x;

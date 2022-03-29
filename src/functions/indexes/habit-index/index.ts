@@ -1,6 +1,6 @@
 import type { ArrayChange, Callback, ClosableProvider } from "linki";
 import {
-  asyncMapWithErrorHandler,
+  asyncMap,
   cast,
   filter,
   ignore,
@@ -8,6 +8,7 @@ import {
   map,
   pick,
   pipe,
+  withErrorLogging,
 } from "linki";
 
 import type {
@@ -115,9 +116,7 @@ export const createHabitSubscribe = (
   );
   let closed = false;
   const sendTask: Callback<HabitObjectInput> = link(
-    asyncMapWithErrorHandler(habitObjectBuilder, (error) =>
-      console.error(error)
-    ),
+    withErrorLogging(asyncMap(habitObjectBuilder)),
     filter(() => !closed),
     map((it) => ["set", it] as HabitChange),
     callback

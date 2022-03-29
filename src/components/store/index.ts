@@ -1,15 +1,15 @@
 import type { Callback, ProcessorMultiOut } from "linki";
 import {
   asyncMap,
-  asyncMapWithErrorHandler,
   fork,
   kick,
   link,
   map,
+  onSecondOutput,
   split,
   to,
-  onSecondOutput,
   tryMap,
+  withErrorLogging,
 } from "linki";
 import type { JsonHtml, UiComponent, View } from "linki-ui";
 import {
@@ -52,9 +52,7 @@ const listData = (
 ): UiComponent<{ refresh: void }> => ({ render }) => {
   const refresh: Callback = link(
     kick<void>(undefined),
-    asyncMapWithErrorHandler(realAllLinkedData, (error) =>
-      console.error(error)
-    ),
+    withErrorLogging(asyncMap(realAllLinkedData)),
     map((list) =>
       div(
         h3("Record list", span({ class: "f4 Counter m-1" }, list.length + "")),

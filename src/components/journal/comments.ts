@@ -8,6 +8,7 @@ import {
   link,
   map,
   or,
+  push,
   splitDefined,
   to,
   valueWithState,
@@ -154,7 +155,7 @@ const annotationTextarea = (saveData: Callback) =>
         }
       },
     })
-  );
+  ) as HTMLInputElement;
 
 const commentForm: View<{
   intervalUri: Uri;
@@ -297,18 +298,13 @@ export const review = ({
               actions: [
                 {
                   label: "Delete",
-                  handler: () =>
-                    link(
-                      map(
-                        to(() =>
-                          getHash(
-                            (annotation as unknown) as LinkedDataWithHashId
-                          )
-                        ),
-                        createDelete
-                      ),
-                      saveLinkedData
-                    )(undefined),
+                  handler: link(
+                    push(() =>
+                      getHash((annotation as unknown) as LinkedDataWithHashId)
+                    ),
+                    map(createDelete),
+                    saveLinkedData
+                  ),
                 },
               ],
             })

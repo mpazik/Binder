@@ -1,12 +1,13 @@
 import type { ArrayChange, Callback, ClosableProvider, Predicate } from "linki";
 import {
-  asyncMapWithErrorHandler,
+  asyncMap,
   defined,
   filter,
   link,
   map,
   pick,
   pipe,
+  withErrorLogging,
 } from "linki";
 
 import type { TaskObject } from "../../../components/productivity/model";
@@ -191,9 +192,7 @@ export const createCompletionSubscribe = (
   let closed = false;
 
   const sendTask: Callback<CompletionRecord> = link(
-    asyncMapWithErrorHandler(taskObjectBuilder, (error) =>
-      console.error(error)
-    ),
+    withErrorLogging(asyncMap(taskObjectBuilder)),
     filter(() => !closed),
     map((it) => ["set", it] as TodosChange),
     callback

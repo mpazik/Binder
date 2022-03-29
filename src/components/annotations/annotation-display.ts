@@ -1,6 +1,7 @@
 import type { Callback } from "linki";
 import {
   and,
+  cast,
   defined,
   filter,
   fork,
@@ -8,10 +9,9 @@ import {
   map,
   or,
   passOnlyChanged,
-  to,
-  withOptionalState,
+  push,
   valueWithOptionalState,
-  cast,
+  withOptionalState,
 } from "linki";
 
 import { CATEGORIES_ENABLED } from "../../config";
@@ -101,10 +101,11 @@ const createAnnotationView: ViewSetup<
             {
               label: "Delete",
               handler: link(
-                map(to(annotation), cast(), getHash),
+                push(annotation),
+                map(cast(), getHash),
                 filter(defined),
                 onDelete
-              ) as Callback,
+              ),
             },
           ],
         })
@@ -167,10 +168,7 @@ export const annotationDisplay: Component<
     renderPopup
   );
 
-  const hide: Callback = link(
-    map(to(["hidden"] as AnnotationDisplayState)),
-    handleData
-  );
+  const hide = link(push(["hidden"] as AnnotationDisplayState), handleData);
   const [delayedHide, cleanDelay] = link(clearableDelay<void>(100), hide);
 
   const displayAnnotation: Callback<DisplayAnnotation> = fork(

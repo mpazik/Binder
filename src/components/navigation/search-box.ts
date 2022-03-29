@@ -10,12 +10,12 @@ import {
   ignoreParam,
   is,
   link,
-  logError,
   map,
   pick,
   split,
   to,
   valueWithState,
+  withErrorLogging,
   withState,
 } from "linki";
 import type { JsonHtml, UiComponent, View } from "linki-ui";
@@ -266,7 +266,11 @@ export const searchBox = (
     ["ArrowUp", () => highlightPreviousItem()],
   ]);
 
-  const renderSearch = link(map(onSearch), logError(async()), renderList);
+  const renderSearch = link(
+    map(onSearch),
+    withErrorLogging(async()),
+    renderList
+  );
 
   const inputElement = renderJsonHtmlToDom(
     input({

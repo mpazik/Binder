@@ -1,5 +1,4 @@
-import type { Callback } from "linki";
-import { link, map, to } from "linki";
+import { link, map, push } from "linki";
 import type { JsonHtml, UiComponent, View } from "linki-ui";
 import {
   a,
@@ -106,7 +105,7 @@ export const accountPicker: UiComponent<
   { displayAccountPicker: { loading: boolean }; closeAccountPicker: void },
   { gdriveLogin: void }
 > = ({ gdriveLogin, render }) => {
-  const closeModal: Callback = link(map(to(undefined)), render);
+  const closeModal = link(push(undefined), render);
   const renderModal = link(
     map(setupView(modalView, { gdriveLogin, closeModal })),
     render

@@ -1,4 +1,4 @@
-import { asyncMapWithErrorHandler, link, map, wrap, kick } from "linki";
+import { asyncMap, kick, link, map, withErrorLogging, wrap } from "linki";
 import type { UiComponent, View } from "linki-ui";
 import { a, div, h3, nav, p, small } from "linki-ui";
 
@@ -58,9 +58,7 @@ export const docsDirectory = ({
     render(loading());
     link(
       kick(undefined),
-      asyncMapWithErrorHandler(searchRecentDocuments, (error) =>
-        console.error(error)
-      ),
+      withErrorLogging(asyncMap(searchRecentDocuments)),
       map(wrap("docs"), view),
       render
     );
