@@ -8,6 +8,15 @@ type WeekUri = IntervalUri;
 type MonthUri = IntervalUri;
 type YearUri = IntervalUri;
 
+const timeVocabUri = "http://www.w3.org/2006/time";
+const gregorianVocabUri = "http://www.w3.org/ns/time/gregorian";
+const intervalsIdUri = "http://id.docland.app/intervals/";
+export const dayType = "unitDay" as const;
+export const weekType = "unitWeek" as const;
+export const monthType = "unitMonth" as const;
+export const yearType = "unitYear" as const;
+export const intervalTypes = [dayType, weekType, monthType, yearType];
+
 export type Instant = {
   "@context": "http://www.w3.org/2006/time";
   "@id"?: InstantUri;
@@ -22,17 +31,13 @@ export type Interval<T extends IntervalUri> = {
   intervalMeets: T;
   hasBeginning: InstantUri;
   hasEnd: InstantUri;
+  intervalOverlappedBy?: InstantUri[];
+  intervalOverlaps?: InstantUri[];
 };
-export type Year = Interval<YearUri> & {
-  "@type": "unitYear";
-  intervalContains: MonthUri[];
-};
-export type Month = Interval<MonthUri> & {
-  "@type": `unitMonth`;
-  intervalDuring: [YearUri];
-  intervalContains: WeekUri[];
-  intervalOverlappedBy: [WeekUri] | [];
-  intervalOverlaps: [WeekUri] | [];
+export type Day = Interval<DayUri> & {
+  "@type": `unitDay`;
+  intervalDuring: [WeekUri, MonthUri, YearUri];
+  intervalContains: [];
 };
 type WeekContainers = [MonthUri, YearUri] | [YearUri] | [];
 export type Week = Interval<WeekUri> & {
@@ -42,16 +47,19 @@ export type Week = Interval<WeekUri> & {
   intervalOverlappedBy: WeekContainers;
   intervalOverlaps: WeekContainers;
 };
-
-export type Day = Interval<DayUri> & {
-  "@type": `unitDay`;
-  intervalDuring: [WeekUri, MonthUri, YearUri];
-  intervalContains: [];
+export type Month = Interval<MonthUri> & {
+  "@type": `unitMonth`;
+  intervalDuring: [YearUri];
+  intervalContains: WeekUri[];
+  intervalOverlappedBy: [WeekUri] | [];
+  intervalOverlaps: [WeekUri] | [];
 };
-
-const timeVocabUri = "http://www.w3.org/2006/time";
-const gregorianVocabUri = "http://www.w3.org/ns/time/gregorian";
-const intervalsIdUri = "http://id.docland.app/intervals/";
+export type Year = Interval<YearUri> & {
+  "@type": "unitYear";
+  intervalDuring: [];
+  intervalContains: MonthUri[];
+};
+export type CalendarInterval = Day | Week | Month | Year;
 
 export const buildIntervalUri = (path: string): string => intervalsIdUri + path;
 export const removeIntervalUriPrefix = (uri: string): string =>
@@ -167,7 +175,6 @@ const getInstant = (date: Date): Instant => ({
 const dateFromInstanceUri = (uri: string): Date =>
   new Date(uri.replace(instanceUriPrefix, "") + "Z");
 
-export const dayType = "unitDay" as const;
 const getDayInterval = (startOfDay: Date): Day => ({
   "@context": timeVocabUri,
   "@id": dayUri(startOfDay),
@@ -186,7 +193,6 @@ const getDayInterval = (startOfDay: Date): Day => ({
 const dateFromDayUri = (uri: string) =>
   new Date(uri.replace(dayUriPrefix, "") + "Z");
 
-export const weekType = "unitWeek" as const;
 const getWeekInterval = (weekDate: Date): Week => {
   let intervalDuring: WeekContainers = [];
   let intervalOverlappedBy: WeekContainers = [];
@@ -228,14 +234,17 @@ const dateFromWeekUri = (uri: string) => {
 const range = (from: number, to: number): number[] =>
   Array.from({ length: to + 1 - from }, (_, i) => from + i);
 
-export const monthType = "unitMonth" as const;
 const getMonthInterval = (monthDate: Date): Month => {
   const lastDay = lastDayOfMonth(monthDate);
   const firstWeek = dateToWeek(monthDate);
+  const lastWeek = dateToWeek(lastDay);
   const year = monthDate.getUTCFullYear();
   const month = monthDate.getUTCMonth();
-  const firstDayOfFirstWeek = weekToDate(year, firstWeek); //?
-  const lastWeek = dateToWeek(lastDay);
+  const firstWeekInPastYear = firstWeek > lastWeek;
+  const firstDayOfFirstWeek = weekToDate(
+    firstWeekInPastYear ? year - 1 : year,
+    firstWeek
+  );
   const lastDayOfLastWeek = lastDayOfWeek(
     weekToDate(lastDay.getUTCFullYear(), lastWeek)
   );
@@ -251,18 +260,19 @@ const getMonthInterval = (monthDate: Date): Month => {
     intervalOverlappedBy:
       firstDayOfFirstWeek.getUTCMonth() === month
         ? []
-        : [weekUriRaw(year, firstWeek)],
+        : [weekUri(firstDayOfFirstWeek)],
     intervalOverlaps:
       lastDayOfLastWeek.getUTCMonth() === month
         ? []
-        : [weekUriRaw(year, lastWeek)],
+        : [weekUri(lastDayOfLastWeek)],
     intervalContains: [
       ...(firstDayOfFirstWeek.getUTCMonth() === month
         ? [weekUriRaw(year, firstWeek)]
         : []),
-      ...range(firstWeek + 1, lastWeek - 1).map(
-        (week): WeekUri => weekUriRaw(year, week)
-      ),
+      ...(firstWeekInPastYear
+        ? range(1, lastWeek - 1)
+        : range(firstWeek + 1, lastWeek - 1)
+      ).map((week): WeekUri => weekUriRaw(year, week)),
       ...(lastDayOfLastWeek.getUTCMonth() === month
         ? [weekUriRaw(year, lastWeek)]
         : []),
@@ -272,12 +282,12 @@ const getMonthInterval = (monthDate: Date): Month => {
 const dateFromMonthUri = (uri: string) =>
   new Date(uri.replace(monthUriPrefix, "") + "Z");
 
-export const yearType = "unitYear" as const;
 const getYearInterval = (yearDate: Date): Year => {
   return {
     "@context": timeVocabUri,
     "@id": yearUri(yearDate),
     "@type": yearType,
+    intervalDuring: [],
     intervalMeets: yearUri(nextYear(yearDate)),
     intervalMetBy: yearUri(previousYear(yearDate)),
     hasBeginning: getInstantUri(yearDate),

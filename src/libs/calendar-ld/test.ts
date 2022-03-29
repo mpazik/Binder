@@ -119,6 +119,31 @@ describe("getIntervalData", () => {
     });
   });
 
+  test.only("handle month uri at the begging of a year", () => {
+    const interval = getIntervalData(
+      "http://id.docland.app/intervals/month/2022-01"
+    );
+    expect(interval).toEqual({
+      "@context": "http://www.w3.org/2006/time",
+      "@id": "http://id.docland.app/intervals/month/2022-01",
+      "@type": "unitMonth",
+      intervalMetBy: "http://id.docland.app/intervals/month/2021-12",
+      intervalMeets: "http://id.docland.app/intervals/month/2022-02",
+      hasBeginning:
+        "http://id.docland.app/intervals/instant/2022-01-01T00:00:00",
+      hasEnd: "http://id.docland.app/intervals/instant/2022-02-01T00:00:00",
+      intervalDuring: ["http://id.docland.app/intervals/year/2022"],
+      intervalContains: [
+        "http://id.docland.app/intervals/week/2022-W01",
+        "http://id.docland.app/intervals/week/2022-W02",
+        "http://id.docland.app/intervals/week/2022-W03",
+        "http://id.docland.app/intervals/week/2022-W04",
+      ],
+      intervalOverlappedBy: ["http://id.docland.app/intervals/week/2021-W52"],
+      intervalOverlaps: ["http://id.docland.app/intervals/week/2022-W05"],
+    });
+  });
+
   test("handle month uri when month starts at the begging of a week", () => {
     const interval = getIntervalData(
       "http://id.docland.app/intervals/month/2022-08"
@@ -163,6 +188,7 @@ describe("getIntervalData", () => {
       hasBeginning:
         "http://id.docland.app/intervals/instant/2022-01-01T00:00:00",
       hasEnd: "http://id.docland.app/intervals/instant/2023-01-01T00:00:00",
+      intervalDuring: [],
       intervalContains: [
         "http://id.docland.app/intervals/month/2022-01",
         "http://id.docland.app/intervals/month/2022-02",
