@@ -68,9 +68,9 @@ const linkToParentDate: View<CalendarInterval> = (
 ) => {
   if (interval["@type"] === yearType) return;
   const parentName = intervalTypeName[intervalTypeParent[interval["@type"]]];
-  const parentUri = interval.intervalDuring.find((it) =>
-    it.includes(parentName)
-  );
+  const parentUri =
+    interval.intervalDuring.find((it) => it.includes(parentName)) ??
+    (interval.intervalOverlappedBy ?? []).find((it) => it.includes(parentName));
   if (!parentUri) return;
   return a(
     {
