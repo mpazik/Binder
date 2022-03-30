@@ -6,7 +6,7 @@ export const createWatchAction = (
   startTime?: Date,
   endTime?: Date,
   agent?: string
-): WithContext<WatchAction> => ({
+): WatchAction => ({
   "@context": "https://schema.org",
   "@type": "WatchAction",
   ...(startTime ? { startTime: startTime.toISOString() } : {}),
