@@ -5,6 +5,17 @@ export type QuoteSelector = {
   suffix?: string;
 };
 
+export const createQuoteSelector = (
+  exact: string,
+  prefix?: string,
+  suffix?: string
+): QuoteSelector => ({
+  type: "TextQuoteSelector",
+  exact,
+  prefix,
+  suffix,
+});
+
 // Fragment specification comes from https://www.w3.org/TR/annotation-model/#fragment-selector
 export const HtmlFragmentSpec = "http://tools.ietf.org/rfc/rfc3236";
 export const PdfFragmentSpec = "http://tools.ietf.org/rfc/rfc3778";
@@ -40,6 +51,17 @@ export type FragmentSelector = {
   refinedBy?: AnnotationSelector;
 };
 
+export const createFragmentSelector = (
+  spec: FragmentSpec,
+  value: string,
+  refinedBy?: AnnotationSelector
+): FragmentSelector => ({
+  type: "FragmentSelector",
+  conformsTo: spec,
+  value,
+  ...(refinedBy ? { refinedBy } : {}),
+});
+
 export type AnnotationSelector = FragmentSelector | QuoteSelector;
 
 export const isQuoteSelector = (
@@ -55,6 +77,12 @@ export type TextualBody = {
   value: string;
   format: "text/html";
 };
+
+const createTextualBody = (value: string): TextualBody => ({
+  type: "TextualBody",
+  value,
+  format: "text/html",
+});
 
 export type AnnotationMotivation = "commenting" | "highlighting" | "assessing";
 export type Annotation = {
@@ -75,11 +103,12 @@ export const createAnnotation = (
   selector?: AnnotationSelector,
   htmlBody?: string,
   creator?: string,
-  motivation?: AnnotationMotivation
+  motivation?: AnnotationMotivation,
+  created = new Date()
 ): Annotation => ({
   "@context": "http://www.w3.org/ns/anno.jsonld",
   type: "Annotation",
-  created: new Date().toISOString(),
+  created: created.toISOString(),
   ...(creator ? { creator: "mailto:" + creator } : {}),
   motivation: motivation
     ? motivation
@@ -88,11 +117,7 @@ export const createAnnotation = (
     : "highlighting",
   ...(htmlBody
     ? {
-        body: {
-          type: "TextualBody",
-          value: htmlBody,
-          format: "text/html",
-        },
+        body: createTextualBody(htmlBody),
       }
     : {}),
   target: {
