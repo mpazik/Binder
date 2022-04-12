@@ -127,6 +127,7 @@ import {
   setupDisplaySettingsPanel,
 } from "../display-settings/panel";
 import { createSettingUpdateAction } from "../display-settings/setting-update";
+import { editorPage } from "../editor";
 import { fileDrop } from "../file-drop";
 import { journal } from "../journal";
 import { navigation } from "../navigation";
@@ -554,6 +555,11 @@ export const App: Component<
           realAllLinkedData: store.readAllLinkedData,
         })
       );
+    } else if (
+      dataType === "Page" &&
+      data.linkedData.name === "Docland - Editor"
+    ) {
+      displayJsonHtml(editorPage());
     } else if (dataType === "AboutPage") {
       if (isLinkedDataWithBody(data)) {
         displayFullScreen(data.body);

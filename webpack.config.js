@@ -1,5 +1,5 @@
-import path from 'path';
-import HtmlWebpackPlugin from "html-webpack-plugin"
+import path from "path";
+import HtmlWebpackPlugin from "html-webpack-plugin";
 import CopyWebpackPlugin from "copy-webpack-plugin";
 import TerserPlugin from "terser-webpack-plugin";
 import SpeedMeasurePlugin from "speed-measure-webpack-plugin";
@@ -7,6 +7,9 @@ import SpeedMeasurePlugin from "speed-measure-webpack-plugin";
 import webpack from "webpack";
 
 const __dirname = path.dirname(new URL(import.meta.url).pathname);
+
+const pages = ["about", "directory", "storage", "404", "privacy", "editor"];
+
 const sharedConfig = ({ envVariables, productIcon }) => ({
   entry: {
     main: "./src/index.ts",
@@ -46,7 +49,7 @@ const sharedConfig = ({ envVariables, productIcon }) => ({
       productIcon,
       chunks: []
     }),
-    ...["about", "directory", "storage", "404", "privacy"].map((page) =>
+    ...pages.map((page) =>
       new HtmlWebpackPlugin({
         template: `./src/pages/${page}.html`,
         filename: `./${page}.html`,
