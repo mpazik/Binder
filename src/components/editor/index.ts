@@ -1,16 +1,34 @@
 import type { View } from "linki-ui";
-import { div, dom, h2 } from "linki-ui";
-import { schema } from "prosemirror-schema-basic";
-import { EditorState } from "prosemirror-state";
-import { EditorView } from "prosemirror-view";
+import { button, div, h2, mountComponent } from "linki-ui";
+
+import { editor } from "../common/editor";
+
+const xmlString = '<p><a href="#">Link</a>Blet</p><p>haha</p>';
 
 export const editorPage: View = () => {
-  const state = EditorState.create({ schema });
-  const editorRoot = document.createElement("div");
-  new EditorView(editorRoot, { state });
+  const [editorRoot, { save, reset }] = mountComponent(
+    editor({ initialContent: xmlString }),
+    {
+      onSave: (data) => {
+        console.log(data);
+      },
+    }
+  );
   return div(
     { class: "with-line-length-settings my-10" },
     h2("Editor"),
-    dom(editorRoot)
+    editorRoot,
+    button(
+      {
+        onClick: () => save(),
+      },
+      "Save"
+    ),
+    button(
+      {
+        onClick: () => reset(),
+      },
+      "Reset"
+    )
   );
 };

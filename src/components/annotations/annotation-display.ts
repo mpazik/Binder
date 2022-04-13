@@ -1,18 +1,17 @@
 import type { Callback } from "linki";
 import {
-  and,
   cast,
   defined,
   filter,
   fork,
   link,
   map,
-  or,
   passOnlyChanged,
   push,
-  valueWithOptionalState,
+  to,
   withOptionalState,
 } from "linki";
+import { focusElement, mountComponent, renderJsonHtmlToDom } from "linki-ui";
 
 import { CATEGORIES_ENABLED } from "../../config";
 import { throwIfNull } from "../../libs/errors";
@@ -33,14 +32,8 @@ import type {
   ViewSetup,
 } from "../../libs/simple-ui/render";
 import { button, div, newSlot, span } from "../../libs/simple-ui/render";
-import {
-  focusElement,
-  getTarget,
-  hasCtrlKey,
-  hasMetaKey,
-  isKey,
-} from "../../libs/simple-ui/utils/funtions";
 import { moreActions } from "../common/drop-down";
+import { editor } from "../common/editor";
 import { multiSelect } from "../common/multi-select";
 import { relativeDateOfAction } from "../common/relative-date";
 
@@ -185,11 +178,20 @@ export const annotationDisplay: Component<
 
 const commentFormView: View<{
   position: Position;
-  onDisplay: (editor: HTMLElement) => void;
-  onSave: () => void;
-  onCancel: () => void;
-}> = ({ position: [left, top], onSave, onCancel, onDisplay }) =>
-  div(
+  onCreateComment: (comment: string) => void;
+  onHide: () => void;
+}> = ({ position: [left, top], onCreateComment, onHide }) => {
+  const [editorRoot, { save }] = mountComponent(
+    editor({ style: { minHeight: "80px", width: "200px" } }),
+    {
+      onSave: onCreateComment,
+      onEscape: onHide,
+    }
+  );
+
+  const editorComponent = renderJsonHtmlToDom(editorRoot) as HTMLElement;
+  const editorDom = throwIfNull(editorComponent.firstChild);
+  return div(
     {
       class: "Box Popover",
       style: {
@@ -203,48 +205,29 @@ const commentFormView: View<{
         class:
           "Popover-message Popover-message--top color-shadow-large width-auto",
       },
-      div(
-        {
-          class: "Box-body p-2",
-        },
-        div({
-          class: "form-control p-1",
-          style: { "min-height": "80px", width: "300px" },
-          contenteditable: true,
-          onKeydown: fork(
-            link(
-              filter(and(isKey("Enter"), or(hasMetaKey, hasCtrlKey))),
-              onSave
-            ),
-            link(filter(isKey("Escape")), onCancel)
-          ),
-          onDisplay: link(map(getTarget), fork(focusElement, onDisplay)),
-          onPaste: (event) => {
-            event.preventDefault();
-            const text = event.clipboardData?.getData("text/plain");
-            if (text) {
-              document.execCommand("insertHTML", false, text);
-            }
-          },
-        })
-      ),
+      div({
+        class: "Box-body p-2",
+        dangerouslySetDom: editorComponent,
+        onDisplay: link(map(to(editorDom)), fork(focusElement)),
+      }),
       div(
         { class: "Box-footer text-right p-1" },
         button(
           {
             type: "button",
             class: "btn btn-sm btn-secondary mr-1",
-            onClick: onCancel,
+            onClick: onHide,
           },
           "Cancel"
         ),
         button(
-          { type: "button", class: "btn btn-sm btn-primary", onClick: onSave },
+          { type: "button", class: "btn btn-sm btn-primary", onClick: save },
           "Save"
         )
       )
     )
   );
+};
 
 type Selection = {
   selector: AnnotationSelector;
@@ -264,16 +247,6 @@ export const commentForm: Component<
   },
   { displayCommentForm: CommentFormState }
 > = ({ onCreatedComment, onHide }) => (render) => {
-  const [createComment, setContainer] = link(
-    valueWithOptionalState<HTMLElement, Selection>(),
-    ([editor, { selector }]) => {
-      onCreatedComment({
-        comment: throwIfNull(editor).innerHTML,
-        selector,
-      });
-    }
-  );
-
   const [hide, setSelectionForHide, resetSelection] = link(
     withOptionalState<Selection>(),
     filter(defined),
@@ -286,14 +259,16 @@ export const commentForm: Component<
         visible: ({ position, ...selection }) =>
           commentFormView({
             position,
-            onDisplay: setContainer,
-            onCancel: () => {
+            onHide: () => {
               hide();
               renderForm(["hidden"]);
             },
-            onSave: () => {
+            onCreateComment: (comment) => {
               hide();
-              createComment(selection);
+              onCreatedComment({
+                comment,
+                selector: selection.selector,
+              });
               renderForm(["hidden"]);
             },
           }),

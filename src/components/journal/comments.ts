@@ -1,16 +1,11 @@
 import type { Callback } from "linki";
 import {
-  and,
-  filter,
   fork,
   head,
-  ignoreParam,
   link,
   map,
-  or,
   push,
   splitDefined,
-  to,
   valueWithState,
 } from "linki";
 import type { JsonHtml, UiComponent, UiItemComponent, View } from "linki-ui";
@@ -18,14 +13,11 @@ import {
   button,
   dangerousHtml,
   div,
-  dom,
   h2,
-  inputValue,
+  mountComponent,
   mountItemComponent,
   renderJsonHtmlToDom,
-  resetInput,
   span,
-  textarea,
 } from "linki-ui";
 
 import type {
@@ -38,11 +30,6 @@ import type {
   LinkedDataWithHashId,
 } from "../../libs/jsonld-format";
 import { getHash } from "../../libs/linked-data";
-import {
-  hasCtrlKey,
-  hasMetaKey,
-  isKey,
-} from "../../libs/simple-ui/utils/funtions";
 import { formatDateTime, formatTime } from "../../libs/time";
 import { createDelete } from "../../vocabulary/activity-streams";
 import type {
@@ -54,6 +41,7 @@ import type {
   AnnotationsSaver,
 } from "../annotations/service";
 import { moreActions } from "../common/drop-down-linki-ui";
+import { editor } from "../common/editor";
 import {
   defaultRating,
   ratingForLinkedData,
@@ -134,53 +122,35 @@ const createCommentComponent = (
   };
 };
 
-const annotationTextarea = (saveData: Callback) =>
-  renderJsonHtmlToDom(
-    textarea({
-      class: "form-control p-1",
-      style: { width: "100%" },
-      rows: 4,
-      onKeyDown: fork(
-        link(
-          filter(and(isKey("Enter"), or(hasMetaKey, hasCtrlKey))),
-          ignoreParam(),
-          saveData
-        )
-      ),
-      onPaste: (event) => {
-        event.preventDefault();
-        const text = event.clipboardData?.getData("text/plain");
-        if (text) {
-          document.execCommand("insertHTML", false, text);
-        }
-      },
-    })
-  ) as HTMLInputElement;
-
 const commentForm: View<{
   intervalUri: Uri;
   onSave: Callback<AnnotationSaveProps>;
 }> = ({ intervalUri, onSave }) => {
-  const saveData = link(
-    map(to(() => formDom)),
+  const saveData: Callback<string> = link(
     fork(
       link(
-        map(inputValue, (content) => ({
+        map((content) => ({
           reference: intervalUri,
           content,
         })),
         onSave
       ),
-      resetInput
+      () => reset()
     )
   );
-  const formDom = annotationTextarea(saveData);
+  const [editorRoot, { save, reset }] = mountComponent(editor({}), {
+    onSave: saveData,
+  });
   return div(
-    dom(formDom),
+    editorRoot,
     div(
       { class: "text-right py-1" },
       button(
-        { type: "button", class: "btn btn-sm btn-primary", onClick: saveData },
+        {
+          type: "button",
+          class: "btn btn-sm btn-primary",
+          onClick: () => save(),
+        },
         "Add comment"
       )
     )
@@ -229,25 +199,32 @@ const reviewForm: View<{
   intervalUri: Uri;
   onSave: Callback<AnnotationSaveProps>;
 }> = ({ intervalUri, onSave }) => {
-  const saveData = link(
-    map(to(() => textareaDom)),
-    link(
-      map(inputValue, (content) => ({
-        reference: intervalUri,
-        content,
-        motivation: "assessing" as AnnotationMotivation,
-      })),
-      onSave
+  const saveData: Callback<string> = link(
+    fork(
+      link(
+        map((content) => ({
+          reference: intervalUri,
+          content,
+          motivation: "assessing" as AnnotationMotivation,
+        })),
+        onSave
+      ),
+      () => reset()
     )
   );
-
-  const textareaDom = annotationTextarea(saveData) as HTMLInputElement;
+  const [editorRoot, { save, reset }] = mountComponent(editor({}), {
+    onSave: saveData,
+  });
   return div(
-    dom(textareaDom),
+    editorRoot,
     div(
       { class: "text-right py-1" },
       button(
-        { type: "button", class: "btn btn-sm btn-primary", onClick: saveData },
+        {
+          type: "button",
+          class: "btn btn-sm btn-primary",
+          onClick: () => save(),
+        },
         "Add review"
       )
     )
