@@ -1,3 +1,6 @@
+import type { Callback } from "linki";
+import type { UiComponent } from "linki-ui";
+import { div, dom, renderJsonHtmlToDom } from "linki-ui";
 import type { Command } from "prosemirror-commands";
 import {
   chainCommands,
@@ -25,10 +28,6 @@ import {
 import { marks, nodes } from "prosemirror-schema-basic";
 import { EditorState } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
-
-import type { Callback } from "../../../../../linki";
-import type { UiComponent } from "../../../../../linki-ui";
-import { div, dom, renderJsonHtmlToDom } from "../../../../../linki-ui";
 
 type HtmlString = string;
 
