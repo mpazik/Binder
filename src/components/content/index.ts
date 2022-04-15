@@ -6,8 +6,6 @@ import type { LinkedDataWithContent } from "../../functions/content-processors";
 import type { ContentSaver } from "../../functions/content-saver";
 import type { AnnotationsSubscribe } from "../../functions/indexes/annotations-index";
 import type { LinkedDataStoreRead } from "../../functions/store/local-store";
-import { documentLinksUriProvider } from "../../functions/url-hijack";
-import type { UriWithFragment } from "../../libs/browser-providers";
 import { throwIfNull2 } from "../../libs/errors";
 import type { HashUri } from "../../libs/hash";
 import { isHashUri } from "../../libs/hash";
@@ -16,11 +14,7 @@ import type {
   LinkedDataWithHashId,
 } from "../../libs/jsonld-format";
 import { findHashUri, getUrls } from "../../libs/linked-data";
-import {
-  closableProcessorFromProvider,
-  throwOnNull,
-  withMultiState,
-} from "../../libs/linki";
+import { throwOnNull, withMultiState } from "../../libs/linki";
 import type { Component } from "../../libs/simple-ui/render";
 import { div, newSlot } from "../../libs/simple-ui/render";
 import { getTarget } from "../../libs/simple-ui/utils/funtions";
@@ -47,7 +41,6 @@ export const contentComponent: Component<
     onSave: Callback<LinkedDataWithHashId>;
     annotationSubscribe: AnnotationsSubscribe;
     onDisplay: Callback;
-    loadUri: Callback<UriWithFragment>;
     contextProvider: AppContextProvider;
   },
   {
@@ -62,7 +55,6 @@ export const contentComponent: Component<
   onDisplay,
   contextProvider,
   annotationSubscribe,
-  loadUri,
 }) => (render, onClose) => {
   const storeData = (data: LinkedDataWithContent, retry: () => void) => {
     try {
@@ -157,13 +149,6 @@ export const contentComponent: Component<
     "content-fields",
     contentHeader()
   );
-
-  const [startCapturingLinks, closeLinkProvider] = link(
-    closableProcessorFromProvider(documentLinksUriProvider),
-    loadUri
-  );
-  onClose(closeLinkProvider);
-
   render(
     div(
       {
@@ -175,7 +160,6 @@ export const contentComponent: Component<
       div(
         {
           id: "content-body",
-          onDisplay: link(map(getTarget), startCapturingLinks),
         },
         contentSlot
       ),

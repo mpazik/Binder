@@ -83,6 +83,7 @@ import {
   openAccountRepository,
   openUnclaimedRepository,
 } from "../../functions/store/repository";
+import { documentLinksUriProvider } from "../../functions/url-hijack";
 import type { UriWithFragment } from "../../libs/browser-providers";
 import {
   browserPathProvider,
@@ -194,13 +195,13 @@ const createContentFetcherPassingUri = (
 
 const createContainerView: ViewSetup<{
   navigationSlot: Slot;
-  contentOrDirSlot: Slot;
+  contentSlot: Slot;
   accountPickerSlot: Slot;
   fileDropSlot: Slot;
   onDragenter: (event: DragEvent) => void;
 }> = ({
   navigationSlot,
-  contentOrDirSlot,
+  contentSlot,
   accountPickerSlot,
   fileDropSlot,
   onDragenter,
@@ -218,7 +219,7 @@ const createContainerView: ViewSetup<{
       },
       fileDropSlot,
       accountPickerSlot,
-      contentOrDirSlot
+      contentSlot
     )
   );
 
@@ -521,7 +522,6 @@ export const App: Component<
       onDisplay: hideNav,
       contextProvider,
       annotationSubscribe: annotationsIndex.subscribe(store.readLinkedData),
-      loadUri,
     })
   );
 
@@ -567,7 +567,6 @@ export const App: Component<
           searchCompletionIndex: completionIndex.searchIndex,
           subscribeHabits: habitsIndex.subscribe(store.readLinkedData),
           subscribeCompletable: completionIndex.subscribe(store.readLinkedData),
-          loadUri,
         })
       );
       displayJsonHtml(component);
@@ -690,7 +689,7 @@ export const App: Component<
     navigationSlot: div({
       dangerouslySetDom: renderJsonHtmlToDom(navigationSlot),
     }),
-    contentOrDirSlot: contentLoaderSlot,
+    contentSlot: contentLoaderSlot,
     fileDropSlot,
     accountPickerSlot: div({
       dangerouslySetDom: renderJsonHtmlToDom(accountPickerSlot),
@@ -711,6 +710,7 @@ export const App: Component<
     ]
   );
   onClose(browserPathProvider(openPath));
+  onClose(documentLinksUriProvider()(loadUri));
   onClose(stopNav);
 
   if (initialContent) {

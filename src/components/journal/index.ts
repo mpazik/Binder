@@ -1,5 +1,4 @@
 import type { Callback } from "linki";
-import { link } from "linki";
 import type { JsonHtml, UiComponent, View } from "linki-ui";
 import {
   a,
@@ -19,8 +18,6 @@ import type {
   SearchCompletionIndex,
 } from "../../functions/indexes/completion-index";
 import type { HabitSubscribe } from "../../functions/indexes/habit-index";
-import { documentLinksUriProvider } from "../../functions/url-hijack";
-import type { UriWithFragment } from "../../libs/browser-providers";
 import type { CalendarInterval, IntervalUri } from "../../libs/calendar-ld";
 import {
   dateToWeek,
@@ -152,7 +149,6 @@ export const journal = ({
   subscribeHabits,
   saveLinkedData,
   searchCompletionIndex,
-  loadUri,
   contextProvider,
 }: {
   interval: CalendarInterval;
@@ -161,7 +157,6 @@ export const journal = ({
   subscribeHabits: HabitSubscribe;
   saveLinkedData: Callback<LinkedData>;
   searchCompletionIndex: SearchCompletionIndex;
-  loadUri: Callback<UriWithFragment>;
   contextProvider: AppContextProvider;
 }): UiComponent => ({ render }) => {
   const intervalUri = interval["@id"];
@@ -223,7 +218,4 @@ export const journal = ({
     )
   );
   render(dom(container));
-  return {
-    stop: link(documentLinksUriProvider(container), loadUri),
-  };
 };
