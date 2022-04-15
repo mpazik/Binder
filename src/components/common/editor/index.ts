@@ -29,6 +29,8 @@ import { marks, nodes } from "prosemirror-schema-basic";
 import { EditorState } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 
+import "./style.css";
+
 type HtmlString = string;
 
 const schema = new Schema({
@@ -113,9 +115,12 @@ export const editor = ({
   { save: void; reset: void },
   { onSave: HtmlString; onEscape?: void }
 > => ({ render, onSave, onEscape }) => {
+  const editorContainer = document.createElement("div");
+  editorContainer.style.position = "relative";
   const editorRoot = renderJsonHtmlToDom(
-    div({ class: ["p-1 form-control", className].join(" "), style })
-  );
+    div({ class: ["p-2 pt-3 pl-4 form-control", className].join(" "), style })
+  ) as HTMLElement;
+  editorContainer.appendChild(editorRoot);
   const doc = initialContent
     ? parseFromHtml(schema, initialContent)
     : undefined;
@@ -134,6 +139,8 @@ export const editor = ({
     );
   };
 
+  // Drag-drop block extension
+  // https://codesandbox.io/s/remirror-dragndrop-extension-hou3j?file=/src/dragndrop-extension/index.js
   const view = new EditorView(
     { mount: editorRoot },
     {
@@ -159,7 +166,7 @@ export const editor = ({
     }
   );
 
-  render(dom(editorRoot));
+  render(div(dom(editorContainer)));
 
   return {
     save: handleSave,
