@@ -40,7 +40,6 @@ export const contentComponent: Component<
     ldStoreRead: LinkedDataStoreRead;
     onSave: Callback<LinkedDataWithHashId>;
     annotationSubscribe: AnnotationsSubscribe;
-    onDisplay: Callback;
     contextProvider: AppContextProvider;
   },
   {
@@ -52,7 +51,6 @@ export const contentComponent: Component<
   saveLinkedData,
   ldStoreRead,
   onSave,
-  onDisplay,
   contextProvider,
   annotationSubscribe,
 }) => (render, onClose) => {
@@ -141,7 +139,6 @@ export const contentComponent: Component<
       contentSaver,
       onAnnotationDisplayRequest: displayDocumentAnnotations,
       onCurrentFragmentResponse: saveWatchAction,
-      onDisplay,
     })
   );
 

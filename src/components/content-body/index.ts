@@ -6,14 +6,13 @@ import {
   definedTuple,
   filter,
   fork,
-  ignoreParam,
   link,
   map,
   pick,
   pipe,
   split,
-  withOptionalState,
   valueWithOptionalState,
+  withOptionalState,
 } from "linki";
 
 import type { LinkedDataWithContent } from "../../functions/content-processors";
@@ -52,7 +51,6 @@ export const contentDisplayComponent: Component<
     contentSaver: ContentSaver;
     onAnnotationDisplayRequest: Callback<AnnotationDisplayRequest>;
     onCurrentFragmentResponse: Callback<string | undefined>;
-    onDisplay: Callback;
   },
   {
     displayContent: LinkedDataWithContentAndFragment;
@@ -63,7 +61,6 @@ export const contentDisplayComponent: Component<
   onCurrentFragmentResponse,
   onAnnotationDisplayRequest,
   contentSaver,
-  onDisplay,
 }) => (render, onClose) => {
   // multi state with linkedData and fallback for update
   const [saveNewContent, setLinkedDataForSave, setCallbackForUpdate] = link(
@@ -115,7 +112,7 @@ export const contentDisplayComponent: Component<
   );
 
   const displayController: DisplayController = {
-    onDisplay: fork(displayAnnotations, link(ignoreParam(), onDisplay)),
+    onDisplay: displayAnnotations,
     onContentModified: saveNewContent,
     onCurrentFragmentResponse,
   };

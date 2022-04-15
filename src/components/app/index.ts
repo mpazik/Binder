@@ -519,7 +519,6 @@ export const App: Component<
       saveLinkedData,
       ldStoreRead: store.readLinkedData,
       onSave: ignore,
-      onDisplay: hideNav,
       contextProvider,
       annotationSubscribe: annotationsIndex.subscribe(store.readLinkedData),
     })
