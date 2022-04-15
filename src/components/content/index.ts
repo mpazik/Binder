@@ -1,6 +1,7 @@
 import type { Callback } from "linki";
-import { link, map, pick, fork, withOptionalState } from "linki";
+import { fork, link, map, pick, withOptionalState } from "linki";
 
+import type { AppContextProvider } from "../../functions/app-context";
 import type { LinkedDataWithContent } from "../../functions/content-processors";
 import type { ContentSaver } from "../../functions/content-saver";
 import type { AnnotationsSubscribe } from "../../functions/indexes/annotations-index";
@@ -24,7 +25,6 @@ import type { Component } from "../../libs/simple-ui/render";
 import { div, newSlot } from "../../libs/simple-ui/render";
 import { getTarget } from "../../libs/simple-ui/utils/funtions";
 import { annotationsSupport } from "../annotations";
-import type { AnnotationsSaver } from "../annotations/service";
 import { isLocalUri } from "../common/uri";
 import type { LinkedDataWithContentAndFragment } from "../content-body";
 import { contentDisplayComponent } from "../content-body";
@@ -46,9 +46,9 @@ export const contentComponent: Component<
     ldStoreRead: LinkedDataStoreRead;
     onSave: Callback<LinkedDataWithHashId>;
     annotationSubscribe: AnnotationsSubscribe;
-    saveAnnotation: AnnotationsSaver;
     onDisplay: Callback;
     loadUri: Callback<UriWithFragment>;
+    contextProvider: AppContextProvider;
   },
   {
     displayContent: LinkedDataWithContentAndFragment;
@@ -60,7 +60,7 @@ export const contentComponent: Component<
   ldStoreRead,
   onSave,
   onDisplay,
-  saveAnnotation,
+  contextProvider,
   annotationSubscribe,
   loadUri,
 }) => (render, onClose) => {
@@ -135,7 +135,7 @@ export const contentComponent: Component<
       readLd: ldStoreRead,
       saveLinkedData,
       annotationSubscribe,
-      saveAnnotation,
+      contextProvider,
       requestDocumentSave: saveContent,
     })
   );

@@ -20,6 +20,7 @@ import {
   withState,
 } from "linki";
 
+import type { AppContextProvider } from "../../functions/app-context";
 import type { AnnotationsSubscribe } from "../../functions/indexes/annotations-index";
 import type { LinkedDataStoreRead } from "../../functions/store/local-store";
 import { throwIfNull } from "../../libs/errors";
@@ -48,7 +49,8 @@ import { quoteSelectorForRange } from "./quote-selector";
 import type { Selection } from "./selection";
 import { currentSelection, selectionPosition } from "./selection";
 import { selectionToolbar } from "./selection-toolbar";
-import type { AnnotationSaveProps, AnnotationsSaver } from "./service";
+import type { AnnotationSaveProps } from "./service";
+import { createAnnotationSaver } from "./service";
 
 type AnnotationSavePropsWithoutRef = Omit<AnnotationSaveProps, "reference">;
 
@@ -79,7 +81,7 @@ type AnnotationAction =
 export const annotationsSupport: Component<
   {
     requestDocumentSave: () => void;
-    saveAnnotation: AnnotationsSaver;
+    contextProvider: AppContextProvider;
     saveLinkedData: Callback<LinkedData>;
     annotationSubscribe: AnnotationsSubscribe;
     readLd: LinkedDataStoreRead;
@@ -94,7 +96,7 @@ export const annotationsSupport: Component<
   saveLinkedData,
   annotationSubscribe,
   requestDocumentSave,
-  saveAnnotation,
+  contextProvider,
 }) => (render, onClose) => {
   const [saveAnnotationInt, setReference] = link(
     valueWithState<HashUri | undefined, AnnotationSavePropsWithoutRef>(
@@ -110,7 +112,7 @@ export const annotationsSupport: Component<
     ),
     splitDefinedProp("reference"),
     [
-      saveAnnotation,
+      createAnnotationSaver(contextProvider, saveLinkedData),
       fork<AnnotationSavePropsWithoutRef>(
         (it) => keepAnnotationForSave(it),
         requestDocumentSave

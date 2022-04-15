@@ -20,6 +20,7 @@ import {
   span,
 } from "linki-ui";
 
+import type { AppContextProvider } from "../../functions/app-context";
 import type {
   AnnotationChange,
   AnnotationsSubscribe,
@@ -36,10 +37,8 @@ import type {
   Annotation,
   AnnotationMotivation,
 } from "../annotations/annotation";
-import type {
-  AnnotationSaveProps,
-  AnnotationsSaver,
-} from "../annotations/service";
+import type { AnnotationSaveProps } from "../annotations/service";
+import { createAnnotationSaver } from "../annotations/service";
 import { moreActions } from "../common/drop-down-linki-ui";
 import { editor } from "../common/editor";
 import {
@@ -164,13 +163,13 @@ export const comments = ({
   intervalUri,
   dayDate,
   subscribe,
-  saveAnnotation,
+  contextProvider,
   saveLinkedData,
 }: {
   intervalUri: Uri;
   dayDate: Date;
   subscribe: AnnotationsSubscribe;
-  saveAnnotation: AnnotationsSaver;
+  contextProvider: AppContextProvider;
   saveLinkedData: Callback<LinkedData>;
 }): UiComponent => ({ render }) => {
   const [commentsSlot, { changeItems: changeComments }] = mountItemComponent(
@@ -184,7 +183,12 @@ export const comments = ({
     stack(
       { gap: "medium" },
       div(h2("Comments"), commentsSlot),
-      div(commentForm({ intervalUri, onSave: saveAnnotation }))
+      div(
+        commentForm({
+          intervalUri,
+          onSave: createAnnotationSaver(contextProvider, saveLinkedData),
+        })
+      )
     )
   );
   return {
@@ -254,12 +258,12 @@ const pickFirstAnnotation = (op: AnnotationChange): Annotation | undefined => {
 export const review = ({
   intervalUri,
   subscribe,
-  saveAnnotation,
+  contextProvider,
   saveLinkedData,
 }: {
   intervalUri: IntervalUri;
   subscribe: AnnotationsSubscribe;
-  saveAnnotation: AnnotationsSaver;
+  contextProvider: AppContextProvider;
   saveLinkedData: Callback<LinkedData>;
 }): UiComponent => ({ render }) => {
   const renderAnnotation = link(
@@ -314,7 +318,7 @@ export const review = ({
           }
         : props
     ),
-    saveAnnotation
+    createAnnotationSaver(contextProvider, saveLinkedData)
   );
   const renderForm = () => {
     setRating(defaultRating);

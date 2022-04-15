@@ -15,7 +15,6 @@ import {
   split,
   to,
   withErrorLogging,
-  withState,
 } from "linki";
 import type { JsonHtml } from "linki-ui";
 import {
@@ -32,6 +31,7 @@ import {
   createErrorSender,
   initConfiguredAnalyticsForRepoAccount,
 } from "../../functions/analytics";
+import { createAppContext } from "../../functions/app-context";
 import type { LinkedDataWithContent } from "../../functions/content-processors";
 import { processFileToContent } from "../../functions/content-processors";
 import {
@@ -115,7 +115,6 @@ import type {
 } from "../../libs/simple-ui/render";
 import { div, newSlot } from "../../libs/simple-ui/render";
 import { accountPicker } from "../account-picker";
-import { createAnnotationSaverWithContext } from "../annotations/service";
 import { dropdown } from "../common/drop-down-linki-ui";
 import { loader } from "../common/loader";
 import { contentComponent } from "../content";
@@ -322,17 +321,9 @@ export const App: Component<
       })
   );
 
-  const [pushCreator, updateCreatorState] = link(
-    withState<[string | null, boolean]>([null, false]),
-    filter(([, ready]) => ready),
-    map(([creator]) => creator),
-    filter((creator) => typeof creator !== "undefined"),
-    (it) => setCreatorForAnnotations(it ?? undefined)
-  );
-  const [setCreator, setContentReady] = link(
-    combine(null as string | null, false),
-    updateCreatorState
-  );
+  const { provider: contextProvider, setter: setContext } = createAppContext();
+
+  const setUser = (user: string) => setContext({ user });
 
   const updateGdrive = gdrive(
     fork(
@@ -344,7 +335,7 @@ export const App: Component<
         filter(defined),
         fork(
           (user) => console.log("switching user", user),
-          link(map(pick("emailAddress")), (it) => setCreator(it)),
+          link(map(pick("emailAddress")), setUser),
           link(map(gdriveUserToAccount), updateAnalyticsRepoAccount)
         )
       ),
@@ -352,7 +343,7 @@ export const App: Component<
         filterState("signedOut"),
         fork(
           () => console.log("signing out user"),
-          link(map(to(null)), (it) => setCreator(it)),
+          link(map(to(null)), setUser),
           link(map(to(undefined)), updateAnalyticsRepoAccount)
         )
       ),
@@ -516,13 +507,6 @@ export const App: Component<
     )
   );
 
-  const {
-    saveAnnotation,
-    setCreator: setCreatorForAnnotations,
-  } = createAnnotationSaverWithContext({
-    saveLinkedData,
-  });
-
   const contentSaver = createContentSaver(
     store.writeResource,
     store.writeLinkedData
@@ -535,7 +519,7 @@ export const App: Component<
       ldStoreRead: store.readLinkedData,
       onSave: ignore,
       onDisplay: hideNav,
-      saveAnnotation,
+      contextProvider,
       annotationSubscribe: annotationsIndex.subscribe(store.readLinkedData),
       loadUri,
     })
@@ -578,7 +562,7 @@ export const App: Component<
           subscribeAnnotations: annotationsIndex.subscribe(
             store.readLinkedData
           ),
-          saveAnnotation,
+          contextProvider,
           saveLinkedData,
           searchCompletionIndex: completionIndex.searchIndex,
           subscribeHabits: habitsIndex.subscribe(store.readLinkedData),
@@ -603,8 +587,6 @@ export const App: Component<
         : data;
       displaySlot(contentSlot);
       displayContent(linkedDataWithContent);
-      setContentReady(true);
-      pushCreator();
     }
   };
 

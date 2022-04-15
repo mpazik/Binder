@@ -1,6 +1,7 @@
-import type { Callback, Component } from "linki";
-import { cast, link, map, nonNull, valueWithState } from "linki";
+import type { Callback } from "linki";
+import { cast, link, map, nonNull } from "linki";
 
+import type { AppContextProvider } from "../../functions/app-context";
 import type {
   AnnotationsIndex,
   AnnotationsQuery,
@@ -19,8 +20,6 @@ import { createAnnotation } from "./annotation";
 export type AnnotationsFetcher = (
   query: AnnotationsQuery
 ) => Promise<Annotation[]>;
-
-export type AnnotationsSaver = Callback<AnnotationSaveProps>;
 
 export const createAnnotationFetcher = ({
   ldStoreRead,
@@ -48,36 +47,23 @@ export type AnnotationSaveProps = {
   selector?: AnnotationSelector;
 };
 
-export const createAnnotationSaverWithContext: Component<
-  {
-    saveAnnotation: AnnotationSaveProps;
-    setCreator: string | undefined;
-  },
-  { saveLinkedData: LinkedData }
-> = ({ saveLinkedData }) => {
-  const [saveAnnotationInt, setCreator]: [
-    Callback<AnnotationSaveProps>,
-    Callback<string | undefined>
-  ] = link(
-    valueWithState<string | undefined, AnnotationSaveProps>(undefined),
-    map(([creator, params]) => {
-      const annotation = createAnnotation(
-        params.reference,
-        params.selector,
-        params.content,
-        creator ?? undefined,
-        params.motivation
-      );
+export const createAnnotationSaver = (
+  getContext: AppContextProvider,
+  saveLinkedData: Callback<LinkedData>
+): Callback<AnnotationSaveProps> =>
+  link(
+    map((props) => {
+      const creator = getContext("user");
       return ({
-        ...params.extra,
-        ...annotation,
+        ...props.extra,
+        ...createAnnotation(
+          props.reference,
+          props.selector,
+          props.content,
+          creator ?? undefined,
+          props.motivation
+        ),
       } as unknown) as LinkedData;
     }),
     saveLinkedData
   );
-
-  return {
-    saveAnnotation: saveAnnotationInt,
-    setCreator,
-  };
-};
