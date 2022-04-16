@@ -1,12 +1,8 @@
 import type { ClosableProvider } from "linki";
-import { fork, link, map } from "linki";
+import { link, map } from "linki";
 
 import type { UriWithFragment } from "../libs/browser-providers";
-import {
-  currentPath,
-  newUriWithFragment,
-  updateBrowserHistory,
-} from "../libs/browser-providers";
+import { currentPath, newUriWithFragment } from "../libs/browser-providers";
 
 const findLink = (element: HTMLElement | null): HTMLElement | undefined => {
   if (!element) return;
@@ -51,7 +47,7 @@ export const documentLinksUriProvider = (
             }
           : it
       ),
-      fork(updateBrowserHistory, push)
+      push
     )
   );
 };

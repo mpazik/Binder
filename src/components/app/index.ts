@@ -86,6 +86,7 @@ import { documentLinksUriProvider } from "../../functions/url-hijack";
 import type { UriWithFragment } from "../../libs/browser-providers";
 import {
   browserPathProvider,
+  browserUriFragmentProvider,
   currentUriWithFragment,
   newUriWithFragment,
   updateBrowserHistory,
@@ -704,8 +705,9 @@ export const App: Component<
     ]
   );
   onClose(browserPathProvider(openPath));
-  onClose(documentLinksUriProvider()(loadUri));
+  onClose(documentLinksUriProvider()(updateBrowserHistory));
   onClose(stopNav);
+  onClose(browserUriFragmentProvider(() => {}));
 
   if (initialContent) {
     displayFile(initialContent);

@@ -1,5 +1,5 @@
 import type { ClosableProvider } from "linki";
-import { link, map } from "linki";
+import { link, map, to } from "linki";
 
 import { hostPageUri, isHostPageUri } from "../components/app/special-uris";
 import { isAbsoluteUri } from "../components/common/uri";
@@ -24,8 +24,8 @@ export const currentPath = (): string => {
   return path.startsWith("/") ? path.substring(1) : path;
 };
 
-export const currentFragment = (): string | undefined =>
-  window.location.hash ? window.location.hash.substring(1) : undefined;
+export const currentFragment = (): string =>
+  window.location.hash ? window.location.hash.substring(1) : "";
 
 export type UriWithFragment = {
   uri: string;
@@ -70,6 +70,7 @@ export const updateBrowserHistory = ({
     ? uri
     : `/${uri}${fragment ? `#${fragment}` : ""}`;
   window.history.pushState({}, "", url);
+  window.dispatchEvent(new PopStateEvent("popstate", { state: {} }));
 };
 
 export const newUriWithFragment = (url: string): UriWithFragment => {
@@ -84,6 +85,13 @@ export const browserPathProvider: ClosableProvider<UriWithFragment> = (
   push
 ) => {
   const update = link(map(currentUriWithFragment), push);
+
+  window.addEventListener("popstate", update);
+  return () => document.removeEventListener("popstate", update);
+};
+
+export const browserUriFragmentProvider: ClosableProvider<string> = (push) => {
+  const update = link(map(to(currentFragment)), push);
 
   window.addEventListener("popstate", update);
   return () => document.removeEventListener("popstate", update);
