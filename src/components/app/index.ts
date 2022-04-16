@@ -5,7 +5,6 @@ import {
   definedTuple,
   filter,
   fork,
-  ignore,
   link,
   map,
   passOnlyChanged,
@@ -133,6 +132,7 @@ import { journal } from "../journal";
 import { navigation } from "../navigation";
 import { storePage } from "../store";
 
+import type { EntityViewControls } from "./entity-view";
 import { specialTodayUri } from "./special-uris";
 
 type InitServices = {
@@ -324,6 +324,30 @@ export const App: Component<
 
   const { provider: contextProvider, setter: setContext } = createAppContext();
 
+  const saveLinkedData = (ld: LinkedData) =>
+    store
+      .writeLinkedData(ld)
+      .catch((error) => console.error("Filed saving lined data", error));
+
+  const entityViewControls: EntityViewControls = {
+    readAppContext: contextProvider,
+    saveLinkedData: saveLinkedData,
+    saveLinkedDataManually: store.writeLinkedData,
+    readLinkedData: store.readLinkedData,
+    readAllLinkedData: store.readAllLinkedData,
+    saveResource: store.writeResource,
+    readResource: store.readResource,
+    search: {
+      directory: directoryIndex.search,
+      watchHistory: searchWatchHistory,
+      completable: completionIndex.searchIndex,
+    },
+    subscribe: {
+      annotations: annotationsIndex.subscribe(store.readLinkedData),
+      completable: completionIndex.subscribe(store.readLinkedData),
+      habits: habitsIndex.subscribe(store.readLinkedData),
+    },
+  };
   const setUser = (user: string) => setContext({ user });
 
   const updateGdrive = gdrive(
@@ -432,11 +456,6 @@ export const App: Component<
     loadUri
   );
 
-  const saveLinkedData: Callback<LinkedData> = (ld) =>
-    store
-      .writeLinkedData(ld)
-      .catch((error) => console.error("Filed saving lined data", error));
-
   const createDisplaySettingUpdater = <T extends keyof Settings>(
     key: T
   ): ((value: Settings[T]) => void) =>
@@ -508,20 +527,9 @@ export const App: Component<
     )
   );
 
-  const contentSaver = createContentSaver(
-    store.writeResource,
-    store.writeLinkedData
-  );
   const [contentSlot, { displayContent, goToFragment }] = newSlot(
     "content-container",
-    contentComponent({
-      contentSaver,
-      saveLinkedData,
-      ldStoreRead: store.readLinkedData,
-      onSave: ignore,
-      contextProvider,
-      annotationSubscribe: annotationsIndex.subscribe(store.readLinkedData),
-    })
+    contentComponent(entityViewControls)
   );
 
   const loadContent = (data: LinkedDataWithContent | LinkedDataWithBody) => {
@@ -532,12 +540,7 @@ export const App: Component<
       dataType === "Page" &&
       data.linkedData.name === "Docland - Store"
     ) {
-      displayJsonHtml(
-        storePage({
-          writeLinkedData: store.writeLinkedData,
-          realAllLinkedData: store.readAllLinkedData,
-        })
-      );
+      displayJsonHtml(storePage(entityViewControls));
     } else if (
       dataType === "Page" &&
       data.linkedData.name === "Docland - Editor"
@@ -558,14 +561,7 @@ export const App: Component<
       const [component] = mountComponent(
         journal({
           interval: data.linkedData as Day,
-          subscribeAnnotations: annotationsIndex.subscribe(
-            store.readLinkedData
-          ),
-          contextProvider,
-          saveLinkedData,
-          searchCompletionIndex: completionIndex.searchIndex,
-          subscribeHabits: habitsIndex.subscribe(store.readLinkedData),
-          subscribeCompletable: completionIndex.subscribe(store.readLinkedData),
+          entityViewControls,
         })
       );
       displayJsonHtml(component);
@@ -651,12 +647,7 @@ export const App: Component<
     })
   );
 
-  const [docsDirectorySlot] = mountComponent(
-    docsDirectory({
-      searchDirectory: directoryIndex.search,
-      searchWatchHistory,
-    })
-  );
+  const [docsDirectorySlot] = mountComponent(docsDirectory(entityViewControls));
   const [fileDropSlot, { handleDragEvent }] = newSlot(
     "file-drop",
     fileDrop({
@@ -664,7 +655,11 @@ export const App: Component<
         start
           .process(
             withErrorLogging(
-              asyncMap((it) => processFileToContent(it).then(contentSaver))
+              asyncMap((it) =>
+                processFileToContent(it).then(
+                  createContentSaver(store.writeResource, store.writeLinkedData)
+                )
+              )
             )
           )
           .withEffect((start) =>

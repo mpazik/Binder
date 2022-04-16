@@ -46,6 +46,7 @@ import {
   isLinkedData,
   validateLinkedData,
 } from "../../libs/linked-data";
+import type { EntityViewControls } from "../app/entity-view";
 
 const listData = (
   realAllLinkedData: LinkedDataStoreReadAll
@@ -95,9 +96,9 @@ const linkedDataValidator: ProcessorMultiOut<
 };
 
 const add: View<{
-  writeLinkedData: LinkedDataStoreWrite;
+  saveLinkedDataManually: LinkedDataStoreWrite;
   onSuccessfullyAdded: Callback<LinkedDataWithHashId>;
-}> = ({ writeLinkedData, onSuccessfullyAdded }) => {
+}> = ({ saveLinkedDataManually, onSuccessfullyAdded }) => {
   const inputElement = renderJsonHtmlToDom(
     textarea({ class: "form-control" })
   ) as HTMLTextAreaElement;
@@ -141,7 +142,7 @@ const add: View<{
                 ])(undefined);
               }),
               onSecondOutput(
-                asyncMap(writeLinkedData),
+                asyncMap(saveLinkedDataManually),
                 fork(
                   console.error,
                   renderError(
@@ -159,13 +160,13 @@ const add: View<{
   );
 };
 
-export const storePage: View<{
-  writeLinkedData: LinkedDataStoreWrite;
-  realAllLinkedData: LinkedDataStoreReadAll;
-}> = ({ writeLinkedData, realAllLinkedData }) => {
-  const [slot, { refresh }] = mountComponent(listData(realAllLinkedData));
+export const storePage: View<EntityViewControls> = ({
+  saveLinkedDataManually,
+  readAllLinkedData,
+}) => {
+  const [slot, { refresh }] = mountComponent(listData(readAllLinkedData));
   const slotAdd = add({
-    writeLinkedData,
+    saveLinkedDataManually,
     onSuccessfullyAdded: () => refresh(),
   });
 

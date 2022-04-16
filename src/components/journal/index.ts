@@ -1,4 +1,3 @@
-import type { Callback } from "linki";
 import type { JsonHtml, UiComponent, View } from "linki-ui";
 import {
   a,
@@ -11,13 +10,8 @@ import {
   renderJsonHtmlToDom,
 } from "linki-ui";
 
-import type { AppContextProvider } from "../../functions/app-context";
 import type { AnnotationsSubscribe } from "../../functions/indexes/annotations-index";
-import type {
-  CompletionSubscribe,
-  SearchCompletionIndex,
-} from "../../functions/indexes/completion-index";
-import type { HabitSubscribe } from "../../functions/indexes/habit-index";
+import type { CompletionSubscribe } from "../../functions/indexes/completion-index";
 import type { CalendarInterval, IntervalUri } from "../../libs/calendar-ld";
 import {
   dateToWeek,
@@ -30,7 +24,7 @@ import {
   weekType,
   yearType,
 } from "../../libs/calendar-ld";
-import type { LinkedData } from "../../libs/jsonld-format";
+import type { EntityViewControls } from "../app/entity-view";
 import { inline, stack } from "../common/spacing";
 import { habits } from "../productivity/habits";
 import { readOnlyTasks, tasks } from "../productivity/tasks";
@@ -144,20 +138,19 @@ const child: View<{
 
 export const journal = ({
   interval,
-  subscribeAnnotations,
-  subscribeCompletable,
-  subscribeHabits,
-  saveLinkedData,
-  searchCompletionIndex,
-  contextProvider,
+  entityViewControls: {
+    readAppContext,
+    subscribe: {
+      annotations: subscribeAnnotations,
+      completable: subscribeCompletable,
+      habits: subscribeHabits,
+    },
+    search: { completable: searchCompletable },
+    saveLinkedData,
+  },
 }: {
   interval: CalendarInterval;
-  subscribeAnnotations: AnnotationsSubscribe;
-  subscribeCompletable: CompletionSubscribe;
-  subscribeHabits: HabitSubscribe;
-  saveLinkedData: Callback<LinkedData>;
-  searchCompletionIndex: SearchCompletionIndex;
-  contextProvider: AppContextProvider;
+  entityViewControls: EntityViewControls;
 }): UiComponent => ({ render }) => {
   const intervalUri = interval["@id"];
   const intervalDate = intervalBeggingDate(interval);
@@ -168,7 +161,7 @@ export const journal = ({
           tasks({
             saveLinkedData,
             subscribe: subscribeCompletable,
-            searchCompletionIndex,
+            searchCompletable,
             day: interval,
           })
         )[0]
@@ -183,7 +176,7 @@ export const journal = ({
       intervalUri: intervalUri,
       dayDate: intervalDate,
       subscribe: subscribeAnnotations,
-      contextProvider,
+      readAppContext,
       saveLinkedData,
     })
   );
@@ -191,7 +184,7 @@ export const journal = ({
     review({
       intervalUri: intervalUri,
       subscribe: subscribeAnnotations,
-      contextProvider,
+      readAppContext,
       saveLinkedData,
     })
   );

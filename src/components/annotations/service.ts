@@ -48,12 +48,12 @@ export type AnnotationSaveProps = {
 };
 
 export const createAnnotationSaver = (
-  getContext: AppContextProvider,
+  readAppContext: AppContextProvider,
   saveLinkedData: Callback<LinkedData>
 ): Callback<AnnotationSaveProps> =>
   link(
     map((props) => {
-      const creator = getContext("user");
+      const creator = readAppContext("user");
       return ({
         ...props.extra,
         ...createAnnotation(

@@ -81,10 +81,10 @@ type AnnotationAction =
 export const annotationsSupport: Component<
   {
     requestDocumentSave: () => void;
-    contextProvider: AppContextProvider;
+    readAppContext: AppContextProvider;
     saveLinkedData: Callback<LinkedData>;
-    annotationSubscribe: AnnotationsSubscribe;
-    readLd: LinkedDataStoreRead;
+    subscribeAnnotations: AnnotationsSubscribe;
+    readLinkedData: LinkedDataStoreRead;
   },
   {
     displayDocumentAnnotations: AnnotationDisplayRequest;
@@ -92,11 +92,11 @@ export const annotationsSupport: Component<
     setReference: HashUri | undefined;
   }
 > = ({
-  readLd,
+  readLinkedData,
   saveLinkedData,
-  annotationSubscribe,
+  subscribeAnnotations,
   requestDocumentSave,
-  contextProvider,
+  readAppContext,
 }) => (render, onClose) => {
   const [saveAnnotationInt, setReference] = link(
     valueWithState<HashUri | undefined, AnnotationSavePropsWithoutRef>(
@@ -112,7 +112,7 @@ export const annotationsSupport: Component<
     ),
     splitDefinedProp("reference"),
     [
-      createAnnotationSaver(contextProvider, saveLinkedData),
+      createAnnotationSaver(readAppContext, saveLinkedData),
       fork<AnnotationSavePropsWithoutRef>(
         (it) => keepAnnotationForSave(it),
         requestDocumentSave
@@ -258,7 +258,7 @@ export const annotationsSupport: Component<
   );
 
   const [subscribeForAnnotations, closeSubscription] = link(
-    closableProcessorFromProvider(annotationSubscribe),
+    closableProcessorFromProvider(subscribeAnnotations),
     (change) => {
       handleAction(change, {
         to: (value) => {
@@ -268,7 +268,7 @@ export const annotationsSupport: Component<
           changeSelection(["display", value]);
         },
         del: (id) => {
-          readLd(id).then(
+          readLinkedData(id).then(
             link(filter(defined), map(cast()), (annotation: Annotation) => {
               if (!annotation.target.selector) {
                 return;

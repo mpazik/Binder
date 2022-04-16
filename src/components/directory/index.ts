@@ -2,11 +2,10 @@ import { asyncMap, kick, link, map, withErrorLogging, wrap } from "linki";
 import type { UiComponent, View } from "linki-ui";
 import { a, div, h3, nav, p, small } from "linki-ui";
 
-import type { DirectoryIndex } from "../../functions/indexes/directory-index";
-import type { WatchHistorySearch } from "../../functions/indexes/watch-history-index";
 import type { RecentDocuments } from "../../functions/recent-document-serach";
 import { createRecentDocumentSearch } from "../../functions/recent-document-serach";
 import { combineToUri } from "../../libs/browser-providers";
+import type { EntityViewControls } from "../app/entity-view";
 import { loading } from "../common/async-loader";
 import { relativeDate } from "../common/relative-date";
 
@@ -43,12 +42,8 @@ const view: View<{
   );
 
 export const docsDirectory = ({
-  searchDirectory,
-  searchWatchHistory,
-}: {
-  searchDirectory: DirectoryIndex["search"];
-  searchWatchHistory: WatchHistorySearch;
-}): UiComponent => {
+  search: { directory: searchDirectory, watchHistory: searchWatchHistory },
+}: EntityViewControls): UiComponent => {
   const searchRecentDocuments = createRecentDocumentSearch(
     searchDirectory,
     searchWatchHistory

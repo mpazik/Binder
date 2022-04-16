@@ -117,18 +117,18 @@ export const tasks = ({
   subscribe,
   saveLinkedData,
   day,
-  searchCompletionIndex,
+  searchCompletable,
 }: {
   subscribe: CompletionSubscribe;
   saveLinkedData: Callback<LinkedData>;
   day: Day;
-  searchCompletionIndex: SearchCompletionIndex;
+  searchCompletable: SearchCompletionIndex;
 }): UiComponent => ({ render }) => {
   const createTaskList = () =>
     mountItemComponent(getId, taskComponent, {
       onCompleted: link(map(head(), completionCreator(day)), saveLinkedData),
       onUndone: async ([id]) => {
-        const record = throwIfUndefined(await searchCompletionIndex(id));
+        const record = throwIfUndefined(await searchCompletable(id));
         if (record.completed === 0)
           throw new Error("can not undo not completed record");
         saveLinkedData(createUndo(record.eventId));

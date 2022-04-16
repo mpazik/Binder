@@ -1,24 +1,18 @@
-import type { Callback } from "linki";
 import { fork, link, map, pick, withOptionalState } from "linki";
 
-import type { AppContextProvider } from "../../functions/app-context";
 import type { LinkedDataWithContent } from "../../functions/content-processors";
-import type { ContentSaver } from "../../functions/content-saver";
-import type { AnnotationsSubscribe } from "../../functions/indexes/annotations-index";
-import type { LinkedDataStoreRead } from "../../functions/store/local-store";
+import { createContentSaver } from "../../functions/content-saver";
 import { throwIfNull2 } from "../../libs/errors";
 import type { HashUri } from "../../libs/hash";
 import { isHashUri } from "../../libs/hash";
-import type {
-  LinkedData,
-  LinkedDataWithHashId,
-} from "../../libs/jsonld-format";
+import type { LinkedData } from "../../libs/jsonld-format";
 import { findHashUri, getUrls } from "../../libs/linked-data";
 import { throwOnNull, withMultiState } from "../../libs/linki";
 import type { Component } from "../../libs/simple-ui/render";
 import { div, newSlot } from "../../libs/simple-ui/render";
 import { getTarget } from "../../libs/simple-ui/utils/funtions";
 import { annotationsSupport } from "../annotations";
+import type { EntityViewControls } from "../app/entity-view";
 import { isLocalUri } from "../common/uri";
 import type { LinkedDataWithContentAndFragment } from "../content-body";
 import { contentDisplayComponent } from "../content-body";
@@ -34,26 +28,20 @@ const isExisting = (linkedData: LinkedData) => {
 };
 
 export const contentComponent: Component<
-  {
-    contentSaver: ContentSaver;
-    saveLinkedData: Callback<LinkedData>;
-    ldStoreRead: LinkedDataStoreRead;
-    onSave: Callback<LinkedDataWithHashId>;
-    annotationSubscribe: AnnotationsSubscribe;
-    contextProvider: AppContextProvider;
-  },
+  EntityViewControls,
   {
     displayContent: LinkedDataWithContentAndFragment;
     goToFragment: string;
   }
 > = ({
-  contentSaver,
+  readAppContext,
   saveLinkedData,
-  ldStoreRead,
-  onSave,
-  contextProvider,
-  annotationSubscribe,
+  saveLinkedDataManually,
+  readLinkedData,
+  saveResource,
+  subscribe: { annotations: subscribeAnnotations },
 }) => (render, onClose) => {
+  const contentSaver = createContentSaver(saveResource, saveLinkedDataManually);
   const storeData = (data: LinkedDataWithContent, retry: () => void) => {
     try {
       updateSaveBar(["saving"]);
@@ -63,7 +51,6 @@ export const contentComponent: Component<
         link(
           map(pick("linkedData")),
           fork(
-            onSave,
             () => updateSaveBar(["hidden"]),
             (ld) => setWatchReference(ld["@id"]),
             link(map(findHashUri, throwIfNull2(refError)), setReference)
@@ -122,10 +109,10 @@ export const contentComponent: Component<
   ] = newSlot(
     "annotation-support",
     annotationsSupport({
-      readLd: ldStoreRead,
+      readLinkedData,
       saveLinkedData,
-      annotationSubscribe,
-      contextProvider,
+      subscribeAnnotations,
+      readAppContext,
       requestDocumentSave: saveContent,
     })
   );

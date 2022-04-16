@@ -163,13 +163,13 @@ export const comments = ({
   intervalUri,
   dayDate,
   subscribe,
-  contextProvider,
+  readAppContext,
   saveLinkedData,
 }: {
   intervalUri: Uri;
   dayDate: Date;
   subscribe: AnnotationsSubscribe;
-  contextProvider: AppContextProvider;
+  readAppContext: AppContextProvider;
   saveLinkedData: Callback<LinkedData>;
 }): UiComponent => ({ render }) => {
   const [commentsSlot, { changeItems: changeComments }] = mountItemComponent(
@@ -186,7 +186,7 @@ export const comments = ({
       div(
         commentForm({
           intervalUri,
-          onSave: createAnnotationSaver(contextProvider, saveLinkedData),
+          onSave: createAnnotationSaver(readAppContext, saveLinkedData),
         })
       )
     )
@@ -258,12 +258,12 @@ const pickFirstAnnotation = (op: AnnotationChange): Annotation | undefined => {
 export const review = ({
   intervalUri,
   subscribe,
-  contextProvider,
+  readAppContext,
   saveLinkedData,
 }: {
   intervalUri: IntervalUri;
   subscribe: AnnotationsSubscribe;
-  contextProvider: AppContextProvider;
+  readAppContext: AppContextProvider;
   saveLinkedData: Callback<LinkedData>;
 }): UiComponent => ({ render }) => {
   const renderAnnotation = link(
@@ -318,7 +318,7 @@ export const review = ({
           }
         : props
     ),
-    createAnnotationSaver(contextProvider, saveLinkedData)
+    createAnnotationSaver(readAppContext, saveLinkedData)
   );
   const renderForm = () => {
     setRating(defaultRating);
