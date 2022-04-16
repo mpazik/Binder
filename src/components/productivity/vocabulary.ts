@@ -8,12 +8,14 @@ export type Task = {
   "@context": "http://docland.app/productivity.jsonld";
   "@type": "Task";
   content: string;
+  published: string;
 };
 
-export const createTask = (content: string): Task => ({
+export const createTask = (content: string, published = new Date()): Task => ({
   "@context": "http://docland.app/productivity.jsonld",
   "@type": "Task",
   content,
+  published: published.toISOString(),
 });
 
 export type Complete = {
