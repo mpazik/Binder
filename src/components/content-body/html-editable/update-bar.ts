@@ -1,11 +1,7 @@
 import { link, map } from "linki";
+import type { JsonHtml, UiComponent, View } from "linki-ui";
 
 import { newStateMapper } from "../../../libs/named-state";
-import type {
-  Component,
-  OptionalJsonHtml,
-  OptionalViewSetup,
-} from "../../../libs/simple-ui/render";
 import type { EditBarState } from "../../content/edit-bar";
 import {
   errorBar,
@@ -14,11 +10,14 @@ import {
   styledButton,
 } from "../../content/edit-bar";
 
-const createUpdateBarView: OptionalViewSetup<
-  { onUpdate: () => void; onDiscard: () => void },
-  EditBarState
-> = ({ onDiscard, onUpdate }) =>
-  newStateMapper<EditBarState, OptionalJsonHtml>(undefined, {
+const createUpdateBarView = ({
+  onDiscard,
+  onUpdate,
+}: {
+  onUpdate: () => void;
+  onDiscard: () => void;
+}): View<EditBarState> =>
+  newStateMapper<EditBarState, JsonHtml>(undefined, {
     visible: () =>
       popUpBar(
         "Document has been modified",
@@ -30,17 +29,15 @@ const createUpdateBarView: OptionalViewSetup<
       simpleBar("", styledButton("Updating", undefined, "btn-primary", true)),
   });
 
-export const updateBar: Component<
+export const updateBar: UiComponent<
+  { updateUpdateBar: EditBarState },
   {
-    onDiscard: () => void;
-    onUpdate: () => void;
-  },
-  { updateUpdateBar: EditBarState }
-> = ({ onDiscard, onUpdate }) => (render) => {
-  return {
-    updateUpdateBar: link(
-      map(createUpdateBarView({ onUpdate, onDiscard })),
-      render
-    ),
-  };
-};
+    onDiscard: void;
+    onUpdate: void;
+  }
+> = ({ onDiscard, onUpdate, render }) => ({
+  updateUpdateBar: link(
+    map(createUpdateBarView({ onUpdate, onDiscard })),
+    render
+  ),
+});

@@ -1,13 +1,12 @@
-import type { Callback } from "linki";
-import { map, passUndefined, link } from "linki";
+import { link, map, passUndefined } from "linki";
+import type { UiComponent } from "linki-ui";
+import { h2 } from "linki-ui";
 
-import type { Component } from "../../libs/simple-ui/render";
-import { h2 } from "../../libs/simple-ui/render";
 import { blanket } from "../common/blanket";
 
 const getFileItem = (e: DragEvent): DataTransferItem | undefined => {
   if (!e.dataTransfer) {
-    console.warn("There was no data transfered");
+    console.warn("There was no data transferred");
     return;
   }
   const items = Array.from(e.dataTransfer.items).filter(
@@ -24,12 +23,12 @@ const getFileItem = (e: DragEvent): DataTransferItem | undefined => {
   return items[0];
 };
 
-export const fileDrop: Component<
+export const fileDrop: UiComponent<
+  { handleDragEvent: DragEvent },
   {
-    onFile: Callback<File>;
-  },
-  { handleDragEvent: DragEvent }
-> = ({ onFile }) => (render) => {
+    onFile: File;
+  }
+> = ({ onFile, render }) => {
   const handleFile = (event: DragEvent) => {
     const firstItem = getFileItem(event);
     if (!firstItem) return;
@@ -49,21 +48,21 @@ export const fileDrop: Component<
         blanket(
           {
             style: {
-              "z-index": "1",
+              zIndex: "1",
               opacity: "0.6",
               color: "white",
               background: "black",
-              "padding-top": "50%",
-              "text-align": "center",
+              paddingTop: "50%",
+              textAlign: "center",
             },
           },
           h2("Drop file here"),
           blanket({
-            onDragenter: (e) => {
+            onDragEnter: (e) => {
               e.preventDefault();
               e.stopPropagation();
             },
-            onDragover: (e) => {
+            onDragOver: (e) => {
               e.preventDefault();
               e.stopPropagation();
             },
@@ -72,7 +71,7 @@ export const fileDrop: Component<
               displayFileDrop(undefined);
               handleFile(e);
             },
-            onDragleave: (e) => {
+            onDragLeave: (e) => {
               e.stopPropagation();
               e.preventDefault();
               displayFileDrop(undefined);

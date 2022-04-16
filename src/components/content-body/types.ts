@@ -1,6 +1,5 @@
-import type { Callback } from "linki";
+import type { UiComponent } from "linki-ui";
 
-import type { Component } from "../../libs/simple-ui/render";
 import type { DocFragment } from "../annotations/annotation";
 
 export type DisplayContext = {
@@ -15,16 +14,16 @@ export type AnnotationContext = {
 };
 
 export type DisplayController = {
-  onDisplay: Callback<DisplayContext>;
-  onContentModified: Callback<Blob>;
-  onCurrentFragmentResponse: Callback<string | undefined>;
+  onDisplay: DisplayContext;
+  onContentModified: Blob;
+  onCurrentFragmentResponse: string | undefined;
 };
-export type ContentComponent = Component<
-  DisplayController,
+export type ContentComponent = UiComponent<
   {
     displayContent: { content: Blob; fragment?: string };
     goToFragment: string;
     saveComplete?: void;
     requestCurrentFragment?: void;
-  }
+  },
+  DisplayController
 >;

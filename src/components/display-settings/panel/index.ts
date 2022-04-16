@@ -2,12 +2,15 @@ import "./styles.css";
 
 import { cast, link, map } from "linki";
 import type { JsonHtml, View } from "linki-ui";
-import { h5, input, label, dangerousHtml } from "linki-ui";
-
 import {
-  getInputTarget,
+  dangerousHtml,
+  getTargetInput,
+  h5,
+  input,
   inputValue,
-} from "../../../libs/simple-ui/utils/funtions";
+  label,
+} from "linki-ui";
+
 import { inline, inset, stack } from "../../common/spacing";
 import type {
   DisplaySettings,
@@ -123,7 +126,7 @@ const settingPanel = <T>({
             name,
             id,
             value: (value as unknown) as string,
-            onChange: link(map(getInputTarget, inputValue, cast()), onChange),
+            onChange: link(map(getTargetInput, inputValue, cast()), onChange),
             ...(value === currentValue ? { checked: true } : {}),
           }),
           label(

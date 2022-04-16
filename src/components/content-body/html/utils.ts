@@ -7,17 +7,11 @@ import {
 import type { DisplayContext } from "../types";
 import { scrollToTop } from "../utils";
 
-import type { HtmlContent } from "./view";
-
 export const processToDocument = async (content: Blob): Promise<Document> =>
   parseArticleContent(await content.text());
 
-export const documentToHtmlContent = (
-  contentDocument: Document
-): HtmlContent => ({ content: getDocumentContentRoot(contentDocument) });
-
-export const processToHtml = async (content: Blob): Promise<HtmlContent> =>
-  documentToHtmlContent(await processToDocument(content));
+export const processToHtml = async (content: Blob): Promise<Node> =>
+  getDocumentContentRoot(await processToDocument(content));
 
 export const scrollToPageTopWhenNoFragment: Callback<DisplayContext> = (
   context

@@ -44,7 +44,7 @@ const modalFrame = (...content: JsonHtml[]) =>
     ),
     blanket({
       style: {
-        "z-index": "1",
+        zIndex: "1",
         opacity: "0.3",
         color: "white",
         background: "black",

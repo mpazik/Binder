@@ -1,5 +1,5 @@
-import type { Component, JsonHtml } from "../../libs/simple-ui/render";
-import { div } from "../../libs/simple-ui/render";
+import type { JsonHtml, UiComponent } from "linki-ui";
+import { div } from "linki-ui";
 
 import { blanket } from "./blanket";
 
@@ -28,9 +28,9 @@ const modalView = (
     blanket({ onClick: closeModal })
   );
 
-export const modal: Component<void, { displayModal: ModalState }> = () => (
-  render
-) => {
+export const modal: UiComponent<{ displayModal: ModalState }> = ({
+  render,
+}) => {
   const renderModal = (state: ModalState) => {
     render(state ? modalView(state, () => renderModal(undefined)) : undefined);
   };

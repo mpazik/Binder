@@ -6,12 +6,23 @@ import {
   fork,
   link,
   map,
+  nextTick,
   passOnlyChanged,
   push,
   to,
   withOptionalState,
 } from "linki";
-import { focusElement, mountComponent, renderJsonHtmlToDom } from "linki-ui";
+import type { JsonHtml, UiComponent, View } from "linki-ui";
+import {
+  button,
+  dangerousHtml,
+  div,
+  dom,
+  focusElement,
+  mountComponent,
+  renderJsonHtmlToDom,
+  span,
+} from "linki-ui";
 
 import { CATEGORIES_ENABLED } from "../../config";
 import { throwIfNull } from "../../libs/errors";
@@ -23,15 +34,6 @@ import {
   newStateHandler,
   newStateMapper,
 } from "../../libs/named-state";
-import type {
-  Component,
-  JsonHtml,
-  OptionalJsonHtml,
-  Slot,
-  View,
-  ViewSetup,
-} from "../../libs/simple-ui/render";
-import { button, div, newSlot, span } from "../../libs/simple-ui/render";
 import { moreActions } from "../common/drop-down";
 import { editor } from "../common/editor";
 import { multiSelect } from "../common/multi-select";
@@ -41,19 +43,19 @@ import type { Annotation, AnnotationSelector } from "./annotation";
 import type { Position } from "./selection";
 
 // noinspection JSUnusedGlobalSymbols
-const createAnnotationView: ViewSetup<
-  {
-    categoriesSlot: Slot;
-    onHover: (state: DisplayAnnotation) => void;
-    onHoverOut: () => void;
-    onDelete: (id: HashUri) => void;
-  },
-  {
-    state: DisplayAnnotation;
-    position: Position;
-    annotation: Annotation;
-  }
-> = ({ categoriesSlot, onHover, onHoverOut, onDelete }) => ({
+const annotationView: View<{
+  categoriesSlot: JsonHtml;
+  onHover: (state: DisplayAnnotation) => void;
+  onHoverOut: () => void;
+  onDelete: (id: HashUri) => void;
+  state: DisplayAnnotation;
+  position: Position;
+  annotation: Annotation;
+}> = ({
+  categoriesSlot,
+  onHover,
+  onHoverOut,
+  onDelete,
   position: [left, top],
   annotation,
   state,
@@ -66,15 +68,15 @@ const createAnnotationView: ViewSetup<
         top: `${top}px`,
         transform: "translate(-50%, 8px)",
       },
-      onMouseleave: onHoverOut,
-      onMouseenter: () => onHover(state),
+      onMouseLeave: onHoverOut,
+      onMouseEnter: () => onHover(state),
     },
     div(
       {
         class: "Popover-message Popover-message--top color-shadow-large",
         style: {
           // width: "auto",
-          maxWidth: 350,
+          maxWidth: "350px",
         },
       },
       div(
@@ -106,10 +108,12 @@ const createAnnotationView: ViewSetup<
       ...(CATEGORIES_ENABLED ? [categoriesSlot] : []),
       ...(annotation.body
         ? [
-            div({
-              class: "Box-body",
-              dangerouslySetInnerHTML: annotation.body.value,
-            }),
+            div(
+              {
+                class: "Box-body",
+              },
+              dangerousHtml(annotation.body.value)
+            ),
           ]
         : [])
     )
@@ -120,25 +124,17 @@ export type AnnotationDisplayState =
   | ["hidden"]
   | ["visible", DisplayAnnotation];
 
-export const annotationDisplay: Component<
-  { deleteAnnotation: Callback<HashUri> },
+export const annotationDisplay: UiComponent<
   {
     displayAnnotation: DisplayAnnotation;
     hideAnnotation: void;
     hideAnnotationDelayed: void;
-  }
-> = ({ deleteAnnotation }) => (render) => {
-  const [categoriesSlot] = newSlot(
-    "categories",
+  },
+  { deleteAnnotation: HashUri }
+> = ({ deleteAnnotation, render }) => {
+  const [categoriesSlot] = mountComponent(
     multiSelect({ extraClass: "p-0 m-0 width-full" })
   );
-
-  const annotationView = createAnnotationView({
-    categoriesSlot,
-    onHover: (state) => displayAnnotation(state),
-    onHoverOut: () => delayedHide(),
-    onDelete: fork(deleteAnnotation, () => hide()),
-  });
 
   const renderPopup = link(
     map(
@@ -149,6 +145,10 @@ export const annotationDisplay: Component<
             position,
             annotation,
             state,
+            categoriesSlot,
+            onHover: (state) => displayAnnotation(state),
+            onHoverOut: () => delayedHide(),
+            onDelete: fork(deleteAnnotation, () => hide()),
           });
         },
       })
@@ -190,7 +190,8 @@ const commentFormView: View<{
   );
 
   const editorComponent = renderJsonHtmlToDom(editorRoot) as HTMLElement;
-  const editorDom = throwIfNull(editorComponent.firstChild);
+  const editorDom = throwIfNull(editorComponent.firstChild) as HTMLElement;
+  link(map(to(editorDom)), nextTick(), focusElement);
   return div(
     {
       class: "Box Popover",
@@ -205,11 +206,12 @@ const commentFormView: View<{
         class:
           "Popover-message Popover-message--top color-shadow-large width-auto",
       },
-      div({
-        class: "Box-body p-2",
-        dangerouslySetDom: editorComponent,
-        onDisplay: link(map(to(editorDom)), fork(focusElement)),
-      }),
+      div(
+        {
+          class: "Box-body p-2",
+        },
+        dom(editorComponent)
+      ),
       div(
         { class: "Box-footer text-right p-1" },
         button(
@@ -221,7 +223,11 @@ const commentFormView: View<{
           "Cancel"
         ),
         button(
-          { type: "button", class: "btn btn-sm btn-primary", onClick: save },
+          {
+            type: "button",
+            class: "btn btn-sm btn-primary",
+            onClick: () => save(),
+          },
           "Save"
         )
       )
@@ -236,17 +242,15 @@ export type CommentFormState =
   | ["hidden"]
   | ["visible", Selection & { position: Position }];
 
-export const commentForm: Component<
+export const commentForm: UiComponent<
+  { displayCommentForm: CommentFormState },
   {
-    onCreatedComment: (
-      s: Selection & {
-        comment: string;
-      }
-    ) => void;
-    onHide: (s: Selection) => void;
-  },
-  { displayCommentForm: CommentFormState }
-> = ({ onCreatedComment, onHide }) => (render) => {
+    onCreatedComment: Selection & {
+      comment: string;
+    };
+    onHide: Selection;
+  }
+> = ({ onCreatedComment, onHide, render }) => {
   const [hide, setSelectionForHide, resetSelection] = link(
     withOptionalState<Selection>(),
     filter(defined),
@@ -255,7 +259,7 @@ export const commentForm: Component<
 
   const renderForm = link(
     map(
-      newStateMapper<CommentFormState, OptionalJsonHtml>(undefined, {
+      newStateMapper<CommentFormState, JsonHtml>(undefined, {
         visible: ({ position, ...selection }) =>
           commentFormView({
             position,

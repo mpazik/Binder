@@ -1,6 +1,6 @@
 import * as JSZip from "jszip";
-import type { Callback } from "linki";
 import {
+  cast,
   defined,
   definedTuple,
   filter,
@@ -14,6 +14,8 @@ import {
   withDefaultValue,
   withOptionalState,
 } from "linki";
+import type { JsonHtml, UiComponent, View } from "linki-ui";
+import { a, div, dom, mountComponent, renderJsonHtmlToDom } from "linki-ui";
 
 import {
   newUriWithFragment,
@@ -25,29 +27,25 @@ import type { EpubCfi } from "../../../libs/epubcfi";
 import {
   customParseFirstSegmentEpubCfi,
   emptyEpubCfi,
-  generateEpubCfiFromNodes,
   generateEpubCfi,
+  generateEpubCfiFromNodes,
+  generateEpubCfiPartForId,
   generateEpubCfiPartForNode,
   getCfiParts,
   nodeIdFromCfiPart,
-  generateEpubCfiPartForId,
 } from "../../../libs/epubcfi";
 import { throwIfNull } from "../../../libs/errors";
+import { pickContext, withContext } from "../../../libs/linki";
 import { measureAsyncTime } from "../../../libs/performance";
-import type {
-  Component,
-  View,
-  ViewSetup,
-} from "../../../libs/simple-ui/render";
-import { a, div, newSlot } from "../../../libs/simple-ui/render";
 import { createEpubFragment } from "../../annotations/annotation";
 import { loaderWithContext } from "../../common/loader";
-import { setupHtmlView } from "../html/view";
+import { htmlView } from "../html/view";
 import type { ContentComponent, DisplayContext } from "../types";
 import {
   isFocusedElementStatic,
   lastSeenElement,
   scrollToFragmentOrTop,
+  scrollToTop,
 } from "../utils";
 
 const absolute = (base: string, relative: string) => {
@@ -236,47 +234,51 @@ const epubNav: View<{
     )
   );
 
-const setupChapterView: ViewSetup<
+const chapterContainer: View<EpubChapter> = ({ content }) =>
+  htmlView({
+    extraClass: "book",
+    content,
+  });
+
+const chapterView: View<
   {
-    onDisplay: Callback<DisplayContext>;
-  },
-  EpubChapter
-> = ({ onDisplay }) => ({
-  currentChapter,
-  content,
-  nextChapter,
-  previousChapter,
-  navigation,
-}) =>
+    container: JsonHtml;
+  } & EpubChapter
+> = ({ container, nextChapter, previousChapter, navigation }) =>
   div(
     epubNav({ previousChapter, navigation, nextChapter }),
-    setupHtmlView({
-      onDisplay: (container) => {
-        onDisplay({
-          container,
-          fragmentForAnnotations: createEpubFragment(currentChapter),
-          fragment: currentChapter,
-        });
-      },
-      extraClass: "book",
-    })({
-      content,
-    }),
+    container,
     epubNav({ previousChapter, navigation, nextChapter })
   );
 
-const contentComponent: Component<
-  {
-    onDisplay: Callback<DisplayContext>;
-  },
-  { renderPage: EpubChapter }
-> = ({ onDisplay }) => (render) => {
-  const chapterView = setupChapterView({
-    onDisplay,
-  });
-
+const contentComponent: UiComponent<
+  { renderPage: EpubChapter },
+  { onDisplay: DisplayContext }
+> = ({ onDisplay, render }) => {
   return {
-    renderPage: link(map(chapterView), render),
+    renderPage: link(
+      map(withContext(pipe(chapterContainer, renderJsonHtmlToDom, cast()))),
+      fork<[EpubChapter, HTMLElement]>(
+        link(
+          map(([epub, container]) =>
+            chapterView({
+              ...epub,
+              container: dom(container),
+            })
+          ),
+          render
+        ),
+        link(map(pickContext()), scrollToTop),
+        link(
+          map(([{ currentChapter }, container]) => ({
+            container,
+            fragmentForAnnotations: createEpubFragment(currentChapter),
+            fragment: currentChapter,
+          })),
+          onDisplay
+        )
+      )
+    ),
   };
 };
 
@@ -292,13 +294,11 @@ const autoScroll = ({ fragment, container }: DisplayContext) => {
 export const epubDisplay: ContentComponent = ({
   onDisplay,
   onCurrentFragmentResponse,
-}) => (render, onClose) => {
-  const [contentSlot, { renderPage }] = newSlot(
-    "epub-content",
-    contentComponent({
-      onDisplay: fork(autoScroll, onDisplay, (it) => setContainerContext(it)),
-    })
-  );
+  render,
+}) => {
+  const [contentSlot, { renderPage }] = mountComponent(contentComponent, {
+    onDisplay: fork(autoScroll, onDisplay, (it) => setContainerContext(it)),
+  });
 
   const [changeChapter, setChapter] = link(
     valueWithState<EpubChapter | undefined, KeyboardEvent>(undefined),
@@ -334,15 +334,12 @@ export const epubDisplay: ContentComponent = ({
   );
 
   document.addEventListener("keyup", changeChapter);
-  onClose(() => {
-    document.removeEventListener("keyup", changeChapter);
-  });
 
-  const { load, init } = loaderWithContext<Epub, EpubCfi, EpubChapter>({
+  const { load, init, stop } = loaderWithContext<Epub, EpubCfi, EpubChapter>({
     fetcher: (epub, fragment) => openChapter(epub, fragment),
     onLoaded: fork(renderPage, setChapter),
     contentSlot,
-  })(render, onClose);
+  })({ render });
 
   return {
     displayContent: fork(
@@ -351,5 +348,8 @@ export const epubDisplay: ContentComponent = ({
     ),
     goToFragment: link(filter(defined), load),
     requestCurrentFragment: returnCurrentFragment,
+    stop: fork(stop ?? (() => {}), () => {
+      document.removeEventListener("keyup", changeChapter);
+    }),
   };
 };

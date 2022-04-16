@@ -1,53 +1,56 @@
-import type { Callback } from "linki";
 import {
+  cast,
   defined,
   filter,
   fork,
   link,
+  logIt,
   map,
   pick,
   valueWithState,
   withOptionalState,
   wrap,
 } from "linki";
+import type { UiComponent } from "linki-ui";
+import { dom, mountComponent, renderJsonHtmlToDom } from "linki-ui";
 
-import type { Component } from "../../../libs/simple-ui/render";
-import { newSlot } from "../../../libs/simple-ui/render";
 import { loader } from "../../common/loader";
 import type { ContentComponent } from "../types";
 import { lastSeenElement, scrollToFragmentOrTop } from "../utils";
 
 import { processToHtml } from "./utils";
-import type { HtmlContent } from "./view";
-import { setupHtmlView } from "./view";
+import { htmlView } from "./view";
 
-const contentComponent: Component<
+const contentComponent: UiComponent<
+  { renderPage: Node },
   {
-    onDisplay: Callback<HTMLElement>;
-  },
-  { renderPage: HtmlContent }
-> = ({ onDisplay }) => (render) => {
-  const htmlView = setupHtmlView({ onDisplay });
-
-  return {
-    renderPage: link(map(htmlView), render),
-  };
-};
+    onDisplay: HTMLElement;
+  }
+> = ({ onDisplay, render }) => ({
+  renderPage: link(
+    logIt("renderPage"),
+    map(
+      wrap("content"),
+      htmlView,
+      renderJsonHtmlToDom,
+      cast<Node, HTMLElement>()
+    ),
+    fork(link(map(dom), render), onDisplay)
+  ),
+});
 
 export const htmlDisplay: ContentComponent = ({
   onDisplay,
   onCurrentFragmentResponse,
-}) => (render, onClose) => {
-  const [contentSlot, { renderPage }] = newSlot(
-    "html-content",
-    contentComponent({
-      onDisplay: fork(
-        (it) => goToFragment(it),
-        (it) => setContainerContext(it),
-        link(map(wrap("container")), onDisplay)
-      ),
-    })
-  );
+  render,
+}) => {
+  const [contentSlot, { renderPage }] = mountComponent(contentComponent, {
+    onDisplay: fork<HTMLElement>(
+      (it) => goToFragment(it),
+      (it) => setContainerContext(it),
+      link(map(wrap("container")), onDisplay)
+    ),
+  });
 
   const [returnCurrentFragment, setContainerContext] = link(
     withOptionalState<HTMLElement>(undefined),
@@ -63,13 +66,14 @@ export const htmlDisplay: ContentComponent = ({
     }
   );
 
-  const { load } = loader<Blob, HtmlContent>({
+  const { load, stop } = loader<Blob, Node>({
     fetcher: processToHtml,
     onLoaded: renderPage,
     contentSlot,
-  })(render, onClose);
+  })({ render });
 
   return {
+    stop,
     displayContent: fork(
       link(map(pick("content")), load),
       link(map(pick("fragment")), setFragment)

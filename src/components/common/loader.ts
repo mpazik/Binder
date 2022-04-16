@@ -1,7 +1,9 @@
 import "./loading.css";
 
 import type { Callback } from "linki";
-import { fork, map, pick, defined, filter, link } from "linki";
+import { defined, filter, fork, link, map, pick } from "linki";
+import type { JsonHtml, UiComponent, View } from "linki-ui";
+import { button, div, p } from "linki-ui";
 
 import { closable } from "../../libs/linki";
 import {
@@ -9,17 +11,10 @@ import {
   newStateMachine,
   newStateMapper,
 } from "../../libs/named-state";
-import type {
-  ComponentBody,
-  Prop,
-  Slot,
-  View,
-} from "../../libs/simple-ui/render";
-import { button, div, p } from "../../libs/simple-ui/render";
 
 import { centerLoading } from "./center-loading-component";
 
-type LoaderAction<C, R, V extends Prop> =
+type LoaderAction<C, R, V> =
   | ["init", C]
   | ["load", R]
   | ["retry"]
@@ -27,14 +22,14 @@ type LoaderAction<C, R, V extends Prop> =
   | ["display", V]
   | ["fail", string];
 
-export type LoaderState<C, R, V extends Prop> =
+export type LoaderState<C, R, V> =
   | ["idle", { request?: R; context?: C; data?: V }]
   | ["initializing", { request: R; context: C }]
   | ["ready", { data: V; context: C }]
   | ["loading", { data: V; context: C; request: R }]
   | ["error", { reason: string; request: R; context: C }];
 
-const newLoaderStateMachine = <C, R, V extends Prop>(
+const newLoaderStateMachine = <C, R, V>(
   callback: Callback<LoaderState<C, R, V>>
 ): Callback<LoaderAction<C, R, V>> =>
   newStateMachine<LoaderState<C, R, V>, LoaderAction<C, R, V>>(
@@ -104,18 +99,18 @@ const defaultErrorView: ErrorView = ({ reason, retry }) =>
     button({ class: "btn", onClick: retry }, "Retry")
   );
 
-const loaderView = <C, R, V extends Prop>({
+const loaderView = <C, R, V>({
   contentSlot,
   errorView,
   retry,
 }: {
-  contentSlot: Slot;
+  contentSlot: JsonHtml;
   errorView: ErrorView;
   retry: () => void;
 }): View<LoaderState<C, R, V>> =>
   newStateMapper(centerLoading(), {
-    ready: () => div(contentSlot),
-    loading: () => div(centerLoading(), contentSlot),
+    ready: () => contentSlot,
+    loading: () => [centerLoading(), contentSlot] as JsonHtml,
     error: ({ reason }) =>
       errorView({
         reason,
@@ -123,7 +118,7 @@ const loaderView = <C, R, V extends Prop>({
       }),
   });
 
-export const loaderWithContext = <C, R, V extends Prop>({
+export const loaderWithContext = <C, R, V>({
   fetcher,
   onLoaded,
   contentSlot,
@@ -131,12 +126,11 @@ export const loaderWithContext = <C, R, V extends Prop>({
 }: {
   fetcher: (context: C, request: R, s: AbortSignal) => Promise<V>;
   onLoaded: Callback<V>;
-  contentSlot: Slot;
+  contentSlot: JsonHtml;
   errorView?: ErrorView;
-}): ComponentBody<{ init: C | Promise<C>; load: R; display: V }> => (
+}): UiComponent<{ init: C | Promise<C>; load: R; display: V }> => ({
   render,
-  onClose
-) => {
+}) => {
   const handleResponse = (
     promise: Promise<V>,
     signal: AbortSignal
@@ -181,9 +175,8 @@ export const loaderWithContext = <C, R, V extends Prop>({
       })
     )
   );
-  onClose(() => stateMachine(["stop"]));
-
   return {
+    stop: () => stateMachine(["stop"]),
     init: (context) => {
       stateMachine(["stop"]);
       Promise.resolve(context).then((c) => stateMachine(["init", c]));
@@ -193,7 +186,7 @@ export const loaderWithContext = <C, R, V extends Prop>({
   };
 };
 
-export const loader = <R, V extends Prop>({
+export const loader = <R, V>({
   fetcher,
   onLoaded,
   errorView = defaultErrorView,
@@ -201,19 +194,20 @@ export const loader = <R, V extends Prop>({
 }: {
   fetcher: (request: R, s: AbortSignal) => Promise<V>;
   onLoaded: Callback<V>;
-  contentSlot: Slot;
+  contentSlot: JsonHtml;
   errorView?: ErrorView;
-}): ComponentBody<{ load: R; display: V }> => (render, onClose) => {
-  const { load, display, init } = loaderWithContext<{}, R, V>({
+}): UiComponent<{ load: R; display: V }> => ({ render }) => {
+  const { load, display, init, stop } = loaderWithContext<{}, R, V>({
     fetcher: (context, request, signal) => fetcher(request, signal),
     onLoaded,
     contentSlot,
     errorView,
-  })(render, onClose);
+  })({ render });
   init({});
 
   return {
-    load: load,
-    display: display,
+    stop,
+    load,
+    display,
   };
 };

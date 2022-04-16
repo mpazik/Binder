@@ -1,13 +1,14 @@
 import { asyncMap, kick, link, map, withErrorLogging, wrap } from "linki";
 import type { UiComponent, View } from "linki-ui";
-import { a, div, h3, nav, p, small } from "linki-ui";
+import { a, div, h3, nav, p, small, span } from "linki-ui";
 
 import type { RecentDocuments } from "../../functions/recent-document-serach";
 import { createRecentDocumentSearch } from "../../functions/recent-document-serach";
 import { combineToUri } from "../../libs/browser-providers";
 import type { EntityViewControls } from "../app/entity-view";
-import { loading } from "../common/async-loader";
 import { relativeDate } from "../common/relative-date";
+
+export const loading: View = () => span("Loading...");
 
 const view: View<{
   docs: RecentDocuments[];

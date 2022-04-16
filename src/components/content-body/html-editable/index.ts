@@ -2,35 +2,37 @@ import "./style.css";
 
 import type { Callback } from "linki";
 import {
+  cast,
+  defined,
   definedTuple,
   filter,
+  fork,
+  link,
   map,
+  passOnlyChanged,
   pick,
   to,
-  wrap,
-  fork,
-  passOnlyChanged,
-  link,
   withOptionalState,
-  defined,
+  wrap,
 } from "linki";
+import type { UiComponent } from "linki-ui";
+import { div, dom, mountComponent, renderJsonHtmlToDom } from "linki-ui";
 
-import { documentContentRoodId } from "../../../functions/content-processors/html-processor";
+import {
+  documentContentRoodId,
+  getDocumentContentRoot,
+} from "../../../functions/content-processors/html-processor";
 import { documentToBlob } from "../../../functions/content-processors/html-processor/utils";
 import { withMultiState } from "../../../libs/linki";
-import type { Component } from "../../../libs/simple-ui/render";
-import { div, newSlot } from "../../../libs/simple-ui/render";
 import { loader } from "../../common/loader";
 import { modal } from "../../common/modal";
 import type { EditBarState } from "../../content/edit-bar";
 import {
-  documentToHtmlContent,
   processToDocument,
   scrollToPageTopWhenNoFragment,
 } from "../html/utils";
-import type { HtmlContent } from "../html/view";
-import { setupEditableHtmlView } from "../html/view";
-import type { DisplayContext, ContentComponent } from "../types";
+import { editableHtmlView } from "../html/view";
+import type { ContentComponent, DisplayContext } from "../types";
 
 import {
   changesIndicatorBar,
@@ -55,13 +57,13 @@ const createNewDocument = (
   return newDocument;
 };
 
-const contentComponent: Component<
+const contentComponent: UiComponent<
+  { renderPage: { doc: Document }; saveComplete: void },
   {
-    onContentModified: Callback<Blob>;
-    onDisplay: Callback<DisplayContext>;
-  },
-  { renderPage: { doc: Document }; saveComplete: void }
-> = ({ onDisplay, onContentModified }) => (render) => {
+    onContentModified: Blob;
+    onDisplay: DisplayContext;
+  }
+> = ({ onDisplay, onContentModified, render }) => {
   const updateData = (newContent: Blob, retry: () => void) => {
     try {
       updateUpdateBar(["saving"]);
@@ -73,7 +75,7 @@ const contentComponent: Component<
   };
 
   const [discard, setContextForDiscard] = link(
-    withOptionalState<HtmlContent>(),
+    withOptionalState<Node>(),
     filter(defined),
     (data) => displayContent(data)
   );
@@ -89,17 +91,14 @@ const contentComponent: Component<
     }
   );
 
-  const [updateBarSlot, { updateUpdateBar }] = newSlot(
-    "update-bar",
-    updateBar({
-      onUpdate: update,
-      onDiscard: discard,
-    })
-  );
+  const [updateBarSlot, { updateUpdateBar }] = mountComponent(updateBar, {
+    onUpdate: update,
+    onDiscard: discard,
+  });
 
-  const [gutterSlot, { displayChangesOnBar }] = newSlot(
-    "gutter",
-    changesIndicatorBar({
+  const [gutterSlot, { displayChangesOnBar }] = mountComponent(
+    changesIndicatorBar,
+    {
       onDiffBarClick: (change) => {
         displayModal({
           top: documentChangeTopRelativePosition(change),
@@ -113,45 +112,46 @@ const contentComponent: Component<
           }),
         });
       },
-    })
+    }
   );
 
-  const [modalDiffSlot, { displayModal }] = newSlot("modal-diff", modal());
+  const [modalDiffSlot, { displayModal }] = mountComponent(modal);
 
-  const editableHtmlView = setupEditableHtmlView({
-    onDocumentChange: fork(
-      displayChangesOnBar,
+  const displayContent: Callback<Node> = link(
+    map(
+      (content) =>
+        editableHtmlView({
+          onDocumentChange: fork(
+            displayChangesOnBar,
+            link(
+              map((changes) => Boolean(changes && changes.length > 0)),
+              passOnlyChanged(),
+              map(
+                (modified: boolean) =>
+                  (modified ? ["visible"] : ["hidden"]) as EditBarState
+              ),
+              updateUpdateBar
+            )
+          ),
+          content,
+        }),
+      renderJsonHtmlToDom,
+      cast<Node, HTMLElement>()
+    ),
+    fork(
       link(
-        map((changes) => Boolean(changes && changes.length > 0)),
-        passOnlyChanged(),
-        map(
-          (modified: boolean) =>
-            (modified ? ["visible"] : ["hidden"]) as EditBarState
-        ),
-        updateUpdateBar
+        map((container) => [
+          div(gutterSlot, modalDiffSlot, dom(container)),
+          updateBarSlot,
+        ]),
+        render
+      ),
+      fork(
+        link(map(wrap("container")), onDisplay),
+        setContainerForUpdate,
+        link(map(to([])), displayChangesOnBar)
       )
-    ),
-    onDisplay: fork(
-      link(map(wrap("container")), onDisplay),
-      setContainerForUpdate,
-      link(map(to([])), displayChangesOnBar)
-    ),
-  });
-
-  const displayContent: Callback<HtmlContent> = link(
-    map(({ content }) =>
-      div(
-        div(
-          gutterSlot,
-          modalDiffSlot,
-          editableHtmlView({
-            content,
-          })
-        ),
-        updateBarSlot
-      )
-    ),
-    render
+    )
   );
 
   return {
@@ -159,7 +159,7 @@ const contentComponent: Component<
       map(pick("doc")),
       fork(
         link(
-          map(documentToHtmlContent),
+          map(getDocumentContentRoot),
           fork(displayContent, setContextForDiscard)
         ),
         setDocumentForUpdate
@@ -172,22 +172,24 @@ const contentComponent: Component<
 export const htmlEditableDisplay: ContentComponent = ({
   onContentModified,
   onDisplay,
-}) => (render, onClose) => {
-  const [contentSlot, { renderPage, saveComplete }] = newSlot(
-    "editable-html-content",
-    contentComponent({
+  render,
+}) => {
+  const [contentSlot, { renderPage, saveComplete }] = mountComponent(
+    contentComponent,
+    {
       onContentModified,
       onDisplay: fork(onDisplay, scrollToPageTopWhenNoFragment),
-    })
+    }
   );
 
-  const { load } = loader<Blob, { doc: Document }>({
+  const { load, stop } = loader<Blob, { doc: Document }>({
     fetcher: (it) => processToDocument(it).then(wrap("doc")),
     onLoaded: renderPage,
     contentSlot,
-  })(render, onClose);
+  })({ render });
 
   return {
+    stop,
     displayContent: link(map(pick("content")), load),
     goToFragment: () => {
       // handled by browser

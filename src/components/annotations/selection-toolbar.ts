@@ -1,10 +1,9 @@
 import type { Callback } from "linki";
-import { fork, passOnlyChanged, filter, not, map, link, and } from "linki";
+import { and, filter, fork, link, map, not, passOnlyChanged } from "linki";
+import type { UiComponent, View } from "linki-ui";
+import { button, div, hasNoKeyModifier, isKey } from "linki-ui";
 
 import { keyNameTooltip } from "../../libs/key-events";
-import type { Component, View } from "../../libs/simple-ui/render";
-import { button, div } from "../../libs/simple-ui/render";
-import { hasNoKeyModifier, isKey } from "../../libs/simple-ui/utils/funtions";
 
 import type { OptSelection, Position, Selection } from "./selection";
 import { selectionExists, selectionPosition } from "./selection";
@@ -15,9 +14,15 @@ export type Button = {
   shortCutKey?: string;
 };
 
+type InternalButton = {
+  handler: () => void;
+  label: string;
+  shortCutKey?: string;
+};
+
 export const selectionToolbarView: View<{
   position: Position;
-  buttons: Button[];
+  buttons: InternalButton[];
 }> = ({ position: [left, top], buttons }) =>
   div(
     {
@@ -41,7 +46,7 @@ export const selectionToolbarView: View<{
             title: shortCutKey
               ? `${label}    ${keyNameTooltip(shortCutKey)}`
               : undefined,
-            onClick: handler,
+            onClick: () => handler(),
           },
           label
         )
@@ -49,12 +54,11 @@ export const selectionToolbarView: View<{
     )
   );
 
-export const selectionToolbar: Component<
-  {
-    buttons: Button[];
-  },
-  { selectionHandler: OptSelection }
-> = ({ buttons }) => (render, onClose) => {
+export const selectionToolbar = ({
+  buttons,
+}: {
+  buttons: Button[];
+}): UiComponent<{ selectionHandler: OptSelection }> => ({ render }) => {
   const renderState = link(
     map((selection: OptSelection) => {
       if (!selection) return;
@@ -106,11 +110,8 @@ export const selectionToolbar: Component<
     selectionHandler(undefined)
   );
   document.addEventListener("mouseup", mouseUpHandler);
-  onClose(() => {
-    document.removeEventListener("mouseup", mouseUpHandler);
-  });
-
   return {
+    stop: () => document.removeEventListener("mouseup", mouseUpHandler),
     selectionHandler,
   };
 };

@@ -1,5 +1,6 @@
 import type { Callback, Callbacks } from "linki";
 import {
+  cast,
   defined,
   definedTuple,
   filter,
@@ -8,10 +9,22 @@ import {
   map,
   passUndefined,
   pick,
+  pipe,
   valueWithState,
   withDefaultValue,
   withOptionalState,
 } from "linki";
+import type { JsonHtml, View } from "linki-ui";
+import {
+  a,
+  button,
+  div,
+  dom,
+  getKey,
+  mountComponent,
+  renderJsonHtmlToDom,
+  span,
+} from "linki-ui";
 import * as pdfJsLib from "pdfjs-dist";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
@@ -24,13 +37,10 @@ import "./text_layer_builder.css";
 
 import type { PDFDocumentProxy } from "pdfjs-dist/types/display/api";
 
-import { combine, match } from "../../../libs/linki";
-import type { Handlers, ViewSetup } from "../../../libs/simple-ui/render";
-import { a, button, div, newSlot, span } from "../../../libs/simple-ui/render";
-import { getKey, getTarget } from "../../../libs/simple-ui/utils/funtions";
+import { combine, match, pickContext, withContext } from "../../../libs/linki";
 import { createPdfFragment } from "../../annotations/annotation";
 import { loaderWithContext } from "../../common/loader";
-import type { ContentComponent, DisplayContext } from "../types";
+import type { ContentComponent } from "../types";
 import { isFocusedElementStatic, scrollToTop } from "../utils";
 
 // The workerSrc property shall be specified.
@@ -104,14 +114,13 @@ const openPage = async (
   };
 };
 
-const setupPdfNav: ViewSetup<
-  { zoomIn: () => void; zoomOut: () => void },
-  {
-    currentPage: number;
-    numberOfPages: number;
-    zoom: number;
-  }
-> = ({ zoomIn, zoomOut }) => ({ currentPage, numberOfPages, zoom }) =>
+const pdfNav: View<{
+  zoomIn: () => void;
+  zoomOut: () => void;
+  currentPage: number;
+  numberOfPages: number;
+  zoom: number;
+}> = ({ zoomIn, zoomOut, currentPage, numberOfPages, zoom }) =>
   div(
     {
       class:
@@ -159,49 +168,30 @@ const setupPdfNav: ViewSetup<
 const getFragmentForPage = (currentPage: number): string =>
   "page=" + currentPage;
 
-const setupPdfPageView: ViewSetup<
-  {
-    onDisplay: Callback<DisplayContext>;
-    zoomIn: () => void;
-    zoomOut: () => void;
-  },
-  PdfPage
-> = ({ onDisplay, zoomOut, zoomIn }) => {
-  const pdfNav = setupPdfNav({ zoomOut, zoomIn });
-  return ({ currentPage, canvas, textLayer, numberOfPages, zoom }) =>
-    div(
-      pdfNav({
-        currentPage,
-        numberOfPages,
-        zoom,
-      }),
-      div(
-        {
-          class: "position-relative d-flex flex-justify-center",
-          onDisplay: link(map(getTarget), (container) =>
-            onDisplay({
-              container,
-              fragmentForAnnotations: createPdfFragment(
-                getFragmentForPage(currentPage)
-              ),
-              fragment: getFragmentForPage(currentPage),
-            })
-          ),
-        },
-        div({
-          dangerouslySetDom: canvas,
-        }),
-        div({
-          dangerouslySetDom: textLayer,
-        })
-      ),
-      pdfNav({
-        currentPage,
-        numberOfPages,
-        zoom,
-      })
-    );
-};
+const pdfPageView: View<
+  PdfPage & {
+    zoomIn: Callback;
+    zoomOut: Callback;
+    container: JsonHtml;
+  }
+> = ({ zoomOut, zoomIn, currentPage, numberOfPages, zoom, container }) =>
+  div(
+    pdfNav({
+      zoomOut,
+      zoomIn,
+      currentPage,
+      numberOfPages,
+      zoom,
+    }),
+    container,
+    pdfNav({
+      zoomOut,
+      zoomIn,
+      currentPage,
+      numberOfPages,
+      zoom,
+    })
+  );
 
 const openPdf = (content: Blob): Promise<PdfDocument> =>
   content.arrayBuffer().then(
@@ -231,32 +221,54 @@ const parsePageFragment = (fragment: string): number | undefined => {
 type ChangePageDirection = "left" | "right";
 type ZoomDirection = "in" | "out";
 
+const pdfPageContainer: View<PdfPage> = ({ canvas, textLayer }) =>
+  div(
+    {
+      class: "position-relative d-flex flex-justify-center",
+    },
+    dom(canvas),
+    dom(textLayer)
+  );
+
 export const pdfDisplay: ContentComponent = ({
+  render,
   onDisplay,
   onCurrentFragmentResponse,
-}) => (render, onClose) => {
-  const [contentSlot, { renderPage }] = newSlot(
-    "content",
-    (
-      render
-    ): Handlers<{
-      renderPage: PdfPage;
-    }> => ({
+}) => {
+  const [contentSlot, { renderPage }] = mountComponent<
+    { renderPage: PdfPage },
+    void
+  >(({ render }) => {
+    return {
       renderPage: link(
-        map(
-          setupPdfPageView({
-            onDisplay: fork(
-              onDisplay,
-              link(map(pick("container")), scrollToTop)
+        map(withContext(pipe(pdfPageContainer, renderJsonHtmlToDom, cast()))),
+        fork<[PdfPage, HTMLElement]>(
+          link(
+            map(([pdf, container]) =>
+              pdfPageView({
+                ...pdf,
+                container: dom(container),
+                zoomIn: () => switchZoom("in"),
+                zoomOut: () => switchZoom("out"),
+              })
             ),
-            zoomIn: () => switchZoom("in"),
-            zoomOut: () => switchZoom("out"),
-          })
-        ),
-        render
+            render
+          ),
+          link(map(pickContext()), scrollToTop),
+          link(
+            map(([{ currentPage }, container]) => ({
+              container,
+              fragmentForAnnotations: createPdfFragment(
+                getFragmentForPage(currentPage)
+              ),
+              fragment: getFragmentForPage(currentPage),
+            })),
+            onDisplay
+          )
+        )
       ),
-    })
-  );
+    };
+  });
 
   const [switchPage, setPageState]: Callbacks<
     [ChangePageDirection, PdfPage | undefined]
@@ -301,7 +313,7 @@ export const pdfDisplay: ContentComponent = ({
     onCurrentFragmentResponse
   );
 
-  const { load, init } = loaderWithContext<
+  const { load, init, stop } = loaderWithContext<
     PdfDocument,
     OpenPageRequest,
     PdfPage | undefined
@@ -318,7 +330,7 @@ export const pdfDisplay: ContentComponent = ({
       )
     ),
     contentSlot,
-  })(render, onClose);
+  })({ render });
 
   const [openPageNumber, changeZoom] = link(
     combine<OpenPageRequest>(1, defaultZoom),
@@ -341,9 +353,11 @@ export const pdfDisplay: ContentComponent = ({
   );
 
   document.addEventListener("keyup", switchPageKeyListener);
-  onClose(() => document.removeEventListener("keyup", switchPageKeyListener));
 
   return {
+    stop: fork(stop ?? (() => {}), () =>
+      document.removeEventListener("keyup", switchPageKeyListener)
+    ),
     displayContent: fork(
       link(map(pick("content"), openPdf), init),
       link(

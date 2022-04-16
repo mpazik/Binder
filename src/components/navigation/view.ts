@@ -1,7 +1,7 @@
 import type { JsonHtml, View } from "linki-ui";
 import { button, dangerousHtml, details, div, nav, summary } from "linki-ui";
 
-import { dropdown, dropdownLink } from "../common/drop-down-linki-ui";
+import { dropdown, dropdownLink } from "../common/drop-down";
 import type { ProductLogoSize } from "../logo";
 import { productLogo } from "../logo";
 

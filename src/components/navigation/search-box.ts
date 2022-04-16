@@ -22,10 +22,17 @@ import type { JsonHtml, UiComponent, View } from "linki-ui";
 import {
   div,
   dom,
+  focusElement,
+  getTargetInput,
+  hasNoKeyModifier,
   input,
+  isKey,
   li,
   mountComponent,
+  preventDefault,
   renderJsonHtmlToDom,
+  resetInput,
+  selectTargetInput,
   setupView,
   small,
   span,
@@ -35,15 +42,6 @@ import {
 import type { RecentDocuments } from "../../functions/recent-document-serach";
 import type { UriWithFragment } from "../../libs/browser-providers";
 import { newUriWithFragment } from "../../libs/browser-providers";
-import {
-  focusElement,
-  getInputTarget,
-  hasNoKeyModifier,
-  isKey,
-  preventDefault,
-  resetInput,
-  selectInputTarget,
-} from "../../libs/simple-ui/utils/funtions";
 import { specialDirectoryUri } from "../app/special-uris";
 import { relativeDate } from "../common/relative-date";
 import { isFocusedElementStatic } from "../content-body/utils";
@@ -277,11 +275,11 @@ export const searchBox = (
       class: "form-control width-full",
       type: "text",
       placeholder: `Search or open new url [ / ]`,
-      onFocus: fork(selectInputTarget, () => {
+      onFocus: fork(selectTargetInput, () => {
         renderSearch("");
       }),
       onInput: link(
-        map(getInputTarget, (input) => input.value.trim()),
+        map(getTargetInput, (input) => input.value.trim()),
         debounce(100),
         link(split<string>(isUrl), [
           link(map(newUriWithFragment), selectUrl),

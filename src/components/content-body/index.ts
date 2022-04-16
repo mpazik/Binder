@@ -1,6 +1,6 @@
 import "../display-settings/style.css";
 
-import type { Callback } from "linki";
+import type { Callback, NamedCallbacks } from "linki";
 import {
   defined,
   definedTuple,
@@ -14,6 +14,8 @@ import {
   valueWithOptionalState,
   withOptionalState,
 } from "linki";
+import type { UiComponent } from "linki-ui";
+import { div } from "linki-ui";
 
 import type { LinkedDataWithContent } from "../../functions/content-processors";
 import type { ContentSaver } from "../../functions/content-saver";
@@ -26,8 +28,6 @@ import {
   pdfMediaType,
 } from "../../libs/ld-schemas";
 import { indexOf, select, withMultiState } from "../../libs/linki";
-import type { Component } from "../../libs/simple-ui/render";
-import { div, newCloseController } from "../../libs/simple-ui/render";
 import type { AnnotationDisplayRequest } from "../annotations";
 
 import { epubDisplay } from "./epub";
@@ -46,22 +46,19 @@ export type LinkedDataWithContentAndFragment = LinkedDataWithContent & {
   fragment?: string;
 };
 
-export const contentDisplayComponent: Component<
-  {
-    contentSaver: ContentSaver;
-    onAnnotationDisplayRequest: Callback<AnnotationDisplayRequest>;
-    onCurrentFragmentResponse: Callback<string | undefined>;
-  },
+export const contentDisplayComponent = (
+  contentSaver: ContentSaver
+): UiComponent<
   {
     displayContent: LinkedDataWithContentAndFragment;
     goToFragment: string;
     requestCurrentFragment: void;
+  },
+  {
+    onAnnotationDisplayRequest: AnnotationDisplayRequest;
+    onCurrentFragmentResponse: string | undefined;
   }
-> = ({
-  onCurrentFragmentResponse,
-  onAnnotationDisplayRequest,
-  contentSaver,
-}) => (render, onClose) => {
+> => ({ onCurrentFragmentResponse, onAnnotationDisplayRequest, render }) => {
   // multi state with linkedData and fallback for update
   const [saveNewContent, setLinkedDataForSave, setCallbackForUpdate] = link(
     withMultiState<[LinkedData, Callback | undefined], Blob>(
@@ -104,14 +101,12 @@ export const contentDisplayComponent: Component<
     }
   );
 
-  onClose(closeContentComponent);
-
   const displayAnnotations: Callback<DisplayContext> = fork(
     ({ fragmentForAnnotations: fragment, container }) =>
       onAnnotationDisplayRequest({ fragment, textLayer: container })
   );
 
-  const displayController: DisplayController = {
+  const displayController: NamedCallbacks<DisplayController> = {
     onDisplay: displayAnnotations,
     onContentModified: saveNewContent,
     onCurrentFragmentResponse,
@@ -122,14 +117,14 @@ export const contentDisplayComponent: Component<
     fragment,
   }: LinkedDataWithContentAndFragment) => {
     closeContentComponent();
-    const [onClose, close] = newCloseController();
     const {
+      stop,
       displayContent,
       saveComplete,
       goToFragment,
       requestCurrentFragment,
-    } = component(displayController)(render, onClose);
-    setCallbackForCloseComponent(close);
+    } = component({ render, ...displayController });
+    setCallbackForCloseComponent(stop ?? (() => {}));
     setCallbackForUpdate(saveComplete);
     setCallbackForFragment(goToFragment);
     requestCurrentFragment
@@ -147,6 +142,7 @@ export const contentDisplayComponent: Component<
   };
 
   return {
+    stop: closeContentComponent,
     displayContent: fork(
       link(map(pick("linkedData")), setLinkedDataForSave),
       link<LinkedDataWithContent, LinkedDataWithContent[]>(

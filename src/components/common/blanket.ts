@@ -1,9 +1,5 @@
-import type {
-  JsonHtml,
-  JsonHtmlAttrs,
-  JsonHtmlProps,
-} from "../../libs/simple-ui/render";
-import { div } from "../../libs/simple-ui/render";
+import type { JsonHtml } from "linki-ui";
+import { div } from "linki-ui";
 
 export const blanketStyles: Partial<CSSStyleDeclaration> = {
   top: "0",
@@ -13,10 +9,10 @@ export const blanketStyles: Partial<CSSStyleDeclaration> = {
   position: "fixed",
 };
 
-export const blanket = (...props: JsonHtmlProps): JsonHtml => {
+export const blanket: typeof div = (...props) => {
   const attrs = (typeof props[0] === "object" && !Array.isArray(props[0])
     ? props.shift()
-    : {}) as JsonHtmlAttrs<"div">;
+    : {}) as { style?: Partial<CSSStyleDeclaration> };
 
   return div(
     {

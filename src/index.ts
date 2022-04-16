@@ -1,8 +1,9 @@
+import { createComponentRenderer, mountComponent } from "linki-ui";
+
 import type { LinkedDataWithBody } from "./components/app";
 import { App, initialiseServices } from "./components/app";
 import { processInternalDocument } from "./functions/content-processors/html-processor/internal-processor";
 import { measureAsyncTime } from "./libs/performance";
-import { setupComponent } from "./libs/simple-ui/render";
 
 const rootElement = "root";
 const contentRootElement = "content-root";
@@ -33,5 +34,7 @@ const getDocumentContent = (): LinkedDataWithBody | undefined => {
   const initialServices = await measureAsyncTime("init", initialiseServices);
   const root = getRoot();
   const initialContent = getDocumentContent();
-  setupComponent(App({ ...initialServices, initialContent }), root);
+  const render = createComponentRenderer(root);
+  const [appNode] = mountComponent(App({ ...initialServices, initialContent }));
+  render(appNode);
 })();

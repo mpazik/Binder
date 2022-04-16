@@ -1,36 +1,33 @@
+import "./mult-select.css";
+
 import type { Reducer } from "linki";
 import { fork, link, map, passUndefined, pipe, reduce, wrap } from "linki";
+import type { JsonHtml, UiComponent, View } from "linki-ui";
+import { button, dangerousHtml, div, li, mountComponent, ul } from "linki-ui";
 
-import "./mult-select.css";
-import type {
-  Component,
-  Slot,
-  View,
-  ViewSetup,
-} from "../../libs/simple-ui/render";
-import { button, div, li, newSlot, ul } from "../../libs/simple-ui/render";
-
-import { creatAutocomplete } from "./autocomplete";
+import { createAutocomplete } from "./autocomplete";
 
 const crossIcon =
   '<svg height="12px" aria-label="Remove category" class="octicon octicon-x" viewBox="0 0 16 16" width="12" role="img"><path fill-rule="evenodd" d="M3.72 3.72a.75.75 0 011.06 0L8 6.94l3.22-3.22a.75.75 0 111.06 1.06L9.06 8l3.22 3.22a.75.75 0 11-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 01-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 010-1.06z"></path></svg>';
 
-const categoriesComp: Component<
-  { onCategoryRemoved: (category: string) => void },
+const categoriesComp: UiComponent<
   {
     renderCategories: string[] | undefined;
-  }
-> = ({ onCategoryRemoved }) => (render) => {
+  },
+  { onCategoryRemoved: string }
+> = ({ onCategoryRemoved, render }) => {
   const categoryView: View<{ categories: string[] }> = ({ categories }) =>
     ul(
       { class: "multi-select-selected d-inline" },
       ...categories.map((category) =>
         li(
           category,
-          button({
-            onClick: () => onCategoryRemoved(category),
-            dangerouslySetInnerHTML: crossIcon,
-          })
+          button(
+            {
+              onClick: () => onCategoryRemoved(category),
+            },
+            dangerousHtml(crossIcon)
+          )
         )
       )
     );
@@ -42,9 +39,9 @@ const categoriesComp: Component<
   };
 };
 
-export const setupMultiSelect: ViewSetup<{
-  autocompleteSlot: Slot;
-  categoriesSlot: Slot;
+export const setupMultiSelect: View<{
+  autocompleteSlot: JsonHtml;
+  categoriesSlot: JsonHtml;
   focusInput: () => void;
   extraClass?: string;
 }> = ({
@@ -52,7 +49,7 @@ export const setupMultiSelect: ViewSetup<{
   categoriesSlot,
   focusInput,
   extraClass = "p-0 mx-2",
-}) => () =>
+}) =>
   div(
     {
       class:
@@ -78,9 +75,11 @@ const listReducer: Reducer<string[], Actions<string>> = (
   }
 };
 
-export const multiSelect: Component<{ extraClass?: string }, {}> = ({
+export const multiSelect = ({
   extraClass,
-}) => (render) => {
+}: {
+  extraClass?: string;
+}): UiComponent => ({ render }) => {
   const categories = ["food", "tool", "animal", "tiger", "cloth"];
   let currentCategories: string[] = [];
   const setCurrentCategories = (it: string[]): void => {
@@ -94,27 +93,28 @@ export const multiSelect: Component<{ extraClass?: string }, {}> = ({
       )
     );
 
-  const [autocompleteSlot, { focus: focusInput }] = newSlot(
-    "suggestions",
-    creatAutocomplete({
+  const [autocompleteSlot, { focus: focusInput }] = mountComponent(
+    createAutocomplete({
       search,
+      placeholder: "Add category",
+    }),
+    {
       onSelected: (s) => {
         changeCategories(["add", s]);
       },
       onCreated: (s) => {
         changeCategories(["add", s]);
       },
-      placeholder: "Add category",
-    })
+    }
   );
 
-  const [categoriesSlot, { renderCategories }] = newSlot(
-    "categories",
-    categoriesComp({
+  const [categoriesSlot, { renderCategories }] = mountComponent(
+    categoriesComp,
+    {
       onCategoryRemoved: (s) => {
         changeCategories(["remove", s]);
       },
-    })
+    }
   );
 
   const changeCategories = fork(
@@ -127,8 +127,6 @@ export const multiSelect: Component<{ extraClass?: string }, {}> = ({
       categoriesSlot,
       focusInput,
       extraClass,
-    })()
+    })
   );
-
-  return {};
 };

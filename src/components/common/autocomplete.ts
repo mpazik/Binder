@@ -1,3 +1,4 @@
+import type { Callback } from "linki";
 import {
   debounce,
   definedTuple,
@@ -10,27 +11,51 @@ import {
   valueWithState,
   withState,
 } from "linki";
-
-import type { Component, View, ViewSetup } from "../../libs/simple-ui/render";
-import { div, input, li, newSlot, ul } from "../../libs/simple-ui/render";
+import type { UiComponent, View } from "linki-ui";
 import {
-  getInputTarget,
-  getTarget,
+  dom,
+  getTargetInput,
+  input,
   inputValue,
-  selectInputTarget,
+  li,
+  mountComponent,
+  renderJsonHtmlToDom,
+  selectTargetInput,
   trim,
-} from "../../libs/simple-ui/utils/funtions";
+  ul,
+} from "linki-ui";
 
-export const createAutocompleteList: Component<
-  { onSelected: (s: string) => void; onCreated: (s: string) => void },
+const suggestionsView: View<{
+  setInteracting: Callback<boolean>;
+  onSelected: Callback<string>;
+  suggestions: string[];
+}> = ({ suggestions, setInteracting, onSelected }) =>
+  ul(
+    {
+      class: "autocomplete-results",
+      onMouseDown: link(map(to(true)), setInteracting),
+    },
+    ...suggestions.map((suggestion) =>
+      li(
+        {
+          class: "autocomplete-item",
+          onClick: link(map(to(suggestion)), onSelected),
+        },
+        suggestion
+      )
+    )
+  );
+
+export const createAutocompleteList: UiComponent<
   {
     renderList: string[];
     hideList: void;
     highlightNextItem: void;
     highlightPreviousItem: void;
     selectHighlighted: string;
-  }
-> = ({ onSelected, onCreated }) => (render) => {
+  },
+  { onSelected: string; onCreated: string }
+> = ({ onSelected, onCreated, render }) => {
   const [selectHighlighted, setHighlighted] = link(
     valueWithState<string | undefined, string>(undefined),
     ([highlighted, inputValue]) => {
@@ -65,44 +90,35 @@ export const createAutocompleteList: Component<
     }
   );
 
-  const renderList = fork<string[] | undefined>(
-    link(map(to(undefined)), fork(setDom)),
+  const renderList: Callback<string[] | undefined> = fork<string[] | undefined>(
     link(map(to(undefined)), setHighlighted),
     link(
       map((suggestions) => {
-        if (suggestions === undefined) return undefined;
-        if (suggestions.length > 0) return suggestionsView({ suggestions });
-        return undefined;
+        if (suggestions === undefined || suggestions.length === 0) {
+          setDom(undefined);
+          return undefined;
+        }
+        const suggestionsViewDom = renderJsonHtmlToDom(
+          suggestionsView({
+            suggestions,
+            setInteracting,
+            onSelected,
+          })
+        ) as HTMLElement;
+        setDom(suggestionsViewDom);
+        return dom(suggestionsViewDom);
       }),
       render
     )
   );
 
   const [hideList, setInteracting] = link(
-    withState(false),
+    withState<boolean>(false),
     // ignore hide command triggered by on-blur from input when mouse click on the dropdown list
     filter(is(false)),
     map(to(undefined)),
     renderList
   );
-
-  const suggestionsView: View<{ suggestions: string[] }> = ({ suggestions }) =>
-    ul(
-      {
-        class: "autocomplete-results",
-        onDisplay: link(map(getTarget), setDom),
-        onMousedown: link(map(to(true)), setInteracting),
-      },
-      ...suggestions.map((suggestion) =>
-        li(
-          {
-            class: "autocomplete-item",
-            onClick: link(map(to(suggestion)), onSelected),
-          },
-          suggestion
-        )
-      )
-    );
 
   return {
     renderList,
@@ -113,8 +129,7 @@ export const createAutocompleteList: Component<
   };
 };
 
-export const createAutocompleteInput: ViewSetup<{
-  onInputDisplay: (input: HTMLInputElement) => void;
+export const autocompleteInput: View<{
   onSearch: (text: string) => void;
   onTriggered: (value: string) => void;
   hideList: () => void;
@@ -122,7 +137,6 @@ export const createAutocompleteInput: ViewSetup<{
   previousItem: () => void;
   placeholder?: string;
 }> = ({
-  onInputDisplay,
   onSearch,
   placeholder = "",
   previousItem,
@@ -130,7 +144,7 @@ export const createAutocompleteInput: ViewSetup<{
   hideList,
   onTriggered,
 }) => {
-  const getTrimmedValue = map(getInputTarget, inputValue, trim);
+  const getTrimmedValue = map(getTargetInput, inputValue, trim);
   const trigger = link(getTrimmedValue, onTriggered);
   const keyHandlers: Map<string, (event: KeyboardEvent) => void> = new Map([
     ["Enter", trigger],
@@ -140,36 +154,38 @@ export const createAutocompleteInput: ViewSetup<{
     ["ArrowUp", previousItem],
   ]);
 
-  return () =>
-    input({
-      class:
-        "form-control color-bg-primary shorter d-inline-block mx-1 p-0 border-0",
-      type: "text",
-      onDisplay: link(map(getInputTarget), onInputDisplay),
-      onFocus: selectInputTarget,
-      onKeydown: (event) => {
-        const handler = keyHandlers.get(event.key);
-        if (!handler) return;
-        handler(event);
-        event.stopPropagation();
-        event.preventDefault();
-      },
-      onInput: link(getTrimmedValue, debounce(300), onSearch),
-      onBlur: hideList,
-      autocomplete: false,
-      placeholder,
-    });
+  return input({
+    class:
+      "form-control color-bg-primary shorter d-inline-block mx-1 p-0 border-0",
+    type: "text",
+    onFocus: selectTargetInput,
+    onKeyDown: (event) => {
+      const handler = keyHandlers.get(event.key);
+      if (!handler) return;
+      handler(event);
+      event.stopPropagation();
+      event.preventDefault();
+    },
+    onInput: link(getTrimmedValue, debounce(300), onSearch),
+    onBlur: hideList,
+    autocomplete: "false",
+    placeholder,
+  });
 };
 
-export const creatAutocomplete: Component<
+export const createAutocomplete = ({
+  placeholder,
+  search,
+}: {
+  placeholder?: string;
+  search: (term: string) => Promise<string[]>;
+}): UiComponent<
+  { focus: void },
   {
-    search: (term: string) => Promise<string[]>;
-    onSelected: (selected: string) => void;
-    onCreated: (created: string) => void;
-    placeholder?: string;
-  },
-  { focus: void }
-> = ({ search, onSelected, onCreated, placeholder }) => (render) => {
+    onSelected: string;
+    onCreated: string;
+  }
+> => ({ onSelected, onCreated, render }) => {
   const [
     suggestionsSlot,
     {
@@ -179,49 +195,36 @@ export const creatAutocomplete: Component<
       selectHighlighted,
       hideList,
     },
-  ] = newSlot(
-    "autocomplete-list",
-    createAutocompleteList({
-      onSelected: (item) => {
-        hideList();
-        controlInput("reset");
-        onSelected(item);
-      },
-      onCreated: (item) => {
-        hideList();
-        controlInput("reset");
-        onCreated(item);
-      },
-    })
-  );
-
-  const [controlInput, setInput] = link(
-    valueWithState<HTMLInputElement | undefined, "focus" | "reset">(undefined),
-    filter(definedTuple),
-    ([input, action]) => {
-      if (action === "reset") {
-        input.value = "";
-      }
-      input.focus();
-    }
-  );
-
-  const input = createAutocompleteInput({
-    onInputDisplay: setInput,
-    onSearch: (term) =>
-      search(term)
-        // todo handle loading state and stop searching
-        .then((result) => renderList(result)),
-    onTriggered: selectHighlighted,
-    hideList: hideList,
-    nextItem: highlightNextItem,
-    previousItem: highlightPreviousItem,
-    placeholder,
+  ] = mountComponent(createAutocompleteList, {
+    onSelected: (item) => {
+      hideList();
+      inputDom.value = "";
+      onSelected(item);
+    },
+    onCreated: (item) => {
+      hideList();
+      inputDom.value = "";
+      onCreated(item);
+    },
   });
 
-  render(div(input(), suggestionsSlot));
+  const inputDom = renderJsonHtmlToDom(
+    autocompleteInput({
+      onSearch: (term) =>
+        search(term)
+          // todo handle loading state and stop searching
+          .then((result) => renderList(result)),
+      onTriggered: selectHighlighted,
+      hideList: hideList,
+      nextItem: highlightNextItem,
+      previousItem: highlightPreviousItem,
+      placeholder,
+    })
+  ) as HTMLInputElement;
+
+  render([dom(inputDom), suggestionsSlot]);
 
   return {
-    focus: () => controlInput("focus"),
+    focus: () => inputDom.focus(),
   };
 };

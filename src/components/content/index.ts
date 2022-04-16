@@ -1,4 +1,6 @@
 import { fork, link, map, pick, withOptionalState } from "linki";
+import type { UiComponent } from "linki-ui";
+import { div, dom, mountComponent, renderJsonHtmlToDom } from "linki-ui";
 
 import type { LinkedDataWithContent } from "../../functions/content-processors";
 import { createContentSaver } from "../../functions/content-saver";
@@ -8,9 +10,6 @@ import { isHashUri } from "../../libs/hash";
 import type { LinkedData } from "../../libs/jsonld-format";
 import { findHashUri, getUrls } from "../../libs/linked-data";
 import { throwOnNull, withMultiState } from "../../libs/linki";
-import type { Component } from "../../libs/simple-ui/render";
-import { div, newSlot } from "../../libs/simple-ui/render";
-import { getTarget } from "../../libs/simple-ui/utils/funtions";
 import { annotationsSupport } from "../annotations";
 import type { EntityViewControls } from "../app/entity-view";
 import { isLocalUri } from "../common/uri";
@@ -27,20 +26,17 @@ const isExisting = (linkedData: LinkedData) => {
   return urls.some((it) => isHashUri(it)) || urls.some((it) => isLocalUri(it));
 };
 
-export const contentComponent: Component<
-  EntityViewControls,
-  {
-    displayContent: LinkedDataWithContentAndFragment;
-    goToFragment: string;
-  }
-> = ({
+export const contentComponent = ({
   readAppContext,
   saveLinkedData,
   saveLinkedDataManually,
   readLinkedData,
   saveResource,
   subscribe: { annotations: subscribeAnnotations },
-}) => (render, onClose) => {
+}: EntityViewControls): UiComponent<{
+  displayContent: LinkedDataWithContentAndFragment;
+  goToFragment: string;
+}> => ({ render }) => {
   const contentSaver = createContentSaver(saveResource, saveLinkedDataManually);
   const storeData = (data: LinkedDataWithContent, retry: () => void) => {
     try {
@@ -89,12 +85,9 @@ export const contentComponent: Component<
     }
   );
 
-  const [saveBarSlot, { updateSaveBar }] = newSlot(
-    "save-bar",
-    saveBar({
-      onSave: saveContent,
-    })
-  );
+  const [saveBarSlot, { updateSaveBar }] = mountComponent(saveBar, {
+    onSave: saveContent,
+  });
 
   const resetSaveBar = link(
     map<LinkedData, EditBarState>((it) =>
@@ -106,39 +99,30 @@ export const contentComponent: Component<
   const [
     annotationSupportSlot,
     { displayDocumentAnnotations, setReference, setContainer },
-  ] = newSlot(
-    "annotation-support",
+  ] = mountComponent(
     annotationsSupport({
       readLinkedData,
       saveLinkedData,
       subscribeAnnotations,
       readAppContext,
-      requestDocumentSave: saveContent,
-    })
+    }),
+    { requestDocumentSave: saveContent }
   );
 
   const [
     contentSlot,
     { displayContent, goToFragment, requestCurrentFragment },
-  ] = newSlot(
-    "content",
-    contentDisplayComponent({
-      contentSaver,
-      onAnnotationDisplayRequest: displayDocumentAnnotations,
-      onCurrentFragmentResponse: saveWatchAction,
-    })
-  );
+  ] = mountComponent(contentDisplayComponent(contentSaver), {
+    onAnnotationDisplayRequest: displayDocumentAnnotations,
+    onCurrentFragmentResponse: saveWatchAction,
+  });
 
-  const [contentFieldsSlot, { renderFields }] = newSlot(
-    "content-fields",
-    contentHeader()
-  );
-  render(
+  const [contentFieldsSlot, { renderFields }] = mountComponent(contentHeader);
+  const containerDom = renderJsonHtmlToDom(
     div(
       {
         id: "content-container",
         class: "mb-3 position-relative px-4",
-        onDisplay: link(map(getTarget), setContainer),
       },
       contentFieldsSlot,
       div(
@@ -150,13 +134,11 @@ export const contentComponent: Component<
       annotationSupportSlot,
       saveBarSlot
     )
-  );
-
-  onClose(() => {
-    requestCurrentFragment();
-  });
-
+  ) as HTMLElement;
+  render(dom(containerDom));
+  setContainer(containerDom);
   return {
+    stop: requestCurrentFragment,
     displayContent: fork(
       () => requestCurrentFragment(),
       displayContent,

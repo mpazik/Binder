@@ -15,12 +15,8 @@ import {
   to,
   withErrorLogging,
 } from "linki";
-import type { JsonHtml } from "linki-ui";
-import {
-  createComponentRenderer,
-  mountComponent,
-  renderJsonHtmlToDom,
-} from "linki-ui";
+import type { JsonHtml, UiComponent, View } from "linki-ui";
+import { div, dom, mountComponent } from "linki-ui";
 
 import type {
   AnalyticsSender,
@@ -31,7 +27,10 @@ import {
   initConfiguredAnalyticsForRepoAccount,
 } from "../../functions/analytics";
 import { createAppContext } from "../../functions/app-context";
-import type { LinkedDataWithContent } from "../../functions/content-processors";
+import type {
+  LinkedDataWithContent,
+  SavedLinkedDataWithContent,
+} from "../../functions/content-processors";
 import { processFileToContent } from "../../functions/content-processors";
 import {
   blobToDocument,
@@ -99,7 +98,6 @@ import { storeGetAll } from "../../libs/indexeddb";
 import type { LinkedData } from "../../libs/jsonld-format";
 import { getPropertyValue, getType } from "../../libs/linked-data";
 import { combine } from "../../libs/linki";
-import { startChain } from "../../libs/linki/chain";
 import {
   filterState,
   filterStates,
@@ -107,16 +105,8 @@ import {
   newStateMapper,
 } from "../../libs/named-state";
 import { measureAsyncTime } from "../../libs/performance";
-import type {
-  Component,
-  ComponentBody,
-  Handlers,
-  Slot,
-  ViewSetup,
-} from "../../libs/simple-ui/render";
-import { div, newSlot } from "../../libs/simple-ui/render";
 import { accountPicker } from "../account-picker";
-import { dropdown } from "../common/drop-down-linki-ui";
+import { dropdown } from "../common/drop-down";
 import { loader } from "../common/loader";
 import { contentComponent } from "../content";
 import { docsDirectory } from "../directory";
@@ -194,19 +184,19 @@ const createContentFetcherPassingUri = (
   ...(await contentFetcher(uri, signal)),
 });
 
-const createContainerView: ViewSetup<{
-  navigationSlot: Slot;
-  contentSlot: Slot;
-  accountPickerSlot: Slot;
-  fileDropSlot: Slot;
-  onDragenter: (event: DragEvent) => void;
+const containerView: View<{
+  navigationSlot: JsonHtml;
+  contentSlot: JsonHtml;
+  accountPickerSlot: JsonHtml;
+  fileDropSlot: JsonHtml;
+  onDragEnter: (event: DragEvent) => void;
 }> = ({
   navigationSlot,
   contentSlot,
   accountPickerSlot,
   fileDropSlot,
-  onDragenter,
-}) => () =>
+  onDragEnter,
+}) =>
   div(
     navigationSlot,
     div(
@@ -216,7 +206,7 @@ const createContainerView: ViewSetup<{
           margin: "0 auto",
           minHeight: "100%",
         },
-        onDragenter,
+        onDragEnter,
       },
       fileDropSlot,
       accountPickerSlot,
@@ -234,9 +224,7 @@ const isLinkedDataWithBody = (
   return !!(content as LinkedDataWithBody).body;
 };
 
-export const App: Component<
-  InitServices & { initialContent?: LinkedDataWithBody }
-> = ({
+export const App = ({
   fetchTroughProxy,
   globalDb,
   unclaimedRepository,
@@ -246,7 +234,9 @@ export const App: Component<
   sendAnalytics,
   updateAnalyticsRepoAccount,
   initialContent,
-}) => (render, onClose) => {
+}: InitServices & {
+  initialContent?: LinkedDataWithBody;
+}): UiComponent => ({ render }) => {
   const urlIndex = createUriIndex();
   const directoryIndex = createDirectoryIndex();
   const annotationsIndex = createAnnotationsIndex();
@@ -390,7 +380,7 @@ export const App: Component<
         map(pick("repository")),
         filter(defined),
         passOnlyChanged<RepositoryDb>(initRepo),
-        fork(updateRepo, () => displayJsonHtml(docsDirectorySlot))
+        fork(updateRepo, () => displaySlot(docsDirectorySlot))
       ),
       link(
         filterState("loadingError"),
@@ -474,8 +464,6 @@ export const App: Component<
       hideNav,
       hideNavPermanently,
       setCurrentUri,
-      start: startNav,
-      stop: stopNav,
     },
   ] = mountComponent(
     navigation({
@@ -528,25 +516,24 @@ export const App: Component<
     )
   );
 
-  const [contentSlot, { displayContent, goToFragment }] = newSlot(
-    "content-container",
+  const [contentSlot, { displayContent, goToFragment }] = mountComponent(
     contentComponent(entityViewControls)
   );
 
   const loadContent = (data: LinkedDataWithContent | LinkedDataWithBody) => {
     const dataType = getType(data.linkedData);
     if (dataType === "SearchResultsPage" || dataType === "NotFoundPage") {
-      displayJsonHtml(docsDirectorySlot);
+      displaySlot(docsDirectorySlot);
     } else if (
       dataType === "Page" &&
       data.linkedData.name === "Docland - Store"
     ) {
-      displayJsonHtml(storePage(entityViewControls));
+      displaySlot(storePage(entityViewControls));
     } else if (
       dataType === "Page" &&
       data.linkedData.name === "Docland - Editor"
     ) {
-      displayJsonHtml(editorPage());
+      displaySlot(editorPage());
     } else if (dataType === "AboutPage") {
       if (isLinkedDataWithBody(data)) {
         displayFullScreen(data.body);
@@ -565,7 +552,7 @@ export const App: Component<
           entityViewControls,
         })
       );
-      displayJsonHtml(component);
+      displaySlot(component);
     } else {
       const linkedDataWithContent: LinkedDataWithContent = isLinkedDataWithBody(
         data
@@ -585,62 +572,31 @@ export const App: Component<
     }
   };
 
-  const [
-    contentOrDirSlot,
-    { displayJsonHtml, displayFullScreen, displaySlot },
-  ] = newSlot(
-    "either-content",
-    (
-      render
-    ): Handlers<{
-      displaySlot: Slot;
-      displayJsonHtml: JsonHtml;
-      displayFullScreen: Node;
-    }> => {
-      const runtime: ComponentBody<{ pushJsonHtml: JsonHtml }> = (
-        render,
-        onClose
-      ) => {
-        const parent = document.createElement("div");
-        const renderJsonHtml = createComponentRenderer(parent);
-        onClose(() => {
-          parent.dispatchEvent(new CustomEvent("disconnected"));
-        });
-        render(
-          div({
-            dangerouslySetDom: parent,
-          })
-        );
-        return {
-          pushJsonHtml: renderJsonHtml,
-        };
-      };
-      const [slot, { pushJsonHtml }] = newSlot("jsonHtml", runtime);
-      return {
-        displaySlot: (slot) => {
-          render(); // clean previous dom, to force rerender
-          render(div({ class: "mt-8 ml-2 mr-2" }, slot));
-          hideNav();
-        },
-        displayJsonHtml: (jsonHtml) => {
-          render(); // clean previous dom, to force rerender
-          render(div({ class: "mt-8 ml-2 mr-2" }, slot));
-          pushJsonHtml(jsonHtml);
-          hideNav();
-        },
-        displayFullScreen: (element) => {
-          hideNavPermanently();
-          render(div({ dangerouslySetDom: element }));
-        },
-      };
-    }
+  const componentPropsOptions: UiComponent<{
+    displaySlot: JsonHtml;
+    displayFullScreen: Node;
+  }> = ({ render }) => {
+    return {
+      displaySlot: (slot) => {
+        render(undefined); // clean previous dom, to force rerender
+        render(div({ class: "mt-8 ml-2 mr-2" }, slot));
+        hideNav();
+      },
+      displayFullScreen: (element) => {
+        hideNavPermanently();
+        render(dom(element));
+      },
+    };
+  };
+
+  const [contentOrDirSlot, { displayFullScreen, displaySlot }] = mountComponent(
+    componentPropsOptions
   );
 
   const [
     contentLoaderSlot,
     { load: loadResource, display: displayFile },
-  ] = newSlot(
-    "content-loader",
+  ] = mountComponent(
     loader<UriWithFragment, LinkedDataWithContent | LinkedDataWithBody>({
       fetcher: contentFetcherPassingUri,
       onLoaded: loadContent,
@@ -649,29 +605,21 @@ export const App: Component<
   );
 
   const [docsDirectorySlot] = mountComponent(docsDirectory(entityViewControls));
-  const [fileDropSlot, { handleDragEvent }] = newSlot(
-    "file-drop",
-    fileDrop({
-      onFile: startChain((start) =>
-        start
-          .process(
-            withErrorLogging(
-              asyncMap((it) =>
-                processFileToContent(it).then(
-                  createContentSaver(store.writeResource, store.writeLinkedData)
-                )
-              )
-            )
-          )
-          .withEffect((start) =>
-            start
-              .map(pipe(pick("linkedData"), pick("@id"), newUriWithFragment))
-              .handle(updateBrowserHistory)
-          )
-          .handle(displayFile)
+  const [fileDropSlot, { handleDragEvent }] = mountComponent(fileDrop, {
+    onFile: link(
+      withErrorLogging(asyncMap(processFileToContent)),
+      withErrorLogging(
+        asyncMap(createContentSaver(store.writeResource, store.writeLinkedData))
       ),
-    })
-  );
+      fork<SavedLinkedDataWithContent>(
+        link(
+          map(pipe(pick("linkedData"), pick("@id"), newUriWithFragment)),
+          updateBrowserHistory
+        ),
+        displayFile
+      )
+    ),
+  });
 
   const [
     accountPickerSlot,
@@ -680,22 +628,20 @@ export const App: Component<
     gdriveLogin: () => updateGdrive(["login"]),
   });
 
-  const containerView = createContainerView({
-    navigationSlot: div({
-      dangerouslySetDom: renderJsonHtmlToDom(navigationSlot),
-    }),
-    contentSlot: contentLoaderSlot,
-    fileDropSlot,
-    accountPickerSlot: div({
-      dangerouslySetDom: renderJsonHtmlToDom(accountPickerSlot),
-    }),
-    onDragenter: handleDragEvent,
-  });
-
-  const renderContainer = link(map(containerView), render);
-  renderContainer();
-  subscribeToSettings(updateDisplaySettings);
-  startNav();
+  const renderContainer: Callback = link(
+    map(
+      to(
+        containerView({
+          navigationSlot,
+          contentSlot: contentLoaderSlot,
+          fileDropSlot,
+          accountPickerSlot,
+          onDragEnter: handleDragEvent,
+        })
+      )
+    ),
+    render
+  );
 
   const openPath = link(
     split(({ uri }) => uri === specialTodayUri),
@@ -704,14 +650,19 @@ export const App: Component<
       loadUriWithRecentFragment,
     ]
   );
-  onClose(browserPathProvider(openPath));
-  onClose(documentLinksUriProvider()(updateBrowserHistory));
-  onClose(stopNav);
-  onClose(browserUriFragmentProvider(() => {}));
 
+  subscribeToSettings(updateDisplaySettings);
+  renderContainer();
   if (initialContent) {
     displayFile(initialContent);
   } else {
     openPath(currentUriWithFragment());
   }
+  return {
+    stop: fork(
+      browserPathProvider(openPath),
+      documentLinksUriProvider()(updateBrowserHistory),
+      browserUriFragmentProvider(() => {})
+    ),
+  };
 };

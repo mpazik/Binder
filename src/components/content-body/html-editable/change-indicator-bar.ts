@@ -1,10 +1,9 @@
 import type { Callback } from "linki";
-import { link } from "linki";
+import { link, map, passUndefined } from "linki";
+import type { UiComponent, View } from "linki-ui";
+import { div } from "linki-ui";
 
 import { firstOf, lastOf } from "../../../libs/array";
-import { splitDefined } from "../../../libs/linki";
-import type { Component, View } from "../../../libs/simple-ui/render";
-import { div } from "../../../libs/simple-ui/render";
 
 import type { DocumentChange } from "./document-change";
 
@@ -48,25 +47,24 @@ const changeIndicator: View<{
   });
 };
 
-export const changesIndicatorBar: Component<
-  {
-    onDiffBarClick: Callback<DocumentChange>;
-  },
-  { displayChangesOnBar: DocumentChange[] | undefined }
-> = ({ onDiffBarClick }) => (render) => ({
-  displayChangesOnBar: link(splitDefined<DocumentChange[]>(), [
-    (changes: DocumentChange[]) =>
-      render(
+export const changesIndicatorBar: UiComponent<
+  { displayChangesOnBar: DocumentChange[] | undefined },
+  { onDiffBarClick: DocumentChange }
+> = ({ onDiffBarClick, render }) => ({
+  displayChangesOnBar: link(
+    map(
+      passUndefined((changes: DocumentChange[]) =>
         div(
           {
             class: "color-bg-tertiary position-absolute",
-            style: { height: "100%", width: 8, left: -20, top: 0 },
+            style: { height: "100%", width: "8", left: "-20", top: "0" },
           },
           ...changes.map((docDiff) =>
             changeIndicator({ docDiff, onClick: onDiffBarClick })
           )
         )
-      ),
-    render,
-  ]),
+      )
+    ),
+    render
+  ),
 });

@@ -1,5 +1,5 @@
-import type { View } from "../../libs/simple-ui/render";
-import { div } from "../../libs/simple-ui/render";
+import type { View } from "linki-ui";
+import { div } from "linki-ui";
 
 export const centerLoading: View = () =>
   div({

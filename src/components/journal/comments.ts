@@ -39,7 +39,7 @@ import type {
 } from "../annotations/annotation";
 import type { AnnotationSaveProps } from "../annotations/service";
 import { createAnnotationSaver } from "../annotations/service";
-import { moreActions } from "../common/drop-down-linki-ui";
+import { moreActions } from "../common/drop-down";
 import { editor } from "../common/editor";
 import {
   defaultRating,

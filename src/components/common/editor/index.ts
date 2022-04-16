@@ -166,7 +166,7 @@ export const editor = ({
     }
   );
 
-  render(div(dom(editorContainer)));
+  render(dom(editorContainer));
 
   return {
     save: handleSave,

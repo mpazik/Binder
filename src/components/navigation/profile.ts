@@ -7,7 +7,7 @@ import type { GDriveState } from "../../functions/gdrive/controller";
 import type { StoreState } from "../../functions/store";
 import { combine } from "../../libs/linki";
 import { mapState, newStateMapper } from "../../libs/named-state";
-import { dropdown, dropdownItem } from "../common/drop-down-linki-ui";
+import { dropdown, dropdownItem } from "../common/drop-down";
 
 import { loading } from "./common";
 
@@ -17,8 +17,6 @@ const gdriveLogoIcon = dangerousHtml(`<svg xmlns="http://www.w3.org/2000/svg" wi
   <path fill="#ffcf63" d="M962.055 833.329h481.006L962.055 0H481.017z" />
   <path fill="#11a861" d="M0 833.329l240.525 416.664 481.006-833.328L481.017 0z"/>
 </svg>`);
-
-console.log("gdriveLogoIcon,", gdriveLogoIcon);
 
 const errorIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="v-align-middle" fill="var(--color-icon-danger)" viewBox="0 0 24 24" width="24" height="24">
   <title>Error :(</title>

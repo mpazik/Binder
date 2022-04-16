@@ -19,6 +19,8 @@ import {
   valueWithState,
   withState,
 } from "linki";
+import type { UiComponent } from "linki-ui";
+import { mountComponent } from "linki-ui";
 
 import type { AppContextProvider } from "../../functions/app-context";
 import type { AnnotationsSubscribe } from "../../functions/indexes/annotations-index";
@@ -31,8 +33,6 @@ import {
   withMultiState,
 } from "../../libs/linki";
 import { handleAction } from "../../libs/named-state";
-import type { Component } from "../../libs/simple-ui/render";
-import { div, newSlot } from "../../libs/simple-ui/render";
 import { createDelete } from "../../vocabulary/activity-streams";
 import type { Uri } from "../common/uri";
 
@@ -78,26 +78,24 @@ type AnnotationAction =
   | ["display", Annotation]
   | ["select", Selection]
   | ["remove", QuoteSelector];
-export const annotationsSupport: Component<
-  {
-    requestDocumentSave: () => void;
-    readAppContext: AppContextProvider;
-    saveLinkedData: Callback<LinkedData>;
-    subscribeAnnotations: AnnotationsSubscribe;
-    readLinkedData: LinkedDataStoreRead;
-  },
+export const annotationsSupport = ({
+  readLinkedData,
+  saveLinkedData,
+  subscribeAnnotations,
+  readAppContext,
+}: {
+  readAppContext: AppContextProvider;
+  saveLinkedData: Callback<LinkedData>;
+  subscribeAnnotations: AnnotationsSubscribe;
+  readLinkedData: LinkedDataStoreRead;
+}): UiComponent<
   {
     displayDocumentAnnotations: AnnotationDisplayRequest;
     setContainer: HTMLElement;
     setReference: HashUri | undefined;
-  }
-> = ({
-  readLinkedData,
-  saveLinkedData,
-  subscribeAnnotations,
-  requestDocumentSave,
-  readAppContext,
-}) => (render, onClose) => {
+  },
+  { requestDocumentSave: void }
+> => ({ render, requestDocumentSave }) => {
   const [saveAnnotationInt, setReference] = link(
     valueWithState<HashUri | undefined, AnnotationSavePropsWithoutRef>(
       undefined
@@ -115,7 +113,7 @@ export const annotationsSupport: Component<
       createAnnotationSaver(readAppContext, saveLinkedData),
       fork<AnnotationSavePropsWithoutRef>(
         (it) => keepAnnotationForSave(it),
-        requestDocumentSave
+        () => requestDocumentSave()
       ),
     ]
   );
@@ -193,8 +191,7 @@ export const annotationsSupport: Component<
     }
   );
 
-  const [selectionToolbarSlot, { selectionHandler }] = newSlot(
-    "selection-toolbar",
+  const [selectionToolbarSlot, { selectionHandler }] = mountComponent(
     selectionToolbar({
       buttons: [
         {
@@ -239,22 +236,19 @@ export const annotationsSupport: Component<
   const [
     annotationDisplaySlot,
     { displayAnnotation, hideAnnotationDelayed, hideAnnotation },
-  ] = newSlot(
-    "annotation-display",
-    annotationDisplay({
-      deleteAnnotation: link(map(createDelete), saveLinkedData),
-    })
-  );
+  ] = mountComponent(annotationDisplay, {
+    deleteAnnotation: link(map(createDelete), saveLinkedData),
+  });
 
-  const [commentFormSlot, { displayCommentForm }] = newSlot(
-    "comment-form",
-    commentForm({
+  const [commentFormSlot, { displayCommentForm }] = mountComponent(
+    commentForm,
+    {
       onHide: ({ selector }) =>
         changeSelection(["remove", getQuoteSelector(selector)]),
       onCreatedComment: ({ selector, comment }) => {
         saveAnnotationInt({ selector, content: comment });
       },
-    })
+    }
   );
 
   const [subscribeForAnnotations, closeSubscription] = link(
@@ -298,13 +292,12 @@ export const annotationsSupport: Component<
   // next tick to make sure current selection would be calculated for even handling
   const detectSelection = link(ignoreParam(), nextTick(), handleSelection);
   document.addEventListener("mouseup", detectSelection);
-  onClose(() => {
-    document.removeEventListener("mouseup", detectSelection);
-  });
-  onClose(closeSubscription);
 
-  render(div(commentFormSlot, annotationDisplaySlot, selectionToolbarSlot));
+  render([commentFormSlot, annotationDisplaySlot, selectionToolbarSlot]);
   return {
+    stop: fork(() => {
+      document.removeEventListener("mouseup", detectSelection);
+    }, closeSubscription),
     setReference: fork(
       setReference,
       setReferenceForAnnotationDisplay,

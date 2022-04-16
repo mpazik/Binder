@@ -1,5 +1,6 @@
-import type { View } from "../../libs/simple-ui/render";
-import { span } from "../../libs/simple-ui/render";
+import type { View } from "linki-ui";
+import { span } from "linki-ui";
+
 import { formatDateTime, formatRelativeTime } from "../../libs/time";
 
 export const relativeDate: View<{ date: Date; defaultStyle?: boolean }> = ({

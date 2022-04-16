@@ -1,16 +1,18 @@
 import { link, map } from "linki";
+import type { JsonHtml, UiComponent, View } from "linki-ui";
+import { a, div, mountComponent, span } from "linki-ui";
 
 import { CATEGORIES_ENABLED } from "../../config";
 import type { LinkedData } from "../../libs/jsonld-format";
 import { findUrl } from "../../libs/linked-data";
-import type { Component, Slot, ViewSetup } from "../../libs/simple-ui/render";
-import { a, div, newSlot, span } from "../../libs/simple-ui/render";
 import { multiSelect } from "../common/multi-select";
 import { isLocalUri } from "../common/uri";
 
-const newContentHeader: ViewSetup<{ categoriesSlot: Slot }, LinkedData> = ({
+const newContentHeader = ({
   categoriesSlot,
-}) => (linkedData: LinkedData) => {
+}: {
+  categoriesSlot: JsonHtml;
+}): View<LinkedData> => (linkedData) => {
   const uri = findUrl(linkedData);
   return div(
     { class: "Subhead with-line-length-settings" },
@@ -34,11 +36,10 @@ const newContentHeader: ViewSetup<{ categoriesSlot: Slot }, LinkedData> = ({
   );
 };
 
-export const contentHeader: Component<
-  void,
-  { renderFields: LinkedData }
-> = () => (render) => {
-  const [categoriesSlot] = newSlot("categories", multiSelect({}));
+export const contentHeader: UiComponent<{ renderFields: LinkedData }> = ({
+  render,
+}) => {
+  const [categoriesSlot] = mountComponent(multiSelect({}));
 
   const containerHeaderView = newContentHeader({
     categoriesSlot,

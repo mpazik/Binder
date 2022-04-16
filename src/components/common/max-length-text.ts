@@ -1,5 +1,5 @@
-import type { JsonHtml } from "../../libs/simple-ui/render";
-import { span } from "../../libs/simple-ui/render";
+import type { JsonHtml } from "linki-ui";
+import { span } from "linki-ui";
 
 export const maxLengthText = (text: string, limit: number): JsonHtml =>
   text.length <= limit
@@ -8,7 +8,6 @@ export const maxLengthText = (text: string, limit: number): JsonHtml =>
         {
           class:
             "tooltipped tooltipped-se tooltipped-multiline tooltipped-align-left-1",
-          "aria-label": text,
         },
         text.substring(0, limit - 3) + "..."
       );

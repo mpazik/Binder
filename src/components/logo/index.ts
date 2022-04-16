@@ -1,5 +1,5 @@
-import type { View } from "../../libs/simple-ui/render";
-import { a, dangerousHTML, h2, span } from "../../libs/simple-ui/render";
+import type { View } from "linki-ui";
+import { a, dangerousHtml, h2, span } from "linki-ui";
 
 export const productIcon = `
 <svg class="v-align-middle" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 64 64" stroke="currentColor" fill="currentColor">
@@ -32,18 +32,18 @@ export const productLogo: View<ProductLogoProps | void> = ({
 } = {}) =>
   h2(
     {
-      style: { "font-size": logoFontSize(size) },
+      style: { fontSize: logoFontSize(size) },
     },
     a(
       { href: "/about", class: "color-text-primary no-underline" },
-      dangerousHTML(icon(size)),
+      dangerousHtml(icon(size)),
       span({ class: "v-align-middle" }, " docland"),
       ...(beta
         ? [
             span(
               {
                 class: `v-align-middle text-light color-text-danger`,
-                style: { "font-size": betaFontSize(size) },
+                style: { fontSize: betaFontSize(size) },
               },
               " beta"
             ),

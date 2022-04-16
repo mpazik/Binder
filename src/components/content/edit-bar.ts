@@ -1,13 +1,8 @@
 import { fork, link, map } from "linki";
+import type { JsonHtml, UiComponent, View } from "linki-ui";
+import { button, div, span } from "linki-ui";
 
 import { newStateMapper } from "../../libs/named-state";
-import type {
-  Component,
-  JsonHtml,
-  OptionalJsonHtml,
-  OptionalViewSetup,
-} from "../../libs/simple-ui/render";
-import { button, div, span } from "../../libs/simple-ui/render";
 
 export type EditBarState =
   | ["hidden"]
@@ -33,7 +28,7 @@ const editBar = ({
       ? {
           ...barProps,
           class: `${barProps.class} anim-fade-up`,
-          style: { "animation-delay": "0s" },
+          style: { animationDelay: "0s" },
         }
       : barProps,
     span({ class: "flex-1 f4" }, message),
@@ -75,11 +70,12 @@ export const styledButton = (
     label
   );
 
-const createSaveBarView: OptionalViewSetup<
-  { onSave: () => void },
-  EditBarState
-> = ({ onSave }) =>
-  newStateMapper<EditBarState, OptionalJsonHtml>(undefined, {
+const createSaveBarView = ({
+  onSave,
+}: {
+  onSave: () => void;
+}): View<EditBarState> =>
+  newStateMapper<EditBarState, JsonHtml>(undefined, {
     visible: () =>
       popUpBar(
         "External document, not yet saved",
@@ -90,12 +86,12 @@ const createSaveBarView: OptionalViewSetup<
       simpleBar("", styledButton("Saving", undefined, "btn-primary", true)),
   });
 
-export const saveBar: Component<
+export const saveBar: UiComponent<
+  { updateSaveBar: EditBarState },
   {
-    onSave: () => void;
-  },
-  { updateSaveBar: EditBarState }
-> = ({ onSave }) => (render) => {
+    onSave: void;
+  }
+> = ({ onSave, render }) => {
   return {
     updateSaveBar: fork(link(map(createSaveBarView({ onSave })), render)),
   };
