@@ -8,7 +8,10 @@ import type {
 } from "../../functions/indexes/completion-index";
 import type { DirectoryIndex } from "../../functions/indexes/directory-index";
 import type { HabitSubscribe } from "../../functions/indexes/habit-index";
-import type { WatchHistorySearch } from "../../functions/indexes/watch-history-index";
+import type {
+  WatchHistoryIndex,
+  WatchHistorySearch,
+} from "../../functions/indexes/watch-history-index";
 import type {
   LinkedDataStoreRead,
   LinkedDataStoreReadAll,
@@ -30,6 +33,7 @@ export type EntityViewControls = {
   search: {
     directory: DirectoryIndex["search"];
     watchHistory: WatchHistorySearch;
+    watchHistoryIndex: WatchHistoryIndex;
     completable: SearchCompletionIndex;
   };
   subscribe: {

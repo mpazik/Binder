@@ -10,7 +10,6 @@ import {
   passOnlyChanged,
   pick,
   pipe,
-  reduce,
   split,
   to,
   withErrorLogging,
@@ -65,7 +64,6 @@ import {
   createWatchHistorySearch,
   createWatchHistoryStore,
 } from "../../functions/indexes/watch-history-index";
-import type { LinkedDataWithContentFetcher } from "../../functions/linked-data-fetcher";
 import { createLinkedDataWithDocumentFetcher } from "../../functions/linked-data-fetcher";
 import type {
   RemoteDrive,
@@ -81,19 +79,16 @@ import {
   openAccountRepository,
   openUnclaimedRepository,
 } from "../../functions/store/repository";
-import { documentLinksUriProvider } from "../../functions/url-hijack";
-import type { UriWithFragment } from "../../libs/browser-providers";
+import { linkHijack } from "../../functions/url-hijack";
+import type { Uri } from "../../libs/browser-providers";
 import {
-  browserPathProvider,
-  browserUriFragmentProvider,
-  currentUriWithFragment,
-  newUriWithFragment,
-  updateBrowserHistory,
+  browserUriProvider,
+  currentUri,
+  updateBrowserUri,
 } from "../../libs/browser-providers";
 import type { Day } from "../../libs/calendar-ld";
 import { getTodayUri, intervalTypes } from "../../libs/calendar-ld";
-import type { HashName, HashUri } from "../../libs/hash";
-import { isHashUri } from "../../libs/hash";
+import type { HashName } from "../../libs/hash";
 import { storeGetAll } from "../../libs/indexeddb";
 import type { LinkedData } from "../../libs/jsonld-format";
 import { getPropertyValue, getType } from "../../libs/linked-data";
@@ -168,21 +163,6 @@ export const initialiseServices = async (): Promise<InitServices> => {
     updateAnalyticsRepoAccount,
   };
 };
-
-type LinkedDataWithContentFetcherPassingUri = (
-  request: UriWithFragment,
-  signal?: AbortSignal
-) => Promise<LinkedDataWithContent>;
-
-const createContentFetcherPassingUri = (
-  contentFetcher: LinkedDataWithContentFetcher
-): LinkedDataWithContentFetcherPassingUri => async (
-  { fragment, uri },
-  signal?
-) => ({
-  fragment,
-  ...(await contentFetcher(uri, signal)),
-});
 
 const containerView: View<{
   navigationSlot: JsonHtml;
@@ -331,6 +311,7 @@ export const App = ({
     search: {
       directory: directoryIndex.search,
       watchHistory: searchWatchHistory,
+      watchHistoryIndex,
       completable: completionIndex.searchIndex,
     },
     subscribe: {
@@ -404,49 +385,6 @@ export const App = ({
     unclaimedRepository
   );
 
-  const loadUri: Callback<UriWithFragment> = link(
-    reduce<UriWithFragment & { uriChanged: boolean }, UriWithFragment>(
-      (old, { uri, fragment }) => ({
-        uri,
-        fragment,
-        uriChanged: uri !== old.uri,
-      }),
-      { uri: "", uriChanged: false }
-    ),
-    link(
-      split<UriWithFragment & { uriChanged: boolean }>((it) => it.uriChanged),
-      [
-        (it: UriWithFragment) => {
-          setCurrentUri(it.uri);
-          loadResource(it);
-        },
-        link(
-          map<UriWithFragment, string | undefined>(pick("fragment")),
-          filter(defined),
-          fork(
-            (it) => goToFragment(it),
-            () => hideNav()
-          )
-        ),
-      ]
-    )
-  );
-
-  const loadUriWithRecentFragment: Callback<UriWithFragment> = link(
-    withErrorLogging(
-      asyncMap(async ({ uri, fragment }) => {
-        if (!fragment && isHashUri(uri)) {
-          const record = await watchHistoryIndex(uri as HashUri);
-          if (record && record.fragment) {
-            return { uri, fragment: record.fragment };
-          }
-        }
-        return { uri, fragment };
-      })
-    ),
-    loadUri
-  );
-
   const createDisplaySettingUpdater = <T extends keyof Settings>(
     key: T
   ): ((value: Settings[T]) => void) =>
@@ -455,7 +393,6 @@ export const App = ({
       saveLinkedData
     );
 
-  const loadUriWithHistoryUpdate = fork(updateBrowserHistory, loadUri);
   const [
     navigationSlot,
     {
@@ -497,26 +434,23 @@ export const App = ({
     {
       updateGdrive,
       upload: store.upload,
-      loadUri: loadUriWithHistoryUpdate,
       displayAccountPicker: () => displayAccountPicker({ loading: false }),
     }
   );
 
-  const contentFetcherPassingUri = createContentFetcherPassingUri(
-    createLinkedDataWithDocumentFetcher(
-      async (uri: string): Promise<HashName | undefined> => {
-        const result = await urlIndex.search({ url: uri });
-        if (result.length > 0) {
-          return result[0].hash;
-        }
-      },
-      fetchTroughProxy,
-      store.readLinkedData,
-      store.readResource
-    )
+  const contentFetcherPassingUri = createLinkedDataWithDocumentFetcher(
+    async (uri: string): Promise<HashName | undefined> => {
+      const result = await urlIndex.search({ url: uri });
+      if (result.length > 0) {
+        return result[0].hash;
+      }
+    },
+    fetchTroughProxy,
+    store.readLinkedData,
+    store.readResource
   );
 
-  const [contentSlot, { displayContent, goToFragment }] = mountComponent(
+  const [contentSlot, { displayContent }] = mountComponent(
     contentComponent(entityViewControls)
   );
 
@@ -597,7 +531,7 @@ export const App = ({
     contentLoaderSlot,
     { load: loadResource, display: displayFile },
   ] = mountComponent(
-    loader<UriWithFragment, LinkedDataWithContent | LinkedDataWithBody>({
+    loader<Uri, LinkedDataWithContent | LinkedDataWithBody>({
       fetcher: contentFetcherPassingUri,
       onLoaded: loadContent,
       contentSlot: contentOrDirSlot,
@@ -612,10 +546,7 @@ export const App = ({
         asyncMap(createContentSaver(store.writeResource, store.writeLinkedData))
       ),
       fork<SavedLinkedDataWithContent>(
-        link(
-          map(pipe(pick("linkedData"), pick("@id"), newUriWithFragment)),
-          updateBrowserHistory
-        ),
+        link(map(pipe(pick("linkedData"), pick("@id"))), updateBrowserUri),
         displayFile
       )
     ),
@@ -644,10 +575,16 @@ export const App = ({
   );
 
   const openPath = link(
-    split(({ uri }) => uri === specialTodayUri),
+    split<Uri>((uri) => uri === specialTodayUri),
     [
-      link(map(to(getTodayUri), newUriWithFragment), loadUriWithHistoryUpdate),
-      loadUriWithRecentFragment,
+      link(map(to(() => getTodayUri())), updateBrowserUri),
+      link(
+        passOnlyChanged(),
+        fork<Uri>(
+          (it) => setCurrentUri(it),
+          (it) => loadResource(it)
+        )
+      ),
     ]
   );
 
@@ -656,13 +593,12 @@ export const App = ({
   if (initialContent) {
     displayFile(initialContent);
   } else {
-    openPath(currentUriWithFragment());
+    openPath(currentUri());
   }
   return {
     stop: fork(
-      browserPathProvider(openPath),
-      documentLinksUriProvider()(updateBrowserHistory),
-      browserUriFragmentProvider(() => {})
+      link(browserUriProvider, openPath),
+      link(linkHijack(), updateBrowserUri)
     ),
   };
 };

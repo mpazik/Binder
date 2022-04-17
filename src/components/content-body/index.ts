@@ -3,7 +3,6 @@ import "../display-settings/style.css";
 import type { Callback, NamedCallbacks } from "linki";
 import {
   defined,
-  definedTuple,
   filter,
   fork,
   link,
@@ -11,7 +10,6 @@ import {
   pick,
   pipe,
   split,
-  valueWithOptionalState,
   withOptionalState,
 } from "linki";
 import type { UiComponent } from "linki-ui";
@@ -19,7 +17,13 @@ import { div } from "linki-ui";
 
 import type { LinkedDataWithContent } from "../../functions/content-processors";
 import type { ContentSaver } from "../../functions/content-saver";
+import type { WatchHistoryIndex } from "../../functions/indexes/watch-history-index";
+import {
+  browserUriFragmentProvider,
+  currentFragment,
+} from "../../libs/browser-providers";
 import { throwIfUndefined } from "../../libs/errors";
+import type { HashUri } from "../../libs/hash";
 import type { LinkedData } from "../../libs/jsonld-format";
 import {
   epubMediaType,
@@ -42,16 +46,12 @@ import type {
 
 const isEditable: (linkedData: LinkedData) => boolean = () => false;
 
-export type LinkedDataWithContentAndFragment = LinkedDataWithContent & {
-  fragment?: string;
-};
-
 export const contentDisplayComponent = (
+  watchHistoryIndex: WatchHistoryIndex,
   contentSaver: ContentSaver
 ): UiComponent<
   {
-    displayContent: LinkedDataWithContentAndFragment;
-    goToFragment: string;
+    displayContent: LinkedDataWithContent;
     requestCurrentFragment: void;
   },
   {
@@ -70,14 +70,6 @@ export const contentDisplayComponent = (
         linkedData: throwIfUndefined(linkedData),
         content: blob,
       }).then(() => throwIfUndefined(callback)());
-    }
-  );
-
-  const [goToFragment, setCallbackForFragment] = link(
-    valueWithOptionalState<Callback<string>, string>(undefined),
-    filter(definedTuple),
-    ([goToFragment, fragment]) => {
-      goToFragment(fragment);
     }
   );
 
@@ -112,10 +104,10 @@ export const contentDisplayComponent = (
     onCurrentFragmentResponse,
   };
 
-  const displayContentComponent = (component: ContentComponent) => ({
+  const displayContentComponent = (component: ContentComponent) => async ({
     content,
-    fragment,
-  }: LinkedDataWithContentAndFragment) => {
+    linkedData,
+  }: LinkedDataWithContent) => {
     closeContentComponent();
     const {
       stop,
@@ -124,12 +116,16 @@ export const contentDisplayComponent = (
       goToFragment,
       requestCurrentFragment,
     } = component({ render, ...displayController });
-    setCallbackForCloseComponent(stop ?? (() => {}));
+    setCallbackForCloseComponent(
+      fork(stop ?? (() => {}), browserUriFragmentProvider(goToFragment))
+    );
     setCallbackForUpdate(saveComplete);
-    setCallbackForFragment(goToFragment);
     requestCurrentFragment
       ? setCallbackForReqFragment(requestCurrentFragment)
       : resetCallbackForReqFragment();
+    const fragment =
+      currentFragment() ??
+      (await watchHistoryIndex(linkedData["@id"] as HashUri))?.fragment;
     displayContent({ content, fragment });
   };
 
@@ -164,7 +160,6 @@ export const contentDisplayComponent = (
         ]
       )
     ),
-    goToFragment,
     requestCurrentFragment,
   };
 };

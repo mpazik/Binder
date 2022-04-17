@@ -355,9 +355,6 @@ export const pdfDisplay: ContentComponent = ({
   document.addEventListener("keyup", switchPageKeyListener);
 
   return {
-    stop: fork(stop ?? (() => {}), () =>
-      document.removeEventListener("keyup", switchPageKeyListener)
-    ),
     displayContent: fork(
       link(map(pick("content"), openPdf), init),
       link(
@@ -371,5 +368,8 @@ export const pdfDisplay: ContentComponent = ({
     ),
     goToFragment: link(map(parsePageFragment), filter(defined), openPageNumber),
     requestCurrentFragment: returnCurrentFragment,
+    stop: fork(stop ?? (() => {}), () =>
+      document.removeEventListener("keyup", switchPageKeyListener)
+    ),
   };
 };

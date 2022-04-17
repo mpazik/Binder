@@ -1,5 +1,5 @@
 import type { ClosableProvider } from "linki";
-import { link, map, to } from "linki";
+import { link, map, passOnlyChanged, to } from "linki";
 
 import { hostPageUri, isHostPageUri } from "../components/app/special-uris";
 import { isAbsoluteUri } from "../components/common/uri";
@@ -24,20 +24,18 @@ export const currentPath = (): string => {
   return path.startsWith("/") ? path.substring(1) : path;
 };
 
-export const currentFragment = (): string =>
-  window.location.hash ? window.location.hash.substring(1) : "";
+export const currentFragment = (): string | undefined =>
+  window.location.hash ? window.location.hash.substring(1) : undefined;
 
+export type Uri = string;
 export type UriWithFragment = {
-  uri: string;
+  uri: Uri;
   fragment?: string;
 };
 
-export const currentUriWithFragment = (): UriWithFragment => {
+export const currentUri = (): Uri => {
   const path = currentPath();
-  return {
-    uri: isAbsoluteUri(path) ? path : hostPageUri(path),
-    fragment: currentFragment(),
-  };
+  return isAbsoluteUri(path) ? path : hostPageUri(path);
 };
 
 export const updateFragment = (fragment: string): void => {
@@ -62,14 +60,16 @@ export const queryParamProvider: ClosableProvider<{
   return () => document.removeEventListener("popstate", update);
 };
 
-export const updateBrowserHistory = ({
-  uri = currentPath(),
-  fragment,
-}: UriWithFragment | { fragment: string; uri?: string }): void => {
-  const url = isHostPageUri(uri)
-    ? uri
-    : `/${uri}${fragment ? `#${fragment}` : ""}`;
-  window.history.pushState({}, "", url);
+export const updateBrowserUri = (link: string): void => {
+  const uri = (() => {
+    if (link.startsWith("#")) {
+      return `/${currentPath()}${link}`;
+    } else {
+      return isHostPageUri(link) ? link : `/${link}`;
+    }
+  })();
+
+  window.history.pushState({}, "", uri);
   window.dispatchEvent(new PopStateEvent("popstate", { state: {} }));
 };
 
@@ -81,10 +81,8 @@ export const newUriWithFragment = (url: string): UriWithFragment => {
   };
 };
 
-export const browserPathProvider: ClosableProvider<UriWithFragment> = (
-  push
-) => {
-  const update = link(map(currentUriWithFragment), push);
+export const browserUriProvider: ClosableProvider<Uri> = (push) => {
+  const update = link(map(currentUri), passOnlyChanged(currentUri()), push);
 
   window.addEventListener("popstate", update);
   return () => document.removeEventListener("popstate", update);

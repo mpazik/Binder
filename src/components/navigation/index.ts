@@ -1,6 +1,6 @@
 import { fork, not } from "linki";
 import type { JsonHtml, UiComponent } from "linki-ui";
-import { renderJsonHtmlToDom, mountComponent, dom } from "linki-ui";
+import { dom, mountComponent, renderJsonHtmlToDom } from "linki-ui";
 
 import { DISPLAY_CONFIG_ENABLED } from "../../config";
 import type { GDriveLoadingProfile } from "../../functions/gdrive/app-files";
@@ -8,7 +8,7 @@ import type { GDriveAction } from "../../functions/gdrive/controller";
 import type { DirectoryIndex } from "../../functions/indexes/directory-index";
 import type { WatchHistorySearch } from "../../functions/indexes/watch-history-index";
 import { createRecentDocumentSearch } from "../../functions/recent-document-serach";
-import type { UriWithFragment } from "../../libs/browser-providers";
+import { updateBrowserUri } from "../../libs/browser-providers";
 
 import type { ProfilePanelControl } from "./profile";
 import { profilePanel } from "./profile";
@@ -143,9 +143,8 @@ export const navigation = ({
     upload: void;
     displayAccountPicker: void;
     updateGdrive: GDriveAction;
-    loadUri: UriWithFragment;
   }
-> => ({ render, upload, displayAccountPicker, loadUri, updateGdrive }) => {
+> => ({ render, upload, displayAccountPicker, updateGdrive }) => {
   const [
     profilePanelSlot,
     { updateStoreState, updateGdriveState },
@@ -171,7 +170,7 @@ export const navigation = ({
     searchBoxSlot,
     { start: startSearchBox, stop: stopSearchBox },
   ] = mountComponent(searchBox(search), {
-    onSelected: loadUri,
+    onSelected: updateBrowserUri,
   });
 
   const [

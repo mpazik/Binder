@@ -1,8 +1,4 @@
 import type { ClosableProvider } from "linki";
-import { link, map } from "linki";
-
-import type { UriWithFragment } from "../libs/browser-providers";
-import { currentPath, newUriWithFragment } from "../libs/browser-providers";
 
 const findLink = (element: HTMLElement | null): HTMLElement | undefined => {
   if (!element) return;
@@ -32,22 +28,4 @@ export const linkHijack = ({
   return () => {
     element.removeEventListener("click", hijackLink);
   };
-};
-
-export const documentLinksUriProvider = (
-  element?: Node
-): ClosableProvider<UriWithFragment> => (push) => {
-  return linkHijack({ element })(
-    link(
-      map(newUriWithFragment, (it) =>
-        it.uri === ""
-          ? {
-              uri: currentPath(),
-              fragment: it.fragment,
-            }
-          : it
-      ),
-      push
-    )
-  );
 };

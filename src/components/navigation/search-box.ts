@@ -11,7 +11,6 @@ import {
   is,
   link,
   map,
-  pick,
   split,
   to,
   valueWithState,
@@ -40,8 +39,7 @@ import {
 } from "linki-ui";
 
 import type { RecentDocuments } from "../../functions/recent-document-serach";
-import type { UriWithFragment } from "../../libs/browser-providers";
-import { newUriWithFragment } from "../../libs/browser-providers";
+import type { Uri } from "../../libs/browser-providers";
 import { specialDirectoryUri } from "../app/special-uris";
 import { relativeDate } from "../common/relative-date";
 import { isFocusedElementStatic } from "../content-body/utils";
@@ -206,16 +204,16 @@ export const searchBox = (
 ): UiComponent<
   { start: void; stop: void },
   {
-    onSelected: UriWithFragment;
+    onSelected: Uri;
   }
 > => ({ onSelected, render }) => {
-  const selectUrl = (url: UriWithFragment) => {
+  const selectUrl = (uri: Uri) => {
     hideList();
     resetSearchInput();
-    onSelected(url);
+    onSelected(uri);
   };
 
-  const goToDirectory = () => selectUrl({ uri: specialDirectoryUri });
+  const goToDirectory = () => selectUrl(specialDirectoryUri);
   const [
     suggestionsSlot,
     {
@@ -248,7 +246,7 @@ export const searchBox = (
     ),
     {
       onSelected: link(
-        map<RecentDocuments, UriWithFragment>(pick("uriWithFragment")),
+        map<RecentDocuments, Uri>((it) => it.uriWithFragment.uri),
         selectUrl
       ),
     }
@@ -281,10 +279,7 @@ export const searchBox = (
       onInput: link(
         map(getTargetInput, (input) => input.value.trim()),
         debounce(100),
-        link(split<string>(isUrl), [
-          link(map(newUriWithFragment), selectUrl),
-          renderSearch,
-        ])
+        link(split<string>(isUrl), [selectUrl, renderSearch])
       ),
       onBlur: () => hideList(),
       onKeyDown: (event) => {

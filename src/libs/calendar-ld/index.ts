@@ -1,4 +1,4 @@
-import type { Uri } from "../../components/common/uri";
+import type { Uri } from "../browser-providers";
 
 type IsoDate = string;
 type InstantUri = Uri;

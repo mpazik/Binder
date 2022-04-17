@@ -13,7 +13,6 @@ import { throwOnNull, withMultiState } from "../../libs/linki";
 import { annotationsSupport } from "../annotations";
 import type { EntityViewControls } from "../app/entity-view";
 import { isLocalUri } from "../common/uri";
-import type { LinkedDataWithContentAndFragment } from "../content-body";
 import { contentDisplayComponent } from "../content-body";
 import { createWatchAction } from "../watch-history/watch-action";
 
@@ -33,9 +32,9 @@ export const contentComponent = ({
   readLinkedData,
   saveResource,
   subscribe: { annotations: subscribeAnnotations },
+  search: { watchHistoryIndex },
 }: EntityViewControls): UiComponent<{
-  displayContent: LinkedDataWithContentAndFragment;
-  goToFragment: string;
+  displayContent: LinkedDataWithContent;
 }> => ({ render }) => {
   const contentSaver = createContentSaver(saveResource, saveLinkedDataManually);
   const storeData = (data: LinkedDataWithContent, retry: () => void) => {
@@ -111,8 +110,8 @@ export const contentComponent = ({
 
   const [
     contentSlot,
-    { displayContent, goToFragment, requestCurrentFragment },
-  ] = mountComponent(contentDisplayComponent(contentSaver), {
+    { displayContent, requestCurrentFragment },
+  ] = mountComponent(contentDisplayComponent(watchHistoryIndex, contentSaver), {
     onAnnotationDisplayRequest: displayDocumentAnnotations,
     onCurrentFragmentResponse: saveWatchAction,
   });
@@ -156,6 +155,5 @@ export const contentComponent = ({
         )
       )
     ),
-    goToFragment,
   };
 };
