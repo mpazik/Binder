@@ -86,8 +86,14 @@ import {
   currentUri,
   updateBrowserUri,
 } from "../../libs/browser-providers";
-import type { Day } from "../../libs/calendar-ld";
-import { getTodayUri, intervalTypes } from "../../libs/calendar-ld";
+import type { Day, Month, Week, Year } from "../../libs/calendar-ld";
+import {
+  dayType,
+  getTodayUri,
+  monthType,
+  weekType,
+  yearType,
+} from "../../libs/calendar-ld";
 import type { HashName } from "../../libs/hash";
 import { storeGetAll } from "../../libs/indexeddb";
 import type { LinkedData } from "../../libs/jsonld-format";
@@ -113,8 +119,13 @@ import {
 } from "../display-settings/panel";
 import { createSettingUpdateAction } from "../display-settings/setting-update";
 import { editorPage } from "../editor";
+import {
+  annualJournal,
+  dailyJournal,
+  monthlyJournal,
+  weeklyJournal,
+} from "../entity-views/intervals";
 import { fileDrop } from "../file-drop";
-import { journal } from "../journal";
 import { navigation } from "../navigation";
 import { storePage } from "../store";
 
@@ -479,14 +490,14 @@ export const App = ({
           displayFullScreen(dom.body);
         })();
       }
-    } else if (dataType && (intervalTypes as string[]).includes(dataType)) {
-      const [component] = mountComponent(
-        journal({
-          interval: data.linkedData as Day,
-          entityViewControls,
-        })
-      );
-      displaySlot(component);
+    } else if (dataType === dayType) {
+      displaySlot(dailyJournal(data.linkedData as Day, entityViewControls));
+    } else if (dataType === weekType) {
+      displaySlot(weeklyJournal(data.linkedData as Week, entityViewControls));
+    } else if (dataType === monthType) {
+      displaySlot(monthlyJournal(data.linkedData as Month, entityViewControls));
+    } else if (dataType === yearType) {
+      displaySlot(annualJournal(data.linkedData as Year, entityViewControls));
     } else {
       const linkedDataWithContent: LinkedDataWithContent = isLinkedDataWithBody(
         data

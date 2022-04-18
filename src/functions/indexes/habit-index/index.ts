@@ -12,15 +12,13 @@ import {
 } from "linki";
 
 import type {
+  Habit,
   HabitObject,
+  HabitTrackEvent,
   HabitTrackEventObject,
   HabitTrackEventUri,
   HabitUri,
-} from "../../../components/productivity/model";
-import type {
-  Habit,
-  HabitTrackEvent,
-} from "../../../components/productivity/vocabulary";
+} from "../../../components/view-blocks/habits/model";
 import { removeItem } from "../../../libs/async-pool";
 import type { IntervalUri } from "../../../libs/calendar-ld";
 import { throwIfUndefined, throwIfUndefined2 } from "../../../libs/errors";

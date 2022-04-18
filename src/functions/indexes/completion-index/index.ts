@@ -10,8 +10,10 @@ import {
   withErrorLogging,
 } from "linki";
 
-import type { TaskObject } from "../../../components/productivity/model";
-import type { Complete } from "../../../components/productivity/vocabulary";
+import type {
+  Complete,
+  TaskObject,
+} from "../../../components/view-blocks/tasks";
 import { removeItem } from "../../../libs/async-pool";
 import { throwIfUndefined } from "../../../libs/errors";
 import type { HashUri } from "../../../libs/hash";
