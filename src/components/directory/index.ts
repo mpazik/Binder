@@ -1,5 +1,5 @@
 import { asyncMap, kick, link, map, withErrorLogging, wrap } from "linki";
-import type { UiComponent, View } from "linki-ui";
+import type { View } from "linki-ui";
 import { a, div, h3, nav, p, small, span } from "linki-ui";
 
 import type { RecentDocuments } from "../../functions/recent-document-serach";
@@ -7,6 +7,8 @@ import { createRecentDocumentSearch } from "../../functions/recent-document-sera
 import { combineToUri } from "../../libs/browser-providers";
 import type { PageControls } from "../app/entity-view";
 import { relativeDate } from "../common/relative-date";
+import type { PageView } from "../pages/utils";
+import { mountBlock } from "../view-blocks/utils";
 
 export const loading: View = () => span("Loading...");
 
@@ -42,15 +44,15 @@ const view: View<{
     )
   );
 
-export const docsDirectory = ({
+export const docsDirectory: PageView = ({
   search: { directory: searchDirectory, watchHistory: searchWatchHistory },
-}: PageControls): UiComponent => {
+}: PageControls) => {
   const searchRecentDocuments = createRecentDocumentSearch(
     searchDirectory,
     searchWatchHistory
   );
 
-  return ({ render }) => {
+  return mountBlock(({ render }) => {
     render(loading());
     link(
       kick(undefined),
@@ -58,5 +60,5 @@ export const docsDirectory = ({
       map(wrap("docs"), view),
       render
     );
-  };
+  });
 };

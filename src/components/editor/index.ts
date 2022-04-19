@@ -1,11 +1,11 @@
-import type { View } from "linki-ui";
 import { button, div, h2, mountComponent } from "linki-ui";
 
 import { editor } from "../common/editor";
+import type { PageView } from "../pages/utils";
 
 const xmlString = '<p><a href="#">Link</a>Blet</p><p>haha</p>';
 
-export const editorPage: View = () => {
+export const editorPage: PageView = () => {
   const [editorRoot, { save, reset }] = mountComponent(
     editor({ initialContent: xmlString }),
     {

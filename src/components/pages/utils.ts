@@ -5,7 +5,7 @@ import type { ComponentMountOptions } from "../../../../linki-ui/src";
 import type { LinkedData } from "../../libs/jsonld-format";
 import type { PageControls } from "../app/entity-view";
 
-export type PageView<T extends LinkedData> = (
+export type PageView<T extends LinkedData | void = void> = (
   controller: PageControls,
   context: T
 ) => JsonHtml;

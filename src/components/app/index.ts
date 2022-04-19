@@ -130,7 +130,7 @@ import {
 import { storePage } from "../store";
 
 import type { PageControls } from "./entity-view";
-import { specialTodayUri } from "./special-uris";
+import { specialDirectoryUri, specialTodayUri } from "./special-uris";
 
 type InitServices = {
   fetchTroughProxy: Fetch;
@@ -372,7 +372,7 @@ export const App = ({
         map(pick("repository")),
         filter(defined),
         passOnlyChanged<RepositoryDb>(initRepo),
-        fork(updateRepo, () => displaySlot(docsDirectorySlot))
+        fork(updateRepo, () => updateBrowserUri(specialDirectoryUri))
       ),
       link(
         filterState("loadingError"),
@@ -468,7 +468,7 @@ export const App = ({
   const loadContent = (data: LinkedDataWithContent | LinkedDataWithBody) => {
     const dataType = getType(data.linkedData);
     if (dataType === "SearchResultsPage" || dataType === "NotFoundPage") {
-      displaySlot(docsDirectorySlot);
+      displaySlot(docsDirectory(pageControls));
     } else if (
       dataType === "Page" &&
       data.linkedData.name === "Docland - Store"
@@ -478,7 +478,7 @@ export const App = ({
       dataType === "Page" &&
       data.linkedData.name === "Docland - Editor"
     ) {
-      displaySlot(editorPage());
+      displaySlot(editorPage(pageControls));
     } else if (dataType === "AboutPage") {
       if (isLinkedDataWithBody(data)) {
         displayFullScreen(data.body);
@@ -549,7 +549,6 @@ export const App = ({
     })
   );
 
-  const [docsDirectorySlot] = mountComponent(docsDirectory(pageControls));
   const [fileDropSlot, { handleDragEvent }] = mountComponent(fileDrop, {
     onFile: link(
       withErrorLogging(asyncMap(processFileToContent)),
