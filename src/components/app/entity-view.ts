@@ -22,7 +22,7 @@ import type {
 import type { LinkedData } from "../../libs/jsonld-format";
 
 export type LinkedDataSave = Callback<LinkedData>;
-export type EntityViewControls = {
+export type PageControls = {
   readAppContext: AppContextProvider;
   saveLinkedData: LinkedDataSave;
   saveLinkedDataManually: LinkedDataStoreWrite;

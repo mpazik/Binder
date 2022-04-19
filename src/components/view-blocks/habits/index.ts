@@ -22,7 +22,7 @@ import type { CalendarInterval, IntervalUri } from "../../../libs/calendar-ld";
 import { dayType, weekType } from "../../../libs/calendar-ld";
 import type { HashUri } from "../../../libs/hash";
 import { stack } from "../../common/spacing";
-import type { ViewBlock } from "../utils";
+import type { PageBlock } from "../utils";
 import { mountBlock } from "../utils";
 
 import type {
@@ -93,9 +93,9 @@ const habitComponent = (
 
 const getId = (it: HabitObject): HashUri => it.id;
 
-export const habitsBlock: ViewBlock<CalendarInterval> = (
-  interval,
-  { subscribe: { habits: subscribe }, saveLinkedData }
+export const habitsBlock: PageBlock<CalendarInterval> = (
+  { subscribe: { habits: subscribe }, saveLinkedData },
+  interval
 ) =>
   mountBlock(({ render }) => {
     const intervalType = interval["@type"];

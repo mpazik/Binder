@@ -17,7 +17,6 @@ import type {
 } from "../annotations/annotation";
 import type { AnnotationSaveProps } from "../annotations/service";
 import { createAnnotationSaver } from "../annotations/service";
-import type { EntityViewControls } from "../app/entity-view";
 import { moreActions } from "../common/drop-down";
 import { editor } from "../common/editor";
 import {
@@ -29,7 +28,7 @@ import {
 import { stack } from "../common/spacing";
 import type { Uri } from "../common/uri";
 
-import type { ViewBlock } from "./utils";
+import type { PageBlock } from "./utils";
 import { mountBlock } from "./utils";
 
 const reviewForm: View<{
@@ -90,13 +89,9 @@ export const pickFirstAnnotation = (
   }
 };
 
-export const reviewBlock: ViewBlock<IntervalUri> = (
-  intervalUri,
-  {
-    saveLinkedData,
-    readAppContext,
-    subscribe: { annotations: subscribe },
-  }: EntityViewControls
+export const reviewBlock: PageBlock<IntervalUri> = (
+  { saveLinkedData, readAppContext, subscribe: { annotations: subscribe } },
+  intervalUri
 ) =>
   mountBlock(({ render }) => {
     const renderAnnotation = link(
@@ -201,9 +196,9 @@ const readOnlyView: View<Annotation> = ({ body }) =>
       )
     : undefined;
 
-export const readOnlyReviewBody: ViewBlock<IntervalUri> = (
-  intervalUri,
-  { subscribe: { annotations: subscribe } }
+export const readOnlyReviewBody: PageBlock<IntervalUri> = (
+  { subscribe: { annotations: subscribe } },
+  intervalUri
 ) =>
   mountBlock(({ render }) => {
     return {

@@ -119,17 +119,17 @@ import {
 } from "../display-settings/panel";
 import { createSettingUpdateAction } from "../display-settings/setting-update";
 import { editorPage } from "../editor";
+import { fileDrop } from "../file-drop";
+import { navigation } from "../navigation";
 import {
   annualJournal,
   dailyJournal,
   monthlyJournal,
   weeklyJournal,
-} from "../entity-views/intervals";
-import { fileDrop } from "../file-drop";
-import { navigation } from "../navigation";
+} from "../pages/intervals";
 import { storePage } from "../store";
 
-import type { EntityViewControls } from "./entity-view";
+import type { PageControls } from "./entity-view";
 import { specialTodayUri } from "./special-uris";
 
 type InitServices = {
@@ -311,7 +311,7 @@ export const App = ({
       .writeLinkedData(ld)
       .catch((error) => console.error("Filed saving lined data", error));
 
-  const entityViewControls: EntityViewControls = {
+  const pageControls: PageControls = {
     readAppContext: contextProvider,
     saveLinkedData: saveLinkedData,
     saveLinkedDataManually: store.writeLinkedData,
@@ -462,7 +462,7 @@ export const App = ({
   );
 
   const [contentSlot, { displayContent }] = mountComponent(
-    contentComponent(entityViewControls)
+    contentComponent(pageControls)
   );
 
   const loadContent = (data: LinkedDataWithContent | LinkedDataWithBody) => {
@@ -473,7 +473,7 @@ export const App = ({
       dataType === "Page" &&
       data.linkedData.name === "Docland - Store"
     ) {
-      displaySlot(storePage(entityViewControls));
+      displaySlot(storePage(pageControls));
     } else if (
       dataType === "Page" &&
       data.linkedData.name === "Docland - Editor"
@@ -491,13 +491,13 @@ export const App = ({
         })();
       }
     } else if (dataType === dayType) {
-      displaySlot(dailyJournal(data.linkedData as Day, entityViewControls));
+      displaySlot(dailyJournal(pageControls, data.linkedData as Day));
     } else if (dataType === weekType) {
-      displaySlot(weeklyJournal(data.linkedData as Week, entityViewControls));
+      displaySlot(weeklyJournal(pageControls, data.linkedData as Week));
     } else if (dataType === monthType) {
-      displaySlot(monthlyJournal(data.linkedData as Month, entityViewControls));
+      displaySlot(monthlyJournal(pageControls, data.linkedData as Month));
     } else if (dataType === yearType) {
-      displaySlot(annualJournal(data.linkedData as Year, entityViewControls));
+      displaySlot(annualJournal(pageControls, data.linkedData as Year));
     } else {
       const linkedDataWithContent: LinkedDataWithContent = isLinkedDataWithBody(
         data
@@ -549,7 +549,7 @@ export const App = ({
     })
   );
 
-  const [docsDirectorySlot] = mountComponent(docsDirectory(entityViewControls));
+  const [docsDirectorySlot] = mountComponent(docsDirectory(pageControls));
   const [fileDropSlot, { handleDragEvent }] = mountComponent(fileDrop, {
     onFile: link(
       withErrorLogging(asyncMap(processFileToContent)),

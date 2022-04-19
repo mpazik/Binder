@@ -46,7 +46,7 @@ import {
   isLinkedData,
   validateLinkedData,
 } from "../../libs/linked-data";
-import type { EntityViewControls } from "../app/entity-view";
+import type { PageControls } from "../app/entity-view";
 
 const listData = (
   realAllLinkedData: LinkedDataStoreReadAll
@@ -160,7 +160,7 @@ const add: View<{
   );
 };
 
-export const storePage: View<EntityViewControls> = ({
+export const storePage: View<PageControls> = ({
   saveLinkedDataManually,
   readAllLinkedData,
 }) => {

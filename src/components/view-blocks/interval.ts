@@ -18,7 +18,7 @@ import { inline, stack } from "../common/spacing";
 import { readOnlyReviewRating } from "./rating";
 import { readOnlyReviewBody } from "./review";
 import { readOnlyTasksBlock } from "./tasks";
-import type { ViewBlock } from "./utils";
+import type { PageBlock } from "./utils";
 
 const formatYear = new Intl.DateTimeFormat(undefined, {
   year: "numeric",
@@ -57,7 +57,10 @@ const linkToParentDate: View<CalendarInterval> = (
 const intervalName = (interval: CalendarInterval) =>
   intervalFormats[interval["@type"]](intervalBeggingDate(interval));
 
-export const intervalNavigation: ViewBlock<CalendarInterval> = (interval) =>
+export const intervalNavigation: PageBlock<CalendarInterval> = (
+  controls,
+  interval
+) =>
   header(
     { class: "text-center" },
     h2(intervalName(interval)),
@@ -79,14 +82,14 @@ export const intervalNavigation: ViewBlock<CalendarInterval> = (interval) =>
     )
   );
 
-const intervalChild: ViewBlock<IntervalUri> = (intervalUri, controls) => {
+const intervalChild: PageBlock<IntervalUri> = (controls, intervalUri) => {
   const interval = getIntervalData(intervalUri) as CalendarInterval;
 
-  const reviewRating = readOnlyReviewRating(intervalUri, controls);
+  const reviewRating = readOnlyReviewRating(controls, intervalUri);
 
   const tasksSlot: JsonHtml =
     interval["@type"] === "unitDay"
-      ? readOnlyTasksBlock(interval, controls)
+      ? readOnlyTasksBlock(controls, interval)
       : undefined;
 
   return div(
@@ -101,17 +104,17 @@ const intervalChild: ViewBlock<IntervalUri> = (intervalUri, controls) => {
       reviewRating
     ),
     tasksSlot,
-    readOnlyReviewBody(intervalUri, controls)
+    readOnlyReviewBody(controls, intervalUri)
   );
 };
 
-export const intervalChildren: ViewBlock<CalendarInterval> = (
-  interval,
-  controls
+export const intervalChildren: PageBlock<CalendarInterval> = (
+  controls,
+  interval
 ) => {
   const children = [
     ...interval.intervalContains,
     ...(interval["intervalOverlaps"] ?? []),
-  ].map((uri) => intervalChild(uri, controls));
+  ].map((uri) => intervalChild(controls, uri));
   return children.length ? stack(...children) : undefined;
 };

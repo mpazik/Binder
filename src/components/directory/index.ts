@@ -5,7 +5,7 @@ import { a, div, h3, nav, p, small, span } from "linki-ui";
 import type { RecentDocuments } from "../../functions/recent-document-serach";
 import { createRecentDocumentSearch } from "../../functions/recent-document-serach";
 import { combineToUri } from "../../libs/browser-providers";
-import type { EntityViewControls } from "../app/entity-view";
+import type { PageControls } from "../app/entity-view";
 import { relativeDate } from "../common/relative-date";
 
 export const loading: View = () => span("Loading...");
@@ -44,7 +44,7 @@ const view: View<{
 
 export const docsDirectory = ({
   search: { directory: searchDirectory, watchHistory: searchWatchHistory },
-}: EntityViewControls): UiComponent => {
+}: PageControls): UiComponent => {
   const searchRecentDocuments = createRecentDocumentSearch(
     searchDirectory,
     searchWatchHistory

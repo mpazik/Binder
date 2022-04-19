@@ -25,7 +25,7 @@ import { editor } from "../common/editor";
 import { stack } from "../common/spacing";
 import type { Uri } from "../common/uri";
 
-import type { ViewBlock } from "./utils";
+import type { PageBlock } from "./utils";
 import { mountBlock } from "./utils";
 
 const dateTimeOfAction: View<{ date: Date; action: string }> = ({
@@ -116,9 +116,9 @@ const commentForm: View<{
 const getId = (it: Annotation) =>
   getHash((it as unknown) as LinkedDataWithHashId);
 
-export const commentsBlock: ViewBlock<IntervalUri> = (
-  intervalUri,
-  { readAppContext, saveLinkedData, subscribe: { annotations: subscribe } }
+export const commentsBlock: PageBlock<IntervalUri> = (
+  { readAppContext, saveLinkedData, subscribe: { annotations: subscribe } },
+  intervalUri
 ) =>
   mountBlock(({ render }) => {
     const [commentsSlot, { changeItems: changeComments }] = mountItemComponent(

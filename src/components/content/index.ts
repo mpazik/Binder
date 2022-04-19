@@ -11,7 +11,7 @@ import type { LinkedData } from "../../libs/jsonld-format";
 import { findHashUri, getUrls } from "../../libs/linked-data";
 import { throwOnNull, withMultiState } from "../../libs/linki";
 import { annotationsSupport } from "../annotations";
-import type { EntityViewControls } from "../app/entity-view";
+import type { PageControls } from "../app/entity-view";
 import { isLocalUri } from "../common/uri";
 import { contentDisplayComponent } from "../content-body";
 import { createWatchAction } from "../watch-history/watch-action";
@@ -33,7 +33,7 @@ export const contentComponent = ({
   saveResource,
   subscribe: { annotations: subscribeAnnotations },
   search: { watchHistoryIndex },
-}: EntityViewControls): UiComponent<{
+}: PageControls): UiComponent<{
   displayContent: LinkedDataWithContent;
 }> => ({ render }) => {
   const contentSaver = createContentSaver(saveResource, saveLinkedDataManually);

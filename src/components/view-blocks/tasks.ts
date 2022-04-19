@@ -30,10 +30,10 @@ import { throwIfUndefined } from "../../libs/errors";
 import type { HashUri } from "../../libs/hash";
 import { splitMap } from "../../libs/linki";
 import { createUndo } from "../../vocabulary/activity-streams";
-import type { EntityViewControls } from "../app/entity-view";
+import type { PageControls } from "../app/entity-view";
 import { stack } from "../common/spacing";
 
-import type { ViewBlock } from "./utils";
+import type { PageBlock } from "./utils";
 import { mountBlock } from "./utils";
 
 export type Task = {
@@ -151,13 +151,13 @@ const completionDate = (completionDay: Day) => {
     : intervalBeggingDate(completionDay);
 };
 
-export const tasksBlock: ViewBlock<Day> = (
-  day: Day,
+export const tasksBlock: PageBlock<Day> = (
   {
     saveLinkedData,
     search: { completable: searchCompletable },
     subscribe: { completable: subscribe },
-  }: EntityViewControls
+  }: PageControls,
+  day: Day
 ) =>
   mountBlock(({ render }) => {
     const createTaskList = () =>
@@ -212,9 +212,9 @@ export const tasksBlock: ViewBlock<Day> = (
     };
   });
 
-export const readOnlyTasksBlock: ViewBlock<CalendarInterval> = (
-  interval,
-  { subscribe: { completable: subscribe } }
+export const readOnlyTasksBlock: PageBlock<CalendarInterval> = (
+  { subscribe: { completable: subscribe } },
+  interval
 ) =>
   mountBlock(({ render }) => {
     const [tasks, { changeItems }] = mountItemComponent(
