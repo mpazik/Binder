@@ -487,14 +487,16 @@ export const App = ({
     ]
   );
 
-  subscribeToSettings(updateDisplaySettings);
-  renderContainer();
-  if (initialContent) {
-    displayFile(initialContent);
-  } else {
-    openPath(currentUri());
-  }
   return {
+    start: () => {
+      subscribeToSettings(updateDisplaySettings);
+      renderContainer();
+      if (initialContent) {
+        displayFile(initialContent);
+      } else {
+        openPath(currentUri());
+      }
+    },
     stop: fork(
       link(browserUriProvider, openPath),
       link(linkHijack(), updateBrowserUri)
