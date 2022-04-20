@@ -15,7 +15,7 @@ import {
   withErrorLogging,
 } from "linki";
 import type { JsonHtml, UiComponent, View } from "linki-ui";
-import { dangerousHtml, div, mountComponent } from "linki-ui";
+import { div, mountComponent } from "linki-ui";
 
 import type {
   AnalyticsSender,
@@ -78,14 +78,7 @@ import {
   currentUri,
   updateBrowserUri,
 } from "../../libs/browser-providers";
-import type { Day, Month, Week, Year } from "../../libs/calendar-ld";
-import {
-  dayType,
-  getTodayUri,
-  monthType,
-  weekType,
-  yearType,
-} from "../../libs/calendar-ld";
+import { getTodayUri } from "../../libs/calendar-ld";
 import type { HashName } from "../../libs/hash";
 import { storeGetAll } from "../../libs/indexeddb";
 import type { LinkedData } from "../../libs/jsonld-format";
@@ -100,8 +93,6 @@ import {
 import { accountPicker } from "../account-picker";
 import { dropdown } from "../common/drop-down";
 import { loader } from "../common/loader";
-import { contentComponent } from "../content";
-import { docsDirectory } from "../directory";
 import type { Settings } from "../display-settings";
 import { updateDisplaySettings } from "../display-settings";
 import {
@@ -109,18 +100,11 @@ import {
   setupDisplaySettingsPanel,
 } from "../display-settings/panel";
 import { createSettingUpdateAction } from "../display-settings/setting-update";
-import { editorPage } from "../editor";
 import { fileDrop } from "../file-drop";
 import { navigation } from "../navigation";
-import {
-  annualJournal,
-  dailyJournal,
-  monthlyJournal,
-  weeklyJournal,
-} from "../pages/intervals";
-import { storePage } from "../store";
 
 import type { PageControls } from "./entity-view";
+import { createPageRender } from "./page-picker";
 import { specialDirectoryUri, specialTodayUri } from "./special-uris";
 
 type InitServices = {
@@ -387,13 +371,7 @@ export const App = ({
 
   const [
     navigationSlot,
-    {
-      updateStoreState,
-      updateGdriveState,
-      hideNav,
-      hideNavPermanently,
-      setCurrentUri,
-    },
+    { updateStoreState, updateGdriveState, setCurrentUri },
   ] = mountComponent(
     navigation({
       displayed: !initialContent || getType(initialContent) != "AboutPage",
@@ -442,55 +420,8 @@ export const App = ({
     createContentSaver(store.writeResource, store.writeLinkedData)
   );
 
-  const loadContent = (linkedData: LinkedData) => {
-    const dataType = getType(linkedData);
-    if (dataType === "SearchResultsPage" || dataType === "NotFoundPage") {
-      displaySlot(docsDirectory(pageControls));
-    } else if (dataType === "Page" && linkedData.name === "Docland - Store") {
-      displaySlot(storePage(pageControls));
-    } else if (dataType === "Page" && linkedData.name === "Docland - Editor") {
-      displaySlot(editorPage(pageControls));
-    } else if (dataType === "AboutPage") {
-      displayFullScreen(dangerousHtml(linkedData.articleBody as string));
-    } else if (dataType === "Page") {
-      displayFullScreen(dangerousHtml(linkedData.articleBody as string));
-    } else if (dataType === dayType) {
-      displaySlot(dailyJournal(pageControls, linkedData as Day));
-    } else if (dataType === weekType) {
-      displaySlot(weeklyJournal(pageControls, linkedData as Week));
-    } else if (dataType === monthType) {
-      displaySlot(monthlyJournal(pageControls, linkedData as Month));
-    } else if (dataType === yearType) {
-      displaySlot(annualJournal(pageControls, linkedData as Year));
-    } else if (dataType === "Article") {
-      displaySlot(contentComponent(pageControls, linkedData));
-    } else if (dataType === "Book") {
-      displaySlot(contentComponent(pageControls, linkedData));
-    } else {
-      console.error("Can not recognize the document", linkedData);
-      throw new Error("Can not recognize the document");
-    }
-  };
-
-  const componentPropsOptions: UiComponent<{
-    displaySlot: JsonHtml;
-    displayFullScreen: JsonHtml;
-  }> = ({ render }) => {
-    return {
-      displaySlot: (slot) => {
-        render(undefined); // clean previous dom, to force rerender
-        render(div({ class: "mt-8 ml-2 mr-2" }, slot));
-        hideNav();
-      },
-      displayFullScreen: (element) => {
-        hideNavPermanently();
-        render(element);
-      },
-    };
-  };
-
-  const [contentOrDirSlot, { displayFullScreen, displaySlot }] = mountComponent(
-    componentPropsOptions
+  const [contentSlot, { displayData }] = mountComponent(
+    createPageRender({ controls: pageControls })
   );
 
   const [
@@ -499,8 +430,8 @@ export const App = ({
   ] = mountComponent(
     loader<Uri, LinkedData>({
       fetcher: contentFetcher,
-      onLoaded: loadContent,
-      contentSlot: contentOrDirSlot,
+      onLoaded: displayData,
+      contentSlot,
     })
   );
 

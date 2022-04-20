@@ -1,17 +1,14 @@
 import { div, dom, mountComponent, renderJsonHtmlToDom } from "linki-ui";
 
 import { throwIfNull } from "../../libs/errors";
-import type { LinkedData } from "../../libs/jsonld-format";
 import { annotationsSupport } from "../annotations";
 import { contentDisplayComponent } from "../content-body";
 import type { PageView } from "../pages/utils";
 
 import { contentHeader } from "./content-header";
 
-export const contentComponent: PageView<LinkedData> = (
-  controls,
-  linkedData
-) => {
+export const contentComponent: PageView = (controls, data) => {
+  const linkedData = throwIfNull(data);
   const reference = throwIfNull(linkedData["@id"]);
 
   const [

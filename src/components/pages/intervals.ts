@@ -1,6 +1,6 @@
 import { div } from "linki-ui";
 
-import type { Day, Month, Week, Year } from "../../libs/calendar-ld";
+import type { CalendarInterval, Day } from "../../libs/calendar-ld";
 import { stack } from "../common/spacing";
 import { commentsBlock } from "../view-blocks/comments";
 import { habitsBlock } from "../view-blocks/habits";
@@ -10,7 +10,8 @@ import { tasksBlock } from "../view-blocks/tasks";
 
 import type { PageView } from "./utils";
 
-export const dailyJournal: PageView<Day> = (controls, interval) => {
+export const dailyJournal: PageView = (controls, linkedData) => {
+  const interval = linkedData as Day;
   const intervalUri = interval["@id"];
 
   return div(
@@ -27,7 +28,8 @@ export const dailyJournal: PageView<Day> = (controls, interval) => {
   );
 };
 
-export const weeklyJournal: PageView<Week> = (controls, interval) => {
+export const weeklyJournal: PageView = (controls, linkedData) => {
+  const interval = linkedData as CalendarInterval;
   const intervalUri = interval["@id"];
 
   return div(
@@ -43,7 +45,8 @@ export const weeklyJournal: PageView<Week> = (controls, interval) => {
   );
 };
 
-export const monthlyJournal: PageView<Month> = (controls, interval) => {
+export const monthlyJournal: PageView = (controls, linkedData) => {
+  const interval = linkedData as CalendarInterval;
   const intervalUri = interval["@id"];
 
   return div(
@@ -58,7 +61,8 @@ export const monthlyJournal: PageView<Month> = (controls, interval) => {
   );
 };
 
-export const annualJournal: PageView<Year> = (controls, interval) => {
+export const annualJournal: PageView = (controls, linkedData) => {
+  const interval = linkedData as CalendarInterval;
   const intervalUri = interval["@id"];
 
   return div(

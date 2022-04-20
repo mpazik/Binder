@@ -160,7 +160,7 @@ const add: View<{
   );
 };
 
-export const storePage: PageView<void> = ({
+export const storePage: PageView = ({
   saveLinkedDataManually,
   readAllLinkedData,
 }) => {

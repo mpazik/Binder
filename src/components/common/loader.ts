@@ -186,6 +186,7 @@ export const loaderWithContext = <C, R, V>({
   };
 };
 
+// todo loader to handle view
 export const loader = <R, V>({
   fetcher,
   onLoaded,
