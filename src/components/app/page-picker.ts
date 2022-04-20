@@ -1,4 +1,4 @@
-import type { UiComponent } from "linki-ui";
+import type { View } from "linki-ui";
 import { dangerousHtml, div, pre } from "linki-ui";
 
 import { dayType, monthType, weekType, yearType } from "../../libs/calendar-ld";
@@ -72,30 +72,18 @@ const getPage = (linkedData: LinkedData): PageView => {
   }
 };
 
-export const createPageRender = ({
+export const createPageView = ({
   controls,
 }: {
   controls: PageControls;
-}): UiComponent<{ displayData: LinkedData }> => ({ render }) => {
-  const renderPage = (
-    controls: PageControls,
-    page: PageView,
-    context?: LinkedData
-  ) => {
-    return render(page(controls, context));
-  };
-
-  return {
-    displayData: (data) => {
-      if (isPage(data)) {
-        const context = getContextParam();
-        const page = getPage(data);
-        renderPage(controls, page, context);
-      } else {
-        const context = data;
-        const page = findPage(context);
-        renderPage(controls, page, context);
-      }
-    },
-  };
+}): View<LinkedData> => (data) => {
+  if (isPage(data)) {
+    const context = getContextParam();
+    const page = getPage(data);
+    return page(controls, context);
+  } else {
+    const context = data;
+    const page = findPage(context);
+    return page(controls, context);
+  }
 };

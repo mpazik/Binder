@@ -338,7 +338,7 @@ export const epubDisplay: ContentComponent = ({
   const { load, init, stop } = loaderWithContext<Epub, EpubCfi, EpubChapter>({
     fetcher: (epub, fragment) => openChapter(epub, fragment),
     onLoaded: fork(renderPage, setChapter),
-    contentSlot,
+    contentView: () => contentSlot,
   })({ render });
 
   return {

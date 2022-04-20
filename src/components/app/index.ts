@@ -104,7 +104,7 @@ import { fileDrop } from "../file-drop";
 import { navigation } from "../navigation";
 
 import type { PageControls } from "./entity-view";
-import { createPageRender } from "./page-picker";
+import { createPageView } from "./page-picker";
 import { specialDirectoryUri, specialTodayUri } from "./special-uris";
 
 type InitServices = {
@@ -420,18 +420,13 @@ export const App = ({
     createContentSaver(store.writeResource, store.writeLinkedData)
   );
 
-  const [contentSlot, { displayData }] = mountComponent(
-    createPageRender({ controls: pageControls })
-  );
-
   const [
     contentLoaderSlot,
     { load: loadResource, display: displayFile },
   ] = mountComponent(
     loader<Uri, LinkedData>({
       fetcher: contentFetcher,
-      onLoaded: displayData,
-      contentSlot,
+      contentView: createPageView({ controls: pageControls }),
     })
   );
 

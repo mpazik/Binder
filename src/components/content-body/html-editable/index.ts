@@ -186,7 +186,7 @@ export const htmlEditableDisplay: ContentComponent = ({
   const { load, stop } = loader<Blob, { doc: Document }>({
     fetcher: (it) => processToDocument(it).then(wrap("doc")),
     onLoaded: renderPage,
-    contentSlot,
+    contentView: () => contentSlot,
   })({ render });
 
   return {

@@ -100,17 +100,17 @@ const defaultErrorView: ErrorView = ({ reason, retry }) =>
   );
 
 const loaderView = <C, R, V>({
-  contentSlot,
+  contentView,
   errorView,
   retry,
 }: {
-  contentSlot: JsonHtml;
+  contentView: View<V>;
   errorView: ErrorView;
   retry: () => void;
 }): View<LoaderState<C, R, V>> =>
   newStateMapper(centerLoading(), {
-    ready: () => contentSlot,
-    loading: () => [centerLoading(), contentSlot] as JsonHtml,
+    ready: ({ data }) => contentView(data),
+    loading: ({ data }) => [centerLoading(), contentView(data)] as JsonHtml,
     error: ({ reason }) =>
       errorView({
         reason,
@@ -120,13 +120,13 @@ const loaderView = <C, R, V>({
 
 export const loaderWithContext = <C, R, V>({
   fetcher,
-  onLoaded,
-  contentSlot,
+  contentView,
+  onLoaded = () => {},
   errorView = defaultErrorView,
 }: {
   fetcher: (context: C, request: R, s: AbortSignal) => Promise<V>;
-  onLoaded: Callback<V>;
-  contentSlot: JsonHtml;
+  contentView: View<V>;
+  onLoaded?: Callback<V>;
   errorView?: ErrorView;
 }): UiComponent<{ init: C | Promise<C>; load: R; display: V }> => ({
   render,
@@ -151,7 +151,7 @@ export const loaderWithContext = <C, R, V>({
       link(
         map(
           loaderView({
-            contentSlot,
+            contentView,
             errorView,
             retry: () => stateMachine(["retry"]),
           })
@@ -186,22 +186,21 @@ export const loaderWithContext = <C, R, V>({
   };
 };
 
-// todo loader to handle view
 export const loader = <R, V>({
   fetcher,
   onLoaded,
   errorView = defaultErrorView,
-  contentSlot,
+  contentView,
 }: {
   fetcher: (request: R, s: AbortSignal) => Promise<V>;
-  onLoaded: Callback<V>;
-  contentSlot: JsonHtml;
+  onLoaded?: Callback<V>;
+  contentView: View<V>;
   errorView?: ErrorView;
 }): UiComponent<{ load: R; display: V }> => ({ render }) => {
   const { load, display, init, stop } = loaderWithContext<{}, R, V>({
     fetcher: (context, request, signal) => fetcher(request, signal),
     onLoaded,
-    contentSlot,
+    contentView,
     errorView,
   })({ render });
   init({});

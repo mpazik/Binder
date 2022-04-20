@@ -329,7 +329,7 @@ export const pdfDisplay: ContentComponent = ({
         link(map(pick("currentPage")), setPageNumberForFragment)
       )
     ),
-    contentSlot,
+    contentView: () => contentSlot,
   })({ render });
 
   const [openPageNumber, changeZoom] = link(
