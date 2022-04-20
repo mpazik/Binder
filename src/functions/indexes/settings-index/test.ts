@@ -1,9 +1,11 @@
-import { defaultSettings } from "../../../components/display-settings";
-import { createSettingUpdateAction } from "../../../components/display-settings/setting-update";
 import type { HashUri } from "../../../libs/hash";
 import type { LinkedDataWithHashId } from "../../../libs/jsonld-format";
 import { getHash } from "../../../libs/linked-data";
 import { createQueue } from "../../../libs/subscribe";
+import {
+  createSettingUpdateAction,
+  defaultSettings,
+} from "../../../vocabulary/setting-update";
 
 import type { SettingsRecord } from "./index";
 import { createSettingsSubscription, index } from "./index";

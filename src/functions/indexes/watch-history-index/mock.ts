@@ -1,6 +1,6 @@
-import type { WatchAction } from "../../../components/watch-history/watch-action";
 import type { HashUri } from "../../../libs/hash";
 import type { LinkedDataWithHashId } from "../../../libs/jsonld-format";
+import type { WatchAction } from "../../../vocabulary/watch-action";
 import { definitionDocHash, hydraDocHash } from "../directory-index/mock";
 
 import type { WatchHistoryRecord, WatchHistorySearch } from "./index";

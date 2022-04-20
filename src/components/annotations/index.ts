@@ -25,7 +25,7 @@ import {
 } from "../../libs/linki";
 import { handleAction } from "../../libs/named-state";
 import { createDelete } from "../../vocabulary/activity-streams";
-import type { PageControls } from "../app/entity-view";
+import type { PageControls } from "../system/page";
 
 import type {
   Annotation,

@@ -1,7 +1,6 @@
 import type { ClosableProvider } from "linki";
 import { link, map, passOnlyChanged, to } from "linki";
 
-import { hostPageUri, isHostPageUri } from "../components/app/special-uris";
 import { isAbsoluteUri } from "../components/common/uri";
 
 export const urlHashProvider: ClosableProvider<string> = (push) => {
@@ -32,6 +31,12 @@ export type UriWithFragment = {
   uri: Uri;
   fragment?: string;
 };
+
+export const hostPageUri = (path: string): string =>
+  `${window.location.origin}/${path}`;
+
+export const isHostPageUri = (uri: string): boolean =>
+  uri.startsWith(window.location.origin);
 
 export const currentUri = (): Uri => {
   const path = currentPath();

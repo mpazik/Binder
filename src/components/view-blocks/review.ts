@@ -27,9 +27,8 @@ import {
 } from "../common/rating";
 import { stack } from "../common/spacing";
 import type { Uri } from "../common/uri";
-
-import type { PageBlock } from "./utils";
-import { mountBlock } from "./utils";
+import type { PageBlock } from "../system/page";
+import { mountBlock } from "../system/page";
 
 const reviewForm: View<{
   intervalUri: Uri;

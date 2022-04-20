@@ -30,11 +30,9 @@ import { throwIfUndefined } from "../../libs/errors";
 import type { HashUri } from "../../libs/hash";
 import { splitMap } from "../../libs/linki";
 import { createUndo } from "../../vocabulary/activity-streams";
-import type { PageControls } from "../app/entity-view";
 import { stack } from "../common/spacing";
-
-import type { PageBlock } from "./utils";
-import { mountBlock } from "./utils";
+import type { PageBlock, PageControls } from "../system/page";
+import { mountBlock } from "../system/page";
 
 export type Task = {
   "@context": "http://docland.app/productivity.jsonld";

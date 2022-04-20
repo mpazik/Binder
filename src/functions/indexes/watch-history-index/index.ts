@@ -1,10 +1,10 @@
-import type { WatchAction } from "../../../components/watch-history/watch-action";
 import { newUriWithFragment } from "../../../libs/browser-providers";
 import type { HashUri } from "../../../libs/hash";
 import { isHashUri } from "../../../libs/hash";
 import type { StoreName, StoreProvider } from "../../../libs/indexeddb";
 import { storeGet, storeGetAll, storePut } from "../../../libs/indexeddb";
 import { isTypeEqualTo } from "../../../libs/linked-data";
+import type { WatchAction } from "../../../vocabulary/watch-action";
 import type { LinkedDataDelete } from "../../store/local-store";
 import { registerRepositoryVersion } from "../../store/repository";
 import type { DynamicStoreProvider } from "../dynamic-repo-index";

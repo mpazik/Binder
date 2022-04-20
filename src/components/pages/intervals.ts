@@ -2,13 +2,12 @@ import { div } from "linki-ui";
 
 import type { CalendarInterval, Day } from "../../libs/calendar-ld";
 import { stack } from "../common/spacing";
+import type { PageView } from "../system/page";
 import { commentsBlock } from "../view-blocks/comments";
 import { habitsBlock } from "../view-blocks/habits";
 import { intervalChildren, intervalNavigation } from "../view-blocks/interval";
 import { reviewBlock } from "../view-blocks/review";
 import { tasksBlock } from "../view-blocks/tasks";
-
-import type { PageView } from "./utils";
 
 export const dailyJournal: PageView = (controls, linkedData) => {
   const interval = linkedData as Day;

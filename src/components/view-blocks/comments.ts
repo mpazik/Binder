@@ -24,9 +24,8 @@ import { moreActions } from "../common/drop-down";
 import { editor } from "../common/editor";
 import { stack } from "../common/spacing";
 import type { Uri } from "../common/uri";
-
-import type { PageBlock } from "./utils";
-import { mountBlock } from "./utils";
+import type { PageBlock } from "../system/page";
+import { mountBlock } from "../system/page";
 
 const dateTimeOfAction: View<{ date: Date; action: string }> = ({
   date,

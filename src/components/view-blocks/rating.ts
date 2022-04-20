@@ -1,10 +1,10 @@
 import { link, map, splitDefined } from "linki";
 
 import type { IntervalUri } from "../../libs/calendar-ld";
+import type { PageBlock } from "../system/page";
+import { mountBlock } from "../system/page";
 
 import { pickFirstAnnotation, rating } from "./review";
-import type { PageBlock } from "./utils";
-import { mountBlock } from "./utils";
 
 export const readOnlyReviewRating: PageBlock<IntervalUri> = (
   { subscribe: { annotations: subscribe } },

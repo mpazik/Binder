@@ -1,17 +1,19 @@
 import type { Callback } from "linki";
 
-import type {
-  DisplaySettings,
-  Settings,
-} from "../../../components/display-settings";
-import { defaultSettings } from "../../../components/display-settings";
-import type { ReplaceAction } from "../../../components/display-settings/replace-action";
-import { settingValueFromCustomSchema } from "../../../components/display-settings/setting-update";
 import type { HashUri } from "../../../libs/hash";
 import type { StoreName, StoreProvider } from "../../../libs/indexeddb";
 import { storeGet, storePut } from "../../../libs/indexeddb";
 import { nameFromCustomDoclandSchema } from "../../../libs/jsonld-custom";
 import { isTypeEqualTo } from "../../../libs/linked-data";
+import type { ReplaceAction } from "../../../vocabulary/replace-actions";
+import {
+  defaultSettings,
+  settingValueFromCustomSchema,
+} from "../../../vocabulary/setting-update";
+import type {
+  DisplaySettings,
+  Settings,
+} from "../../../vocabulary/setting-update";
 import type { LinkedDataDelete } from "../../store/local-store";
 import { registerRepositoryVersion } from "../../store/repository";
 import type { DynamicStoreProvider } from "../dynamic-repo-index";

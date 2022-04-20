@@ -1,6 +1,6 @@
 import { createComponentRenderer, mountComponent } from "linki-ui";
 
-import { App, initialiseServices } from "./components/app";
+import { App, initialiseServices } from "./components/system";
 import { processInternalDocument } from "./functions/content-processors/html-processor/internal-processor";
 import type { LinkedData } from "./libs/jsonld-format";
 import { measureAsyncTime } from "./libs/performance";

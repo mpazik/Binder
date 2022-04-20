@@ -14,11 +14,11 @@ import {
   yearType,
 } from "../../libs/calendar-ld";
 import { inline, stack } from "../common/spacing";
+import type { PageBlock } from "../system/page";
 
 import { readOnlyReviewRating } from "./rating";
 import { readOnlyReviewBody } from "./review";
 import { readOnlyTasksBlock } from "./tasks";
-import type { PageBlock } from "./utils";
 
 const formatYear = new Intl.DateTimeFormat(undefined, {
   year: "numeric",
