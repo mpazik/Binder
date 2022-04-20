@@ -11,14 +11,6 @@ import {
   withErrorLogging,
 } from "linki";
 
-import type {
-  Habit,
-  HabitObject,
-  HabitTrackEvent,
-  HabitTrackEventObject,
-  HabitTrackEventUri,
-  HabitUri,
-} from "../../../components/view-blocks/habits/model";
 import { removeItem } from "../../../libs/async-pool";
 import type { IntervalUri } from "../../../libs/calendar-ld";
 import { throwIfUndefined, throwIfUndefined2 } from "../../../libs/errors";
@@ -27,6 +19,14 @@ import type { StoreName, StoreProvider } from "../../../libs/indexeddb";
 import { storeGet, storeGetAll, storePut } from "../../../libs/indexeddb";
 import { getHash, getType } from "../../../libs/linked-data";
 import { withContext } from "../../../libs/linki";
+import type {
+  Habit,
+  HabitObject,
+  HabitTrackEvent,
+  HabitTrackEventObject,
+  HabitTrackEventUri,
+  HabitUri,
+} from "../../../vocabulary/productivity/habits";
 import type { LinkedDataStoreRead } from "../../store/local-store";
 import type { RepositoryDb } from "../../store/repository";
 import { registerRepositoryVersion } from "../../store/repository";

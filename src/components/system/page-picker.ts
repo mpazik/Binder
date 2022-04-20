@@ -3,11 +3,12 @@ import type { View } from "linki-ui";
 import { dayType, monthType, weekType, yearType } from "../../libs/calendar-ld";
 import type { LinkedData } from "../../libs/jsonld-format";
 import { getType } from "../../libs/linked-data";
-import { contentComponent } from "../pages/content";
+import { contentPage } from "../pages/content";
 import { docsDirectory } from "../pages/directory";
 import { editorPage } from "../pages/editor";
 import { errorPage } from "../pages/error";
 import { pageFactory } from "../pages/factory";
+import { habitPage } from "../pages/habit";
 import {
   annualJournal,
   dailyJournal,
@@ -23,8 +24,9 @@ const pageForType = new Map<string, PageView>([
   [weekType, weeklyJournal],
   [monthType, monthlyJournal],
   [yearType, annualJournal],
-  ["Article", contentComponent],
-  ["Book", contentComponent],
+  ["Habit", habitPage],
+  ["Article", contentPage],
+  ["Book", contentPage],
 ]);
 
 const getContextParam = () => {

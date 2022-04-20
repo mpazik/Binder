@@ -4,7 +4,6 @@ import type { UiItemComponent, View } from "linki-ui";
 import {
   div,
   getTargetInputValue,
-  h2,
   h3,
   input,
   isKey,
@@ -16,11 +15,7 @@ import {
   ul,
 } from "linki-ui";
 
-import type {
-  CalendarInterval,
-  Day,
-  IntervalUri,
-} from "../../libs/calendar-ld";
+import type { CalendarInterval, Day } from "../../libs/calendar-ld";
 import {
   intervalBeggingDate,
   intervalEndDate,
@@ -30,46 +25,14 @@ import { throwIfUndefined } from "../../libs/errors";
 import type { HashUri } from "../../libs/hash";
 import { splitMap } from "../../libs/linki";
 import { createUndo } from "../../vocabulary/activity-streams";
+import {
+  createComplete,
+  createTask,
+} from "../../vocabulary/productivity-tasks";
 import { stack } from "../common/spacing";
 import type { PageBlock, PageControls } from "../system/page";
 import { mountBlock } from "../system/page";
 
-export type Task = {
-  "@context": "http://docland.app/productivity.jsonld";
-  "@type": "Task";
-  content: string;
-  published: string;
-};
-export const createTask = (content: string, published = new Date()): Task => ({
-  "@context": "http://docland.app/productivity.jsonld",
-  "@type": "Task",
-  content,
-  published: published.toISOString(),
-});
-
-export type Complete = {
-  "@context": "http://docland.app/productivity.jsonld";
-  "@type": "Complete";
-  object: HashUri;
-  published: string;
-};
-export const createComplete = (
-  objectToComplete: HashUri,
-  published = new Date()
-): Complete => ({
-  "@context": "http://docland.app/productivity.jsonld",
-  "@type": "Complete",
-  object: objectToComplete,
-  published: published.toISOString(),
-});
-
-export type Schedule = {
-  "@context": "http://docland.app/productivity.jsonld";
-  "@type": "Schedule";
-  object: HashUri;
-  target: IntervalUri;
-  published: string;
-};
 const completionCreator = (completionDay: Day) => (taskId: HashUri) =>
   createComplete(taskId, completionDate(completionDay));
 
@@ -178,13 +141,12 @@ export const tasksBlock: PageBlock<Day> = (
     render(
       stack(
         { gap: "medium" },
-        h2("Tasks"),
         div(
-          h3({ class: "h4" }, "Completed that day"),
+          h3("Completed that day"),
           ul({ class: "list-style-none" }, completedTasks)
         ),
         div(
-          h3({ class: "h4" }, "To do"),
+          h3("To do"),
           ul({ class: "list-style-none" }, todoTasks),
           taskInput({ onSubmit: link(map(createTask), saveLinkedData) })
         )

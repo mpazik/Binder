@@ -1,7 +1,7 @@
-import type { IntervalUri } from "../../../libs/calendar-ld";
-import type { HashUri } from "../../../libs/hash";
-import { as } from "../../../libs/linki";
-import type { Uri } from "../../common/uri";
+import type { Uri } from "../../components/common/uri";
+import type { IntervalUri } from "../../libs/calendar-ld";
+import type { HashUri } from "../../libs/hash";
+import { as } from "../../libs/linki";
 
 export type HabitUri = HashUri;
 export type HabitObject = {
@@ -30,6 +30,7 @@ export const createHabit = (
   emojiIcon,
   description,
 });
+
 export type HabitTrackEvent = {
   "@context": "http://docland.app/productivity.jsonld";
   "@type": "HabitTrackEvent";
@@ -51,6 +52,7 @@ export const createHabitTrackEvent = (
   result: status,
   published: published.toISOString(),
 });
+
 export type Start = {
   "@context": "http://docland.app/productivity.jsonld";
   "@type": "Start";
@@ -66,6 +68,7 @@ export const createStart = (
   object: objectToStart,
   published: published.toISOString(),
 });
+
 export type Finish = {
   "@context": "http://docland.app/productivity.jsonld";
   "@type": "Finish";
@@ -87,7 +90,6 @@ export type HabitTrackEventObject = {
   status: HabitTrackStatusUri;
   interval: IntervalUri;
 };
-
 export type HabitTrackStatusUri = Uri;
 export type HabitTrackStatus = {
   uri: HabitTrackStatusUri;
@@ -97,7 +99,6 @@ export type HabitTrackStatus = {
 };
 const createHabitTrackStatusIdUri = (name: string): HabitTrackStatusUri =>
   "http://id.docland.app/habit-track-status/" + name;
-
 export const habitTrackStatuses = as<Record<string, HabitTrackStatus>>()({
   accomplished: {
     uri: createHabitTrackStatusIdUri("accomplished"),

@@ -4,6 +4,7 @@ import type { Callback } from "linki";
 import { link, map } from "linki";
 import type { UiItemComponent, View } from "linki-ui";
 import {
+  a,
   div,
   getTargetInputValue,
   h2,
@@ -21,16 +22,18 @@ import {
 import type { CalendarInterval, IntervalUri } from "../../../libs/calendar-ld";
 import { dayType, weekType } from "../../../libs/calendar-ld";
 import type { HashUri } from "../../../libs/hash";
-import { stack } from "../../common/spacing";
-import type { PageBlock } from "../../system/page";
-import { mountBlock } from "../../system/page";
-
 import type {
   HabitObject,
   HabitTrackEventObject,
   HabitTrackStatusUri,
-} from "./model";
-import { createHabitTrackEvent, habitTrackStatuses } from "./model";
+} from "../../../vocabulary/productivity/habits";
+import {
+  createHabitTrackEvent,
+  habitTrackStatuses,
+} from "../../../vocabulary/productivity/habits";
+import { stack } from "../../common/spacing";
+import type { PageBlock } from "../../system/page";
+import { mountBlock } from "../../system/page";
 
 const habitTrackStatusSelect: View<{
   selected?: HabitTrackStatusUri;
@@ -62,13 +65,13 @@ const habitComponent = (
   onTrack,
 }) => {
   return {
-    updateItem: ({ title, emojiIcon, description, trackEvents }) => {
+    updateItem: ({ title, emojiIcon, description, trackEvents, id }) => {
       render([
         td(
           div(
             { class: "d-flex flex-items-center", title: description },
             span({ class: "f2" }, emojiIcon),
-            title
+            a({ class: "Link--primary", href: id }, title)
           )
         ),
         ...intervals.map((interval) => {

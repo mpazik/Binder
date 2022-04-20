@@ -10,10 +10,7 @@ import {
   withErrorLogging,
 } from "linki";
 
-import type {
-  Complete,
-  TaskObject,
-} from "../../../components/view-blocks/tasks";
+import type { TaskObject } from "../../../components/view-blocks/tasks";
 import { removeItem } from "../../../libs/async-pool";
 import { throwIfUndefined } from "../../../libs/errors";
 import type { HashUri } from "../../../libs/hash";
@@ -27,6 +24,7 @@ import {
   splitMap,
   withContext,
 } from "../../../libs/linki";
+import type { Complete } from "../../../vocabulary/productivity-tasks";
 import type { LinkedDataStoreRead } from "../../store/local-store";
 import type { RepositoryDb } from "../../store/repository";
 import { registerRepositoryVersion } from "../../store/repository";

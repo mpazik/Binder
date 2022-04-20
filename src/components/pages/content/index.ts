@@ -7,7 +7,7 @@ import type { PageView } from "../../system/page";
 import { contentDisplayComponent } from "./content-body";
 import { contentHeader } from "./content-header";
 
-export const contentComponent: PageView = (controls, data) => {
+export const contentPage: PageView = (controls, data) => {
   const linkedData = throwIfNull(data);
   const reference = throwIfNull(linkedData["@id"]);
 

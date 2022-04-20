@@ -5,14 +5,13 @@ import {
   button,
   dangerousHtml,
   div,
-  h2,
+  h3,
   mountComponent,
   mountItemComponent,
   renderJsonHtmlToDom,
   span,
 } from "linki-ui";
 
-import type { IntervalUri } from "../../libs/calendar-ld";
 import type { LinkedDataWithHashId } from "../../libs/jsonld-format";
 import { getHash } from "../../libs/linked-data";
 import { formatDateTime } from "../../libs/time";
@@ -78,14 +77,14 @@ const commentComponent: UiItemComponent<Annotation, { onDelete: void }> = ({
 };
 
 const commentForm: View<{
-  intervalUri: Uri;
+  reference: Uri;
   onSave: Callback<AnnotationSaveProps>;
-}> = ({ intervalUri, onSave }) => {
+}> = ({ reference, onSave }) => {
   const saveData: Callback<string> = link(
     fork(
       link(
         map((content) => ({
-          reference: intervalUri,
+          reference,
           content,
         })),
         onSave
@@ -115,9 +114,9 @@ const commentForm: View<{
 const getId = (it: Annotation) =>
   getHash((it as unknown) as LinkedDataWithHashId);
 
-export const commentsBlock: PageBlock<IntervalUri> = (
+export const commentsBlock: PageBlock<Uri> = (
   { readAppContext, saveLinkedData, subscribe: { annotations: subscribe } },
-  intervalUri
+  reference
 ) =>
   mountBlock(({ render }) => {
     const [commentsSlot, { changeItems: changeComments }] = mountItemComponent(
@@ -130,10 +129,10 @@ export const commentsBlock: PageBlock<IntervalUri> = (
     render(
       stack(
         { gap: "medium" },
-        div(h2("Comments"), commentsSlot),
+        div(h3("Comments"), commentsSlot),
         div(
           commentForm({
-            intervalUri,
+            reference,
             onSave: createAnnotationSaver(readAppContext, saveLinkedData),
           })
         )
@@ -141,7 +140,7 @@ export const commentsBlock: PageBlock<IntervalUri> = (
     );
     return {
       stop: link(
-        subscribe({ reference: intervalUri, motivation: "commenting" }),
+        subscribe({ reference, motivation: "commenting" }),
         changeComments
       ),
     };

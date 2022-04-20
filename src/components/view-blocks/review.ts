@@ -1,7 +1,15 @@
 import type { Callback } from "linki";
 import { fork, link, map, push, splitDefined, valueWithState } from "linki";
 import type { JsonHtml, View } from "linki-ui";
-import { button, dangerousHtml, div, h2, mountComponent, span } from "linki-ui";
+import {
+  button,
+  dangerousHtml,
+  div,
+  h2,
+  h3,
+  mountComponent,
+  span,
+} from "linki-ui";
 
 import type { AnnotationChange } from "../../functions/indexes/annotations-index";
 import type { IntervalUri } from "../../libs/calendar-ld";
@@ -100,7 +108,7 @@ export const reviewBlock: PageBlock<IntervalUri> = (
             { gap: "medium" },
             div(
               { class: "d-flex flex-items-center" },
-              h2("Review"),
+              h3("Review"),
               rating(annotation),
               moreActions({
                 actions: [

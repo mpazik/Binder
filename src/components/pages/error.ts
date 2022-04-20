@@ -7,5 +7,5 @@ export const errorPage: PageView = (controller, context) =>
     { class: "flash mt-3 flash-error" },
     h1("Error displaying the page"),
     h3("Page input:"),
-    pre(JSON.stringify(context))
+    pre(JSON.stringify(context, null, 2))
   );
