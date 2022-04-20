@@ -21,7 +21,10 @@ export const processInternalDocument = (dom: Document): LinkedData => {
   }
 
   linkedData["url"] = dom.baseURI;
-  linkedData["articleBody"] = dom.body.innerHTML;
+  const contentRoot = document.getElementById("content-root");
+  if (contentRoot && contentRoot.children.length > 0) {
+    linkedData["articleBody"] = dom.getElementById("content-root");
+  }
 
   return linkedData;
 };

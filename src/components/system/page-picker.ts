@@ -7,13 +7,13 @@ import { contentComponent } from "../pages/content";
 import { docsDirectory } from "../pages/directory";
 import { editorPage } from "../pages/editor";
 import { errorPage } from "../pages/error";
+import { pageFactory } from "../pages/factory";
 import {
   annualJournal,
   dailyJournal,
   monthlyJournal,
   weeklyJournal,
 } from "../pages/intervals";
-import { staticPage } from "../pages/static";
 import { storePage } from "../pages/store";
 
 import type { PageControls, PageView } from "./page";
@@ -44,18 +44,18 @@ const findPage = (context: LinkedData): PageView => {
   return pageForType.get(dataType) ?? errorPage;
 };
 
-const getPage = (linkedData: LinkedData): PageView => {
-  const dataType = getType(linkedData);
+const getPage = (pageData: LinkedData): PageView => {
+  const dataType = getType(pageData);
   if (dataType === "SearchResultsPage" || dataType === "NotFoundPage") {
     return docsDirectory;
-  } else if (dataType === "Page" && linkedData.name === "Docland - Store") {
+  } else if (dataType === "Page" && pageData.name === "Docland - Store") {
     return storePage;
-  } else if (dataType === "Page" && linkedData.name === "Docland - Editor") {
+  } else if (dataType === "Page" && pageData.name === "Docland - Editor") {
     return editorPage;
   } else if (dataType === "AboutPage" || dataType === "Page") {
-    return staticPage;
+    return pageFactory(pageData);
   } else {
-    return errorPage;
+    return pageFactory(pageData);
   }
 };
 
