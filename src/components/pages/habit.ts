@@ -1,4 +1,5 @@
-import { div, span } from "../../../../linki-ui";
+import { div, span } from "linki-ui";
+
 import type { LinkedDataWithHashId } from "../../libs/jsonld-format";
 import { getHash } from "../../libs/linked-data";
 import type { Habit } from "../../vocabulary/productivity/habits";
