@@ -118,7 +118,7 @@ export const editor = ({
   const editorContainer = document.createElement("div");
   editorContainer.style.position = "relative";
   const editorRoot = renderJsonHtmlToDom(
-    div({ class: ["p-2 pt-3 pl-4 form-control", className].join(" "), style })
+    div({ class: ["p-2 pb-0 form-control", className].join(" "), style })
   ) as HTMLElement;
   editorContainer.appendChild(editorRoot);
   const doc = initialContent

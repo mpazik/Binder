@@ -61,7 +61,7 @@ const createCommentView = (onDelete: () => void): View<Annotation> => (
     annotation.body
       ? div(
           {
-            class: "Box-body",
+            class: "Box-body p-2 pb-0",
           },
           dangerousHtml(annotation.body!.value)
         )
