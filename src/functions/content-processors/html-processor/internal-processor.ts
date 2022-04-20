@@ -21,6 +21,7 @@ export const processInternalDocument = (dom: Document): LinkedData => {
   }
 
   linkedData["url"] = dom.baseURI;
+  linkedData["articleBody"] = dom.body.innerHTML;
 
   return linkedData;
 };
@@ -29,5 +30,5 @@ export const internalHtmlProcessor: ContentProcessor["process"] = async (
   content
 ) => {
   const dom = await measureAsyncTime("parse", () => blobToDocument(content));
-  return { content, linkedData: processInternalDocument(dom) };
+  return { linkedData: processInternalDocument(dom) };
 };

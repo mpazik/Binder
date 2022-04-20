@@ -3,9 +3,7 @@ import "./style.css";
 import type { Callback } from "linki";
 import {
   cast,
-  combine,
   defined,
-  definedTuple,
   filter,
   fork,
   ignoreParam,
@@ -14,27 +12,20 @@ import {
   nextTick,
   passOnlyChanged,
   pick,
-  splitDefinedProp,
   to,
-  valueWithState,
-  withState,
 } from "linki";
 import type { UiComponent } from "linki-ui";
 import { mountComponent } from "linki-ui";
 
-import type { AppContextProvider } from "../../functions/app-context";
-import type { AnnotationsSubscribe } from "../../functions/indexes/annotations-index";
-import type { LinkedDataStoreRead } from "../../functions/store/local-store";
+import type { Uri } from "../../libs/browser-providers";
 import { throwIfNull } from "../../libs/errors";
-import type { HashUri } from "../../libs/hash";
-import type { LinkedData } from "../../libs/jsonld-format";
 import {
   closableProcessorFromProvider,
   withMultiState,
 } from "../../libs/linki";
 import { handleAction } from "../../libs/named-state";
 import { createDelete } from "../../vocabulary/activity-streams";
-import type { Uri } from "../common/uri";
+import type { PageControls } from "../app/entity-view";
 
 import type {
   Annotation,
@@ -49,10 +40,7 @@ import { quoteSelectorForRange } from "./quote-selector";
 import type { Selection } from "./selection";
 import { currentSelection, selectionPosition } from "./selection";
 import { selectionToolbar } from "./selection-toolbar";
-import type { AnnotationSaveProps } from "./service";
 import { createAnnotationSaver } from "./service";
-
-type AnnotationSavePropsWithoutRef = Omit<AnnotationSaveProps, "reference">;
 
 export type AnnotationDisplayRequest = {
   textLayer: HTMLElement;
@@ -78,52 +66,18 @@ type AnnotationAction =
   | ["display", Annotation]
   | ["select", Selection]
   | ["remove", QuoteSelector];
-export const annotationsSupport = ({
-  readLinkedData,
-  saveLinkedData,
-  subscribeAnnotations,
-  readAppContext,
-}: {
-  readAppContext: AppContextProvider;
-  saveLinkedData: Callback<LinkedData>;
-  subscribeAnnotations: AnnotationsSubscribe;
-  readLinkedData: LinkedDataStoreRead;
-}): UiComponent<
+export const annotationsSupport = (
   {
-    displayDocumentAnnotations: AnnotationDisplayRequest;
-    setContainer: HTMLElement;
-    setReference: HashUri | undefined;
-  },
-  { requestDocumentSave: void }
-> => ({ render, requestDocumentSave }) => {
-  const [saveAnnotationInt, setReference] = link(
-    valueWithState<HashUri | undefined, AnnotationSavePropsWithoutRef>(
-      undefined
-    ),
-    map(
-      ([reference, { selector, content }]) =>
-        ({
-          reference,
-          selector,
-          content,
-        } as AnnotationSaveProps)
-    ),
-    splitDefinedProp("reference"),
-    [
-      createAnnotationSaver(readAppContext, saveLinkedData),
-      fork<AnnotationSavePropsWithoutRef>(
-        (it) => keepAnnotationForSave(it),
-        () => requestDocumentSave()
-      ),
-    ]
-  );
-
-  const [saveKeptAnnotation, keepAnnotationForSave] = link(
-    withState<AnnotationSavePropsWithoutRef | undefined>(undefined),
-    filter(defined),
-    fork(saveAnnotationInt, (): void => keepAnnotationForSave(undefined))
-  );
-
+    readLinkedData,
+    saveLinkedData,
+    subscribe: { annotations: subscribeAnnotations },
+    readAppContext,
+  }: PageControls,
+  reference: Uri
+): UiComponent<{
+  displayDocumentAnnotations: AnnotationDisplayRequest;
+  setContainer: HTMLElement;
+}> => ({ render }) => {
   const [
     changeSelection,
     setContainerForSelector,
@@ -191,6 +145,8 @@ export const annotationsSupport = ({
     }
   );
 
+  const saveAnnotation = createAnnotationSaver(readAppContext, saveLinkedData);
+
   const [selectionToolbarSlot, { selectionHandler }] = mountComponent(
     selectionToolbar({
       buttons: [
@@ -208,7 +164,7 @@ export const annotationsSupport = ({
               range,
               fragment
             );
-            saveAnnotationInt({ selector });
+            saveAnnotation({ selector, reference });
           },
           label: "highlight",
           shortCutKey: "h",
@@ -246,7 +202,7 @@ export const annotationsSupport = ({
       onHide: ({ selector }) =>
         changeSelection(["remove", getQuoteSelector(selector)]),
       onCreatedComment: ({ selector, comment }) => {
-        saveAnnotationInt({ selector, content: comment });
+        saveAnnotation({ selector, content: comment, reference });
       },
     }
   );
@@ -276,13 +232,8 @@ export const annotationsSupport = ({
     }
   );
 
-  const [setReferenceForAnnotationDisplay, displayDocumentAnnotations] = link(
-    combine<[Uri | undefined, AnnotationDisplayRequest | undefined]>(
-      undefined,
-      undefined
-    ),
-    filter(definedTuple),
-    map(([reference, { fragment }]) => ({
+  const displayDocumentAnnotations: Callback<AnnotationDisplayRequest> = link(
+    map(({ fragment }) => ({
       fragment: fragment?.value,
       reference,
     })),
@@ -298,11 +249,6 @@ export const annotationsSupport = ({
     stop: fork(() => {
       document.removeEventListener("mouseup", detectSelection);
     }, closeSubscription),
-    setReference: fork(
-      setReference,
-      setReferenceForAnnotationDisplay,
-      link(ignoreParam(), saveKeptAnnotation)
-    ),
     setContainer: fork(
       setContainerForSelector,
       setContainerForToolbar,
@@ -311,7 +257,7 @@ export const annotationsSupport = ({
     displayDocumentAnnotations: fork(
       link(map(pick("fragment")), setFragmentForToolbar),
       link(map(pick("textLayer")), setTextLayerForSelector),
-      displayDocumentAnnotations as Callback<AnnotationDisplayRequest>,
+      displayDocumentAnnotations,
       link(ignoreParam(), handleSelection),
       () => displayCommentForm(["hidden"]),
       () => hideAnnotation()

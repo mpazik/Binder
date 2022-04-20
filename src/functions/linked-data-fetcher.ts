@@ -3,27 +3,27 @@ import { throwIfNull } from "../libs/errors";
 import type { HashName } from "../libs/hash";
 import { isHashUri } from "../libs/hash";
 import type { LinkedData } from "../libs/jsonld-format";
-import { findHashUri } from "../libs/linked-data";
+import { findHashUri, getType } from "../libs/linked-data";
 
-import type { LinkedDataWithContent } from "./content-processors";
 import { processResponseToContent } from "./content-processors";
+import type { ContentSaver } from "./content-saver";
 import type { Fetch } from "./fetch-trough-proxy";
 import type {
   LinkedDataStoreRead,
   ResourceStoreRead,
 } from "./store/local-store";
 
-export type LinkedDataWithContentFetcher = (
+export type LinkedDataFetcher = (
   uri: string,
   signal?: AbortSignal
-) => Promise<LinkedDataWithContent>;
+) => Promise<LinkedData>;
 
 type LinkedDataContentFetcher = (
   linkedData: LinkedData,
   signal?: AbortSignal
 ) => Promise<Blob>;
 
-const createLinkedDataContentFetcher = (
+export const createLinkedDataContentFetcher = (
   storeRead: ResourceStoreRead
 ): LinkedDataContentFetcher => (article) => {
   const hashUri = throwIfNull(findHashUri(article));
@@ -32,14 +32,11 @@ const createLinkedDataContentFetcher = (
   );
 };
 
-type BuildInFetcher = (uri: string) => LinkedDataWithContent | undefined;
+type BuildInFetcher = (uri: string) => LinkedData | undefined;
 const intervalFetcher: BuildInFetcher = (uri) => {
   const data = getIntervalData(uri);
   if (data) {
-    return {
-      linkedData: data,
-      content: new Blob(),
-    };
+    return data;
   }
 };
 const buildInFetchers = [intervalFetcher];
@@ -50,33 +47,32 @@ const fetchFromBuildInFetchers: BuildInFetcher = (uri) => {
   }
 };
 
+const typeToSave = ["Article", "Book"];
+
 export const createLinkedDataWithDocumentFetcher = (
   getHash: (uri: string) => Promise<HashName | undefined>,
   fetchTroughProxy: Fetch,
   linkedDataStoreRead: LinkedDataStoreRead,
-  resourceStoreRead: ResourceStoreRead
-): LinkedDataWithContentFetcher => {
-  const linkedDataContentFetcher = createLinkedDataContentFetcher(
-    resourceStoreRead
-  );
-
+  resourceStoreRead: ResourceStoreRead,
+  contentSaver: ContentSaver
+): LinkedDataFetcher => {
   return async (url: string, signal?: AbortSignal) => {
     const data = fetchFromBuildInFetchers(url);
     if (data) return data;
 
     const hash = isHashUri(url) ? url : await getHash(url);
     if (hash) {
-      const linkedData = throwIfNull(await linkedDataStoreRead(hash));
-      const content = await linkedDataContentFetcher(linkedData, signal);
-
-      return {
-        linkedData,
-        content,
-      };
+      return throwIfNull(await linkedDataStoreRead(hash));
     }
     const response = await fetchTroughProxy(url, {
       signal,
     });
-    return processResponseToContent(response, url);
+    const content = await processResponseToContent(response, url);
+
+    const contentType = getType(content.linkedData);
+    if (contentType && typeToSave.includes(contentType)) {
+      return (await contentSaver(content)).linkedData;
+    }
+    return content.linkedData;
   };
 };

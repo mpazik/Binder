@@ -1,5 +1,4 @@
-import { link, map } from "linki";
-import type { JsonHtml, UiComponent, View } from "linki-ui";
+import type { JsonHtml, View } from "linki-ui";
 import { a, div, mountComponent, span } from "linki-ui";
 
 import { CATEGORIES_ENABLED } from "../../config";
@@ -7,12 +6,12 @@ import type { LinkedData } from "../../libs/jsonld-format";
 import { findUrl } from "../../libs/linked-data";
 import { multiSelect } from "../common/multi-select";
 import { isLocalUri } from "../common/uri";
+import type { PageBlock } from "../view-blocks/utils";
 
-const newContentHeader = ({
-  categoriesSlot,
-}: {
+const newContentHeader: View<{
+  linkedData: LinkedData;
   categoriesSlot: JsonHtml;
-}): View<LinkedData> => (linkedData) => {
+}> = ({ categoriesSlot, linkedData }) => {
   const uri = findUrl(linkedData);
   return div(
     { class: "Subhead with-line-length-settings" },
@@ -36,16 +35,8 @@ const newContentHeader = ({
   );
 };
 
-export const contentHeader: UiComponent<{ renderFields: LinkedData }> = ({
-  render,
-}) => {
-  const [categoriesSlot] = mountComponent(multiSelect({}));
-
-  const containerHeaderView = newContentHeader({
-    categoriesSlot,
+export const contentHeader: PageBlock<LinkedData> = (controls, linkedData) =>
+  newContentHeader({
+    categoriesSlot: mountComponent(multiSelect({}))[0][0],
+    linkedData,
   });
-
-  return {
-    renderFields: link(map(containerHeaderView), render),
-  };
-};

@@ -170,14 +170,15 @@ const contentComponent: UiComponent<
 };
 
 export const htmlEditableDisplay: ContentComponent = ({
-  onContentModified,
+  // onContentModified,
   onDisplay,
   render,
 }) => {
   const [contentSlot, { renderPage, saveComplete }] = mountComponent(
     contentComponent,
     {
-      onContentModified,
+      onContentModified: () =>
+        alert("content modification is not supported now"),
       onDisplay: fork(onDisplay, scrollToPageTopWhenNoFragment),
     }
   );

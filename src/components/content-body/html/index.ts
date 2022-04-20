@@ -69,7 +69,7 @@ export const htmlDisplay: ContentComponent = ({
   const { load, stop } = loader<Blob, Node>({
     fetcher: processToHtml,
     onLoaded: renderPage,
-    contentSlot,
+    contentView: () => contentSlot,
   })({ render });
 
   return {

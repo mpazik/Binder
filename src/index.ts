@@ -1,8 +1,8 @@
 import { createComponentRenderer, mountComponent } from "linki-ui";
 
-import type { LinkedDataWithBody } from "./components/app";
 import { App, initialiseServices } from "./components/app";
 import { processInternalDocument } from "./functions/content-processors/html-processor/internal-processor";
+import type { LinkedData } from "./libs/jsonld-format";
 import { measureAsyncTime } from "./libs/performance";
 
 const rootElement = "root";
@@ -20,14 +20,11 @@ const getRoot = (): HTMLElement => {
   return newRoot;
 };
 
-const getDocumentContent = (): LinkedDataWithBody | undefined => {
+const getDocumentContent = (): LinkedData | undefined => {
   const contentRoot = document.getElementById(contentRootElement);
   if (!contentRoot || contentRoot.children.length === 0) return;
 
-  return {
-    linkedData: processInternalDocument(document),
-    body: contentRoot,
-  };
+  return processInternalDocument(document);
 };
 
 (async () => {

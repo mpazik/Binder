@@ -6,7 +6,6 @@ import {
   filter,
   fork,
   link,
-  map,
   pick,
   pipe,
   split,
@@ -16,14 +15,14 @@ import type { UiComponent } from "linki-ui";
 import { div } from "linki-ui";
 
 import type { LinkedDataWithContent } from "../../functions/content-processors";
-import type { ContentSaver } from "../../functions/content-saver";
-import type { WatchHistoryIndex } from "../../functions/indexes/watch-history-index";
+import { createLinkedDataContentFetcher } from "../../functions/linked-data-fetcher";
 import {
   browserUriFragmentProvider,
   currentFragment,
 } from "../../libs/browser-providers";
-import { throwIfUndefined } from "../../libs/errors";
+import { throwIfNull } from "../../libs/errors";
 import type { HashUri } from "../../libs/hash";
+import { isHashUri } from "../../libs/hash";
 import type { LinkedData } from "../../libs/jsonld-format";
 import {
   epubMediaType,
@@ -33,6 +32,8 @@ import {
 } from "../../libs/ld-schemas";
 import { indexOf, select, withMultiState } from "../../libs/linki";
 import type { AnnotationDisplayRequest } from "../annotations";
+import type { PageControls } from "../app/entity-view";
+import { createWatchAction } from "../watch-history/watch-action";
 
 import { epubDisplay } from "./epub";
 import { htmlDisplay } from "./html";
@@ -47,32 +48,15 @@ import type {
 const isEditable: (linkedData: LinkedData) => boolean = () => false;
 
 export const contentDisplayComponent = (
-  watchHistoryIndex: WatchHistoryIndex,
-  contentSaver: ContentSaver
+  { saveLinkedData, readResource, search: { watchHistoryIndex } }: PageControls,
+  linkedData: LinkedData
 ): UiComponent<
-  {
-    displayContent: LinkedDataWithContent;
-    requestCurrentFragment: void;
-  },
+  {},
   {
     onAnnotationDisplayRequest: AnnotationDisplayRequest;
-    onCurrentFragmentResponse: string | undefined;
   }
-> => ({ onCurrentFragmentResponse, onAnnotationDisplayRequest, render }) => {
-  // multi state with linkedData and fallback for update
-  const [saveNewContent, setLinkedDataForSave, setCallbackForUpdate] = link(
-    withMultiState<[LinkedData, Callback | undefined], Blob>(
-      undefined,
-      undefined
-    ),
-    ([linkedData, callback, blob]) => {
-      contentSaver({
-        linkedData: throwIfUndefined(linkedData),
-        content: blob,
-      }).then(() => throwIfUndefined(callback)());
-    }
-  );
-
+> => ({ onAnnotationDisplayRequest, render }) => {
+  const contentFetcher = createLinkedDataContentFetcher(readResource);
   const [
     requestCurrentFragment,
     setCallbackForReqFragment,
@@ -98,10 +82,25 @@ export const contentDisplayComponent = (
       onAnnotationDisplayRequest({ fragment, textLayer: container })
   );
 
+  const [saveWatchAction, setWatchStartTime, setWatchReference] = link(
+    withMultiState<[Date, HashUri], string | undefined>(undefined, undefined),
+    ([startTime, hashUri, fragment]) => {
+      if (startTime === undefined || hashUri === undefined)
+        throw new Error("context undefined");
+      if (!isHashUri(hashUri)) return; // ignore not saved pages
+      saveLinkedData(
+        createWatchAction(
+          hashUri + (fragment ? `#${fragment}` : ""),
+          startTime,
+          new Date()
+        )
+      );
+    }
+  );
+
   const displayController: NamedCallbacks<DisplayController> = {
     onDisplay: displayAnnotations,
-    onContentModified: saveNewContent,
-    onCurrentFragmentResponse,
+    onCurrentFragmentResponse: saveWatchAction,
   };
 
   const displayContentComponent = (component: ContentComponent) => async ({
@@ -112,21 +111,19 @@ export const contentDisplayComponent = (
     const {
       stop,
       displayContent,
-      saveComplete,
       goToFragment,
       requestCurrentFragment,
     } = component({ render, ...displayController });
     setCallbackForCloseComponent(
       fork(stop ?? (() => {}), browserUriFragmentProvider(goToFragment))
     );
-    setCallbackForUpdate(saveComplete);
     requestCurrentFragment
       ? setCallbackForReqFragment(requestCurrentFragment)
       : resetCallbackForReqFragment();
     const fragment =
       currentFragment() ??
       (await watchHistoryIndex(linkedData["@id"] as HashUri))?.fragment;
-    displayContent({ content, fragment });
+    displayContent({ content: throwIfNull(content), fragment });
   };
 
   const displayNotSupported = ({ linkedData }: LinkedDataWithContent) => {
@@ -137,29 +134,36 @@ export const contentDisplayComponent = (
     render(div({ class: "flash mt-3 flash-error" }, message));
   };
 
-  return {
-    stop: closeContentComponent,
-    displayContent: fork(
-      link(map(pick("linkedData")), setLinkedDataForSave),
-      link<LinkedDataWithContent, LinkedDataWithContent[]>(
-        select(
-          pipe(
-            pick("linkedData"),
-            getEncoding,
-            indexOf([htmlMediaType, pdfMediaType, epubMediaType, undefined])
-          )
-        ),
-        [
-          link(split(pipe(pick("linkedData"), isEditable)), [
-            displayContentComponent(htmlEditableDisplay),
-            displayContentComponent(htmlDisplay),
-          ]),
-          displayContentComponent(pdfDisplay),
-          displayContentComponent(epubDisplay),
-          displayNotSupported,
-        ]
+  setWatchStartTime(new Date());
+  setWatchReference(linkedData["@id"] as HashUri);
+
+  const pushData = link<LinkedDataWithContent, LinkedDataWithContent[]>(
+    select(
+      pipe(
+        pick("linkedData"),
+        getEncoding,
+        indexOf([htmlMediaType, pdfMediaType, epubMediaType, undefined])
       )
     ),
-    requestCurrentFragment,
+    [
+      link(split(pipe(pick("linkedData"), isEditable)), [
+        displayContentComponent(htmlEditableDisplay),
+        displayContentComponent(htmlDisplay),
+      ]),
+      displayContentComponent(pdfDisplay),
+      displayContentComponent(epubDisplay),
+      displayNotSupported,
+    ]
+  );
+  contentFetcher(linkedData)
+    .then((content) => {
+      pushData({ linkedData, content });
+    })
+    .catch((error) => {
+      console.error(error);
+    });
+
+  return {
+    stop: fork(closeContentComponent, requestCurrentFragment),
   };
 };

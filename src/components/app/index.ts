@@ -15,7 +15,7 @@ import {
   withErrorLogging,
 } from "linki";
 import type { JsonHtml, UiComponent, View } from "linki-ui";
-import { div, dom, mountComponent } from "linki-ui";
+import { dangerousHtml, div, mountComponent } from "linki-ui";
 
 import type {
   AnalyticsSender,
@@ -26,16 +26,8 @@ import {
   initConfiguredAnalyticsForRepoAccount,
 } from "../../functions/analytics";
 import { createAppContext } from "../../functions/app-context";
-import type {
-  LinkedDataWithContent,
-  SavedLinkedDataWithContent,
-} from "../../functions/content-processors";
+import type { SavedLinkedDataWithContent } from "../../functions/content-processors";
 import { processFileToContent } from "../../functions/content-processors";
-import {
-  blobToDocument,
-  createDocument,
-  documentToBlob,
-} from "../../functions/content-processors/html-processor/utils";
 import { createContentSaver } from "../../functions/content-saver";
 import type { Fetch } from "../../functions/fetch-trough-proxy";
 import { createProxyFetch } from "../../functions/fetch-trough-proxy";
@@ -97,7 +89,7 @@ import {
 import type { HashName } from "../../libs/hash";
 import { storeGetAll } from "../../libs/indexeddb";
 import type { LinkedData } from "../../libs/jsonld-format";
-import { getPropertyValue, getType } from "../../libs/linked-data";
+import { getType } from "../../libs/linked-data";
 import { combine } from "../../libs/linki";
 import {
   filterState,
@@ -105,7 +97,6 @@ import {
   handleState,
   newStateMapper,
 } from "../../libs/named-state";
-import { measureAsyncTime } from "../../libs/performance";
 import { accountPicker } from "../account-picker";
 import { dropdown } from "../common/drop-down";
 import { loader } from "../common/loader";
@@ -205,16 +196,6 @@ const containerView: View<{
     )
   );
 
-export type LinkedDataWithBody = {
-  linkedData: LinkedData;
-  body: Node;
-};
-const isLinkedDataWithBody = (
-  content: LinkedDataWithBody | LinkedDataWithContent
-): content is LinkedDataWithBody => {
-  return !!(content as LinkedDataWithBody).body;
-};
-
 export const App = ({
   fetchTroughProxy,
   globalDb,
@@ -226,7 +207,7 @@ export const App = ({
   updateAnalyticsRepoAccount,
   initialContent,
 }: InitServices & {
-  initialContent?: LinkedDataWithBody;
+  initialContent?: LinkedData;
 }): UiComponent => ({ render }) => {
   const urlIndex = createUriIndex();
   const directoryIndex = createDirectoryIndex();
@@ -415,8 +396,7 @@ export const App = ({
     },
   ] = mountComponent(
     navigation({
-      displayed:
-        !initialContent || getType(initialContent.linkedData) != "AboutPage",
+      displayed: !initialContent || getType(initialContent) != "AboutPage",
       initProfile: {
         repository: initRepo,
         user: lastLogin
@@ -449,7 +429,7 @@ export const App = ({
     }
   );
 
-  const contentFetcherPassingUri = createLinkedDataWithDocumentFetcher(
+  const contentFetcher = createLinkedDataWithDocumentFetcher(
     async (uri: string): Promise<HashName | undefined> => {
       const result = await urlIndex.search({ url: uri });
       if (result.length > 0) {
@@ -458,68 +438,43 @@ export const App = ({
     },
     fetchTroughProxy,
     store.readLinkedData,
-    store.readResource
+    store.readResource,
+    createContentSaver(store.writeResource, store.writeLinkedData)
   );
 
-  const [contentSlot, { displayContent }] = mountComponent(
-    contentComponent(pageControls)
-  );
-
-  const loadContent = (data: LinkedDataWithContent | LinkedDataWithBody) => {
-    const dataType = getType(data.linkedData);
+  const loadContent = (linkedData: LinkedData) => {
+    const dataType = getType(linkedData);
     if (dataType === "SearchResultsPage" || dataType === "NotFoundPage") {
       displaySlot(docsDirectory(pageControls));
-    } else if (
-      dataType === "Page" &&
-      data.linkedData.name === "Docland - Store"
-    ) {
+    } else if (dataType === "Page" && linkedData.name === "Docland - Store") {
       displaySlot(storePage(pageControls));
-    } else if (
-      dataType === "Page" &&
-      data.linkedData.name === "Docland - Editor"
-    ) {
+    } else if (dataType === "Page" && linkedData.name === "Docland - Editor") {
       displaySlot(editorPage(pageControls));
     } else if (dataType === "AboutPage") {
-      if (isLinkedDataWithBody(data)) {
-        displayFullScreen(data.body);
-      } else {
-        (async () => {
-          const dom = await measureAsyncTime("parse", () =>
-            blobToDocument(data.content)
-          );
-          displayFullScreen(dom.body);
-        })();
-      }
+      displayFullScreen(dangerousHtml(linkedData.articleBody as string));
+    } else if (dataType === "Page") {
+      displayFullScreen(dangerousHtml(linkedData.articleBody as string));
     } else if (dataType === dayType) {
-      displaySlot(dailyJournal(pageControls, data.linkedData as Day));
+      displaySlot(dailyJournal(pageControls, linkedData as Day));
     } else if (dataType === weekType) {
-      displaySlot(weeklyJournal(pageControls, data.linkedData as Week));
+      displaySlot(weeklyJournal(pageControls, linkedData as Week));
     } else if (dataType === monthType) {
-      displaySlot(monthlyJournal(pageControls, data.linkedData as Month));
+      displaySlot(monthlyJournal(pageControls, linkedData as Month));
     } else if (dataType === yearType) {
-      displaySlot(annualJournal(pageControls, data.linkedData as Year));
+      displaySlot(annualJournal(pageControls, linkedData as Year));
+    } else if (dataType === "Article") {
+      displaySlot(contentComponent(pageControls, linkedData));
+    } else if (dataType === "Book") {
+      displaySlot(contentComponent(pageControls, linkedData));
     } else {
-      const linkedDataWithContent: LinkedDataWithContent = isLinkedDataWithBody(
-        data
-      )
-        ? {
-            linkedData: data.linkedData,
-            content: documentToBlob(
-              createDocument({
-                title: getPropertyValue(data.linkedData, "name"),
-                contentRoot: data.body,
-              })
-            ),
-          }
-        : data;
-      displaySlot(contentSlot);
-      displayContent(linkedDataWithContent);
+      console.error("Can not recognize the document", linkedData);
+      throw new Error("Can not recognize the document");
     }
   };
 
   const componentPropsOptions: UiComponent<{
     displaySlot: JsonHtml;
-    displayFullScreen: Node;
+    displayFullScreen: JsonHtml;
   }> = ({ render }) => {
     return {
       displaySlot: (slot) => {
@@ -529,7 +484,7 @@ export const App = ({
       },
       displayFullScreen: (element) => {
         hideNavPermanently();
-        render(dom(element));
+        render(element);
       },
     };
   };
@@ -542,8 +497,8 @@ export const App = ({
     contentLoaderSlot,
     { load: loadResource, display: displayFile },
   ] = mountComponent(
-    loader<Uri, LinkedDataWithContent | LinkedDataWithBody>({
-      fetcher: contentFetcherPassingUri,
+    loader<Uri, LinkedData>({
+      fetcher: contentFetcher,
       onLoaded: loadContent,
       contentSlot: contentOrDirSlot,
     })

@@ -15,7 +15,7 @@ export type AnnotationContext = {
 
 export type DisplayController = {
   onDisplay: DisplayContext;
-  onContentModified: Blob;
+  // onContentModified: Blob;
   onCurrentFragmentResponse: string | undefined;
 };
 export type ContentComponent = UiComponent<

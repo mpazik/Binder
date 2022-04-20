@@ -4,12 +4,12 @@ import type {
 } from "../../libs/jsonld-format";
 
 export type LinkedDataWithContent = {
-  content: Blob;
+  content?: Blob;
   linkedData: LinkedData;
 };
 
 export type SavedLinkedDataWithContent = {
-  content: Blob;
+  content?: Blob;
   linkedData: LinkedDataWithHashId;
 };
 
