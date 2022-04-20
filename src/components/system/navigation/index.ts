@@ -1,4 +1,5 @@
-import { fork, not } from "linki";
+import type { ClosableProvider } from "linki";
+import { fork, link, map, not, passOnlyChanged } from "linki";
 import type { JsonHtml, UiComponent } from "linki-ui";
 import { dom, mountComponent, renderJsonHtmlToDom } from "linki-ui";
 
@@ -83,39 +84,12 @@ const createOnScrollHandler = (nav: HTMLElement): (() => void) => {
   };
 };
 
-export const navigationElement = ({
-  displayed,
-  body,
-}: {
-  displayed: boolean;
-  body: JsonHtml;
-}): UiComponent<{
-  hideNav: void;
-  showNav: void;
-  hideNavPermanently: void;
-  start: void;
-  stop: void;
-}> => ({ render }) => {
-  const element = renderJsonHtmlToDom(
-    navigationView({
-      displayed,
-      body,
-    })
-  ) as HTMLElement;
-
-  const onScroll = createOnScrollHandler(element);
-  render(dom(element));
-  return {
-    hideNav: () => moveElementOnTopOfTheScreen(element),
-    showNav: () => showElement(element),
-    hideNavPermanently: () => hideElement(element),
-    start: () => {
-      document.addEventListener("scroll", onScroll);
-    },
-    stop: () => {
-      document.removeEventListener("scroll", onScroll);
-    },
-  };
+const elementSizeObserver = (
+  element: HTMLElement
+): ClosableProvider<ResizeObserverEntry[]> => (callback) => {
+  const observer = new ResizeObserver(callback);
+  observer.observe(element);
+  return () => observer.disconnect();
 };
 
 export const navigation = ({
@@ -173,11 +147,8 @@ export const navigation = ({
     onSelected: updateBrowserUri,
   });
 
-  const [
-    navElement,
-    { hideNavPermanently, hideNav, showNav, stop: stopNav, start: startNav },
-  ] = mountComponent(
-    navigationElement({
+  const navElement = renderJsonHtmlToDom(
+    navigationView({
       displayed,
       body: appNavContent({
         profilePanelSlot: profilePanelSlot,
@@ -186,15 +157,29 @@ export const navigation = ({
         displayConfig: DISPLAY_CONFIG_ENABLED,
       }),
     })
+  ) as HTMLElement;
+
+  const onScroll = createOnScrollHandler(navElement);
+
+  // dummy element that have same height as the nav so the content is pushed bellow the navigation
+  const heightAdjuster = document.createElement("div");
+  const closeNavHeightListener = link(
+    elementSizeObserver(navElement),
+    map((entries) => entries[0].contentRect.height),
+    passOnlyChanged(),
+    (height) => {
+      heightAdjuster.style.height = `${height}px`;
+    }
   );
 
-  render(navElement);
+  render([dom(heightAdjuster), dom(navElement)]);
+
   return {
     updateStoreState,
     updateGdriveState,
-    hideNav,
-    showNav,
-    hideNavPermanently,
+    hideNav: () => moveElementOnTopOfTheScreen(navElement),
+    showNav: () => showElement(navElement),
+    hideNavPermanently: () => hideElement(navElement),
     setCurrentUri: (uri) => {
       currentUri = uri;
     },
@@ -202,9 +187,15 @@ export const navigation = ({
       () => {
         updateGdrive(["load", initProfile]);
       },
-      startNav,
+      () => document.addEventListener("scroll", onScroll),
       startSearchBox
     ),
-    stop: fork(stopNav, stopSearchBox),
+    stop: fork(
+      () => {
+        document.removeEventListener("scroll", onScroll);
+      },
+      stopSearchBox,
+      closeNavHeightListener
+    ),
   };
 };

@@ -170,10 +170,5 @@ export const storePage: PageView = ({
     onSuccessfullyAdded: () => refresh(),
   });
 
-  return div(
-    { class: "with-line-length-settings my-10" },
-    h2("Linked data"),
-    slotAdd,
-    slot
-  );
+  return div(h2("Linked data"), slotAdd, slot);
 };

@@ -14,7 +14,6 @@ export const editorPage: PageView = () => {
     }
   );
   return div(
-    { class: "with-line-length-settings my-10" },
     h2("Editor"),
     editorRoot,
     button(

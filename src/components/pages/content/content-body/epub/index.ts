@@ -208,8 +208,7 @@ const epubNav: View<{
 }> = ({ previousChapter, nextChapter, navigation }) =>
   div(
     {
-      class:
-        "d-flex flex-justify-between flex-items-center with-line-length-settings",
+      class: "d-flex flex-justify-between flex-items-center",
     },
     a(
       {

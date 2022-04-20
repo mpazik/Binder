@@ -14,7 +14,6 @@ export const dailyJournal: PageView = (controls, linkedData) => {
   const intervalUri = interval["@id"];
 
   return div(
-    { class: "with-line-length-settings my-10" },
     intervalNavigation(controls, interval),
     stack(
       { gap: "large" },
@@ -32,7 +31,6 @@ export const weeklyJournal: PageView = (controls, linkedData) => {
   const intervalUri = interval["@id"];
 
   return div(
-    { class: "with-line-length-settings my-10" },
     intervalNavigation(controls, interval),
     stack(
       { gap: "large" },
@@ -49,7 +47,6 @@ export const monthlyJournal: PageView = (controls, linkedData) => {
   const intervalUri = interval["@id"];
 
   return div(
-    { class: "with-line-length-settings my-10" },
     intervalNavigation(controls, interval),
     stack(
       { gap: "large" },
@@ -65,7 +62,6 @@ export const annualJournal: PageView = (controls, linkedData) => {
   const intervalUri = interval["@id"];
 
   return div(
-    { class: "with-line-length-settings my-10" },
     intervalNavigation(controls, interval),
     stack(
       { gap: "large" },

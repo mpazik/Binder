@@ -176,7 +176,10 @@ const containerView: View<{
       },
       fileDropSlot,
       accountPickerSlot,
-      contentSlot
+      div(
+        { class: "with-line-length-settings position-relative px-2 mb-4 mt-2" },
+        contentSlot
+      )
     )
   );
 
@@ -369,12 +372,15 @@ export const App = ({
       saveLinkedData
     );
 
+  const handledBySystem =
+    !initialContent || getType(initialContent) != "AboutPage";
+
   const [
     navigationSlot,
     { updateStoreState, updateGdriveState, setCurrentUri },
   ] = mountComponent(
     navigation({
-      displayed: !initialContent || getType(initialContent) != "AboutPage",
+      displayed: handledBySystem,
       initProfile: {
         repository: initRepo,
         user: lastLogin
@@ -452,14 +458,16 @@ export const App = ({
 
   const renderContainer: Callback = link(
     map(
-      to(
-        containerView({
-          navigationSlot,
-          contentSlot: contentLoaderSlot,
-          fileDropSlot,
-          accountPickerSlot,
-          onDragEnter: handleDragEvent,
-        })
+      to(() =>
+        handledBySystem
+          ? containerView({
+              navigationSlot,
+              contentSlot: contentLoaderSlot,
+              fileDropSlot,
+              accountPickerSlot,
+              onDragEnter: handleDragEvent,
+            })
+          : contentLoaderSlot
       )
     ),
     render

@@ -124,8 +124,7 @@ const pdfNav: View<{
 }> = ({ zoomIn, zoomOut, currentPage, numberOfPages, zoom }) =>
   div(
     {
-      class:
-        "d-flex flex-justify-between flex-items-center with-line-length-settings",
+      class: "d-flex flex-justify-between flex-items-center",
     },
     a(
       {

@@ -14,7 +14,7 @@ const newContentHeader: View<{
 }> = ({ categoriesSlot, linkedData }) => {
   const uri = findUrl(linkedData);
   return div(
-    { class: "Subhead with-line-length-settings" },
+    { class: "Subhead" },
     div({ class: "Subhead-heading" }, String(linkedData.name)),
     ...(uri && isLocalUri(uri)
       ? []

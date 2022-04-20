@@ -27,7 +27,6 @@ export const contentComponent: PageView = (controls, data) => {
     div(
       {
         id: "content-container",
-        class: "mb-3 position-relative px-4",
       },
       contentHeader(controls, linkedData),
       div(
