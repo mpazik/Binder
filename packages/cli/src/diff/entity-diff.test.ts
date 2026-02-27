@@ -291,13 +291,17 @@ describe("entity-diff", () => {
         // extraction fix in template.ts prevents null tombstones from reaching
         // here; this test confirms the crash path exists to justify that fix.
         expect(() =>
-          diffEntities(schema, {
-            ...project,
-            tasks: [{ title: "Implement user authentication", tags: null }],
-          }, {
-            ...project,
-            tasks: [{ ...task1, tags: ["urgent", "important"] }],
-          }),
+          diffEntities(
+            schema,
+            {
+              ...project,
+              tasks: [{ title: "Implement user authentication", tags: null }],
+            },
+            {
+              ...project,
+              tasks: [{ ...task1, tags: ["urgent", "important"] }],
+            },
+          ),
         ).toThrow(/is not an array: null/);
       });
     });

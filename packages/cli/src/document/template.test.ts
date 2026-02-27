@@ -1144,10 +1144,7 @@ Excellent first week. Schema is minimal and consistent.
         // The second child only has summary changed from null to "Good day."
         // No spurious null tombstones appear.
         expect(result).toEqual({
-          children: [
-            {},
-            { summary: "Good day." },
-          ],
+          children: [{}, { summary: "Good day." }],
         });
       });
     });

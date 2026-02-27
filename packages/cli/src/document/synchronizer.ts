@@ -290,12 +290,15 @@ export const synchronizeFile = async <N extends NamespaceEditable>(
   if (isErr(contentResult)) return contentResult;
   const content = contentResult.data;
 
+  const templateIncludes = navItem.template
+    ? templates.find((t) => t.key === navItem.template)?.templateIncludes
+    : undefined;
+  const includes = navItem.includes ?? templateIncludes;
+
   const baseResult = await kg.search(
     {
       filters: pathFields as Record<string, string>,
-      includes: navItem.includes
-        ? includesWithUid(navItem.includes)
-        : undefined,
+      includes: includes ? includesWithUid(includes) : undefined,
     },
     namespace,
   );
@@ -326,7 +329,7 @@ export const synchronizeFile = async <N extends NamespaceEditable>(
     namespace,
     extractResult.data,
     pathFields,
-    navItem.includes,
+    includes,
   );
   if (isErr(changesets)) return changesets;
 
