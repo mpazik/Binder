@@ -34,11 +34,20 @@ export const createPatternValidator =
   (value, _context) =>
     pattern.test(value) ? undefined : errorMessage;
 
+/**
+ * Remove fenced code block content from a markdown string so that
+ * structural checks (headers, horizontal rules) only inspect prose.
+ * Handles unclosed code blocks by treating everything from the opening
+ * fence to end-of-string as code.
+ */
+const stripFencedCodeBlocks = (value: string): string =>
+  value.replace(/^(`{3,})[^\n]*\n[\s\S]*?(?:^\1\s*$|$(?![\s\S]))/gm, "");
+
 const containsMarkdownHeader = (value: string): boolean =>
-  /^#{1,6}\s/m.test(value);
+  /^#{1,6}\s/m.test(stripFencedCodeBlocks(value));
 
 const containsHorizontalRule = (value: string): boolean =>
-  /^-{3,}\s*$/m.test(value);
+  /^-{3,}\s*$/m.test(stripFencedCodeBlocks(value));
 
 /**
  * Check if value contains any markdown header at or above (shallower than) the given depth.
@@ -50,7 +59,7 @@ const containsHeaderAtOrAboveDepth = (
   depth: number,
 ): boolean => {
   const pattern = new RegExp(`^#{1,${depth}}\\s`, "m");
-  return pattern.test(value);
+  return pattern.test(stripFencedCodeBlocks(value));
 };
 
 export const plaintextFormats = {

@@ -416,6 +416,14 @@ describe("data-type-validators", () => {
         });
         checkErr("richtext", "content\n---\nmore", { fieldDef });
       });
+
+      it("ignores headers inside fenced code blocks", () => {
+        checkOk("richtext", "content\n```\n# header\n```", { fieldDef });
+      });
+
+      it("ignores horizontal rules inside fenced code blocks", () => {
+        checkOk("richtext", "content\n```\n---\n```", { fieldDef });
+      });
     });
 
     describe("format: section", () => {
@@ -456,6 +464,47 @@ describe("data-type-validators", () => {
           message: "cannot contain horizontal rules",
         });
       });
+
+      it("ignores headers inside fenced code blocks", () => {
+        checkOk(
+          "richtext",
+          "### Heading\n\n```markdown\n# {title}\n## {subtitle}\n```",
+          { fieldDef },
+        );
+      });
+
+      it("ignores horizontal rules inside fenced code blocks", () => {
+        checkOk(
+          "richtext",
+          "### Heading\n\n```yaml\n---\ntitle: Test\n---\n```",
+          { fieldDef },
+        );
+      });
+
+      it("still rejects headers outside code blocks", () => {
+        checkErr("richtext", "```\n# safe\n```\n\n# Not safe\n\nContent", {
+          fieldDef,
+        });
+      });
+
+      it("still rejects horizontal rules outside code blocks", () => {
+        checkErr("richtext", "```\n---\n```\n\n---\n\nContent", {
+          fieldDef,
+          message: "cannot contain horizontal rules",
+        });
+      });
+
+      it("handles unclosed code blocks conservatively", () => {
+        checkOk("richtext", "### Heading\n\n```\n# hidden\n---", { fieldDef });
+      });
+
+      it("handles code blocks with language identifiers", () => {
+        checkOk(
+          "richtext",
+          "### Heading\n\n```javascript\n// # not a header\n```",
+          { fieldDef },
+        );
+      });
     });
 
     describe("format: document", () => {
@@ -477,6 +526,19 @@ describe("data-type-validators", () => {
           message: "cannot contain horizontal rules",
         });
         checkErr("richtext", "# Title\n---\ncontent", { fieldDef });
+      });
+
+      it("ignores horizontal rules inside fenced code blocks", () => {
+        checkOk("richtext", "# Title\n\n```yaml\n---\nkey: value\n---\n```", {
+          fieldDef,
+        });
+      });
+
+      it("still rejects horizontal rules outside code blocks", () => {
+        checkErr("richtext", "```\n---\n```\n\n---", {
+          fieldDef,
+          message: "cannot contain horizontal rules",
+        });
       });
     });
   });
