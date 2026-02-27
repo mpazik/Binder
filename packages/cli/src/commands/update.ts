@@ -43,7 +43,7 @@ const updateHandler: CommandHandlerWithDb<{
     );
     if (isErr(result)) return result;
 
-    ui.printData(result.data, args.format);
+    ui.printTransaction(result.data, args.format ?? "full");
     return ok(undefined);
   }
 
@@ -69,7 +69,7 @@ const updateHandler: CommandHandlerWithDb<{
   );
   if (isErr(result)) return result;
 
-  ui.printData(result.data, args.format);
+  ui.printTransaction(result.data, args.format ?? "full");
   return ok(undefined);
 };
 

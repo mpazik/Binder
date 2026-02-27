@@ -14,7 +14,11 @@ import {
   type ValueChange,
 } from "@binder/db";
 import { type ErrorObject, noop, noopAsync } from "@binder/utils";
-import { serialize, type SerializeFormat } from "../utils/serialize.ts";
+import {
+  serialize,
+  type SerializeFormat,
+  type SerializeItemFormat,
+} from "../utils/serialize.ts";
 
 export const Style = {
   TEXT_HIGHLIGHT: "\x1b[95m",
@@ -265,11 +269,19 @@ const printEntityChanges = (
   }
 };
 
-export type TransactionFormat = "oneline" | "concise" | "full";
+export type TransactionFormat =
+  | "oneline"
+  | "concise"
+  | "full"
+  | SerializeItemFormat;
 const printTransaction = (
   transaction: Transaction,
   format: TransactionFormat = "concise",
 ) => {
+  if (format === "json" || format === "yaml") {
+    printData(transaction, format);
+    return;
+  }
   const hash =
     format === "full" ? transaction.hash : shortTransactionHash(transaction);
   const timestamp = new Date(transaction.createdAt).toISOString();
@@ -405,7 +417,10 @@ export const createUi = (options: { quiet?: boolean } = {}): Ui => {
       error,
       printError,
       printData,
-      printTransaction: noop,
+      printTransaction: (transaction, format) => {
+        if (format === "json" || format === "yaml")
+          printData(transaction, format);
+      },
     };
   }
 
