@@ -10,11 +10,10 @@ import {
   wrapError,
 } from "@binder/utils";
 import { type TransactionInput, TransactionInputSchema } from "@binder/db";
-import type { SerializeFormat } from "./serialize.ts";
 
 export type InputFormat = "yaml" | "json" | "jsonl";
 
-export const detectFileFormat = (path: string): SerializeFormat => {
+export const detectFileFormat = (path: string): InputFormat => {
   if (path.endsWith(".yaml") || path.endsWith(".yml")) return "yaml";
   if (path.endsWith(".jsonl")) return "jsonl";
   return "json";

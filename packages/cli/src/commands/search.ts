@@ -17,7 +17,7 @@ import {
   namespaceOption,
   orderByOption,
 } from "../cli/options.ts";
-import type { SerializeFormat } from "../utils/serialize.ts";
+import { type SerializeFormat, flatListFormats } from "../utils/serialize.ts";
 import { applySelection } from "../utils/selection.ts";
 import { isStdinPiped, readStdinAs } from "../cli/stdin.ts";
 
@@ -56,7 +56,9 @@ const searchHandler: CommandHandlerWithDb<{
     if (isErr(result)) return result;
 
     const items = applySelection(result.data.items, { limit: args.limit });
-    const data = args.format === "jsonl" ? items : { ...result.data, items };
+    const data = flatListFormats.includes(args.format!)
+      ? items
+      : { ...result.data, items };
     ui.printData(data, args.format);
     return ok(undefined);
   }
@@ -70,7 +72,9 @@ const searchHandler: CommandHandlerWithDb<{
   if (isErr(result)) return result;
 
   const items = applySelection(result.data.items, { limit: args.limit });
-  const data = args.format === "jsonl" ? items : { ...result.data, items };
+  const data = flatListFormats.includes(args.format!)
+    ? items
+    : { ...result.data, items };
   ui.printData(data, args.format);
   return ok(undefined);
 };

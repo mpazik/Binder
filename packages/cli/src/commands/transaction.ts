@@ -733,15 +733,8 @@ export const TransactionCommand = types({
                 alias: "f",
                 describe: "output format",
                 type: "string",
-                choices: [
-                  "compact",
-                  "full",
-                  "oneline",
-                  "json",
-                  "jsonl",
-                  "yaml",
-                ],
-                default: "compact",
+                choices: ["concise", "full", "oneline", ...serializeFormats],
+                default: "concise",
               })
               .option("oneline", {
                 describe:
