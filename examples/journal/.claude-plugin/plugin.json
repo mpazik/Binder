@@ -1,0 +1,8 @@
+{
+  "name": "journal",
+  "description": "Personal journaling system built on Binder — morning briefings, day planning, reflections, summaries, and period-level goal tracking.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Binder"
+  }
+}

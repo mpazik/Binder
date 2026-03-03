@@ -135,6 +135,21 @@
       dataType: integer
       description: Average of all scores (1-10)
 
+    - key: healthData
+      type: Field
+      name: Health Data
+      dataType: richtext
+      richtextFormat: line
+      allowMultiple: true
+      description: Summary of health data imported from a third party like Apple Health
+
+    - key: intention
+      type: Field
+      name: Intention
+      dataType: richtext
+      richtextFormat: line
+      description: A principle to operate by — not a task. E.g. "protect mornings for deep work", "don't context-switch before finishing the PR", "ship over polish."
+
     # ====================
     # TYPES
     # ====================
@@ -145,6 +160,7 @@
       description: Daily journal entry
       fields:
         - dayPeriod: { required: true }
+        - intention
         - parent: { only: [JournalWeek] }
         - moodScore
         - sleepScore
@@ -157,6 +173,7 @@
         - events
         - log
         - summary
+        - healthData
 
     - key: JournalWeek
       type: Type
@@ -164,6 +181,7 @@
       description: Weekly journal entry
       fields:
         - weekPeriod: { required: true }
+        - intention
         - parent: { only: [JournalMonth] }
         - totalScore
         - goal

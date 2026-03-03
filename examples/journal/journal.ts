@@ -8,10 +8,11 @@
 // with optional prev/next offset navigation.
 //
 // Usage:
-//   journal [granularity] [offset]
+//   journal [granularity] [offset] [--key]
 //   journal              → today
-//   journal w p          → previous week
-//   journal m n          → next month
+//   journal w -1         → previous week
+//   journal m +1         → next month
+//   journal w --key      → current week (binder key only)
 //
 // Setup:
 //   JOURNAL_DIR   Path to your journal workspace directory (required)
@@ -43,13 +44,16 @@ const GRANULARITY_ALIASES: Record<string, Granularity> = Object.fromEntries(
   GRANULARITIES.map((g) => [g[0], g]),
 ) as Record<string, Granularity>;
 
-type Offset = "current" | "prev" | "next";
+type Offset = number;
 
 const OFFSET_ALIASES: Record<string, Offset> = {
-  p: "prev",
-  previous: "prev",
-  n: "next",
-  c: "current",
+  p: -1,
+  prev: -1,
+  previous: -1,
+  n: 1,
+  next: 1,
+  c: 0,
+  current: 0,
 };
 
 const prefix = (g: Granularity) => `j${g[0]}`;
@@ -60,7 +64,7 @@ const parentGranularity = (g: Granularity): Granularity | undefined =>
   GRANULARITIES[GRANULARITIES.indexOf(g) + 1];
 
 const showHelp = () => {
-  console.log(`Usage: journal [granularity] [offset]
+  console.log(`Usage: journal [granularity] [offset] [--key]
 
 Granularity:
   d, day      Day (default)
@@ -70,33 +74,54 @@ Granularity:
   y, year     Year
 
 Offset:
-  p, prev     Previous period
-  n, next     Next period
+  p, prev, -1   Previous period
+  n, next, +1   Next period
+  -2, +3, ...   Numeric offset (any integer)
+
+Options:
+  --key       Print the binder key instead of the file path
 
 Examples:
-  journal           Today
-  journal p         Yesterday
+  journal           Today (file path)
+  journal --key     Today (binder key, e.g. jd-2026-03-25)
+  journal -1        Yesterday
   journal w         Current week
-  journal w p       Previous week
-  journal m n       Next month`);
+  journal w -1      Previous week
+  journal m +1      Next month`);
 };
 
 const isGranularity = (s: string): s is Granularity =>
   GRANULARITIES.includes(s as Granularity);
-const isOffset = (s: string): s is Offset =>
-  s === "current" || s === "prev" || s === "next";
+
+const parseOffset = (s: string): Offset | undefined => {
+  if (s in OFFSET_ALIASES) return OFFSET_ALIASES[s]!;
+  const n = parseInt(s, 10);
+  if (!isNaN(n)) return n;
+  return undefined;
+};
 
 const parseArgs = (
   args: string[],
-): { granularity: Granularity; offset: Offset } | null => {
-  const first = args[0]?.toLowerCase();
+): { granularity: Granularity; offset: Offset; keyOnly: boolean } | null => {
+  // Extract flags before positional parsing
+  const positional: string[] = [];
+  let keyOnly = false;
+  for (const arg of args) {
+    if (arg === "--key") {
+      keyOnly = true;
+    } else {
+      positional.push(arg);
+    }
+  }
+
+  const first = positional[0]?.toLowerCase();
 
   if (first === "-h" || first === "--help") {
     showHelp();
     return null;
   }
 
-  const second = args[1]?.toLowerCase();
+  const second = positional[1]?.toLowerCase();
 
   const isFirstGranularity =
     first && (GRANULARITY_ALIASES[first] || isGranularity(first));
@@ -104,18 +129,14 @@ const parseArgs = (
     ? (GRANULARITY_ALIASES[first] ?? (first as Granularity))
     : "day";
   const offsetArg = isFirstGranularity ? second : first;
-  const offset: Offset = offsetArg
-    ? (OFFSET_ALIASES[offsetArg] ??
-      (isOffset(offsetArg)
-        ? offsetArg
-        : (() => {
-            console.error(`Unknown argument: "${offsetArg}"`);
-            showHelp();
-            process.exit(1);
-          })()))
-    : "current";
+  if (offsetArg && parseOffset(offsetArg) === undefined) {
+    console.error(`Unknown argument: "${offsetArg}"`);
+    showHelp();
+    process.exit(1);
+  }
+  const offset: Offset = offsetArg ? parseOffset(offsetArg)! : 0;
 
-  return { granularity, offset };
+  return { granularity, offset, keyOnly };
 };
 
 const getWeekNumber = (date: Date): number => {
@@ -144,25 +165,24 @@ const applyOffset = (
   granularity: Granularity,
   offset: Offset,
 ): Date => {
-  if (offset === "current") return date;
-  const delta = offset === "next" ? 1 : -1;
+  if (offset === 0) return date;
   const result = new Date(date);
 
   switch (granularity) {
     case "day":
-      result.setDate(result.getDate() + delta);
+      result.setDate(result.getDate() + offset);
       break;
     case "week":
-      result.setDate(result.getDate() + delta * 7);
+      result.setDate(result.getDate() + offset * 7);
       break;
     case "month":
-      result.setMonth(result.getMonth() + delta);
+      result.setMonth(result.getMonth() + offset);
       break;
     case "quarter":
-      result.setMonth(result.getMonth() + delta * 3);
+      result.setMonth(result.getMonth() + offset * 3);
       break;
     case "year":
-      result.setFullYear(result.getFullYear() + delta);
+      result.setFullYear(result.getFullYear() + offset);
       break;
   }
   return result;
@@ -294,7 +314,7 @@ const createEntities = async (specs: EntitySpec[]): Promise<boolean> => {
 const parsed = parseArgs(process.argv.slice(2));
 if (!parsed) process.exit(0);
 
-const { granularity, offset } = parsed;
+const { granularity, offset, keyOnly } = parsed;
 const targetDate = applyOffset(new Date(), granularity, offset);
 
 const specs = buildEntitySpecs(targetDate, granularity);
@@ -302,7 +322,13 @@ const missing = await findMissingEntities(specs);
 
 if (!(await createEntities(missing))) process.exit(1);
 
-const key = specs[0].key;
+const key = specs[0]!.key;
+
+if (keyOnly) {
+  console.log(key);
+  process.exit(0);
+}
+
 const locateResult = await binder(["locate", key]);
 if (!locateResult.success) {
   console.error(`Failed to locate ${key}: ${locateResult.output}`);
