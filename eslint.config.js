@@ -57,7 +57,7 @@ export default ts.config(
     },
   },
   {
-    files: [".opencode/**/*.ts"],
+    files: ["examples/**/*.ts", "workflow/**/*.ts"],
     rules: {
       "no-restricted-syntax": "off",
       "no-console": "off",
@@ -65,6 +65,8 @@ export default ts.config(
   },
   {
     ignores: [
+      "**/integration/",
+      "**/out/",
       "**/build/",
       "**/dist/",
       "eslint.config.js",

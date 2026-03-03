@@ -17,7 +17,6 @@ docs-dev/
 # Docs — ignore all except curated public content
 docs/*
 !docs/concepts/
-docs/concepts/drafts/
 !docs/contributing/
 !docs/guides/
 !docs/screenshots/
@@ -37,8 +36,9 @@ jspm_packages/
 dist
 build
 
-# Building artifats
-specs/
+# WIP
+workflow/
+.pi
 
 # dotenv environment variable files
 .env

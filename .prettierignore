@@ -1,5 +1,5 @@
 dist
-pnpm-lock.yaml
 **/migrations/**
 *.md
+*.yaml
 *.d.ts
