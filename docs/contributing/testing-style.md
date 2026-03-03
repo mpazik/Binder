@@ -1,8 +1,9 @@
 ---
 key: testing-style
+title: Testing Style
 tags: [ contributing ]
 description: Testing conventions and patterns used across the binder codebase.
-relatesTo: [ 0p6Bn8kQ60g ]
+relatesTo: [ 7W51TAkqiCA ]
 ---
 
 # Testing Style

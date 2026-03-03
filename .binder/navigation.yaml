@@ -1,0 +1,240 @@
+items:
+  - key: nav-backlog
+    where:
+      type: Task
+      status: draft
+    path: backlog/{priority} {key}
+    template: task-template
+
+  - key: nav-tasks
+    where:
+      type: Task
+      status: { op: in, value: [ pending, active, paused ] }
+    path: tasks/{priority} {key}
+    template: task-template
+
+  - key: nav-archive-tasks
+    where:
+      type: Task
+      status: complete
+    path: archive/tasks/{key}
+    template: task-template
+
+  - key: nav-archive-tasks-cancelled
+    where:
+      type: Task
+      status: cancelled
+    path: archive/tasks/cancelled/{key}
+    template: task-template
+
+  - key: nav-milestones-index
+    query:
+      filters:
+        type: Milestone
+        status: { op: notIn, value: [ cancelled ] }
+      includes: { key: true, title: true, status: true, dueDate: true }
+    path: milestones
+
+  - key: nav-milestones
+    where:
+      type: Milestone
+    path: milestones/{key}
+    template: milestone-template
+
+  - key: nav-problems-index
+    query:
+      filters:
+        type: Problem
+        status: { op: in, value: [ active, paused ] }
+      includes: { key: true, title: true, status: true, question: true }
+    path: problems
+
+  - key: nav-problems
+    where:
+      type: Problem
+      status: { op: notIn, value: [ draft, cancelled ] }
+    path: problems/{key}
+    template: problem-template
+
+  - key: nav-problems-draft
+    where:
+      type: Problem
+      status: draft
+    path: drafts/problems/{key}
+    template: problem-template
+
+  - key: nav-archive-problems
+    where:
+      type: Problem
+      status: { op: in, value: [ complete, cancelled ] }
+    path: archive/problems/{key}
+    template: problem-template
+
+  - key: nav-decisions-index
+    query:
+      filters:
+        type: Decision
+        status: { op: notIn, value: [ draft, cancelled ] }
+      includes: { key: true, title: true, status: true, decisionProblem: true }
+    path: decisions
+
+  - key: nav-decisions
+    where:
+      type: Decision
+      status: { op: notIn, value: [ draft, cancelled ] }
+    path: decisions/{key}
+    template: decision-template
+
+  - key: nav-decisions-draft
+    where:
+      type: Decision
+      status: draft
+    path: drafts/decisions/{key}
+    template: decision-template
+
+  - key: nav-archive-decisions
+    where:
+      type: Decision
+      status: cancelled
+    path: archive/decisions/{key}
+    template: decision-template
+
+  - key: nav-use-cases-index
+    query:
+      filters: { type: UseCase }
+      includes: { key: true, title: true, actor: true }
+    path: use-cases
+
+  - key: nav-use-cases
+    where:
+      type: UseCase
+    path: use-cases/{key}
+    template: use-case-template
+
+  - key: nav-features-index
+    query:
+      filters:
+        type: Feature
+        status: { op: notIn, value: [ draft, cancelled ] }
+      includes: { key: true, title: true, status: true, tags: true }
+    path: features
+
+  - key: nav-features
+    where:
+      type: Feature
+      status: { op: notIn, value: [ draft, cancelled ] }
+      tags: { op: notIn, value: [ data-model, cli, lsp, rendering, data-access, sync ] }
+    path: features/{key}
+    template: feature-template
+
+  - key: nav-features-data-model
+    where:
+      type: Feature
+      status: { op: notIn, value: [ draft, cancelled ] }
+      tags: data-model
+    path: features/data-model/{key}
+    template: feature-template
+
+  - key: nav-features-cli
+    where:
+      type: Feature
+      status: { op: notIn, value: [ draft, cancelled ] }
+      tags: cli
+    path: features/cli/{key}
+    template: feature-template
+
+  - key: nav-features-lsp
+    where:
+      type: Feature
+      status: { op: notIn, value: [ draft, cancelled ] }
+      tags: lsp
+    path: features/lsp/{key}
+    template: feature-template
+
+  - key: nav-features-rendering
+    where:
+      type: Feature
+      status: { op: notIn, value: [ draft, cancelled ] }
+      tags: rendering
+    path: features/rendering/{key}
+    template: feature-template
+
+  - key: nav-features-data-access
+    where:
+      type: Feature
+      status: { op: notIn, value: [ draft, cancelled ] }
+      tags: data-access
+    path: features/data-access/{key}
+    template: feature-template
+
+  - key: nav-features-sync
+    where:
+      type: Feature
+      status: { op: notIn, value: [ draft, cancelled ] }
+      tags: sync
+    path: features/sync/{key}
+    template: feature-template
+
+  - key: nav-features-draft
+    where:
+      type: Feature
+      status: draft
+    path: drafts/features/{key}
+    template: feature-template
+
+  - key: nav-archive-features
+    where:
+      type: Feature
+      status: cancelled
+    path: archive/features/{key}
+    template: feature-template
+
+  - key: nav-concepts-index
+    query:
+      filters:
+        type: Concept
+        status: { op: notIn, value: [ draft, cancelled ] }
+      includes: { key: true, name: true, description: true, status: true }
+    path: concepts
+
+  - key: nav-concepts
+    where:
+      type: Concept
+      status: { op: notIn, value: [ draft, cancelled ] }
+    path: concepts/{key}
+    template: concept-template
+
+  - key: nav-concepts-draft
+    where:
+      type: Concept
+      status: draft
+    path: drafts/concepts/{key}
+    template: concept-template
+
+  - key: nav-archive-concepts
+    where:
+      type: Concept
+      status: cancelled
+    path: archive/concepts/{key}
+    template: concept-template
+
+  - key: nav-contributing
+    where:
+      type: Note
+      tags: contributing
+    path: contributing/{key}
+    template: note-template
+
+  - key: nav-guides
+    where:
+      type: Note
+      tags: guide
+    path: guides/{key}
+    template: note-template
+
+  - key: nav-notes
+    where:
+      type: Note
+      tags: { op: notIn, value: [ guide, contributing ] }
+    path: notes/{key}
+    template: note-template

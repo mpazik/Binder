@@ -1,0 +1,292 @@
+items:
+  - key: status
+    name: Status
+    description: Lifecycle state of an item
+    dataType: option
+    options:
+      - key: draft
+        name: Draft
+        description: Just captured — not yet evaluated or planned
+      - key: pending
+        name: Pending
+        description: Refined and accepted — ready to start
+      - key: active
+        name: Active
+        description: Currently in progress
+      - key: paused
+        name: Paused
+        description: Started but deliberately suspended — intend to resume
+      - key: complete
+        name: Complete
+        description: Finished — meets its goals
+      - key: cancelled
+        name: Cancelled
+        description: Will not be done — no longer needed or superseded
+    default: draft
+
+  - key: dueDate
+    name: Due Date
+    description: Target completion date
+    dataType: date
+
+  - key: details
+    name: Details
+    description: Rich document body for detailed content, specifications, and notes
+    dataType: richtext
+    richtextFormat: section
+    sectionDepth: 2
+
+  - key: content
+    name: Content
+    description: Complete document content with full structure including headers
+    dataType: richtext
+    richtextFormat: document
+
+  - key: requires
+    name: Requires
+    description: Items that must be completed or resolved before this can proceed
+    dataType: relation
+    allowMultiple: true
+
+  - key: requiredBy
+    name: Required By
+    description: Items that depend on this being completed or resolved
+    dataType: relation
+    allowMultiple: true
+    inverseOf: requires
+
+  - key: respondsTo
+    name: Responds To
+    description: The item this is a candidate answer or evaluation of
+    dataType: relation
+
+  - key: responses
+    name: Responses
+    description: Candidate answers or evaluations of this item
+    dataType: relation
+    allowMultiple: true
+    inverseOf: respondsTo
+
+  - key: relatesTo
+    name: Related To
+    description: Symmetric relation linking related items in any direction
+    dataType: relation
+    allowMultiple: true
+    inverseOf: relatesTo
+
+  - key: partOf
+    name: Part Of
+    description: The parent grouping this belongs to
+    dataType: relation
+
+  - key: contains
+    name: Contains
+    description: Child items grouped under this record
+    dataType: relation
+    allowMultiple: true
+    inverseOf: partOf
+
+  - key: taskType
+    name: Task Type
+    description: The kind of work this task represents
+    dataType: option
+    options:
+      - key: fix
+        name: Fix
+        description: Something is broken — fix incorrect behaviour
+      - key: feat
+        name: Feature
+        description: New capability or user-facing functionality
+      - key: tweak
+        name: Tweak
+        description: Small non-bug adjustment — UI polish, defaults, thresholds, copy, edge-case handling
+      - key: refactor
+        name: Refactor
+        description: Restructure existing code without changing behaviour
+      - key: docs
+        name: Docs
+        description: Documentation work — README, guides, comments, API docs, tsdoc
+      - key: test
+        name: Test
+        description: Standalone test work — adding coverage, improving existing tests
+      - key: perf
+        name: Perf
+        description: Optimisation — queries, bundle size, caching, algorithms
+      - key: build
+        name: Build
+        description: Maintenance — CI/CD, dependencies, config, tooling
+      - key: agent
+        name: Agent
+        description: AI agent behaviour, prompts, or tooling
+
+  - key: size
+    name: Size
+    description: Scope and complexity of the task
+    dataType: option
+    options:
+      - key: small
+        name: Small
+        description: Few files modified, no decisions needed
+      - key: medium
+        name: Medium
+        description: Several files, one or two optional decisions
+      - key: large
+        name: Large
+        description: Multiple commits, non-trivial decisions required
+
+  - key: priority
+    name: Priority
+    description: How urgently this item needs attention
+    dataType: option
+    options:
+      - key: p0
+        name: Blocker
+        description: Blocks all other work — drop everything and fix
+      - key: p1
+        name: Urgent
+        description: Must be addressed in the current session
+      - key: p2
+        name: High
+        description: Important — do soon, but not blocking
+      - key: p3
+        name: Medium
+        description: Normal priority — scheduled in regular flow
+      - key: p4
+        name: Low
+        description: Nice to have — do when higher priorities are clear
+    default: p3
+
+  - key: module
+    name: Module
+    description: Which package(s) this work affects
+    dataType: option
+    options:
+      - key: cli
+        name: CLI
+        description: "@binder/cli — CLI, LSP, MCP, Markdown sync, schema loading"
+      - key: db
+        name: DB
+        description: "@binder/db — knowledge graph engine, entity/relationship storage, transactions"
+      - key: utils
+        name: Utils
+        description: "@binder/utils — shared pure helpers"
+
+  - key: acceptanceCriteria
+    name: Acceptance Criteria
+    description: Conditions that must be met — each should be independently verifiable
+    dataType: richtext
+    allowMultiple: true
+    richtextFormat: block
+
+  - key: constraints
+    name: Constraints
+    description: Boundaries that must be respected — performance, compatibility, what must not change
+    dataType: richtext
+    allowMultiple: true
+    richtextFormat: block
+
+  - key: outOfScope
+    name: Out of Scope
+    description: What is deliberately not covered — prevents scope creep
+    dataType: richtext
+    allowMultiple: true
+    richtextFormat: block
+
+  - key: potentialSolution
+    name: Potential Solution
+    description: Suggested direction or approach — not binding, may be revised
+    dataType: richtext
+    richtextFormat: section
+    sectionDepth: 2
+
+  - key: question
+    name: Question
+    description: The core question to be answered or resolved
+    dataType: richtext
+    richtextFormat: block
+
+  - key: argumentType
+    name: Argument Type
+    description: Whether this argument supports or opposes the option
+    dataType: option
+    options:
+      - key: pro
+        name: Pro
+        description: Evidence or reasoning in favour of the option
+      - key: con
+        name: Con
+        description: Evidence or reasoning against the option
+
+  - key: outcome
+    name: Outcome
+    description: The result or resolution and the reasoning behind it
+    dataType: richtext
+    richtextFormat: block
+
+  - key: consequences
+    name: Consequences
+    description: What becomes easier and what becomes harder as a result
+    dataType: richtext
+    allowMultiple: true
+    richtextFormat: block
+
+  - key: decisionProblem
+    name: Problem
+    description: The problem this decision resolves
+    dataType: relation
+    range: [ Problem ]
+
+  - key: decisionOption
+    name: Chosen Option
+    description: The option that was selected as the answer
+    dataType: relation
+    range: [ Option ]
+
+  - key: problemDecisions
+    name: Decisions
+    description: Decisions that have been made for this problem
+    dataType: relation
+    range: [ Decision ]
+    allowMultiple: true
+    inverseOf: decisionProblem
+
+  - key: optionDecisions
+    name: Decisions
+    description: Decisions where this option was chosen
+    dataType: relation
+    range: [ Decision ]
+    allowMultiple: true
+    inverseOf: decisionOption
+
+  - key: actor
+    name: Actor
+    description: The role or persona whose perspective this is told from
+    dataType: plaintext
+    plaintextFormat: line
+
+  - key: steps
+    name: Steps
+    description: The sequence of actions to accomplish the goal
+    dataType: plaintext
+    allowMultiple: true
+    plaintextFormat: line
+
+  - key: expectedOutcome
+    name: Expected Outcome
+    description: What is achieved — how the situation is concretely better after completion
+    dataType: richtext
+    richtextFormat: block
+
+  - key: alternativeNames
+    name: Alternative Names
+    description: Synonyms or alternative terms for this concept
+    dataType: plaintext
+    allowMultiple: true
+    plaintextFormat: line
+
+  - key: sourceFiles
+    name: Source Files
+    description: Paths to relevant source code and documentation files
+    dataType: plaintext
+    allowMultiple: true
+    plaintextFormat: filepath

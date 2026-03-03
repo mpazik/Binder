@@ -1,0 +1,8 @@
+*
+!.gitignore
+!README.md
+!config.yaml
+!types.yaml
+!fields.yaml
+!navigation.yaml
+!templates/

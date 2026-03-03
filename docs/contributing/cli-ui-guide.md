@@ -1,5 +1,6 @@
 ---
 key: cli-ui-guide
+title: CLI UI Guide
 tags: [ contributing ]
 ---
 
@@ -12,7 +13,7 @@ tags: [ contributing ]
 
 ### Layout Helpers
 
-- **`ui.block(fn)`** - Wrap final output with blank lines (1 before, 1 after)
+- **`ui.block(fn)`** — Wrap final output with blank lines (1 before, 1 after)
 
 ```typescript
 ui.block(() => {
@@ -20,34 +21,34 @@ ui.block(() => {
 });
 ```
 
-- **`ui.heading(text)`** - Section header with blank line before
+- **`ui.heading(text)`** — Section header with blank line before
 
 ```typescript
 ui.heading("Rolling back 3 transaction(s)");
 ```
 
-- **`ui.keyValue(key, value)`** - Dim label, normal value, 2-space indent
+- **`ui.keyValue(key, value)`** — Dim label, normal value, 2-space indent
 
 ```typescript
 ui.keyValue("Hash", transaction.hash);
 // Renders: "  Hash: abc123..."
 ```
 
-- **`ui.list(items, indent?)`** - Bullet list with `-`
+- **`ui.list(items, indent?)`** — Bullet list with `-`
 
 ```typescript
 ui.list(["item one", "item two"], 4);
 ```
 
-- **`ui.divider()`** - Subtle horizontal line for major sections
+- **`ui.divider()`** — Subtle horizontal line for major sections
 
 ### Message Functions
 
-- **`ui.success(message)`** - Green, no prefix
-- **`ui.warning(message)`** - Yellow with "WARNING:" prefix
-- **`ui.info(message)`** - Blue
-- **`ui.danger(message)`** - Red
-- **`ui.error(message)`** - Red with "Error:" prefix
+- **`ui.success(message)`** — Green, no prefix
+- **`ui.warning(message)`** — Yellow with "WARNING:" prefix
+- **`ui.info(message)`** — Blue
+- **`ui.danger(message)`** — Red
+- **`ui.error(message)`** — Red with "Error:" prefix
 
 ### Patterns
 

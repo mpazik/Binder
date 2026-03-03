@@ -1,8 +1,9 @@
 ---
 key: code-style
+title: Code Style
 tags: [ contributing ]
 description: Coding conventions and style guidelines for the binder codebase.
-relatesTo: [ 4i8-pf59bTA ]
+relatesTo: [ _2x8OuSEKLY ]
 ---
 
 # Code Style

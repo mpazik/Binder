@@ -1,0 +1,149 @@
+items:
+  - key: Task
+    name: Task
+    description: A deliverable unit of work with a defined type and size
+    fields:
+      - key: { required: true }
+      - title: { required: true }
+      - description: { description: Short summary of what needs to be done (1-2 sentences) }
+      - details
+      - status: { only: [ draft, pending, active, paused, complete, cancelled ] }
+      - taskType: { required: true }
+      - size
+      - priority
+      - module
+      - tags
+      - dueDate
+      - acceptanceCriteria: { description: Conditions that must be true for this task to be done }
+      - constraints: { description: What must NOT change or break during implementation }
+      - sourceFiles: { description: Source files to read or modify }
+      - outOfScope: { description: What this task deliberately does NOT cover }
+      - potentialSolution: { description: Suggested approach — may be revised during implementation }
+      - parent: { only: [ Task ] }
+      - children: { only: [ Task ] }
+      - requires
+      - requiredBy
+      - partOf: { only: [ Milestone ] }
+      - relatesTo
+
+  - key: Milestone
+    name: Milestone
+    description: A time-boxed goal grouping related tasks
+    fields:
+      - key: { required: true }
+      - title: { required: true }
+      - description: { description: What this milestone aims to achieve }
+      - details
+      - status: { only: [ draft, pending, active, paused, complete, cancelled ] }
+      - dueDate
+      - contains: { only: [ Task ], description: Tasks grouped under this milestone }
+
+  - key: Problem
+    name: Problem
+    description: A question that must be answered before work can proceed — structured as a deliberation with options, arguments, and a decision
+    fields:
+      - key: { required: true }
+      - title: { required: true }
+      - description: { description: Context and background for the question }
+      - details: { description: "Research, analysis, and findings" }
+      - question
+      - status: { default: active, only: [ draft, active, paused, complete, cancelled ] }
+      - tags
+      - parent: { only: [ Problem ] }
+      - children: { only: [ Problem ] }
+      - responses: { only: [ Option ], description: Candidate solutions to this problem }
+      - problemDecisions
+      - relatesTo
+      - requiredBy
+
+  - key: Option
+    name: Option
+    description: A candidate answer to a Problem
+    fields:
+      - title: { required: true }
+      - description: { description: How this option works and what it involves }
+      - respondsTo:
+          required: true
+          only: [ Problem ]
+          description: The problem this option addresses
+      - responses: { only: [ Argument ], description: Arguments for and against this option }
+      - optionDecisions
+
+  - key: Argument
+    name: Argument
+    description: Evidence for or against an Option
+    fields:
+      - title: { required: true }
+      - description: { description: The reasoning or evidence presented }
+      - argumentType: { required: true }
+      - respondsTo:
+          required: true
+          only: [ Option ]
+          description: The option this argument evaluates
+      - relatesTo
+
+  - key: Decision
+    name: Decision
+    description: A resolved Problem — captures what was chosen, why, and what follows
+    fields:
+      - key: { required: true }
+      - title: { required: true }
+      - description: { description: Summary of what was decided and why }
+      - details: { description: "Context, situation, forces, and full rationale" }
+      - status: { default: draft, only: [ draft, pending, complete, cancelled ] }
+      - tags
+      - outcome
+      - consequences
+      - decisionProblem: { required: true }
+      - decisionOption
+
+  - key: UseCase
+    name: Use Case
+    description: A real-world scenario describing how a person or agent uses binder to accomplish a goal — serves as evidence for feature priorities and architectural decisions
+    fields:
+      - title: { required: true }
+      - description: { description: What the user is trying to accomplish }
+      - details: { description: Full scenario narrative and context }
+      - actor
+      - tags
+      - requires: { description: Capabilities this use case depends on }
+      - steps: { description: Sequence of actions from the actor's perspective }
+      - expectedOutcome
+      - relatesTo
+
+  - key: Feature
+    name: Feature
+    description: A user-facing capability that delivers value — linked to use cases that motivate it and tasks that implement it
+    fields:
+      - key: { required: true }
+      - title: { required: true }
+      - description: { description: What this capability does from the user's perspective }
+      - details: { description: "Scope, design notes, and specification" }
+      - status: { only: [ draft, pending, active, complete, cancelled ] }
+      - tags
+      - sourceFiles: { description: Source files that implement this feature }
+      - relatesTo
+
+  - key: Concept
+    name: Concept
+    description: A primitive — a well-defined term with precise meaning in the system
+    fields:
+      - key: { required: true }
+      - name: { required: true }
+      - alternativeNames
+      - description: { description: Precise definition of this term in the system }
+      - details: { description: "Examples, usage patterns, and related concepts" }
+      - status: { only: [ draft, active, complete, cancelled ] }
+      - tags
+      - sourceFiles: { description: Source files where this concept is implemented }
+      - relatesTo
+
+  - key: Note
+    name: Note
+    description: Freeform reference material — notes, research, context
+    fields:
+      - title: { required: true }
+      - description: { description: Brief summary of what this note covers }
+      - content
+      - tags
+      - relatesTo
