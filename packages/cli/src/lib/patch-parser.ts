@@ -29,7 +29,15 @@ export const createPatchExamples = (
   command: string,
 ): readonly [string, string][] => [
   [`$0 ${command} title=Hello`, "Set field"],
-  [`$0 ${command} tags=a,b,c`, "Set array (comma-separated)"],
+  [`$0 ${command} tags=a,b,c`, "Set array (comma-delimited formats)"],
+  [
+    `$0 ${command} sourceFiles=$'a\\nb\\nc'`,
+    "Set array (newline-delimited formats)",
+  ],
+  [
+    `$0 ${command} content=$'first block\\n\\nsecond block'`,
+    "Set array (blankline-delimited formats)",
+  ],
   [`$0 ${command} tags+=urgent`, "Append to array"],
   [`$0 ${command} tags-=old`, "Remove from array"],
   [`$0 ${command} tags:0+=first`, "Insert at position"],
