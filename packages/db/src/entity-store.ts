@@ -1,6 +1,6 @@
 import {
   assertDefinedPass,
-  assertNotEmpty,
+  fail,
   includes,
   type JsonObject,
   objectFromKeys,
@@ -91,29 +91,29 @@ export const fetchEntityFieldset = async <N extends NamespaceEditable>(
   keys: FieldKey[],
 ): ResultAsync<Fieldset> => {
   const table = editableEntityTables[namespace];
-  return tryCatch(
-    tx
-      .select({
-        ...objectFromKeys(
-          keys.filter((key) => includes(tableStoredFields, key)),
-          (key) => table[key as keyof typeof table],
-        ),
-        fields: table.fields,
-      })
-      .from(table)
-      .where(entityRefClause(namespace, ref))
-      .limit(1)
-      .then((result) => {
-        assertNotEmpty(result);
-        const row = result[0];
-        const parsedFields = row.fields as Fieldset;
-        return objectFromKeys(keys, (key) => {
-          if (includes(tableStoredFields, key)) {
-            return row[key as keyof typeof row];
-          }
-          return parsedFields[key];
-        }) as Fieldset;
-      }),
+  const result = await tx
+    .select({
+      ...objectFromKeys(
+        keys.filter((key) => includes(tableStoredFields, key)),
+        (key) => table[key as keyof typeof table],
+      ),
+      fields: table.fields,
+    })
+    .from(table)
+    .where(entityRefClause(namespace, ref))
+    .limit(1);
+  if (result.length === 0) {
+    return fail("entity-not-found", `Record not found: ${ref}`);
+  }
+  const row = result[0];
+  const parsedFields = row.fields as Fieldset;
+  return ok(
+    objectFromKeys(keys, (key) => {
+      if (includes(tableStoredFields, key)) {
+        return row[key as keyof typeof row];
+      }
+      return parsedFields[key];
+    }) as Fieldset,
   );
 };
 
@@ -123,17 +123,15 @@ export const fetchEntity = async <N extends NamespaceEditable>(
   ref: EntityRef,
 ): ResultAsync<Fieldset> => {
   const table = editableEntityTables[namespace];
-  return tryCatch(
-    tx
-      .select()
-      .from(table)
-      .where(entityRefClause(namespace, ref))
-      .limit(1)
-      .then((result) => {
-        assertNotEmpty(result);
-        return dbModelToEntity(result[0]);
-      }),
-  );
+  const result = await tx
+    .select()
+    .from(table)
+    .where(entityRefClause(namespace, ref))
+    .limit(1);
+  if (result.length === 0) {
+    return fail("entity-not-found", `Record not found: ${ref}`);
+  }
+  return ok(dbModelToEntity(result[0]));
 };
 
 export const updateEntity = async <N extends NamespaceEditable>(
