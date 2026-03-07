@@ -1,5 +1,5 @@
 import { isErr, ok, type ResultAsync } from "@binder/utils";
-import { synchronizeFile } from "../../document/synchronizer.ts";
+import { extractFileChanges } from "../../document/change-extractor.ts";
 import { loadNavigation } from "../../document/navigation.ts";
 import type { RuntimeContextWithDb } from "../../runtime.ts";
 import {
@@ -45,7 +45,7 @@ export const handleDocumentSave = async (
   const templatesResult = await context.templates();
   if (isErr(templatesResult)) return templatesResult;
 
-  const syncResult = await synchronizeFile(
+  const syncResult = await extractFileChanges(
     fs,
     kg,
     config,

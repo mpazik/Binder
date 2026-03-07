@@ -50,7 +50,7 @@ import {
 import { normalizeReferences, normalizeReferencesList } from "./reference.ts";
 import { type Templates } from "./template-entity.ts";
 
-const synchronizeSingle = async (
+const diffSingle = async (
   kg: KnowledgeGraph,
   schema: EntitySchema,
   namespace: NamespaceEditable,
@@ -83,7 +83,7 @@ const synchronizeSingle = async (
   );
 };
 
-const synchronizeList = async (
+const diffList = async (
   kg: KnowledgeGraph,
   schema: EntitySchema,
   namespace: NamespaceEditable,
@@ -98,7 +98,7 @@ const synchronizeList = async (
   const kgResult = await kg.search(interpolatedQuery.data, namespace);
   if (isErr(kgResult)) return kgResult;
 
-  log?.debug("synchronizeList", {
+  log?.debug("diffList", {
     query: interpolatedQuery.data,
     fileEntities: entities.map((e) => ({ uid: e.uid, milestone: e.milestone })),
     dbEntities: kgResult.data.items.map((e) => ({
@@ -117,7 +117,7 @@ const synchronizeList = async (
     interpolatedQuery.data,
   );
 
-  log?.debug("synchronizeList diffResult", {
+  log?.debug("diffList diffResult", {
     toCreate: diffResult.toCreate.length,
     toUpdate: diffResult.toUpdate.length,
   });
@@ -125,7 +125,7 @@ const synchronizeList = async (
   return ok([...diffResult.toCreate, ...diffResult.toUpdate]);
 };
 
-const synchronizeProjection = async (
+const diffProjection = async (
   kg: KnowledgeGraph,
   schema: EntitySchema,
   namespace: NamespaceEditable,
@@ -157,7 +157,7 @@ const synchronizeProjection = async (
   return ok([...diffResult.toCreate, ...diffResult.toUpdate]);
 };
 
-const synchronizeDocument = async (
+const diffDocument = async (
   kg: KnowledgeGraph,
   schema: EntitySchema,
   namespace: NamespaceEditable,
@@ -193,7 +193,7 @@ const synchronizeDocument = async (
   );
 
   for (const projection of projections) {
-    const projectionResult = await synchronizeProjection(
+    const projectionResult = await diffProjection(
       kg,
       schema,
       namespace,
@@ -207,7 +207,7 @@ const synchronizeDocument = async (
   return ok(changesets);
 };
 
-const synchronizeExtracted = (
+const diffExtracted = (
   kg: KnowledgeGraph,
   schema: EntitySchema,
   namespace: NamespaceEditable,
@@ -217,18 +217,11 @@ const synchronizeExtracted = (
   log?: Logger,
 ): ResultAsync<ChangesetsInput> => {
   if (data.kind === "single") {
-    return synchronizeSingle(
-      kg,
-      schema,
-      namespace,
-      data.entity,
-      pathFields,
-      includes,
-    );
+    return diffSingle(kg, schema, namespace, data.entity, pathFields, includes);
   }
 
   if (data.kind === "list") {
-    return synchronizeList(
+    return diffList(
       kg,
       schema,
       namespace,
@@ -239,7 +232,7 @@ const synchronizeExtracted = (
     );
   }
 
-  return synchronizeDocument(
+  return diffDocument(
     kg,
     schema,
     namespace,
@@ -250,11 +243,11 @@ const synchronizeExtracted = (
   );
 };
 
-// NOTE: Do not write to the database in this function. synchronizeFile runs
+// NOTE: Do not write to the database in this function. extractFileChanges runs
 // outside the file lock scope. DB writes here cause "database is locked"
 // errors under concurrent access (LSP + CLI, or parallel CLI processes).
 // See: fix-lsp-db-locking-on-save
-export const synchronizeFile = async <N extends NamespaceEditable>(
+export const extractFileChanges = async <N extends NamespaceEditable>(
   fs: FileSystem,
   kg: KnowledgeGraph,
   config: AppConfig,
@@ -322,7 +315,7 @@ export const synchronizeFile = async <N extends NamespaceEditable>(
     return extractResult;
   }
 
-  const changesets = await synchronizeExtracted(
+  const changesets = await diffExtracted(
     kg,
     schema,
     namespace,
@@ -335,7 +328,7 @@ export const synchronizeFile = async <N extends NamespaceEditable>(
   return changesets;
 };
 
-const synchronizeNamespaceFiles = async <N extends NamespaceEditable>(
+const extractNamespaceChanges = async <N extends NamespaceEditable>(
   { fs, config, kg, nav }: RuntimeContextWithDb,
   modifiedFiles: SnapshotChangeMetadata[],
   namespace: N,
@@ -348,7 +341,7 @@ const synchronizeNamespaceFiles = async <N extends NamespaceEditable>(
   if (isErr(schemaResult)) return schemaResult;
 
   for (const file of modifiedFiles) {
-    const syncResult = await synchronizeFile(
+    const syncResult = await extractFileChanges(
       fs,
       kg,
       config,
@@ -407,7 +400,7 @@ const detectCrossFileConflicts = <N extends NamespaceEditable>(
   return ok(undefined);
 };
 
-export const synchronizeModifiedFiles = async (
+export const extractModifiedFileChanges = async (
   runtime: RuntimeContextWithDb,
   scopePath?: string,
   log?: Logger,
@@ -462,8 +455,8 @@ export const synchronizeModifiedFiles = async (
   const templates = templatesResult.data;
 
   const [configsResult, recordsResult] = await Promise.all([
-    synchronizeNamespaceFiles(runtime, configFiles, "config", templates),
-    synchronizeNamespaceFiles(runtime, nodeFiles, "record", templates),
+    extractNamespaceChanges(runtime, configFiles, "config", templates),
+    extractNamespaceChanges(runtime, nodeFiles, "record", templates),
   ]);
 
   if (isErr(configsResult)) return configsResult;
@@ -472,7 +465,7 @@ export const synchronizeModifiedFiles = async (
   const configs = configsResult.data;
   const records = recordsResult.data;
 
-  log?.debug("Changesets after synchronization", {
+  log?.debug("Changesets after extraction", {
     configChangesets: configs.length,
     nodeChangesets: records.length,
     nodeDetails: records.map((n) => {

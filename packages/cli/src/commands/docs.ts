@@ -7,7 +7,7 @@ import {
   runtimeWithDb,
 } from "../runtime.ts";
 import { renderDocs } from "../document/repository.ts";
-import { synchronizeModifiedFiles } from "../document/synchronizer.ts";
+import { extractModifiedFileChanges } from "../document/change-extractor.ts";
 import {
   findNavigationItemByPath,
   loadNavigation,
@@ -37,7 +37,7 @@ export const docsSyncHandler: CommandHandlerWithDb<{
   path?: string;
 }> = async (ctx) => {
   const { kg, ui, args, log } = ctx;
-  const syncResult = await synchronizeModifiedFiles(ctx, args.path, log);
+  const syncResult = await extractModifiedFileChanges(ctx, args.path, log);
   if (isErr(syncResult)) return syncResult;
 
   if (syncResult.data === null) {

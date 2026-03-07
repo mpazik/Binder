@@ -24,7 +24,10 @@ import { createMockRuntimeContextWithDb } from "../runtime.mock.ts";
 import type { RuntimeContextWithDb } from "../runtime.ts";
 import { mockDocumentTransactionInput } from "./document.mock.ts";
 import { mockNavigationConfigInput } from "./navigation.mock.ts";
-import { synchronizeFile, synchronizeModifiedFiles } from "./synchronizer.ts";
+import {
+  extractFileChanges,
+  extractModifiedFileChanges,
+} from "./change-extractor.ts";
 import { renderYamlEntity, renderYamlList } from "./yaml.ts";
 import { type NavigationItem } from "./navigation.ts";
 import {
@@ -89,7 +92,7 @@ describe("synchronizeFile", () => {
     throwIfError(await ctx.fs.mkdir(dirname(fullPath), { recursive: true }));
     throwIfError(await ctx.fs.writeFile(fullPath, content));
     const result = throwIfError(
-      await synchronizeFile(
+      await extractFileChanges(
         ctx.fs,
         kg,
         ctx.config,
@@ -154,7 +157,7 @@ status: active
       const fullPath = join(ctx.config.paths.docs, filePath);
       throwIfError(await ctx.fs.mkdir(dirname(fullPath), { recursive: true }));
       throwIfError(await ctx.fs.writeFile(fullPath, markdown));
-      const result = await synchronizeFile(
+      const result = await extractFileChanges(
         ctx.fs,
         kg,
         ctx.config,
@@ -275,7 +278,7 @@ status: active
     ) => {
       throwIfError(await ctx.fs.writeFile(filePath, content));
       const result = throwIfError(
-        await synchronizeModifiedFiles(ctx, filePath),
+        await extractModifiedFileChanges(ctx, filePath),
       );
       if (expected === null) {
         expect(result).toEqual(null);
@@ -286,7 +289,7 @@ status: active
 
     it("returns null when no modified files in docs folder", async () => {
       const result = throwIfError(
-        await synchronizeModifiedFiles(ctx, ctx.config.paths.docs),
+        await extractModifiedFileChanges(ctx, ctx.config.paths.docs),
       );
       expect(result).toEqual(null);
     });
@@ -349,7 +352,10 @@ ${mockTask1Record.description}
         ),
       );
 
-      const result = await synchronizeModifiedFiles(ctx, ctx.config.paths.docs);
+      const result = await extractModifiedFileChanges(
+        ctx,
+        ctx.config.paths.docs,
+      );
       expect(result).toBeErrWithKey("field-conflict");
     });
 

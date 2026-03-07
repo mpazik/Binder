@@ -8,7 +8,7 @@ import type { RuntimeContextWithDb } from "../runtime.ts";
 import { loadBlueprint } from "../lib/blueprint.ts";
 import { createRealFileSystem } from "../lib/filesystem.ts";
 import { renderDocs } from "./repository.ts";
-import { synchronizeModifiedFiles } from "./synchronizer.ts";
+import { extractModifiedFileChanges } from "./change-extractor.ts";
 
 /**
  * Integration tests that bootstrap from the project blueprint,
@@ -60,7 +60,7 @@ describe("blueprint conflict detection", () => {
       throwIfError(await ctx.fs.writeFile(filePath, modified));
 
       const result = throwIfError(
-        await synchronizeModifiedFiles(ctx, filePath),
+        await extractModifiedFileChanges(ctx, filePath),
       );
       expect(result).toMatchObject({
         records: [expect.objectContaining({ status: "complete" })],
@@ -76,7 +76,7 @@ describe("blueprint conflict detection", () => {
         .replace("status: active", "status: cancelled");
       throwIfError(await ctx.fs.writeFile(filePath, modified));
 
-      const result = await synchronizeModifiedFiles(ctx, filePath);
+      const result = await extractModifiedFileChanges(ctx, filePath);
       expect(result).toBeErrWithKey("field-conflict");
     });
   });
@@ -95,7 +95,7 @@ describe("blueprint conflict detection", () => {
       throwIfError(await ctx.fs.writeFile(filePath, modified));
 
       const result = throwIfError(
-        await synchronizeModifiedFiles(ctx, filePath),
+        await extractModifiedFileChanges(ctx, filePath),
       );
       expect(result).toMatchObject({
         records: [expect.objectContaining({ title: "Updated auth flow" })],
@@ -113,7 +113,7 @@ describe("blueprint conflict detection", () => {
       throwIfError(await ctx.fs.writeFile(filePath, modified));
 
       const result = throwIfError(
-        await synchronizeModifiedFiles(ctx, filePath),
+        await extractModifiedFileChanges(ctx, filePath),
       );
       expect(result).toMatchObject({
         records: [expect.objectContaining({ title: "Different title here" })],
@@ -132,7 +132,7 @@ describe("blueprint conflict detection", () => {
         );
       throwIfError(await ctx.fs.writeFile(filePath, modified));
 
-      const result = await synchronizeModifiedFiles(ctx, filePath);
+      const result = await extractModifiedFileChanges(ctx, filePath);
       expect(result).toBeErrWithKey("field-conflict");
     });
   });
@@ -160,7 +160,10 @@ describe("blueprint conflict detection", () => {
       throwIfError(await ctx.fs.writeFile(mdPath, mdModified));
       throwIfError(await ctx.fs.writeFile(yamlPath, yamlModified));
 
-      const result = await synchronizeModifiedFiles(ctx, ctx.config.paths.docs);
+      const result = await extractModifiedFileChanges(
+        ctx,
+        ctx.config.paths.docs,
+      );
       expect(result).toBeErrWithKey("field-conflict");
     });
   });
