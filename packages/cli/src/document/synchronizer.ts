@@ -4,7 +4,6 @@ import type {
   EntitySchema,
   Fieldset,
   FieldsetNested,
-  GraphVersion,
   Includes,
   KnowledgeGraph,
   NamespaceEditable,
@@ -28,12 +27,10 @@ import type { FileSystem } from "../lib/filesystem.ts";
 import {
   modifiedSnapshots,
   namespaceFromSnapshotPath,
-  refreshSnapshotMetadata,
   resolveSnapshotPath,
   type SnapshotChangeMetadata,
   snapshotRootForNamespace,
 } from "../lib/snapshot.ts";
-import type { DatabaseCli } from "../db";
 import { type AppConfig } from "../config.ts";
 import type { MatchOptions } from "../utils/file.ts";
 import type { Logger } from "../log.ts";
@@ -253,12 +250,14 @@ const synchronizeExtracted = (
   );
 };
 
+// NOTE: Do not write to the database in this function. synchronizeFile runs
+// outside the file lock scope. DB writes here cause "database is locked"
+// errors under concurrent access (LSP + CLI, or parallel CLI processes).
+// See: fix-lsp-db-locking-on-save
 export const synchronizeFile = async <N extends NamespaceEditable>(
   fs: FileSystem,
-  db: DatabaseCli,
   kg: KnowledgeGraph,
   config: AppConfig,
-  version: GraphVersion,
   navigationItems: NavigationItem[],
   schema: EntitySchema,
   relativePath: string,
@@ -333,21 +332,11 @@ export const synchronizeFile = async <N extends NamespaceEditable>(
   );
   if (isErr(changesets)) return changesets;
 
-  const refreshResult = refreshSnapshotMetadata(
-    db,
-    fs,
-    config.paths,
-    absolutePath,
-    content,
-    version,
-  );
-  if (isErr(refreshResult)) return refreshResult;
-
   return changesets;
 };
 
 const synchronizeNamespaceFiles = async <N extends NamespaceEditable>(
-  { fs, db, config, kg, nav }: RuntimeContextWithDb,
+  { fs, config, kg, nav }: RuntimeContextWithDb,
   modifiedFiles: SnapshotChangeMetadata[],
   namespace: N,
   templates: Templates,
@@ -355,18 +344,14 @@ const synchronizeNamespaceFiles = async <N extends NamespaceEditable>(
   const changesets: ChangesetsInput<N> = [];
   const navigationItemsResult = await nav(namespace);
   if (isErr(navigationItemsResult)) return navigationItemsResult;
-  const versionResult = await kg.version();
-  if (isErr(versionResult)) return versionResult;
   const schemaResult = await kg.getSchema(namespace);
   if (isErr(schemaResult)) return schemaResult;
 
   for (const file of modifiedFiles) {
     const syncResult = await synchronizeFile(
       fs,
-      db,
       kg,
       config,
-      versionResult.data,
       navigationItemsResult.data,
       schemaResult.data,
       file.path,

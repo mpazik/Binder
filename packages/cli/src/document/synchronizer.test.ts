@@ -91,10 +91,8 @@ describe("synchronizeFile", () => {
     const result = throwIfError(
       await synchronizeFile(
         ctx.fs,
-        ctx.db,
         kg,
         ctx.config,
-        throwIfError(await kg.version()),
         navigationItems,
         mockRecordSchema,
         filePath,
@@ -158,10 +156,8 @@ status: active
       throwIfError(await ctx.fs.writeFile(fullPath, markdown));
       const result = await synchronizeFile(
         ctx.fs,
-        ctx.db,
         kg,
         ctx.config,
-        throwIfError(await kg.version()),
         preambleNavItems,
         mockRecordSchema,
         filePath,
