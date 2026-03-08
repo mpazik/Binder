@@ -10,7 +10,7 @@ import {
   loadNavigation,
   renderNavigation,
 } from "./navigation.ts";
-import { type TemplateLoader, type Templates } from "./template-entity.ts";
+import { type TemplateLoader } from "./template-entity.ts";
 
 export const renderDocs = async (services: {
   db: DatabaseCli;

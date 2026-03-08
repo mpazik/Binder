@@ -12,7 +12,6 @@ import type {
 } from "@binder/db";
 import { includesWithUid } from "@binder/db";
 import {
-  createError,
   fail,
   isEqual,
   isErr,

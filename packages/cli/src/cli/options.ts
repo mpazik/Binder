@@ -1,7 +1,6 @@
 import {
   type Includes,
   type NamespaceEditable,
-  type OrderBy,
   namespacesEditable,
   parseSerialIncludes,
   parseSerialOrderBy,

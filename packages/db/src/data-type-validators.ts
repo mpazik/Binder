@@ -18,9 +18,7 @@ import {
   type Namespace,
   type RecordDataType,
   periodFormats,
-  plaintextFormats,
   QueryParamsSchema,
-  richtextFormats,
 } from "./model";
 
 export type DataTypeValidator<D extends string> = (

@@ -3,7 +3,6 @@ import type {
   ComplexFilter,
   Filter,
   FilterOperator,
-  FilterValue,
   Filters,
   Includes,
   OrderBy,

@@ -1,11 +1,4 @@
-import {
-  index,
-  integer,
-  sqliteTable,
-  text,
-  uniqueIndex,
-} from "drizzle-orm/sqlite-core";
-import type { IsoTimestamp } from "@binder/utils";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import type { TransactionId } from "@binder/db";
 import * as dbSchema from "@binder/db/schema";
 

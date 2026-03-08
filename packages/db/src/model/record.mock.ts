@@ -1,7 +1,6 @@
 import type { RecordId, RecordKey, RecordUid } from "./record.ts";
 import {
   mockFieldKeyEmail,
-  mockPriorityFieldKey,
   mockProjectTypeKey,
   mockTaskTypeKey,
   mockUserTypeKey,

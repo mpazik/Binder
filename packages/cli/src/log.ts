@@ -5,7 +5,7 @@ import {
   type ResultAsync,
   wrapError,
 } from "@binder/utils";
-import { Document, isMap, isSeq } from "yaml";
+import { Document, isMap } from "yaml";
 import { applyInlineFormatting } from "./document/yaml.ts";
 import type { FileSystem } from "./lib/filesystem.ts";
 

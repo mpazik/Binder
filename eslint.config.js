@@ -1,5 +1,6 @@
 import js from "@eslint/js";
 import importPlugin from "eslint-plugin-import";
+import unusedImports from "eslint-plugin-unused-imports";
 import { includeIgnoreFile } from "@eslint/compat";
 import globals from "globals";
 import { fileURLToPath } from "node:url";
@@ -20,6 +21,7 @@ export default ts.config(
     },
     plugins: {
       import: importPlugin,
+      "unused-imports": unusedImports,
     },
     rules: {
       "no-console": [
@@ -34,6 +36,7 @@ export default ts.config(
       "@typescript-eslint/no-non-null-assertion": "off",
       "@typescript-eslint/ban-types": "off",
       "@typescript-eslint/no-explicit-any": "off",
+      "unused-imports/no-unused-imports": "error",
       "import/order": "error",
       "import/no-duplicates": "error",
       "no-restricted-syntax": [

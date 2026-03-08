@@ -39,7 +39,6 @@ import {
 import {
   type ConfigKey,
   type ConfigType,
-  type ConfigUid,
   coreConfigSchema,
   emptySchema,
   type EntitiesChangeset,
@@ -50,7 +49,6 @@ import {
   fieldSystemType,
   GENESIS_ENTITY_ID,
   inverseChangeset,
-  mergeSchema,
   type NamespaceEditable,
   type RecordKey,
   type RecordType,

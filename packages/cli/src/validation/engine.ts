@@ -7,7 +7,6 @@ import {
   type ResultAsync,
 } from "@binder/utils";
 import type {
-  EntitySchema,
   KnowledgeGraph,
   Namespace,
   NamespaceEditable,

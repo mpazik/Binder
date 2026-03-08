@@ -15,7 +15,6 @@ import {
   mockChangesetUpdateTask1,
 } from "./changeset.mock.ts";
 import { mockRecordSchemaRaw } from "./schema.mock.ts";
-import type { RecordFieldDef } from "./config.ts";
 
 export const mockTransactionInitId = 1 as TransactionId;
 export const mockTransactionInitHash =

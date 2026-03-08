@@ -1,6 +1,6 @@
 import { dirname } from "path";
 import { beforeEach, describe, expect, it } from "bun:test";
-import { newIsoTimestamp, throwIfError } from "@binder/utils";
+import { throwIfError } from "@binder/utils";
 import {
   type GraphVersion,
   type TransactionId,
