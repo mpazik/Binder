@@ -47,6 +47,16 @@ export const mockNav4Entity = {
   includes: { title: true, status: true, project: true },
 } as const satisfies Fieldset;
 
+export const mockNav6Entity = {
+  id: newUserConfigId(6),
+  uid: "_navRoot005" as ConfigUid,
+  key: "nav-limited-tasks" as ConfigKey,
+  type: typeNavigationKey,
+  path: "limited-tasks/{key}",
+  where: { type: "Task" },
+  limit: 10,
+} as const satisfies Fieldset;
+
 export const mockMdTaskTemplateEntity = {
   id: newUserConfigId(4),
   uid: "_tmplMdTask" as ConfigUid,
@@ -73,4 +83,5 @@ export const mockNavigationConfigInput = [
   changesetInputForNewEntity<"config">(mockNav4Entity),
   changesetInputForNewEntity<"config">(mockMdTaskTemplateEntity),
   changesetInputForNewEntity<"config">(mockNav5Entity),
+  changesetInputForNewEntity<"config">(mockNav6Entity),
 ];

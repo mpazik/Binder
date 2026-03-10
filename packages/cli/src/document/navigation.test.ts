@@ -25,7 +25,6 @@ import {
   type MockFileSystem,
 } from "../lib/filesystem.mock.ts";
 import { createMockRuntimeContextWithDb, mockConfig } from "../runtime.mock.ts";
-import type { RuntimeContextWithDb } from "../runtime.ts";
 import { BINDER_DIR } from "../config.ts";
 import { cliConfigSchema, typeTemplateKey } from "../cli-config-schema.ts";
 import { parseTemplate, renderTemplateAst } from "./template.ts";
@@ -58,8 +57,6 @@ const reorderTagsField = (fieldset: Fieldset): Fieldset => {
 };
 
 describe("navigation", () => {
-  const schema = mockRecordSchema;
-
   describe("findNavigationItemByPath", () => {
     const check = (
       items: NavigationItem[],
@@ -406,14 +403,12 @@ describe("navigation", () => {
       parentEntities?: Fieldset[];
     };
 
-    const check = async (
+    const renderItem = async (
       item: NavigationItem,
-      expectedPath: string,
-      expectedContent: string,
       options: CheckOptions = {},
     ) => {
       const { parentPath = "", parentEntities = [] } = options;
-      throwIfError(
+      return throwIfError(
         await renderNavigationItem(
           db,
           kg,
@@ -428,6 +423,15 @@ describe("navigation", () => {
           templates,
         ),
       );
+    };
+
+    const check = async (
+      item: NavigationItem,
+      expectedPath: string,
+      expectedContent: string,
+      options: CheckOptions = {},
+    ) => {
+      await renderItem(item, options);
       const content = throwIfError(
         await fs.readFile(`${docsPath}/${expectedPath}`),
       );
@@ -556,6 +560,28 @@ describe("navigation", () => {
       );
     });
 
+    it("renders all results when limit is not specified", async () => {
+      const result = await renderItem({
+        path: "tasks/{title}",
+        where: { type: "Task" },
+      });
+      expect(result.renderedPaths).toEqual([
+        `tasks/${mockTask1Record.title}.yaml`,
+        `tasks/${mockTask2Record.title}.yaml`,
+      ]);
+    });
+
+    it("renders only limited number of results when limit is set", async () => {
+      const result = await renderItem({
+        path: "tasks/{title}",
+        where: { type: "Task" },
+        limit: 1,
+      });
+      expect(result.renderedPaths).toEqual([
+        `tasks/${mockTask1Record.title}.yaml`,
+      ]);
+    });
+
     it("renders markdown with ancestral field in path", async () => {
       await addTemplate("task-detail", "# {title}\n");
       await check(
@@ -575,11 +601,10 @@ describe("navigation", () => {
   });
 
   describe("loadNavigation", () => {
-    let ctx: RuntimeContextWithDb;
     let kg: KnowledgeGraph;
 
     beforeEach(async () => {
-      ctx = await createMockRuntimeContextWithDb();
+      const ctx = await createMockRuntimeContextWithDb();
       kg = ctx.kg;
       throwIfError(
         await kg.update({
@@ -616,11 +641,17 @@ describe("navigation", () => {
           where: { type: "Task" },
           template: "md-task-template",
         },
+        {
+          path: "limited-tasks/{key}",
+          where: { type: "Task" },
+          limit: 10,
+        },
       ]);
     });
   });
 
   describe("findEntityLocation", () => {
+    const schema = mockRecordSchema;
     let fs: MockFileSystem;
     const paths = mockConfig.paths;
 

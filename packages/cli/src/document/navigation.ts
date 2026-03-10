@@ -90,6 +90,7 @@ export type NavigationItem = {
   template?: string;
   includes?: Includes;
   query?: QueryParams;
+  limit?: number;
   children?: NavigationItem[];
 };
 
@@ -163,6 +164,7 @@ export const loadNavigation = async (
       template: item.template as string | undefined,
       includes: item.includes as Includes | undefined,
       query: item.query as QueryParams | undefined,
+      limit: item.limit as number | undefined,
       ...(children && children.length > 0 ? { children } : {}),
     };
   };
@@ -359,6 +361,7 @@ export const renderNavigationItem = async (
       {
         filters: item.where,
         includes: item.includes,
+        pagination: item.limit ? { limit: item.limit } : undefined,
       },
       [emptyFieldset, ...parentEntities],
     );

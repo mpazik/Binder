@@ -40,6 +40,9 @@ export const fieldTemplateContentUid = "_5Zd8bIiJlM" as ConfigUid;
 export const fieldTemplateKey = "template" as ConfigKey;
 export const fieldTemplateUid = "_6Ae9cJjKmN" as ConfigUid;
 
+export const fieldLimitKey = "limit" as ConfigKey;
+export const fieldLimitUid = "_8Cg1eLlMoP" as ConfigUid;
+
 export const fieldTemplateFormatKey = "templateFormat" as ConfigKey;
 export const fieldTemplateFormatUid = "_7Bf0dKkLnO" as ConfigUid;
 
@@ -90,6 +93,16 @@ const fieldTemplate: CliConfigFieldDef = {
   range: [typeTemplateKey],
 };
 
+const fieldLimit: CliConfigFieldDef = {
+  id: newAppSystemId(7),
+  uid: fieldLimitUid,
+  key: fieldLimitKey,
+  type: fieldSystemType,
+  name: "Limit",
+  description: "Maximum number of items to return from a query",
+  dataType: "integer",
+};
+
 const fieldTemplateFormat: CliConfigFieldDef = {
   id: newAppSystemId(6),
   uid: fieldTemplateFormatUid,
@@ -117,6 +130,7 @@ const typeNavigation: TypeDef = {
     "children",
     "parent",
     fieldTemplateKey,
+    fieldLimitKey,
   ],
 };
 
@@ -143,6 +157,7 @@ export const cliConfigSchema: EntitySchema<ConfigDataType> = createSchema(
     fieldTemplateContent,
     fieldPreamble,
     fieldTemplateFormat,
+    fieldLimit,
   ],
   [typeNavigation, typeTemplate],
 );
