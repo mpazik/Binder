@@ -9,8 +9,28 @@ import {
   type YAMLSeq,
 } from "yaml";
 import { isErr, ok, type Result, tryCatch } from "@binder/utils";
-import type { FieldsetNested } from "@binder/db";
+import {
+  type EntitySchema,
+  type FieldsetNested,
+  getMultiValueDelimiter,
+} from "@binder/db";
 import { parseYamlDocument } from "./yaml-cst.ts";
+
+const getBlockFields = (schema?: EntitySchema): Set<string> | undefined => {
+  if (!schema) return undefined;
+  const keys = new Set<string>();
+  for (const [key, field] of Object.entries(schema.fields)) {
+    if (field.dataType === "relation") {
+      keys.add(key);
+    } else if (
+      field.allowMultiple &&
+      getMultiValueDelimiter(field) !== "comma"
+    ) {
+      keys.add(key);
+    }
+  }
+  return keys.size > 0 ? keys : undefined;
+};
 
 const MAX_INLINE_ITEMS = 5;
 const MAX_INLINE_LENGTH = 80;
@@ -61,11 +81,14 @@ const shouldRenderInline = (node: YAMLMap | YAMLSeq): boolean => {
   return true;
 };
 
-export const applyInlineFormatting = (node: YAMLMap | YAMLSeq): void => {
+export const applyInlineFormatting = (
+  node: YAMLMap | YAMLSeq,
+  blockFields?: Set<string>,
+): void => {
   if (isSeq(node)) {
     for (const item of node.items) {
       if (isMap(item)) {
-        applyInlineFormatting(item);
+        applyInlineFormatting(item, blockFields);
       } else if (isSeq(item) && shouldRenderInline(item)) {
         item.flow = true;
       }
@@ -76,47 +99,61 @@ export const applyInlineFormatting = (node: YAMLMap | YAMLSeq): void => {
   } else {
     for (const pair of node.items) {
       const value = pair.value;
+      const key = isScalar(pair.key) ? String(pair.key.value) : undefined;
+      const forceBlock = key !== undefined && blockFields?.has(key);
       if (isMap(value)) {
         if (shouldRenderInline(value)) {
           value.flow = true;
         } else {
-          applyInlineFormatting(value);
+          applyInlineFormatting(value, blockFields);
         }
-      } else if (isSeq(value)) {
-        applyInlineFormatting(value);
+      } else if (isSeq(value) && !forceBlock) {
+        applyInlineFormatting(value, blockFields);
       }
     }
   }
 };
 
-const applyEntityFormatting = (entity: YAMLMap): void => {
+const applyEntityFormatting = (
+  entity: YAMLMap,
+  blockFields?: Set<string>,
+): void => {
   for (const pair of entity.items) {
     const value = pair.value;
+    const key = isScalar(pair.key) ? String(pair.key.value) : undefined;
+    const forceBlock = key !== undefined && blockFields?.has(key);
     if (isMap(value)) {
       applyInlineFormatting(value);
-    } else if (isSeq(value)) {
+    } else if (isSeq(value) && !forceBlock) {
       applyInlineFormatting(value);
     }
   }
 };
 
-export const renderYamlEntity = (data: FieldsetNested): string => {
+export const renderYamlEntity = (
+  data: FieldsetNested,
+  schema?: EntitySchema,
+): string => {
   const doc = new Document(data);
   const root = doc.contents;
   if (isMap(root)) {
-    applyEntityFormatting(root);
+    applyEntityFormatting(root, getBlockFields(schema));
   }
   return doc.toString({ indent: 2, lineWidth: 0 });
 };
 
-export const renderYamlList = (data: FieldsetNested[]): string => {
+export const renderYamlList = (
+  data: FieldsetNested[],
+  schema?: EntitySchema,
+): string => {
   const doc = new Document({ items: data });
+  const blockFields = getBlockFields(schema);
 
   const itemsSeq = doc.getIn(["items"], true) as YAMLSeq | undefined;
   if (itemsSeq && isSeq(itemsSeq)) {
     itemsSeq.items.forEach((item, index) => {
       if (isMap(item)) {
-        applyEntityFormatting(item);
+        applyEntityFormatting(item, blockFields);
         if (index > 0) {
           item.spaceBefore = true;
         }

@@ -295,7 +295,7 @@ const renderContent = async (
     if (!preambleIncludes) return ok(templateResult.data);
 
     const pickedEntity = pickByIncludes(entity, preambleIncludes);
-    const frontmatter = renderFrontmatterString(pickedEntity, preamble);
+    const frontmatter = renderFrontmatterString(pickedEntity, preamble, schema);
     if (!frontmatter) return ok(templateResult.data);
 
     return ok(prependFrontmatter(templateResult.data, frontmatter));
@@ -318,20 +318,21 @@ const renderContent = async (
       );
       if (isErr(formattedItems)) return formattedItems;
 
-      if (item.query.includes) return ok(renderYamlList(formattedItems.data));
+      if (item.query.includes)
+        return ok(renderYamlList(formattedItems.data, schema));
 
       const excludedFields = getExcludedFields(namespace, item.query.filters);
       const filteredItems = formattedItems.data.map((e) =>
         omit(e, excludedFields),
       );
-      return ok(renderYamlList(filteredItems));
+      return ok(renderYamlList(filteredItems, schema));
     }
     const formattedEntity = await formatReferences(entity, schema, kg);
     if (isErr(formattedEntity)) return formattedEntity;
 
     const excludedFields = getExcludedFields(namespace, item.where);
     const filteredEntity = omit(formattedEntity.data, excludedFields);
-    return ok(renderYamlEntity(filteredEntity));
+    return ok(renderYamlEntity(filteredEntity, schema));
   }
   return ok(null);
 };

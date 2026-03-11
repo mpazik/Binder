@@ -1,4 +1,9 @@
-import type { FieldKey, FieldsetNested, FieldValue } from "@binder/db";
+import type {
+  EntitySchema,
+  FieldKey,
+  FieldsetNested,
+  FieldValue,
+} from "@binder/db";
 import { isErr, ok, type Result } from "@binder/utils";
 import { Document, isMap } from "yaml";
 import { applyInlineFormatting, parseYamlEntity } from "./yaml.ts";
@@ -7,6 +12,7 @@ import type { BlockAST } from "./markdown.ts";
 export const renderFrontmatterString = (
   entity: FieldsetNested,
   preambleKeys: FieldKey[],
+  schema?: EntitySchema,
 ): string | undefined => {
   const data: Record<string, FieldValue> = {};
   let hasValue = false;
@@ -20,10 +26,18 @@ export const renderFrontmatterString = (
 
   if (!hasValue) return undefined;
 
+  const blockFields = schema
+    ? new Set(
+        Object.entries(schema.fields)
+          .filter(([_, f]) => f.dataType === "relation")
+          .map(([k]) => k),
+      )
+    : undefined;
+
   const doc = new Document(data);
   const root = doc.contents;
   if (isMap(root)) {
-    applyInlineFormatting(root);
+    applyInlineFormatting(root, blockFields);
   }
   return doc.toString({ indent: 2, lineWidth: 0 }).trimEnd();
 };
