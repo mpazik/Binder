@@ -23,25 +23,25 @@ import {
 } from "@binder/utils";
 import * as YAML from "yaml";
 
-export const patchesDescription = "field=value patches";
+export const patchesDescription =
+  "field patches (set =, append +=, remove -=, remove by position --)";
 
 export const createPatchExamples = (
   command: string,
 ): readonly [string, string][] => [
   [`$0 ${command} title=Hello`, "Set field"],
-  [`$0 ${command} tags=a,b,c`, "Set array (comma-delimited formats)"],
   [
     `$0 ${command} sourceFiles=$'a\\nb\\nc'`,
-    "Set array (newline-delimited formats)",
+    "Set multi-value field (line-style formats)",
   ],
   [
     `$0 ${command} content=$'first block\\n\\nsecond block'`,
-    "Set array (blankline-delimited formats)",
+    "Set multi-value field (block-style formats)",
   ],
-  [`$0 ${command} tags+=urgent`, "Append to array"],
-  [`$0 ${command} tags-=old`, "Remove from array"],
+  [`$0 ${command} tags+=urgent`, "Append value"],
+  [`$0 ${command} tags-=old`, "Remove matching value"],
   [`$0 ${command} tags:0+=first`, "Insert at position"],
-  [`$0 ${command} tags:last--`, "Remove last"],
+  [`$0 ${command} tags:last--`, "Remove by position"],
   [`$0 ${command} 'fields:title={required: true}'`, "Patch attrs"],
 ];
 
