@@ -34,14 +34,11 @@ export const renderDocs = async (services: {
   const templatesResult = await loadTemplates();
   if (isErr(templatesResult)) return templatesResult;
 
+  const baseCtx = { db, kg, fs, paths, log, templates: templatesResult.data };
+
   const renderRecordResult = await renderNavigation(
-    db,
-    kg,
-    fs,
-    paths,
+    { ...baseCtx, namespace: "record" },
     navigationResult.data,
-    templatesResult.data,
-    "record",
   );
   if (isErr(renderRecordResult)) return renderRecordResult;
 
@@ -55,13 +52,8 @@ export const renderDocs = async (services: {
   if (isErr(cleanupRecordResult)) return cleanupRecordResult;
 
   const renderConfigResult = await renderNavigation(
-    db,
-    kg,
-    fs,
-    paths,
+    { ...baseCtx, namespace: "config" },
     CONFIG_NAVIGATION_ITEMS,
-    templatesResult.data,
-    "config",
   );
   if (isErr(renderConfigResult)) return renderConfigResult;
 

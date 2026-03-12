@@ -5,6 +5,7 @@ import {
   openKnowledgeGraph,
   type ConfigKey,
   type EntitySchema,
+  type EntityKey,
   type Fieldset,
   type FieldsetNested,
   type GraphVersion,
@@ -16,6 +17,7 @@ import {
   mockProjectRecord,
   mockTask1Record,
   mockTask2Record,
+  mockTaskTypeKey,
   mockTransactionInit,
 } from "@binder/db/mocks";
 import type { DatabaseCli } from "../db";
@@ -24,7 +26,11 @@ import {
   createInMemoryFileSystem,
   type MockFileSystem,
 } from "../lib/filesystem.mock.ts";
-import { createMockRuntimeContextWithDb, mockConfig } from "../runtime.mock.ts";
+import {
+  createMockRuntimeContextWithDb,
+  mockConfig,
+  mockLog,
+} from "../runtime.mock.ts";
 import { BINDER_DIR } from "../config.ts";
 import { cliConfigSchema, typeTemplateKey } from "../cli-config-schema.ts";
 import { parseTemplate, renderTemplateAst } from "./template.ts";
@@ -195,7 +201,10 @@ describe("navigation", () => {
     ) => {
       const templates = throwIfError(await loadTemplates(kg));
       throwIfError(
-        await renderNavigation(db, kg, fs, paths, navigationItems, templates),
+        await renderNavigation(
+          { db, kg, fs, paths, namespace: "record", templates, log: mockLog },
+          navigationItems,
+        ),
       );
 
       for (const file of files) {
@@ -318,15 +327,19 @@ describe("navigation", () => {
 
     it("returns rendered and modified paths on first render", async () => {
       const templates = throwIfError(await loadTemplates(kg));
+      const ctx = {
+        db,
+        kg,
+        fs,
+        paths,
+        namespace: "record" as const,
+        templates,
+        log: mockLog,
+      };
       const result = throwIfError(
-        await renderNavigation(
-          db,
-          kg,
-          fs,
-          paths,
-          [{ path: "README", template: "static-template" }],
-          templates,
-        ),
+        await renderNavigation(ctx, [
+          { path: "README", template: "static-template" },
+        ]),
       );
 
       expect(result).toEqual({
@@ -337,17 +350,22 @@ describe("navigation", () => {
 
     it("returns empty modifiedPaths when content unchanged", async () => {
       const templates = throwIfError(await loadTemplates(kg));
+      const ctx = {
+        db,
+        kg,
+        fs,
+        paths,
+        namespace: "record" as const,
+        templates,
+        log: mockLog,
+      };
       const navigationItems: NavigationItem[] = [
         { path: "README", template: "static-template" },
       ];
 
-      throwIfError(
-        await renderNavigation(db, kg, fs, paths, navigationItems, templates),
-      );
+      throwIfError(await renderNavigation(ctx, navigationItems));
 
-      const result = throwIfError(
-        await renderNavigation(db, kg, fs, paths, navigationItems, templates),
-      );
+      const result = throwIfError(await renderNavigation(ctx, navigationItems));
 
       expect(result).toEqual({
         renderedPaths: ["README.md"],
@@ -410,17 +428,20 @@ describe("navigation", () => {
       const { parentPath = "", parentEntities = [] } = options;
       return throwIfError(
         await renderNavigationItem(
-          db,
-          kg,
-          fs,
-          paths,
-          schema,
-          version,
+          {
+            db,
+            kg,
+            fs,
+            paths,
+            schema,
+            version,
+            namespace: "record",
+            templates,
+            log: mockLog,
+          },
           item,
           parentPath,
           parentEntities,
-          "record",
-          templates,
         ),
       );
     };
@@ -571,6 +592,27 @@ describe("navigation", () => {
       ]);
     });
 
+    it("renders all results when count exceeds old default limit of 50", async () => {
+      // This test reproduces the bug: with >50 entities and no explicit limit,
+      // the old default of 50 would silently drop entities past the limit.
+      const totalTasks = 55;
+      const records = Array.from({ length: totalTasks }, (_, i) => ({
+        type: mockTaskTypeKey,
+        key: `bulk-task-${String(i).padStart(3, "0")}` as EntityKey,
+        title: `Bulk Task ${String(i).padStart(3, "0")}`,
+        status: "pending",
+      }));
+      throwIfError(await kg.update({ author: "test", records }));
+
+      const result = await renderItem({
+        path: "tasks/{title}",
+        where: { type: "Task" },
+      });
+
+      // 2 existing tasks + 55 new = 57 total
+      expect(result.renderedPaths.length).toBe(2 + totalTasks);
+    });
+
     it("renders only limited number of results when limit is set", async () => {
       const result = await renderItem({
         path: "tasks/{title}",
@@ -580,6 +622,34 @@ describe("navigation", () => {
       expect(result.renderedPaths).toEqual([
         `tasks/${mockTask1Record.title}.yaml`,
       ]);
+    });
+
+    it("does not log warning when all results fit within default limit", async () => {
+      const warnings: string[] = [];
+      const log = {
+        ...mockLog,
+        warn: (msg: string) => warnings.push(msg),
+      };
+
+      throwIfError(
+        await renderNavigationItem(
+          {
+            db,
+            kg,
+            fs,
+            paths,
+            schema,
+            version,
+            namespace: "record",
+            templates,
+            log,
+          },
+          { path: "tasks/{title}", where: { type: "Task" } },
+          "",
+          [],
+        ),
+      );
+      expect(warnings).toEqual([]);
     });
 
     it("renders markdown with ancestral field in path", async () => {

@@ -47,6 +47,8 @@ import {
 import { buildOrderByClause, buildWhereClause } from "./filter-entities.ts";
 import { resolveIncludes } from "./relationship-resolver.ts";
 
+export const DEFAULT_SEARCH_LIMIT = 50;
+
 export type KnowledgeGraph<
   C extends EntitySchema<ConfigDataType> = EntitySchema<ConfigDataType>,
 > = {
@@ -237,7 +239,7 @@ const openKnowledgeGraph = <C extends EntitySchema<ConfigDataType>>(
     ) => {
       return db.transaction(async (tx) => {
         const { filters = {}, pagination, includes, orderBy } = query;
-        const limit = pagination?.limit ?? 50;
+        const limit = pagination?.limit ?? DEFAULT_SEARCH_LIMIT;
         const after = pagination?.after;
         const before = pagination?.before;
 

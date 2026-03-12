@@ -26,6 +26,7 @@ import {
   type Result,
   type ResultAsync,
 } from "@binder/utils";
+import type { Logger } from "../log.ts";
 import { sanitizeFilename } from "../utils/file.ts";
 import {
   extractFieldValues,
@@ -92,6 +93,20 @@ export type NavigationItem = {
   query?: QueryParams;
   limit?: number;
   children?: NavigationItem[];
+};
+
+const DEFAULT_RENDER_LIMIT = 1_000;
+
+export type RenderContext = {
+  db: DatabaseCli;
+  kg: KnowledgeGraph;
+  fs: FileSystem;
+  paths: ConfigPaths;
+  schema: EntitySchema;
+  version: GraphVersion;
+  namespace: NamespaceEditable;
+  templates: Templates;
+  log: Logger;
 };
 
 export const CONFIG_NAVIGATION_ITEMS: NavigationItem[] = [
@@ -338,18 +353,12 @@ const renderContent = async (
 };
 
 export const renderNavigationItem = async (
-  db: DatabaseCli,
-  kg: KnowledgeGraph,
-  fs: FileSystem,
-  paths: ConfigPaths,
-  schema: EntitySchema,
-  version: GraphVersion,
+  ctx: RenderContext,
   item: NavigationItem,
   parentPath: string,
   parentEntities: Fieldset[],
-  namespace: NamespaceEditable,
-  templates: Templates,
 ): ResultAsync<RenderResult> => {
+  const { db, kg, fs, paths, schema, version, namespace, templates, log } = ctx;
   const fileType = inferFileType(item);
   const result = emptyRenderResult();
 
@@ -362,7 +371,7 @@ export const renderNavigationItem = async (
       {
         filters: item.where,
         includes: item.includes,
-        pagination: item.limit ? { limit: item.limit } : undefined,
+        pagination: { limit: item.limit ?? DEFAULT_RENDER_LIMIT },
       },
       [emptyFieldset, ...parentEntities],
     );
@@ -381,6 +390,13 @@ export const renderNavigationItem = async (
 
     const searchResult = await kg.search(interpolatedQuery.data, namespace);
     if (isErr(searchResult)) return searchResult;
+
+    if (searchResult.data.pagination.hasNext && !item.limit) {
+      const pathTemplate = getPathTemplate(item);
+      log.warn(
+        `Navigation '${pathTemplate}' has more results than the default render limit. Some files were not rendered. Set 'limit' on the navigation item to increase.`,
+      );
+    }
 
     entities = searchResult.data.items;
     shouldUpdateParentContext = true;
@@ -439,17 +455,10 @@ export const renderNavigationItem = async (
 
       for (const child of item.children) {
         const childResult = await renderNavigationItem(
-          db,
-          kg,
-          fs,
-          paths,
-          schema,
-          version,
+          ctx,
           child,
           itemDir,
           childParentEntities,
-          namespace,
-          templates,
         );
         if (isErr(childResult)) return childResult;
 
@@ -463,37 +472,25 @@ export const renderNavigationItem = async (
 };
 
 export const renderNavigation = async (
-  db: DatabaseCli,
-  kg: KnowledgeGraph,
-  fs: FileSystem,
-  paths: ConfigPaths,
+  ctx: Omit<RenderContext, "schema" | "version">,
   navigationItems: NavigationItem[],
-  templates: Templates,
-  namespace: NamespaceEditable = "record",
 ): ResultAsync<RenderResult> => {
-  const schemaResult = await kg.getSchema(namespace);
+  const schemaResult = await ctx.kg.getSchema(ctx.namespace);
   if (isErr(schemaResult)) return schemaResult;
-  const schema = schemaResult.data;
 
-  const versionResult = await kg.version();
+  const versionResult = await ctx.kg.version();
   if (isErr(versionResult)) return versionResult;
+
+  const renderCtx: RenderContext = {
+    ...ctx,
+    schema: schemaResult.data,
+    version: versionResult.data,
+  };
 
   const results: RenderResult[] = [];
 
   for (const item of navigationItems) {
-    const result = await renderNavigationItem(
-      db,
-      kg,
-      fs,
-      paths,
-      schema,
-      versionResult.data,
-      item,
-      "",
-      [],
-      namespace,
-      templates,
-    );
+    const result = await renderNavigationItem(renderCtx, item, "", []);
     if (isErr(result)) return result;
     results.push(result.data);
   }
