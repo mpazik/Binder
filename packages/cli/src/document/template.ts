@@ -51,6 +51,7 @@ import {
   parseAst,
   parseMarkdown,
   renderAstToMarkdown,
+  renderSimplifiedAstToMarkdown,
   type SimplifiedViewBlockChild,
   type SimplifiedViewInlineChild,
   simplifyViewAst,
@@ -66,7 +67,6 @@ import {
 import { type TemplateEntity, type Templates } from "./template-entity.ts";
 import { createFieldAccumulator } from "./field-accumulator.ts";
 
-// Union of all possible node types in a simplified view (block or inline level)
 type SimplifiedViewChild = SimplifiedViewBlockChild | SimplifiedViewInlineChild;
 
 export interface TemplateRoot extends Node {
@@ -323,8 +323,8 @@ const renderNestedFieldValues = (
   if (renderedValues.length === 1) return renderedValues[0]!;
 
   const result: Nodes[] = [];
-  for (const [i, records] of renderedValues.entries()) {
-    result.push(...records);
+  for (const [i, nodes] of renderedValues.entries()) {
+    result.push(...nodes);
     if (i < renderedValues.length - 1) {
       const lastNode = result[result.length - 1];
       if (lastNode?.type === "text") {
@@ -335,13 +335,6 @@ const renderNestedFieldValues = (
     }
   }
   return result;
-};
-
-const getFieldRichtextFormat = (
-  fieldDef: FieldDef,
-): RichtextFormat | undefined => {
-  if (fieldDef.dataType === "richtext") return fieldDef.richtextFormat;
-  return undefined;
 };
 
 const validateFormatPositionCompatibility = (
@@ -398,9 +391,8 @@ const renderFieldSlot = (
     }
   }
 
-  // Validate field's richtext format compatibility with slot position
-  // (only for direct field access, not nested multi-value relations)
-  const fieldFormat = getFieldRichtextFormat(fieldDef);
+  const fieldFormat =
+    fieldDef.dataType === "richtext" ? fieldDef.richtextFormat : undefined;
   const formatCheck = validateFormatPositionCompatibility(
     fieldFormat,
     slotPosition,
@@ -416,7 +408,6 @@ const renderFieldSlot = (
       : allEntities;
     if (entities.length > 0) {
       const itemTemplate = getItemTemplate(slot, templates);
-      // Validate template's templateFormat compatibility with slot position
       const templateFormatCheck = validateFormatPositionCompatibility(
         itemTemplate.templateFormat,
         slotPosition,
@@ -440,7 +431,6 @@ const renderFieldSlot = (
     if (whereFilters && !matchesFilters(whereFilters, value as Fieldset))
       return ok(renderFieldValue(null, fieldDef));
     const itemTemplate = getItemTemplate(slot, templates);
-    // Validate template's templateFormat compatibility with slot position
     const templateFormatCheck = validateFormatPositionCompatibility(
       itemTemplate.templateFormat,
       slotPosition,
@@ -707,7 +697,7 @@ const extractRelationFromBlocks = (
 
     if (blockGroups) {
       const segments = blockGroups.map((group) =>
-        renderAstToMarkdown({
+        renderSimplifiedAstToMarkdown({
           type: "root",
           children: group as Root["children"],
         }),
@@ -722,7 +712,7 @@ const extractRelationFromBlocks = (
     }
   }
 
-  const markdown = renderAstToMarkdown({
+  const markdown = renderSimplifiedAstToMarkdown({
     type: "root",
     children: blocks as Root["children"],
   });
@@ -745,7 +735,7 @@ export const extractFieldsAst = (
   base: FieldsetNested,
 ): Result<FieldsetNested> => {
   const accumulator = createFieldAccumulator(base);
-  let error: ErrorObject | undefined = undefined;
+  let error: ErrorObject | undefined;
 
   const simplifiedView = simplifyViewAst(view);
 
@@ -1120,7 +1110,7 @@ export const extractFieldsAst = (
 
     if (isRelation(fieldDef)) {
       const itemTemplate = getItemTemplate(slot, templates);
-      const markdown = renderAstToMarkdown({
+      const markdown = renderSimplifiedAstToMarkdown({
         type: "root",
         children: blockNodes as Root["children"],
       });
@@ -1142,7 +1132,7 @@ export const extractFieldsAst = (
     }
 
     // For other block-level fields, convert to markdown and parse
-    const markdown = renderAstToMarkdown({
+    const markdown = renderSimplifiedAstToMarkdown({
       type: "root",
       children: blockNodes as Root["children"],
     });

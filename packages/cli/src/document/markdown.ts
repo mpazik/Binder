@@ -102,14 +102,28 @@ const extractTextFromInline = (node: ExtendedNode): string => {
   return "";
 };
 
-const renderInlineToMarkdown = (node: RootContent): string => {
-  return extractTextFromInline(node);
-};
-
 export const renderAstToMarkdown = (ast: Nodes): string =>
   toMarkdown(ast, {
     ...defaultRenderOptions,
     extensions: [gfmToMarkdown(), frontmatterToMarkdown("yaml")],
+  });
+
+/**
+ * Render a simplified AST (produced by simplifyAst) back to markdown without
+ * escaping text node content. simplifyAst flattens inline formatting (links,
+ * emphasis, etc.) into raw markdown strings inside Text nodes. The standard
+ * renderAstToMarkdown would escape those strings, corrupting the content.
+ * This variant emits text node values verbatim.
+ */
+export const renderSimplifiedAstToMarkdown = (ast: Nodes): string =>
+  toMarkdown(ast, {
+    ...defaultRenderOptions,
+    extensions: [gfmToMarkdown(), frontmatterToMarkdown("yaml")],
+    handlers: {
+      text(node: Text) {
+        return node.value;
+      },
+    },
   });
 
 const inlineTypes = [
@@ -147,7 +161,7 @@ export const removePosition = <T>(obj: T): T => {
 
 const flattenInline = (value: RootContent): SimplifiedNode<RootContent> => {
   if ("children" in value && hasInlineChildren(value)) {
-    const flattenedValue = renderInlineToMarkdown(value);
+    const flattenedValue = extractTextFromInline(value);
     return {
       ...value,
       children: [{ type: "text", value: flattenedValue }],
@@ -281,8 +295,6 @@ export type ParsedMarkdown = {
   root: FullAST;
 };
 
-export const parseMarkdownDocument = (content: string): ParsedMarkdown => {
-  return {
-    root: parseAst(content),
-  };
-};
+export const parseMarkdownDocument = (content: string): ParsedMarkdown => ({
+  root: parseAst(content),
+});

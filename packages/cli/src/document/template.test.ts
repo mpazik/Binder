@@ -496,7 +496,6 @@ describe("template", () => {
         const data = {
           tasks: [mockTask1Record, mockTask2Record, mockTask3Record],
         };
-        // task1 and task2 are pending, task3 is active
         check(
           view,
           data,
@@ -793,6 +792,49 @@ describe("template", () => {
           description: "Line one\nLine two",
         });
       });
+
+      it("preserves markdown links in block richtext", () => {
+        check(
+          "## Description\n\n{description}\n",
+          "## Description\n\nSee [docs](http://example.com) for details.\n",
+          { description: "See [docs](http://example.com) for details." },
+        );
+      });
+
+      it("preserves bold and italic in block richtext", () => {
+        check(
+          "## Description\n\n{description}\n",
+          "## Description\n\nThis is **bold** and _italic_ text.\n",
+          { description: "This is **bold** and _italic_ text." },
+        );
+      });
+
+      it("preserves inline code in block richtext", () => {
+        check(
+          "## Description\n\n{description}\n",
+          "## Description\n\nRun `npm install` to start.\n",
+          { description: "Run `npm install` to start." },
+        );
+      });
+
+      it("preserves strikethrough in block richtext", () => {
+        check(
+          "## Description\n\n{description}\n",
+          "## Description\n\nThis is ~~deprecated~~ old.\n",
+          { description: "This is ~~deprecated~~ old." },
+        );
+      });
+
+      it("preserves mixed inline formatting in block richtext", () => {
+        check(
+          "## Description\n\n{description}\n",
+          "## Description\n\nCheck [this guide](http://example.com) for **important** details.\n",
+          {
+            description:
+              "Check [this guide](http://example.com) for **important** details.",
+          },
+        );
+      });
     });
 
     describe("array fields", () => {
@@ -902,6 +944,32 @@ describe("template", () => {
           project: null,
         });
       });
+
+      it("preserves markdown links in single relation block", () => {
+        check(
+          "## Project\n\n{project}\n\n## Next\n",
+          "## Project\n\n### Project Alpha\n\nSee [docs](http://example.com) for details.\n\n## Next\n",
+          {
+            project: {
+              title: "Project Alpha",
+              description: "See [docs](http://example.com) for details.",
+            },
+          },
+        );
+      });
+
+      it("preserves bold and italic in single relation block", () => {
+        check(
+          "## Project\n\n{project}\n\n## Next\n",
+          "## Project\n\n### Project Alpha\n\nThis is **bold** and _italic_ text.\n\n## Next\n",
+          {
+            project: {
+              title: "Project Alpha",
+              description: "This is **bold** and _italic_ text.",
+            },
+          },
+        );
+      });
     });
 
     describe("multi-value relation", () => {
@@ -963,6 +1031,40 @@ describe("template", () => {
           },
         );
       });
+
+      it("preserves markdown links in multi-value relation blocks", () => {
+        check(
+          "## Tasks\n\n{tasks}\n",
+          "## Tasks\n\n### Task 1\n\nSee [docs](http://example.com) here.\n\n### Task 2\n\nCheck [API](http://api.example.com) reference.\n",
+          {
+            tasks: [
+              {
+                title: "Task 1",
+                description: "See [docs](http://example.com) here.",
+              },
+              {
+                title: "Task 2",
+                description: "Check [API](http://api.example.com) reference.",
+              },
+            ],
+          },
+        );
+      });
+
+      it("preserves mixed inline formatting in multi-value relation blocks", () => {
+        check(
+          "## Tasks\n\n{tasks}\n",
+          "## Tasks\n\n### Task 1\n\nThis has **bold**, _italic_, and `code`.\n",
+          {
+            tasks: [
+              {
+                title: "Task 1",
+                description: "This has **bold**, _italic_, and `code`.",
+              },
+            ],
+          },
+        );
+      });
     });
 
     describe("complex scenarios", () => {
@@ -1018,7 +1120,7 @@ Excellent first week. Schema is minimal and consistent.
         );
       });
 
-      it("section template with empty block fields in some entities", () => {
+      describe("section template with custom schema", () => {
         const journalSchema = mergeSchema(coreSchema(), {
           fields: {
             dayPeriod: {
@@ -1045,106 +1147,71 @@ Excellent first week. Schema is minimal and consistent.
           { templateFormat: "section" },
         );
 
-        const viewAst = parseTemplate(
-          "## Days Summary\n\n{children|template:day-summary}\n\n## Summary\n\n{description}\n",
-        );
-        const snapAst = parseMarkdown(
-          "## Days Summary\n\n### 2026-02-09\n\n### 2026-02-10\n\nGood day.\n\n## Summary\n\n",
-        );
-        const result = throwIfError(
-          extractFieldsAst(
-            journalSchema,
-            [...mockDefaultTemplates, daySummaryTemplate],
-            viewAst,
-            snapAst,
-            {},
-          ),
-        );
-        expect(result).toEqual({
-          children: [
-            { dayPeriod: "2026-02-09", summary: null },
-            { dayPeriod: "2026-02-10", summary: "Good day." },
-          ],
-          description: null,
+        const daySummaryTemplates: Templates = [
+          ...mockDefaultTemplates,
+          daySummaryTemplate,
+        ];
+
+        it("empty block fields in some entities", () => {
+          const viewAst = parseTemplate(
+            "## Days Summary\n\n{children|template:day-summary}\n\n## Summary\n\n{description}\n",
+          );
+          const snapAst = parseMarkdown(
+            "## Days Summary\n\n### 2026-02-09\n\n### 2026-02-10\n\nGood day.\n\n## Summary\n\n",
+          );
+          const result = throwIfError(
+            extractFieldsAst(
+              journalSchema,
+              daySummaryTemplates,
+              viewAst,
+              snapAst,
+              {},
+            ),
+          );
+          expect(result).toEqual({
+            children: [
+              { dayPeriod: "2026-02-09", summary: null },
+              { dayPeriod: "2026-02-10", summary: "Good day." },
+            ],
+            description: null,
+          });
         });
-      });
 
-      it("section template with empty block fields and realistic base produces sparse diff", () => {
-        // Regression: when base={} was passed for owned children, the field
-        // accumulator stored null tombstones for empty fields (summary: null)
-        // because isEqual(null, undefined) is false. These tombstones leaked
-        // through diffOwnedChildren → matchEntities → compareFieldValues →
-        // assertIsArray(null), crashing the sync.
-        //
-        // The fix threads the parent's base children into extraction so the
-        // accumulator sees base.summary === null and skips the unchanged field.
-        const journalSchema = mergeSchema(coreSchema(), {
-          fields: {
-            dayPeriod: {
-              id: newId(100, 0),
-              key: "dayPeriod" as EntityKey,
-              name: "Day Period",
-              dataType: "period",
-              periodFormat: "day",
-            },
-            summary: {
-              id: newId(101, 0),
-              key: "summary" as EntityKey,
-              name: "Summary",
-              dataType: "richtext",
-              richtextFormat: "block",
-            },
-          },
-          types: {},
-        }) as EntitySchema;
+        it("realistic base with unchanged null fields produces sparse diff", () => {
+          const viewAst = parseTemplate(
+            "## Days Summary\n\n{children|template:day-summary}\n\n## Summary\n\n{description}\n",
+          );
+          const snapAst = parseMarkdown(
+            "## Days Summary\n\n### 2026-02-24\n\n### 2026-02-25\n\nGood day.\n\n## Summary\n\n",
+          );
+          const base = {
+            children: [
+              {
+                uid: "_day24000001",
+                dayPeriod: "2026-02-24",
+                summary: null,
+              },
+              {
+                uid: "_day25000002",
+                dayPeriod: "2026-02-25",
+                summary: null,
+              },
+            ],
+            description: null,
+          };
 
-        const daySummaryTemplate = createTemplateEntity(
-          "day-summary",
-          "### {dayPeriod}\n\n{summary}\n",
-          { templateFormat: "section" },
-        );
-
-        const viewAst = parseTemplate(
-          "## Days Summary\n\n{children|template:day-summary}\n\n## Summary\n\n{description}\n",
-        );
-        const snapAst = parseMarkdown(
-          "## Days Summary\n\n### 2026-02-24\n\n### 2026-02-25\n\nGood day.\n\n## Summary\n\n",
-        );
-
-        // Realistic base: DB state with existing children that have uids
-        // and summary already null (empty day entries)
-        const base = {
-          children: [
-            {
-              uid: "_day24000001",
-              dayPeriod: "2026-02-24",
-              summary: null,
-            },
-            {
-              uid: "_day25000002",
-              dayPeriod: "2026-02-25",
-              summary: null,
-            },
-          ],
-          description: null,
-        };
-
-        const result = throwIfError(
-          extractFieldsAst(
-            journalSchema,
-            [...mockDefaultTemplates, daySummaryTemplate],
-            viewAst,
-            snapAst,
-            base,
-          ),
-        );
-
-        // With the fix, extraction with a proper base skips unchanged fields.
-        // The first child has no changes (dayPeriod and summary match base).
-        // The second child only has summary changed from null to "Good day."
-        // No spurious null tombstones appear.
-        expect(result).toEqual({
-          children: [{}, { summary: "Good day." }],
+          const result = throwIfError(
+            extractFieldsAst(
+              journalSchema,
+              daySummaryTemplates,
+              viewAst,
+              snapAst,
+              base,
+            ),
+          );
+          expect(result).toEqual({
+            children: [{}, { summary: "Good day." }],
+          });
         });
       });
     });
@@ -1459,7 +1526,6 @@ Excellent first week. Schema is minimal and consistent.
     });
 
     it("extracts position for field with surrounding text in paragraph", () => {
-      // Note: position includes leading space from " active" text node
       check("**Status:** {status}\n", "**Status:** active\n", [
         {
           path: ["status"],
