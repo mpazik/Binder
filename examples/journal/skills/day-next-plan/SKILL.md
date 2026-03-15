@@ -18,8 +18,8 @@ Ensure the target day exists: !`O=$0; bun scripts/journal.ts d $((${O:-0} + 1))`
 
 Source day entry (carry-forward review): !`O=$0; binder read $(bun scripts/journal.ts d ${O:-0} --key) --format yaml`
 Target day entry (we are planning this): !`O=$0; binder read $(bun scripts/journal.ts d $((${O:-0} + 1)) --key) --format yaml`
-Week context: !`O=$0; binder read $(bun scripts/journal.ts w ${O:-0} --key) -i "weekPeriod,goal,plan,achievements" --format yaml`
-Recent days: !`binder search type=JournalDay "dayPeriod>=$(date -v-7d +%Y-%m-%d)" -i "dayPeriod,plan,achievements,summary" --format yaml`
+Week context: !`O=$0; binder read $(bun scripts/journal.ts w ${O:-0} --key) -f "weekPeriod,goal,plan,achievements" --format yaml`
+Recent days: !`binder search type=JournalDay "dayPeriod>=$(date -v-7d +%Y-%m-%d)" -f "dayPeriod,plan,achievements,summary" --format yaml`
 
 ## Flow
 

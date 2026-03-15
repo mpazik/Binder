@@ -10,8 +10,8 @@ Mid-day open check-in. The goal is to give me a space to surface something — a
 ## Context
 
 Target day entry: !`O=$0; binder read $(bun scripts/journal.ts d ${O:-0} --key) --format yaml`
-Week context: !`O=$0; binder read $(bun scripts/journal.ts w ${O:-0} --key) -i "weekPeriod,goal,plan,achievements" --format yaml`
-Recent days: !`binder search type=JournalDay "dayPeriod>=$(date -v-7d +%Y-%m-%d)" -i "dayPeriod,summary,moodScore,workScore,totalScore" --format yaml`
+Week context: !`O=$0; binder read $(bun scripts/journal.ts w ${O:-0} --key) -f "weekPeriod,goal,plan,achievements" --format yaml`
+Recent days: !`binder search type=JournalDay "dayPeriod>=$(date -v-7d +%Y-%m-%d)" -f "dayPeriod,summary,moodScore,workScore,totalScore" --format yaml`
 
 ## Open with a brief pulse (one message, short)
 

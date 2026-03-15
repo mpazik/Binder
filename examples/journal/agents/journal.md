@@ -18,8 +18,8 @@ Journal data lives in Binder. Read and write using the `binder` CLI (via bash). 
 ### Reading
 Context is pre-loaded by the skill template. If you need additional data:
 - `binder read <key> --format yaml` — read a single entry
-- `binder read <key> -i "field1,field2,parent(field3)" --format yaml` — read with field includes
-- `binder search type=JournalDay "dayPeriod>=2026-02-01" -i "dayPeriod,summary" --format yaml` — search with filters
+- `binder read <key> -f "field1,field2,parent(field3)" --format yaml` — read with field includes
+- `binder search type=JournalDay "dayPeriod>=2026-02-01" -f "dayPeriod,summary" --format yaml` — search with filters
 
 ### Writing
 Use `binder update` to write journal data. This syncs markdown files automatically.

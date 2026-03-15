@@ -131,8 +131,8 @@ Each interface composes the serial formats as separate arguments.
 ### CLI
 
 ```bash
-binder search type=Task status=done -i "project(title,status),tags" -o "!priority" --limit 20
-binder read my-task -i "project(title),tags"
+binder search type=Task status=done -f "project(title,status),tags" -o "!priority" --limit 20
+binder read my-task -f "project(title),tags"
 ```
 
 ### Navigation Config (YAML)

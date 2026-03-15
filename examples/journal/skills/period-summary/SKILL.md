@@ -13,8 +13,8 @@ Offset controls direction: default (0) = current period, negative = past period 
 
 Ensure the target period exists: !`bun scripts/journal.ts $0 $1`
 
-Target period with children: !`binder read $(bun scripts/journal.ts $0 $1 --key) -i "goal,plan,achievements,events,summary,totalScore,parent(key,goal,plan),children(key,goal,plan,achievements,events,summary,moodScore,sleepScore,foodScore,workScore,fitnessScore,totalScore,log)" --format yaml`
-Previous period: !`binder read $(bun scripts/journal.ts $0 $(( ${1:-0} - 1 )) --key) -i "goal,plan,achievements,summary,totalScore,moodScore,sleepScore,foodScore,workScore,fitnessScore" --format yaml`
+Target period with children: !`binder read $(bun scripts/journal.ts $0 $1 --key) -f "goal,plan,achievements,events,summary,totalScore,parent(key,goal,plan),children(key,goal,plan,achievements,events,summary,moodScore,sleepScore,foodScore,workScore,fitnessScore,totalScore,log)" --format yaml`
+Previous period: !`binder read $(bun scripts/journal.ts $0 $(( ${1:-0} - 1 )) --key) -f "goal,plan,achievements,summary,totalScore,moodScore,sleepScore,foodScore,workScore,fitnessScore" --format yaml`
 Next period's key: !`bun scripts/journal.ts $0 $(( ${1:-0} + 1 )) --key`
 
 ## Deliver one message (shallow → deep)

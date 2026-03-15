@@ -12,12 +12,12 @@ Mid-period check-in. The period is live — things have happened, things have ch
 Ensure the target period exists: !`bun scripts/journal.ts $0 $1`
 
 Target period with children so far:
-!`binder read $(bun scripts/journal.ts $0 $1 --key) -i "key,goal,plan,achievements,events,children(key,goal,plan,achievements,summary,totalScore)" --format yaml`
+!`binder read $(bun scripts/journal.ts $0 $1 --key) -f "key,goal,plan,achievements,events,children(key,goal,plan,achievements,summary,totalScore)" --format yaml`
 
 Parent context:
-!`binder read $(bun scripts/journal.ts $0 $1 --key) -i "parent(key,goal,plan,achievements)" --format yaml`
+!`binder read $(bun scripts/journal.ts $0 $1 --key) -f "parent(key,goal,plan,achievements)" --format yaml`
 
-Previous period: !`binder read $(bun scripts/journal.ts $0 $(( ${1:-0} - 1 )) --key) -i "goal,plan,achievements,summary,totalScore" --format yaml`
+Previous period: !`binder read $(bun scripts/journal.ts $0 $(( ${1:-0} - 1 )) --key) -f "goal,plan,achievements,summary,totalScore" --format yaml`
 
 ## Open with a brief pulse (one message, short)
 

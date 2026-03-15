@@ -11,7 +11,7 @@ import {
 import { type CommandHandlerWithDb, runtimeWithDb } from "../runtime.ts";
 import { types } from "../cli/types.ts";
 import {
-  includeOption,
+  fieldsOption,
   itemFormatOption,
   namespaceOption,
 } from "../cli/options.ts";
@@ -26,13 +26,13 @@ const readHandler: CommandHandlerWithDb<{
   ref: EntityRef;
   namespace: NamespaceEditable;
   format?: SerializeItemFormat;
-  include?: Includes;
+  fields?: Includes;
 }> = async ({ kg, ui, args }) => {
   if (isStdinPiped()) {
-    if (args.include !== undefined)
+    if (args.fields !== undefined)
       return fail(
         "conflicting-input",
-        "Cannot combine stdin with --include option",
+        "Cannot combine stdin with --fields option",
       );
 
     const stdinResult = await readStdinAs(ReadStdinSchema);
@@ -49,7 +49,7 @@ const readHandler: CommandHandlerWithDb<{
     return ok(undefined);
   }
 
-  const result = await kg.fetchEntity(args.ref, args.include, args.namespace);
+  const result = await kg.fetchEntity(args.ref, args.fields, args.namespace);
   if (isErr(result)) return result;
 
   ui.printData(result.data, args.format);
@@ -68,6 +68,6 @@ export const ReadCommand = types({
         demandOption: true,
         coerce: (value: string) => normalizeEntityRef(value),
       })
-      .options({ ...namespaceOption, ...itemFormatOption, ...includeOption }),
+      .options({ ...namespaceOption, ...itemFormatOption, ...fieldsOption }),
   handler: runtimeWithDb(readHandler),
 });

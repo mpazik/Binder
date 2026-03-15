@@ -730,7 +730,6 @@ export const TransactionCommand = types({
                 default: 10,
               })
               .option("format", {
-                alias: "f",
                 describe: "output format",
                 type: "string",
                 choices: ["concise", "full", "oneline", ...serializeFormats],

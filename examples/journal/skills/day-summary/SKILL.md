@@ -16,8 +16,8 @@ Offset controls direction: default (0) = today, negative = past day (e.g. -1 for
 Ensure the target day exists: !`O=$0; bun scripts/journal.ts d ${O:-0}`
 
 Target day entry (we are summarizing this): !`O=$0; binder read $(bun scripts/journal.ts d ${O:-0} --key) --format yaml`
-Week context: !`O=$0; binder read $(bun scripts/journal.ts w ${O:-0} --key) -i "weekPeriod,goal,plan,achievements" --format yaml`
-Recent days: !`binder search type=JournalDay "dayPeriod>=$(date -v-7d +%Y-%m-%d)" -i "dayPeriod,plan,achievements,summary,moodScore,sleepScore,foodScore,workScore,fitnessScore,totalScore" --format yaml`
+Week context: !`O=$0; binder read $(bun scripts/journal.ts w ${O:-0} --key) -f "weekPeriod,goal,plan,achievements" --format yaml`
+Recent days: !`binder search type=JournalDay "dayPeriod>=$(date -v-7d +%Y-%m-%d)" -f "dayPeriod,plan,achievements,summary,moodScore,sleepScore,foodScore,workScore,fitnessScore,totalScore" --format yaml`
 
 ---
 

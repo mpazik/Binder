@@ -90,7 +90,7 @@ A compact text representation for CLI, URLs, and views — a lossy subset of the
 - **OrderBy**: `!priority,createdAt`
 
 ```bash
-binder search type=Task status=done -i "project(title),tags" -o "!priority" --limit 20
+binder search type=Task status=done -f "project(title),tags" -o "!priority" --limit 20
 ```
 
 Advanced features (logical operators, computed fields, nested include filters) require the full JSON/YAML form.

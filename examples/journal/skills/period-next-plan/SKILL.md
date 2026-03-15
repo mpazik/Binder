@@ -13,8 +13,8 @@ Offset controls direction: **proactive** (positive or default — planning upcom
 
 Ensure the target period exists: !`O=$1; bun scripts/journal.ts $0 ${O:-next}`
 
-Target period with parent and siblings: !`O=$1; binder read $(bun scripts/journal.ts $0 ${O:-next} --key) -i "key,goal,plan,parent(key,goal,plan,children(key,goal,plan,achievements,summary,totalScore))" --format yaml`
-Previous period: !`O=$1; P=$([ "$O" = "next" ] || [ -z "$O" ] && echo 0 || echo $(( O - 1 ))); binder read $(bun scripts/journal.ts $0 $P --key) -i "goal,plan,achievements,events,summary,totalScore" --format yaml`
+Target period with parent and siblings: !`O=$1; binder read $(bun scripts/journal.ts $0 ${O:-next} --key) -f "key,goal,plan,parent(key,goal,plan,children(key,goal,plan,achievements,summary,totalScore))" --format yaml`
+Previous period: !`O=$1; P=$([ "$O" = "next" ] || [ -z "$O" ] && echo 0 || echo $(( O - 1 ))); binder read $(bun scripts/journal.ts $0 $P --key) -f "goal,plan,achievements,events,summary,totalScore" --format yaml`
 
 ## Deliver one message
 

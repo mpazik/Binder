@@ -21,11 +21,11 @@ Ensure the target day exists: !`O=$0; bun scripts/journal.ts d ${O:-0}`
 
 ### Week context:
 
-!`O=$0; binder read $(bun scripts/journal.ts w ${O:-0} --key) -i "weekPeriod,goal,plan,achievements" --format yaml`
+!`O=$0; binder read $(bun scripts/journal.ts w ${O:-0} --key) -f "weekPeriod,goal,plan,achievements" --format yaml`
 
 ### Recent days:
 
-!`binder search type=JournalDay "dayPeriod>=$(date -v-7d +%Y-%m-%d)" -i "dayPeriod,plan,achievements,summary,moodScore,sleepScore,foodScore,workScore,fitnessScore,totalScore" --format yaml`
+!`binder search type=JournalDay "dayPeriod>=$(date -v-7d +%Y-%m-%d)" -f "dayPeriod,plan,achievements,summary,moodScore,sleepScore,foodScore,workScore,fitnessScore,totalScore" --format yaml`
 
 ## Deliver the briefing FIRST (no questions)
 

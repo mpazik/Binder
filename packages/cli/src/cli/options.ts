@@ -84,9 +84,9 @@ export type SelectionArgs = {
   skip?: number;
 };
 
-export const includeOption = {
-  include: {
-    alias: "i",
+export const fieldsOption = {
+  fields: {
+    alias: "f",
     describe: "fields to include (e.g. project(title,status),tags)",
     type: "string",
     coerce: (value: string): Includes =>

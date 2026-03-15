@@ -11,7 +11,7 @@ import {
 import { type CommandHandlerWithDb, runtimeWithDb } from "../runtime.ts";
 import { types } from "../cli/types.ts";
 import {
-  includeOption,
+  fieldsOption,
   limitOption,
   listFormatOption,
   namespaceOption,
@@ -26,12 +26,12 @@ const searchHandler: CommandHandlerWithDb<{
   namespace: NamespaceEditable;
   format?: SerializeFormat;
   limit?: number;
-  include?: Includes;
+  fields?: Includes;
   orderBy?: OrderBy;
 }> = async ({ kg, ui, args }) => {
   const hasArgs =
     args.query.length > 0 ||
-    args.include !== undefined ||
+    args.fields !== undefined ||
     args.orderBy !== undefined;
 
   if (isStdinPiped()) {
@@ -66,7 +66,7 @@ const searchHandler: CommandHandlerWithDb<{
   const filters = parseSerialFilters(args.query);
 
   const result = await kg.search(
-    { filters, includes: args.include, orderBy: args.orderBy },
+    { filters, includes: args.fields, orderBy: args.orderBy },
     args.namespace,
   );
   if (isErr(result)) return result;
@@ -94,7 +94,7 @@ export const SearchCommand = types({
         ...namespaceOption,
         ...listFormatOption,
         ...limitOption,
-        ...includeOption,
+        ...fieldsOption,
         ...orderByOption,
       }),
   handler: runtimeWithDb(searchHandler),
