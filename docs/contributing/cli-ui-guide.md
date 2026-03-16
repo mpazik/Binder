@@ -4,6 +4,39 @@ title: CLI UI Guide
 tags: [ contributing ]
 ---
 
+### Confirmation & Interactivity
+
+Every mutating command falls into one of two tiers based on reversibility:
+
+**Immediate** — reversible via undo, or trivially recoverable. No confirmation
+prompt. Offer `--dry-run` when the input is complex (files, stdin, batch).
+Examples: `create`, `update`, `delete`, `undo`, `redo`, `tx import`, `dev reset`.
+
+**Protected** — irreversible. History is lost, no recovery path. In TTY: show
+a preview and prompt for confirmation. In non-TTY: refuse unless `--yes` is
+passed. Examples: `tx squash`, `tx rehash`, `tx rollback`.
+
+Some commands are conditionally protected. `tx repair` is safe when the DB is
+behind the log (just replays), but destructive when the log is behind the DB
+(drops transactions). Prompt only in the destructive case.
+
+#### TTY detection
+
+- **TTY** (interactive terminal): protected commands prompt before proceeding.
+- **Non-TTY** (piped, scripted, agent): protected commands print an error and
+  exit unless `--yes` is passed. Immediate commands always apply without
+  prompting.
+
+#### Flags
+
+- `--dry-run` / `-d` — preview what would happen, don't apply. Available on
+  commands with complex or external input (files, stdin, batch operations).
+  Orthogonal to confirmation: dry-run is an explicit preview mode, not a safety
+  gate.
+- `--yes` / `-y` — skip the confirmation prompt. Only meaningful on protected
+  commands. Required in non-TTY for protected commands. Harmless but redundant
+  on immediate commands.
+
 ### Rules
 
 - **No Unicode symbols**: Never use ✓, ✗, ⚠, ℹ, • (accessibility issues, inconsistent rendering)

@@ -28,6 +28,11 @@ export const isStdinPiped = (): boolean => {
   );
 };
 
+/** True when running in an interactive terminal (stdin is a TTY and not piped). */
+export const isInteractive = (): boolean => {
+  return !isStdinPiped() && process.stdout.isTTY === true;
+};
+
 export const readStdin = async (): Promise<Result<string>> => {
   const result = await tryCatch(Bun.stdin.text());
   if (isErr(result))

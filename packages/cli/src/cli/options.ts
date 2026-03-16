@@ -5,8 +5,10 @@ import {
   parseSerialIncludes,
   parseSerialOrderBy,
 } from "@binder/db";
-import { throwIfError } from "@binder/utils";
+import { fail, ok, throwIfError, type Result } from "@binder/utils";
 import { serializeFormats, serializeItemFormats } from "../utils/serialize.ts";
+import { isInteractive } from "./stdin.ts";
+import type { Ui } from "./ui.ts";
 
 export const namespaceOption = {
   namespace: {
@@ -33,6 +35,11 @@ export const listFormatOption = {
   },
 } as const;
 
+/**
+ * Offer on commands with complex or external input (files, stdin, batch).
+ * Preview mode: show what would happen without applying.
+ * Orthogonal to confirmation — this is an explicit preview, not a safety gate.
+ */
 export const dryRunOption = {
   "dry-run": {
     alias: "d",
@@ -42,6 +49,16 @@ export const dryRunOption = {
   },
 } as const;
 
+/**
+ * Only for protected (irreversible) commands — those that destroy history or
+ * data that cannot be recovered via undo (e.g. tx squash, tx rehash).
+ *
+ * In TTY: skips the interactive confirmation prompt.
+ * In non-TTY: required, otherwise the command refuses to run.
+ *
+ * Do NOT add to immediate (reversible) commands. Those should just apply.
+ * See docs/contributing/cli-ui-guide.md for the full policy.
+ */
 export const yesOption = {
   yes: {
     alias: "y",
@@ -50,6 +67,27 @@ export const yesOption = {
     default: false,
   },
 } as const;
+
+/**
+ * Confirmation gate for protected (irreversible) commands.
+ * - --yes passed: skip prompt, proceed.
+ * - TTY: show prompt, let user decide.
+ * - Non-TTY without --yes: refuse with error.
+ */
+export const confirmProtected = async (
+  ui: Ui,
+  args: { yes?: boolean },
+  prompt: string,
+): Promise<Result<boolean>> => {
+  if (args.yes) return ok(true);
+  if (isInteractive()) {
+    return ok(await ui.confirm(prompt));
+  }
+  return fail(
+    "confirmation-required",
+    "This operation is irreversible. Pass --yes to confirm in non-interactive mode.",
+  );
+};
 
 export const limitOption = {
   limit: {

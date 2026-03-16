@@ -31,6 +31,7 @@ import {
 import { isStdinPiped, readStdinAsArray } from "../cli/stdin.ts";
 import { types } from "../cli/types.ts";
 import {
+  confirmProtected,
   dryRunOption,
   itemFormatOption,
   selectionOptions,
@@ -58,7 +59,6 @@ export const transactionImportHandler: CommandHandlerWithDb<
   {
     files?: string[];
     dryRun?: boolean;
-    yes?: boolean;
   } & SelectionArgs
 > = async ({ kg, config, ui, log, fs, args }) => {
   let allInputs: TransactionInput[] = [];
@@ -126,14 +126,6 @@ export const transactionImportHandler: CommandHandlerWithDb<
     return ok(undefined);
   }
 
-  if (!args.yes) {
-    ui.println("");
-    if (!(await ui.confirm("Do you want to proceed with import? (yes/no): "))) {
-      ui.info("Import cancelled");
-      return ok(undefined);
-    }
-  }
-
   const results: Transaction[] = [];
   for (let i = 0; i < allInputs.length; i++) {
     const input = allInputs[i]!;
@@ -176,6 +168,7 @@ export const transactionReadHandler: CommandHandlerWithDb<{
 
 export const transactionRollbackHandler: CommandHandlerWithDb<{
   count: number;
+  yes?: boolean;
 }> = async ({ kg, ui, log, args }) => {
   const versionResult = await kg.version();
   if (isErr(versionResult)) return versionResult;
@@ -201,6 +194,17 @@ export const transactionRollbackHandler: CommandHandlerWithDb<{
   ui.heading(`Rolling back ${args.count} transaction(s)`);
   ui.printTransactions(transactionsToRollback, "concise");
 
+  const confirmResult = await confirmProtected(
+    ui,
+    args,
+    "Do you want to proceed with rollback? (yes/no): ",
+  );
+  if (isErr(confirmResult)) return confirmResult;
+  if (!confirmResult.data) {
+    ui.info("Rollback cancelled");
+    return ok(undefined);
+  }
+
   const rollbackResult = await kg.rollback(args.count, currentId);
   if (isErr(rollbackResult)) return rollbackResult;
 
@@ -224,28 +228,29 @@ export const transactionSquashHandler: CommandHandlerWithDb<{
 
   const transactionsToSquash = logResult.data;
 
-  if (!args.yes) {
-    ui.heading(`Squashing ${args.count} transaction(s)`);
-    ui.printTransactions(transactionsToSquash, "oneline");
+  ui.heading(`Squashing ${args.count} transaction(s)`);
+  ui.printTransactions(transactionsToSquash, "oneline");
 
-    const uniqueAuthors = Array.from(
-      new Set(transactionsToSquash.map((tx) => tx.author)),
+  const uniqueAuthors = Array.from(
+    new Set(transactionsToSquash.map((tx) => tx.author)),
+  );
+  if (uniqueAuthors.length > 1) {
+    const newestAuthor =
+      transactionsToSquash[transactionsToSquash.length - 1]!.author;
+    ui.warning(
+      `Authors [${uniqueAuthors.join(", ")}] will be replaced with "${newestAuthor}"`,
     );
-    if (uniqueAuthors.length > 1) {
-      const newestAuthor =
-        transactionsToSquash[transactionsToSquash.length - 1]!.author;
-      ui.warning(
-        `Authors [${uniqueAuthors.join(", ")}] will be replaced with "${newestAuthor}"`,
-      );
-      ui.println("");
-    }
+  }
 
-    if (
-      !(await ui.confirm("Do you want to proceed with squashing? (yes/no): "))
-    ) {
-      ui.info("Squash cancelled");
-      return ok(undefined);
-    }
+  const confirmResult = await confirmProtected(
+    ui,
+    args,
+    "Do you want to proceed with squashing? (yes/no): ",
+  );
+  if (isErr(confirmResult)) return confirmResult;
+  if (!confirmResult.data) {
+    ui.info("Squash cancelled");
+    return ok(undefined);
   }
 
   const squashResult = await squashTransactions(context, args.count);
@@ -377,11 +382,15 @@ export const transactionRepairHandler: CommandHandlerWithDb<{
     );
     ui.println("");
 
-    if (!args.yes) {
-      if (!(await ui.confirm("Continue with rehash? (yes/no): "))) {
-        ui.info("Rehash cancelled");
-        return ok(undefined);
-      }
+    const confirmResult = await confirmProtected(
+      ui,
+      args,
+      "Continue with rehash? (yes/no): ",
+    );
+    if (isErr(confirmResult)) return confirmResult;
+    if (!confirmResult.data) {
+      ui.info("Rehash cancelled");
+      return ok(undefined);
     }
 
     ui.info("Reading transaction log...");
@@ -481,9 +490,14 @@ export const transactionRepairHandler: CommandHandlerWithDb<{
     return ok(undefined);
   }
 
-  if (!args.yes) {
-    ui.println("");
-    if (!(await ui.confirm("Do you want to proceed with repair? (yes/no): "))) {
+  if (dbOnlyTransactions.length > 0) {
+    const confirmResult = await confirmProtected(
+      ui,
+      args,
+      "Do you want to proceed with repair? (yes/no): ",
+    );
+    if (isErr(confirmResult)) return confirmResult;
+    if (!confirmResult.data) {
       ui.info("Repair cancelled");
       return ok(undefined);
     }
@@ -608,7 +622,7 @@ export const TransactionCommand = types({
                 type: "string",
                 array: true,
               })
-              .options({ ...dryRunOption, ...yesOption, ...selectionOptions });
+              .options({ ...dryRunOption, ...selectionOptions });
           },
           handler: runtimeWithDb(transactionImportHandler),
         }),
@@ -667,11 +681,13 @@ export const TransactionCommand = types({
           command: "rollback [count]",
           describe: "rollback the last N transactions",
           builder: (yargs: Argv) => {
-            return yargs.positional("count", {
-              describe: "number of transactions to rollback",
-              type: "number",
-              default: 1,
-            });
+            return yargs
+              .positional("count", {
+                describe: "number of transactions to rollback",
+                type: "number",
+                default: 1,
+              })
+              .options(yesOption);
           },
           handler: runtimeWithDb(transactionRollbackHandler),
         }),

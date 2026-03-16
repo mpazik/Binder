@@ -109,10 +109,8 @@ export const backupHandler: CommandHandlerWithDb = async ({
   return ok(undefined);
 };
 
-export const resetHandler: CommandHandlerWithDb<{ yes?: boolean }> = async (
-  ctx,
-) => {
-  const { ui, kg, fs, config, log, args } = ctx;
+export const resetHandler: CommandHandlerWithDb = async (ctx) => {
+  const { ui, kg, fs, config, log } = ctx;
   const binderPath = config.paths.binder;
   const backupPath = join(binderPath, `${TRANSACTION_LOG_FILE}.bac`);
   const transactionLogPath = join(binderPath, TRANSACTION_LOG_FILE);
@@ -149,23 +147,16 @@ export const resetHandler: CommandHandlerWithDb<{ yes?: boolean }> = async (
 
   const { count } = verifyResult.data;
 
-  if (!args.yes) {
-    ui.block(() => {
-      ui.warning("About to reset workspace:");
-      ui.list([
-        `Restore ${count} transactions from backup`,
-        `Delete database (${DB_FILE})`,
-        `Delete undo log (${UNDO_LOG_FILE})`,
-        `Delete logs directory`,
-        `Delete lock file (${LOCK_FILE})`,
-      ]);
-    });
-
-    if (!(await ui.confirm("Proceed with reset? (yes/no): "))) {
-      ui.info("Reset cancelled");
-      return ok(undefined);
-    }
-  }
+  ui.block(() => {
+    ui.info("Resetting workspace:");
+    ui.list([
+      `Restore ${count} transactions from backup`,
+      `Delete database (${DB_FILE})`,
+      `Delete undo log (${UNDO_LOG_FILE})`,
+      `Delete logs directory`,
+      `Delete lock file (${LOCK_FILE})`,
+    ]);
+  });
 
   const copyResult = await tryCatch(async () => {
     await Bun.write(transactionLogPath, Bun.file(backupPath));
@@ -243,14 +234,6 @@ export const DevCommand = types({
         types({
           command: "reset",
           describe: "restore from backup and rebuild workspace",
-          builder: (yargs: Argv) => {
-            return yargs.option("yes", {
-              alias: "y",
-              describe: "auto-confirm all prompts",
-              type: "boolean",
-              default: false,
-            });
-          },
           handler: runtimeWithDb(resetHandler),
         }),
       )
