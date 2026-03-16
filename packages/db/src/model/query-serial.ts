@@ -5,8 +5,10 @@ import type {
   FilterOperator,
   Filters,
   Includes,
+  IncludesQuery,
   OrderBy,
 } from "./query.ts";
+import { isIncludesQuery } from "./query.ts";
 
 // ---------------------------------------------------------------------------
 // Value coercion
@@ -221,14 +223,17 @@ export const serializeFilters = (filters: Filters): string[] => {
 
 const splitTopLevel = (input: string): string[] => {
   const segments: string[] = [];
-  let depth = 0;
+  let parenDepth = 0;
+  let bracketDepth = 0;
   let start = 0;
 
   for (let i = 0; i < input.length; i++) {
     const ch = input[i]!;
-    if (ch === "(") depth++;
-    else if (ch === ")") depth--;
-    else if (ch === "," && depth === 0) {
+    if (ch === "(") parenDepth++;
+    else if (ch === ")") parenDepth--;
+    else if (ch === "[") bracketDepth++;
+    else if (ch === "]") bracketDepth--;
+    else if (ch === "," && parenDepth === 0 && bracketDepth === 0) {
       segments.push(input.slice(start, i));
       start = i + 1;
     }
@@ -249,17 +254,67 @@ const parseIncludesInner = (input: string): Result<Includes> => {
     const seg = segment.trim();
     if (!seg) return fail("empty-field-name", "Empty field name in includes");
 
+    const bracketIdx = seg.indexOf("[");
     const parenIdx = seg.indexOf("(");
-    if (parenIdx === -1) {
-      // Simple field
+
+    if (bracketIdx === -1 && parenIdx === -1) {
+      // Simple field: "title"
       if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(seg)) {
         return fail("invalid-field-name", `Invalid field name: '${seg}'`, {
           field: seg,
         });
       }
       includes[seg] = true;
+    } else if (bracketIdx !== -1) {
+      // Filtered field: "field[filters]" or "field[filters](subfields)"
+      const fieldName = seg.slice(0, bracketIdx).trim();
+      if (!fieldName || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(fieldName)) {
+        return fail(
+          "invalid-field-name",
+          `Invalid field name: '${fieldName}'`,
+          { field: fieldName },
+        );
+      }
+
+      const closeBracketIdx = seg.indexOf("]", bracketIdx);
+      if (closeBracketIdx === -1) {
+        return fail("unmatched-bracket", "Unmatched opening bracket", {
+          field: fieldName,
+        });
+      }
+
+      const filterStr = seg.slice(bracketIdx + 1, closeBracketIdx).trim();
+      if (!filterStr) {
+        return fail("empty-filter", "Empty filter in brackets", {
+          field: fieldName,
+        });
+      }
+
+      const filterTokens = filterStr.split(",").map((s) => s.trim());
+      const filters = parseSerialFilters(filterTokens);
+      const query: IncludesQuery = { filters };
+
+      const afterBracket = seg.slice(closeBracketIdx + 1).trim();
+      if (afterBracket) {
+        // Expect "(subfields)"
+        if (!afterBracket.startsWith("(") || !afterBracket.endsWith(")")) {
+          return fail(
+            "unmatched-paren",
+            "Unmatched parenthesis after bracket",
+            {
+              field: fieldName,
+            },
+          );
+        }
+        const inner = afterBracket.slice(1, -1);
+        const result = parseIncludesInner(inner);
+        if (result.error) return result;
+        query.includes = result.data;
+      }
+
+      includes[fieldName] = query;
     } else {
-      // Field with sub-includes
+      // Nested field without filter: "field(subfields)"
       const fieldName = seg.slice(0, parenIdx).trim();
       if (!fieldName || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(fieldName)) {
         return fail(
@@ -296,16 +351,39 @@ export const parseSerialIncludes = (input: string): Result<Includes> => {
   const trimmed = input.trim();
   if (!trimmed) return fail("empty-includes", "Includes cannot be empty");
 
-  // Check for unmatched parentheses
-  let depth = 0;
-  for (const ch of trimmed) {
-    if (ch === "(") depth++;
-    else if (ch === ")") depth--;
-    if (depth < 0)
+  // Check for unmatched parentheses and brackets
+  let parenDepth = 0;
+  let bracketDepth = 0;
+  let lastCloseParen = -1;
+  for (let i = 0; i < trimmed.length; i++) {
+    const ch = trimmed[i]!;
+    if (ch === "(") parenDepth++;
+    else if (ch === ")") {
+      parenDepth--;
+      lastCloseParen = i;
+    } else if (ch === "[") {
+      if (lastCloseParen !== -1 && parenDepth === 0) {
+        // Check if this bracket follows a paren at the same nesting level
+        // e.g. "field(title)[type=Task]" — brackets must come before parens
+        const between = trimmed.slice(lastCloseParen + 1, i).trim();
+        if (!between.includes(",")) {
+          return fail(
+            "brackets-after-parens",
+            "Brackets must appear before parentheses",
+          );
+        }
+      }
+      bracketDepth++;
+    } else if (ch === "]") bracketDepth--;
+    if (parenDepth < 0)
       return fail("unmatched-paren", "Unmatched closing parenthesis");
+    if (bracketDepth < 0)
+      return fail("unmatched-bracket", "Unmatched closing bracket");
   }
-  if (depth !== 0)
+  if (parenDepth !== 0)
     return fail("unmatched-paren", "Unmatched opening parenthesis");
+  if (bracketDepth !== 0)
+    return fail("unmatched-bracket", "Unmatched opening bracket");
 
   return parseIncludesInner(trimmed);
 };
@@ -321,6 +399,16 @@ const serializeIncludesInner = (includes: Includes): string => {
     if (value === false) continue;
     if (value === true) {
       parts.push(field);
+    } else if (isIncludesQuery(value)) {
+      const query = value as IncludesQuery;
+      let part = field;
+      if (query.filters && Object.keys(query.filters).length > 0) {
+        part += `[${serializeFilters(query.filters).join(",")}]`;
+      }
+      if (query.includes && Object.keys(query.includes).length > 0) {
+        part += `(${serializeIncludesInner(query.includes)})`;
+      }
+      parts.push(part);
     } else {
       parts.push(`${field}(${serializeIncludesInner(value as Includes)})`);
     }

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import { throwIfError } from "@binder/utils";
 import "@binder/utils/tests";
-import type { Filters, Includes } from "./query.ts";
+import type { Filters, Includes, IncludesQuery } from "./query.ts";
 import {
   coerceFilterValue,
   parseSerialFilters,
@@ -289,6 +289,72 @@ describe("query-serial", () => {
         }));
     });
 
+    describe("filtered includes", () => {
+      it("parses filter only (no sub-fields)", () =>
+        check("relatesTo[type=Task]", {
+          relatesTo: { filters: { type: "Task" } },
+        }));
+
+      it("parses filter with sub-fields", () =>
+        check("relatesTo[type=Task](title,status)", {
+          relatesTo: {
+            filters: { type: "Task" },
+            includes: { title: true, status: true },
+          },
+        }));
+
+      it("parses multiple filters with operator", () =>
+        check("children[status=active,priority>=3](title)", {
+          children: {
+            filters: {
+              status: "active",
+              priority: { op: "gte", value: 3 },
+            },
+            includes: { title: true },
+          },
+        }));
+
+      it("parses filter with nested sub-fields", () =>
+        check("relatesTo[type=Task](title,assignee(name))", {
+          relatesTo: {
+            filters: { type: "Task" },
+            includes: { title: true, assignee: { name: true } },
+          },
+        }));
+
+      it("parses mixed filtered and unfiltered fields", () =>
+        check("relatesTo[type=Task](title),tags", {
+          relatesTo: {
+            filters: { type: "Task" },
+            includes: { title: true },
+          },
+          tags: true,
+        }));
+
+      it("parses multiple filtered fields", () =>
+        check("a[type=X],b[type=Y](name)", {
+          a: { filters: { type: "X" } },
+          b: { filters: { type: "Y" }, includes: { name: true } },
+        }));
+
+      it("parses unfiltered nested alongside filtered", () =>
+        check("project(title,owner(name)),relatesTo[type=Task](status)", {
+          project: { title: true, owner: { name: true } },
+          relatesTo: {
+            filters: { type: "Task" },
+            includes: { status: true },
+          },
+        }));
+
+      it("handles whitespace around brackets", () =>
+        check("relatesTo[ type=Task ]( title , status )", {
+          relatesTo: {
+            filters: { type: "Task" },
+            includes: { title: true, status: true },
+          },
+        }));
+    });
+
     describe("field names with underscore and digits", () => {
       it("parses field with underscore", () =>
         check("my_field", { my_field: true }));
@@ -315,6 +381,18 @@ describe("query-serial", () => {
 
       it("rejects trailing comma", () =>
         checkError("title,", "empty-field-name"));
+
+      it("rejects unmatched opening bracket", () =>
+        checkError("relatesTo[type=Task", "unmatched-bracket"));
+
+      it("rejects unmatched closing bracket", () =>
+        checkError("relatesTo]type=Task", "unmatched-bracket"));
+
+      it("rejects parens before brackets", () =>
+        checkError("relatesTo(title)[type=Task]", "brackets-after-parens"));
+
+      it("rejects empty brackets", () =>
+        checkError("relatesTo[](title)", "empty-filter"));
     });
   });
 
@@ -341,6 +419,35 @@ describe("query-serial", () => {
     it("skips false values", () =>
       check({ title: true, hidden: false }, "title"));
 
+    describe("filtered includes", () => {
+      it("serializes IncludesQuery with filters only", () =>
+        check(
+          { relatesTo: { filters: { type: "Task" } } as IncludesQuery },
+          "relatesTo[type=Task]",
+        ));
+
+      it("serializes IncludesQuery with filters and includes", () =>
+        check(
+          {
+            relatesTo: {
+              filters: { type: "Task" },
+              includes: { title: true, status: true },
+            } as IncludesQuery,
+          },
+          "relatesTo[type=Task](title,status)",
+        ));
+
+      it("serializes IncludesQuery with includes only as plain nested", () =>
+        check(
+          {
+            relatesTo: {
+              includes: { title: true },
+            } as IncludesQuery,
+          },
+          "relatesTo(title)",
+        ));
+    });
+
     describe("round-trip", () => {
       const checkRoundTrip = (input: string) => {
         const parsed = throwIfError(parseSerialIncludes(input));
@@ -355,6 +462,20 @@ describe("query-serial", () => {
       it("single field", () => checkRoundTrip("title"));
 
       it("single nested", () => checkRoundTrip("project(title)"));
+
+      it("filtered with sub-fields", () =>
+        checkRoundTrip("relatesTo[type=Task](title,status)"));
+
+      it("filtered without sub-fields", () =>
+        checkRoundTrip("relatesTo[type=Task]"));
+
+      it("mixed filtered and unfiltered", () =>
+        checkRoundTrip("a[type=X](title),b(name),c"));
+
+      it("multiple filters with operator", () =>
+        checkRoundTrip(
+          "children[status=active,priority>=3](title,assignee(name))",
+        ));
     });
   });
 

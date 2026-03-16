@@ -18,10 +18,18 @@ The `$` prefix is needed to avoid conflict with user fields which those names.
 - `similar` - Vector similarity search (semantic/embedding-based)
 - `search` - Hybrid search (with `type`: `"fulltext"`, `"vector"`, or `"hybrid"`)
 
-### Computed Fields
+### Computed Fields and Relation Aliases
 
-Computed fields are defined in a separate `computed` section and calculated at query time. They can be referenced in
-`filters`, `orderBy`, and optionally included in results via `includes`.
+Computed fields and relation aliases are defined inline in `includes`. The `relation` property is the discriminator: if
+present, the entry is a computed/derived field rather than a direct field reference. The key becomes the response name.
+
+This covers two use cases:
+
+1. **Aggregations** - count, sum, avg, etc. over a relation.
+2. **Relation aliases** - filtered projections of a relation under a new name. Needed when the same relation is split by
+   type (e.g., `relatesTo` filtered to Tasks vs Notes).
+
+**Aggregation operators:**
 
 **Count:** `count`
 **Numeric:** `sum`, `avg`, `min`, `max`
@@ -29,20 +37,80 @@ Computed fields are defined in a separate `computed` section and calculated at q
 **Boolean:** `every`, `some`
 **Date:** `earliest`, `latest`
 
+#### Relation Alias Examples
+
+A relation alias uses `relation` to point at the source field, with optional `filters` and nested `includes`:
+
+```json
+{
+  "includes": {
+    "relatedTasks": {
+      "relation": "relatesTo",
+      "filters": { "type": "Task" },
+      "includes": { "title": true, "status": true }
+    },
+    "relatedNotes": {
+      "relation": "relatesTo",
+      "filters": { "type": "Note" },
+      "includes": { "title": true, "body": true }
+    }
+  }
+}
+```
+
+Without aliasing, two filtered views of `relatesTo` would collide on the same response key. The alias gives each a
+distinct name.
+
+#### Referencing Computed Fields in Filters and OrderBy
+
+Computed fields defined in `includes` can be referenced by name in `filters` and `orderBy`:
+
+```json
+{
+  "includes": {
+    "title": true,
+    "commentCount": { "op": "count", "relation": "comments" }
+  },
+  "filters": {
+    "commentCount": { "op": "gt", "value": 5 }
+  },
+  "orderBy": ["!commentCount"]
+}
+```
+
+If a computed field is needed for filtering/sorting but not wanted in the response, a future `"include": false` flag
+could suppress it from output. Not designed yet - handling this when a real need arises.
+
 #### Design Rationale
 
-Separating computed field definitions from result selection allows:
+Computed fields live in `includes` rather than a separate `computed` section because:
 
-- Filtering/sorting by computed values without including them in results
-- Clear separation between field definition and selection
-- Explicit control over response payload
-- LLM-friendly predictability (what's in `includes` = what's in response)
+- Avoids declaring every computed field twice (once to define, once to include).
+- The common case is compute-and-return. Compute-without-returning is rare enough to handle later.
+- `relation` property cleanly discriminates computed entries from direct field references.
+
+> **Naming note:** Putting computed fields in `includes` is slightly awkward since some entries define new fields rather
+> than "include" existing ones. Renaming `includes` to `fields` or `select` would be more accurate. Worth considering
+> when the extension is implemented.
 
 ### Complete Example
 
 ```json
 {
-  "computed": {
+  "includes": {
+    "title": true,
+    "status": true,
+    "avgRating": { "op": "avg", "relation": "reviews", "field": "score" },
+    "commentCount": { "op": "count", "relation": "comments" },
+    "approvedComments": {
+      "op": "count",
+      "relation": "comments",
+      "filters": { "status": "approved" }
+    },
+    "totalHours": { "op": "sum", "relation": "timeEntries", "field": "hours" },
+    "tagList": { "op": "concat", "relation": "tags", "field": "name", "separator": ", " },
+    "allDone": { "op": "every", "relation": "subtasks", "field": "completed" },
+    "lastUpdate": { "op": "latest", "relation": "comments", "field": "createdAt" },
     "relevance": {
       "op": "search",
       "type": "hybrid",
@@ -50,27 +118,11 @@ Separating computed field definitions from result selection allows:
       "fields": ["title", "description"],
       "relations": { "comments": ["content"] }
     },
-    "commentCount": { "op": "count", "relation": "comments" },
-    "approvedComments": { 
-      "op": "count", 
-      "relation": "comments",
-      "filters": { "status": "approved" }
+    "relatedTasks": {
+      "relation": "relatesTo",
+      "filters": { "type": "Task" },
+      "includes": { "title": true, "priority": true }
     },
-    "avgRating": { "op": "avg", "relation": "reviews", "field": "score" },
-    "totalHours": { "op": "sum", "relation": "timeEntries", "field": "hours" },
-    "tagList": { "op": "concat", "relation": "tags", "field": "name", "separator": ", " },
-    "allDone": { "op": "every", "relation": "subtasks", "field": "completed" },
-    "lastUpdate": {
-      "op": "latest",
-      "relation": "comments",
-      "field": "createdAt"
-    }
-  },
-  "includes": {
-    "title": true,
-    "status": true,
-    "commentCount": true,
-    "avgRating": true,
     "project": { "includes": { "name": true } }
   },
   "filters": {
@@ -79,7 +131,7 @@ Separating computed field definitions from result selection allows:
     "commentCount": { "op": "gt", "value": 5 },
     "$or": [
       { "priority": { "op": "gte", "value": 4 } },
-      { 
+      {
         "$and": [
           { "assignee": { "op": "empty", "value": true } },
           { "avgRating": { "op": "gte", "value": 4.0 } }
@@ -98,13 +150,19 @@ Separating computed field definitions from result selection allows:
     {
       "title": "Fix deployment script",
       "status": "open",
-      "commentCount": 12,
       "avgRating": 4.2,
+      "commentCount": 12,
+      "approvedComments": 8,
+      "totalHours": 23.5,
+      "tagList": "urgent, devops",
+      "allDone": false,
+      "lastUpdate": "2026-03-14T10:30:00Z",
+      "relevance": 0.85,
+      "relatedTasks": [
+        { "title": "Update CI pipeline", "priority": "p1" }
+      ],
       "project": { "name": "DevOps" }
     }
   ]
 }
 ```
-
-Note: `relevance`, `approvedComments`, `totalHours`, `tagList`, `allDone`, and `lastUpdate` are computed but not
-included in the response because they're omitted from `includes`.

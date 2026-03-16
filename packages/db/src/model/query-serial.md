@@ -7,7 +7,7 @@ Each query parameter has its own independent serial format. Interfaces compose t
 never combined into a single string.
 
 See [query.md](./query.md) for the canonical JSON format. The serial format is a lossy subset — advanced features
-(logical operators, computed fields, IncludesQuery with nested filters) require the full JSON form.
+(logical operators, computed fields) require the full JSON form.
 
 ## Filters
 
@@ -64,11 +64,16 @@ deployment issues type=Task
 ```
 includes    = fieldList
 fieldList   = fieldExpr ("," fieldExpr)*
-fieldExpr   = fieldName ( "(" fieldList ")" )?
+fieldExpr   = fieldName ( "[" filterList "]" )? ( "(" fieldList ")" )?
+filterList  = filterExpr ("," filterExpr)*
 fieldName   = [a-zA-Z_][a-zA-Z0-9_]*
 ```
 
 Parentheses select sub-fields of a relationship, nesting recursively. A field name without parentheses maps to `true`.
+
+Square brackets apply filters to a relationship field, producing an `IncludesQuery`. Brackets must appear before
+parentheses when both are present. Filter expressions inside brackets use the same syntax as the [Filters](#filters)
+serial format, separated by commas.
 
 ### Examples
 
@@ -90,11 +95,43 @@ project(title,owner(name,email)),comments(body,author(name)),tags
 }
 ```
 
+#### Filtered includes
+
+```
+relatesTo[type=Task](title,status),tags
+```
+```json
+{
+  "relatesTo": { "filters": { "type": "Task" }, "includes": { "title": true, "status": true } },
+  "tags": true
+}
+```
+
+```
+relatesTo[type=Task]
+```
+```json
+{ "relatesTo": { "filters": { "type": "Task" } } }
+```
+
+```
+children[status=active,priority>=3](title,assignee(name))
+```
+```json
+{
+  "children": {
+    "filters": { "status": "active", "priority": { "op": "gte", "value": 3 } },
+    "includes": { "title": true, "assignee": { "name": true } }
+  }
+}
+```
+
 ### Notes
 
-- Whitespace around commas and parentheses is allowed and ignored.
-- Does not support: IncludesQuery (nested filters on relationships), excluding fields (`false` values). Use JSON format
-  for these.
+- Whitespace around commas, parentheses, and brackets is allowed and ignored.
+- Bracket filters reuse the [Filters](#filters) serial syntax. Operators that embed commas in their values (`:in=`,
+  `:notIn=`) conflict with the filter separator inside brackets. Use the full JSON form for these.
+- Does not support: excluding fields (`false` values). Use JSON format for this.
 
 ## OrderBy
 
@@ -133,6 +170,7 @@ Each interface composes the serial formats as separate arguments.
 ```bash
 binder search type=Task status=done -f "project(title,status),tags" -o "!priority" --limit 20
 binder read my-task -f "project(title),tags"
+binder search type=Concept -f "relatesTo[type=Task](title,status),tags"
 ```
 
 ### Navigation Config (YAML)
@@ -142,6 +180,11 @@ binder read my-task -f "project(title),tags"
 - path: "tasks/{key}"
   where: { type: Task }
   includes: "title,status,project(title)"
+
+# Serial form with filtered includes
+- path: "reviewed/{key}"
+  where: { type: Task }
+  includes: "comments[status=approved](body,author)"
 
 # Full JSON form still supported for advanced cases
 - path: "reviewed/{key}"
@@ -171,5 +214,11 @@ for the rest; YAML configs may only need `includes`; templates use pipe syntax.
 means inline mapping), compact (`project(title,status)` vs repeating `project.title,project.status`), and proven (Google
 APIs use this syntax across their ecosystem).
 
-**Serial as a lossy subset.** Advanced features — logical operators, IncludesQuery with nested filters, computed
-fields — require the full JSON/YAML form. The serial format targets the common case: quick human-authored queries.
+**Brackets for include filters.** Square brackets apply filters to relationship fields, following XPath predicate
+conventions (`items[@type='task']`). Brackets are shell-safe and YAML-safe (unlike `{}` which triggers brace expansion
+and means inline mapping). The visual distinction between `[filters]` and `(fields)` keeps the two concerns readable.
+OData uses a similar concept (nested `$filter` inside `$expand`) but overloads parentheses for both purposes, which is
+harder to parse and read.
+
+**Serial as a lossy subset.** Advanced features — logical operators, computed fields — require the full JSON/YAML form.
+The serial format targets the common case: quick human-authored queries.

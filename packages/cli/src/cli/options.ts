@@ -125,7 +125,8 @@ export type SelectionArgs = {
 export const fieldsOption = {
   fields: {
     alias: "f",
-    describe: "fields to include (e.g. project(title,status),tags)",
+    describe:
+      "fields to include (e.g. project(title,status),tags or relatesTo[type=Task](title))",
     type: "string",
     coerce: (value: string): Includes =>
       throwIfError(parseSerialIncludes(value)),
