@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { type ErrorObject, isErr, ok, type ResultAsync } from "@binder/utils";
+import { isErr, ok } from "@binder/utils";
 import { FiltersSchema } from "@binder/db";
+import { formatReferencesList } from "../../document/reference.ts";
 import { defineTool } from "./types.ts";
 
 export const searchToolName = "search";
@@ -40,23 +41,27 @@ Filter examples:
         before: args.before,
       },
     });
-
-    if (isErr(searchResult))
-      return searchResult as unknown as ResultAsync<never, ErrorObject>;
+    if (isErr(searchResult)) return searchResult;
 
     const { items, pagination } = searchResult.data;
 
+    const schemaResult = await kg.getSchema("record");
+    if (isErr(schemaResult)) return schemaResult;
+
+    const formatted = await formatReferencesList(items, schemaResult.data, kg);
+    if (isErr(formatted)) return formatted;
+
     return ok({
       metadata: {
-        count: items.length,
+        count: formatted.data.length,
         hasNext: pagination.hasNext,
         hasPrevious: pagination.hasPrevious,
         nextCursor: pagination.nextCursor,
         previousCursor: pagination.previousCursor,
       },
-      output: `Found ${items.length} record(s)`,
+      output: `Found ${formatted.data.length} record(s)`,
       structuredData: {
-        items,
+        items: formatted.data,
         pagination,
       },
     });

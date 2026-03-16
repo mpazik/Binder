@@ -15,6 +15,7 @@ import {
   mockRecordSchema,
   mockProjectKey,
   mockProjectRecord,
+  mockProjectUid,
   mockTask1Record,
   mockTask2Record,
   mockTaskTypeKey,
@@ -578,6 +579,36 @@ describe("navigation", () => {
         },
         `tasks/${mockTask1Record.title}.md`,
         `# ${mockTask1Record.title}\n`,
+      );
+    });
+
+    it("renders markdown frontmatter with key instead of UID for relation fields", async () => {
+      await addTemplate("task-ref-preamble", "# {title}\n", {
+        preamble: ["project"],
+      });
+
+      await check(
+        {
+          path: "tasks/{title}",
+          where: { type: "Task", project: mockProjectUid },
+          template: "task-ref-preamble",
+        },
+        `tasks/${mockTask2Record.title}.md`,
+        `---\nproject: ${mockProjectKey}\n---\n\n# ${mockTask2Record.title}\n`,
+      );
+    });
+
+    it("renders markdown template body with key instead of UID for relation fields", async () => {
+      await addTemplate("task-ref-body", "# {title}\n\nProject: {project}\n");
+
+      await check(
+        {
+          path: "tasks/{title}",
+          where: { type: "Task", project: mockProjectUid },
+          template: "task-ref-body",
+        },
+        `tasks/${mockTask2Record.title}.md`,
+        `# ${mockTask2Record.title}\n\nProject: ${mockProjectKey}\n`,
       );
     });
 

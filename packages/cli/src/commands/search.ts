@@ -1,7 +1,9 @@
 import type { Argv } from "yargs";
 import { fail, isErr, ok } from "@binder/utils";
 import {
+  type Fieldset,
   type Includes,
+  type KnowledgeGraph,
   type NamespaceEditable,
   type OrderBy,
   type QueryParams,
@@ -20,6 +22,17 @@ import {
 import { type SerializeFormat, flatListFormats } from "../utils/serialize.ts";
 import { applySelection } from "../utils/selection.ts";
 import { isStdinPiped, readStdinAs } from "../cli/stdin.ts";
+import { formatReferencesList } from "../document/reference.ts";
+
+const formatItems = async (
+  kg: KnowledgeGraph,
+  items: Fieldset[],
+  namespace: NamespaceEditable,
+) => {
+  const schemaResult = await kg.getSchema(namespace);
+  if (isErr(schemaResult)) return schemaResult;
+  return formatReferencesList(items, schemaResult.data, kg);
+};
 
 const searchHandler: CommandHandlerWithDb<{
   query: string[];
@@ -29,12 +42,14 @@ const searchHandler: CommandHandlerWithDb<{
   fields?: Includes;
   orderBy?: OrderBy;
 }> = async ({ kg, ui, args }) => {
-  const hasArgs =
-    args.query.length > 0 ||
-    args.fields !== undefined ||
-    args.orderBy !== undefined;
+  let query: QueryParams;
 
   if (isStdinPiped()) {
+    const hasArgs =
+      args.query.length > 0 ||
+      args.fields !== undefined ||
+      args.orderBy !== undefined;
+
     if (hasArgs)
       return fail(
         "conflicting-input",
@@ -44,37 +59,31 @@ const searchHandler: CommandHandlerWithDb<{
     const queryResult = await readStdinAs(QueryParamsSchema);
     if (isErr(queryResult)) return queryResult;
 
-    const query: QueryParams = {
+    query = {
       ...queryResult.data,
       pagination: {
         ...queryResult.data.pagination,
         limit: args.limit ?? queryResult.data.pagination?.limit,
       },
     };
-
-    const result = await kg.search(query, args.namespace);
-    if (isErr(result)) return result;
-
-    const items = applySelection(result.data.items, { limit: args.limit });
-    const data = flatListFormats.includes(args.format!)
-      ? items
-      : { ...result.data, items };
-    ui.printData(data, args.format);
-    return ok(undefined);
+  } else {
+    query = {
+      filters: parseSerialFilters(args.query),
+      includes: args.fields,
+      orderBy: args.orderBy,
+    };
   }
 
-  const filters = parseSerialFilters(args.query);
-
-  const result = await kg.search(
-    { filters, includes: args.fields, orderBy: args.orderBy },
-    args.namespace,
-  );
+  const result = await kg.search(query, args.namespace);
   if (isErr(result)) return result;
 
   const items = applySelection(result.data.items, { limit: args.limit });
+  const formatted = await formatItems(kg, items, args.namespace);
+  if (isErr(formatted)) return formatted;
+
   const data = flatListFormats.includes(args.format!)
-    ? items
-    : { ...result.data, items };
+    ? formatted.data
+    : { ...result.data, items: formatted.data };
   ui.printData(data, args.format);
   return ok(undefined);
 };

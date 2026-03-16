@@ -254,7 +254,7 @@ const getParentDir = (filePath: string, fileType: FileType): string => {
 };
 
 const isSingleValueFilter = (filter: Filter): boolean =>
-  typeof filter !== "object" || filter === null;
+  typeof filter !== "object" || !filter;
 
 const getExcludedFields = (
   namespace: NamespaceEditable,
@@ -294,12 +294,15 @@ const renderContent = async (
   templates: Templates,
 ): ResultAsync<string | null> => {
   if (fileType === "markdown") {
+    const formattedEntity = await formatReferences(entity, schema, kg);
+    if (isErr(formattedEntity)) return formattedEntity;
+
     const template = findTemplate(templates, item.template);
     const templateResult = renderTemplate(
       schema,
       templates,
       template.key as TemplateKey,
-      entity,
+      formattedEntity.data,
     );
     if (isErr(templateResult)) return templateResult;
 
@@ -309,7 +312,7 @@ const renderContent = async (
     const preambleIncludes = buildIncludes(preamble.map((key) => [key]));
     if (!preambleIncludes) return ok(templateResult.data);
 
-    const pickedEntity = pickByIncludes(entity, preambleIncludes);
+    const pickedEntity = pickByIncludes(formattedEntity.data, preambleIncludes);
     const frontmatter = renderFrontmatterString(pickedEntity, preamble, schema);
     if (!frontmatter) return ok(templateResult.data);
 
@@ -362,8 +365,7 @@ export const renderNavigationItem = async (
   const fileType = inferFileType(item);
   const result = emptyRenderResult();
 
-  let entities: FieldsetNested[] = [];
-  let shouldUpdateParentContext = false;
+  let entities: FieldsetNested[];
 
   if (item.where) {
     const interpolatedQuery = interpolateQueryParams(
@@ -399,13 +401,8 @@ export const renderNavigationItem = async (
     }
 
     entities = searchResult.data.items;
-    shouldUpdateParentContext = true;
-  } else if (parentEntities.length > 0) {
-    entities = [parentEntities[0]!];
-    shouldUpdateParentContext = false;
   } else {
-    entities = [emptyFieldset];
-    shouldUpdateParentContext = false;
+    entities = [parentEntities[0] ?? emptyFieldset];
   }
 
   for (const entity of entities) {
@@ -449,7 +446,7 @@ export const renderNavigationItem = async (
 
     if (item.children) {
       const itemDir = getParentDir(filePath, fileType);
-      const childParentEntities = shouldUpdateParentContext
+      const childParentEntities = item.where
         ? [entity as Fieldset, ...parentEntities]
         : parentEntities;
 
@@ -573,8 +570,7 @@ export const findEntityLocation = async (
   const resolvedPathResult = resolvePath(schema, navItem, entity, []);
   if (isErr(resolvedPathResult)) return resolvedPathResult;
 
-  const relativePath = resolvedPathResult.data;
-  const filePath = join(paths.docs, relativePath);
+  const filePath = join(paths.docs, resolvedPathResult.data);
 
   if (!isListNavItem(navItem)) {
     return ok({ filePath, line: 0 });
