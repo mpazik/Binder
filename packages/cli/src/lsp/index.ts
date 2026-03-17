@@ -11,6 +11,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { isErr } from "@binder/utils";
 import { type RuntimeContextInit } from "../runtime.ts";
 import { BINDER_VERSION } from "../build-time.ts";
+import { calculateContentHash } from "../lib/snapshot.ts";
 import { handleDocumentSave } from "./handlers/save-handler.ts";
 import { handleHover } from "./handlers/hover.ts";
 import { handleCompletion } from "./handlers/completion.ts";
@@ -20,7 +21,14 @@ import { handleDefinition } from "./handlers/definition.ts";
 import { handleDiagnostics } from "./handlers/diagnostics.ts";
 import { handleSemanticTokens } from "./handlers/semantic-tokens.ts";
 import { withDocumentContext } from "./document-context.ts";
-import { createWorkspaceManager } from "./workspace-manager.ts";
+import {
+  createWorkspaceManager,
+  withWorkspaceContext,
+} from "./workspace-manager.ts";
+
+/** Truncated SHA-256 for log readability. */
+const shortHash = (text: string | undefined): string =>
+  text ? calculateContentHash(text).slice(0, 12) : "none";
 
 export const createLspServer = (
   minimalContext: RuntimeContextInit,
@@ -37,15 +45,11 @@ export const createLspServer = (
   const workspaceManager = createWorkspaceManager(
     minimalContext,
     log,
-    async (absolutePaths: string[]) => {
+    async () => {
       // Rendered files are already written to disk by saveSnapshot.
       // We do NOT send applyEdit — let the editor's file watcher detect
       // the disk change and reload silently. Sending both a disk write
       // and applyEdit races and causes intermittent conflict dialogs.
-      log.info("Files rendered to disk", {
-        fileCount: absolutePaths.length,
-        paths: absolutePaths,
-      });
     },
   );
   const deps = {
@@ -168,47 +172,58 @@ export const createLspServer = (
     process.exit(exitCode);
   });
 
-  lspDocuments.onDidOpen(async (event) => {
-    log.debug("Document opened", { uri: event.document.uri });
-  });
+  lspDocuments.onDidOpen(
+    withWorkspaceContext("didOpen", deps, async (event, { runtime }) => {
+      runtime.log.debug("Document opened", { uri: event.document.uri });
+    }),
+  );
 
-  lspDocuments.onDidChangeContent(async (change) => {
-    log.debug("Document changed", { uri: change.document.uri });
-  });
+  lspDocuments.onDidChangeContent(
+    withWorkspaceContext("didChange", deps, async (event, { runtime }) => {
+      const text = event.document.getText();
+      runtime.log.info("didChange", {
+        uri: event.document.uri,
+        contentLength: text.length,
+        contentHash: shortHash(text),
+      });
+    }),
+  );
 
-  lspDocuments.onDidClose(async (event) => {
-    const uri = event.document.uri;
-    log.info("Document closed", { uri });
-
-    const workspace = workspaceManager.findWorkspaceForDocument(uri);
-    if (workspace) {
+  lspDocuments.onDidClose(
+    withWorkspaceContext("didClose", deps, async (event, workspace) => {
+      const uri = event.document.uri;
+      workspace.runtime.log.info("Document closed", { uri });
       workspace.documentCache.invalidate(uri);
-    }
-  });
+    }),
+  );
 
-  lspDocuments.onDidSave(async (change) => {
-    const uri = change.document.uri;
+  lspDocuments.onDidSave(
+    withWorkspaceContext("didSave", deps, async (event, { runtime }) => {
+      const uri = event.document.uri;
+      const wsLog = runtime.log;
 
-    const workspace = workspaceManager.findWorkspaceForDocument(uri);
-    if (!workspace) {
-      log.debug("Document not in any Binder workspace, skipping sync", { uri });
-      return;
-    }
+      // Use open document content as canonical source (avoids disk races
+      // from editor safe-write / atomic-rename save strategies).
+      const sourceContent = lspDocuments.get(uri)?.getText();
+      const absolutePath = new URL(uri).pathname;
+      const diskResult = await fs.readFile(absolutePath);
+      const diskContent = isErr(diskResult) ? undefined : diskResult.data;
 
-    // Use open document content as canonical source (avoids disk races
-    // from editor safe-write / atomic-rename save strategies).
-    const sourceContent = lspDocuments.get(uri)?.getText();
+      wsLog.info("didSave", {
+        uri,
+        bufferLength: sourceContent?.length,
+        bufferHash: shortHash(sourceContent),
+        diskLength: diskContent?.length,
+        diskHash: shortHash(diskContent),
+      });
 
-    const result = await handleDocumentSave(
-      workspace.runtime,
-      uri,
-      sourceContent,
-    );
+      const result = await handleDocumentSave(runtime, uri, sourceContent);
 
-    if (isErr(result)) {
-      log.error("Sync failed", { error: result.error, uri });
-    }
-  });
+      if (isErr(result)) {
+        wsLog.error("Sync failed", { error: result.error, uri });
+      }
+    }),
+  );
 
   connection.onCompletion(
     withDocumentContext("Completion", deps, handleCompletion),

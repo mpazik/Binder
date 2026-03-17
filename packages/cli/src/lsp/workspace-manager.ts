@@ -50,6 +50,24 @@ export const createWorkspaceManager = (
     workspaces.delete(rootPath);
   };
 
+  const findWorkspaceForDocument = (
+    documentUri: string,
+  ): WorkspaceEntry | undefined => {
+    const filePath = fileURLToPath(documentUri);
+
+    for (const [, entry] of workspaces) {
+      const { paths } = entry.runtime.config;
+
+      if (
+        filePath.startsWith(paths.docs) ||
+        filePath.startsWith(paths.binder)
+      ) {
+        return entry;
+      }
+    }
+    return undefined;
+  };
+
   return {
     initializeWorkspace: async (
       rootUri: string,
@@ -68,11 +86,14 @@ export const createWorkspaceManager = (
         {
           onFilesUpdated: async (relativePaths: string[]) => {
             entityContextCache.invalidateAll();
-            await onFilesUpdated(
-              relativePaths.map((path) =>
-                resolveRelativePath(path, runtime.config.paths),
-              ),
+            const absolutePaths = relativePaths.map((path) =>
+              resolveRelativePath(path, runtime.config.paths),
             );
+            runtime.log.info("Files rendered to disk", {
+              fileCount: absolutePaths.length,
+              paths: absolutePaths,
+            });
+            await onFilesUpdated(absolutePaths);
           },
         },
       );
@@ -109,23 +130,7 @@ export const createWorkspaceManager = (
       return entry;
     },
     disposeWorkspace,
-    findWorkspaceForDocument: (
-      documentUri: string,
-    ): WorkspaceEntry | undefined => {
-      const filePath = fileURLToPath(documentUri);
-
-      for (const [, entry] of workspaces) {
-        const { paths } = entry.runtime.config;
-
-        if (
-          filePath.startsWith(paths.docs) ||
-          filePath.startsWith(paths.binder)
-        ) {
-          return entry;
-        }
-      }
-      return undefined;
-    },
+    findWorkspaceForDocument,
     isBinderWorkspace: async (rootUri: string): Promise<boolean> => {
       const rootPath = fileURLToPath(rootUri);
       const binderDir = join(rootPath, BINDER_DIR);
@@ -144,3 +149,37 @@ export const createWorkspaceManager = (
     }),
   };
 };
+
+export type WorkspaceContextDeps = {
+  workspaceManager: WorkspaceManager;
+  log: Logger;
+};
+
+/** Find workspace for a document URI. Logs a debug message if not found. */
+export const resolveWorkspace = (
+  uri: string,
+  eventName: string,
+  deps: WorkspaceContextDeps,
+): WorkspaceEntry | undefined => {
+  const workspace = deps.workspaceManager.findWorkspaceForDocument(uri);
+  if (!workspace) {
+    deps.log.debug(`${eventName}: not in any Binder workspace`, { uri });
+  }
+  return workspace;
+};
+
+type HasDocumentUri = { document: { uri: string } };
+
+/** Wrap a document event handler with workspace resolution. Skips
+ *  non-workspace documents with a debug log. */
+export const withWorkspaceContext =
+  <T extends HasDocumentUri>(
+    eventName: string,
+    deps: WorkspaceContextDeps,
+    handler: (event: T, workspace: WorkspaceEntry) => Promise<void>,
+  ) =>
+  async (event: T): Promise<void> => {
+    const workspace = resolveWorkspace(event.document.uri, eventName, deps);
+    if (!workspace) return;
+    await handler(event, workspace);
+  };

@@ -42,7 +42,10 @@ import {
   computeEntityMappings,
   type EntityMappings,
 } from "./entity-mapping.ts";
-import type { WorkspaceManager } from "./workspace-manager.ts";
+import {
+  resolveWorkspace,
+  type WorkspaceContextDeps,
+} from "./workspace-manager.ts";
 import type { EntityContextCache } from "./entity-context.ts";
 
 type BaseDocumentContext = {
@@ -88,10 +91,8 @@ export type LspHandler<TParams extends LspParams, TResult> = (
   deps: LspHandlerDeps,
 ) => TResult | Promise<TResult>;
 
-export type WithDocumentContextDeps = {
+export type WithDocumentContextDeps = WorkspaceContextDeps & {
   lspDocuments: TextDocuments<TextDocument>;
-  workspaceManager: WorkspaceManager;
-  log: Logger;
 };
 
 const expectedContextErrors = new Set(["navigation-not-found", "parse-failed"]);
@@ -105,24 +106,20 @@ export const withDocumentContext =
     handler: LspHandler<TParams, TResult>,
   ) =>
   async (params: TParams): Promise<TResult | null> => {
-    const { lspDocuments, workspaceManager, log } = deps;
+    const { lspDocuments } = deps;
     const uri = params.textDocument.uri;
 
-    const workspace = workspaceManager.findWorkspaceForDocument(uri);
-    if (workspace) {
-      log.debug(`${requestName} request received`, { uri });
-    } else {
-      log.debug(`${requestName}: document not in any Binder workspace`, {
-        uri,
-      });
-      return null;
-    }
+    const workspace = resolveWorkspace(uri, requestName, deps);
+    if (!workspace) return null;
 
     const { runtime, documentCache, entityContextCache } = workspace;
+    const wsLog = runtime.log;
+
+    wsLog.debug(`${requestName} request received`, { uri });
 
     const document = lspDocuments.get(uri);
     if (!document) {
-      log.warn("Document not found", { uri });
+      wsLog.warn("Document not found", { uri });
       return null;
     }
 
@@ -134,9 +131,10 @@ export const withDocumentContext =
     );
     if (isErr(contextResult)) {
       const { error } = contextResult;
-      log[getContextErrorLevel(error.key)](`${requestName}: ${error.message}`, {
-        error,
-      });
+      wsLog[getContextErrorLevel(error.key)](
+        `${requestName}: ${error.message}`,
+        { error },
+      );
       return null;
     }
 

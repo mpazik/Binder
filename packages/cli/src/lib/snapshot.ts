@@ -38,7 +38,7 @@ export const calculateSnapshotHash = async (
   return hasher.digest("hex");
 };
 
-const calculateContentHash = (content: string): string => {
+export const calculateContentHash = (content: string): string => {
   const hasher = new Bun.CryptoHasher("sha256");
   hasher.update(content);
   return hasher.digest("hex");
