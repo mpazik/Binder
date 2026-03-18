@@ -236,6 +236,7 @@ export const createDocumentCache = (log: Logger): DocumentCache => {
     getStats,
   };
 };
+
 const buildFrontmatterContext = (
   root: ParsedMarkdown["root"],
   preamble: string[] | undefined,

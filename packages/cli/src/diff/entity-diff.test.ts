@@ -15,6 +15,8 @@ import {
   mockTask1Uid,
   mockTask2Record,
   mockTask2Uid,
+  mockTask3Record,
+  mockTask3Uid,
   mockTaskTypeKey,
 } from "@binder/db/mocks";
 import { omit } from "@binder/utils";
@@ -322,13 +324,14 @@ describe("entity-diff", () => {
 
     describe("matching and updates", () => {
       it("returns empty results when both lists are empty", () => {
-        check([], [], { toCreate: [], toUpdate: [] });
+        check([], [], { toCreate: [], toUpdate: [], toRemove: [] });
       });
 
       it("matches entities by uid and returns field updates", () => {
         check([{ ...task1, title: "Updated" }], [task1], {
           toCreate: [],
           toUpdate: [{ $ref: mockTask1Uid, title: "Updated" }],
+          toRemove: [],
         });
       });
 
@@ -345,12 +348,13 @@ describe("entity-diff", () => {
                 title: "Implement user authentication v2",
               },
             ],
+            toRemove: [],
           },
         );
       });
 
       it("returns no updates when entities are identical", () => {
-        check([task1], [task1], { toCreate: [], toUpdate: [] });
+        check([task1], [task1], { toCreate: [], toUpdate: [], toRemove: [] });
       });
     });
 
@@ -370,12 +374,12 @@ describe("entity-diff", () => {
             toCreate: [
               {
                 type: mockTaskTypeKey,
-                uid: "new-task-uid",
                 title: "Brand New Task",
                 status: "pending",
               },
             ],
             toUpdate: [],
+            toRemove: [],
           },
         );
       });
@@ -399,6 +403,7 @@ describe("entity-diff", () => {
               }),
             ],
             toUpdate: [],
+            toRemove: [mockTask1Uid],
           },
         );
       });
@@ -417,13 +422,59 @@ describe("entity-diff", () => {
               },
             ],
             toUpdate: [],
+            toRemove: [],
           },
           { filters: { status: "pending", project: mockProjectUid } },
         );
       });
     });
 
+    describe("entity removal", () => {
+      it("returns toRemove with uid when old entity absent from new list", () => {
+        check([task1], [task1, task2], {
+          toCreate: [],
+          toUpdate: [],
+          toRemove: [mockTask2Uid],
+        });
+      });
+
+      it("returns empty toRemove when all old entities are matched", () => {
+        check([task1, task2], [task1, task2], {
+          toCreate: [],
+          toUpdate: [],
+          toRemove: [],
+        });
+      });
+
+      it("returns multiple uids in toRemove when several entities removed", () => {
+        check([], [task1, task2], {
+          toCreate: [],
+          toUpdate: [],
+          toRemove: [mockTask1Uid, mockTask2Uid],
+        });
+      });
+    });
+
     describe("mixed operations", () => {
+      it("handles simultaneous create, update, and remove", () => {
+        check(
+          [
+            { ...task1, title: "Updated" },
+            {
+              uid: "new-task-uid" as RecordUid,
+              type: mockTaskTypeKey,
+              title: "Brand New",
+            },
+          ],
+          [task1, task2, mockTask3Record as FieldsetNested],
+          {
+            toCreate: [{ type: mockTaskTypeKey, title: "Brand New" }],
+            toUpdate: [{ $ref: mockTask1Uid, title: "Updated" }],
+            toRemove: [mockTask2Uid, mockTask3Uid],
+          },
+        );
+      });
+
       it("handles updates and creates in same batch", () => {
         check(
           [
@@ -434,6 +485,7 @@ describe("entity-diff", () => {
           {
             toCreate: [{ type: mockTaskTypeKey, title: "New Task" }],
             toUpdate: [{ $ref: mockTask1Uid, title: "Updated" }],
+            toRemove: [],
           },
         );
       });
@@ -451,6 +503,7 @@ describe("entity-diff", () => {
               { $ref: mockTask2Uid, title: "Task 2 Updated" },
               { $ref: mockTask1Uid, title: "Task 1 Updated" },
             ],
+            toRemove: [],
           },
         );
       });

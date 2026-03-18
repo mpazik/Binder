@@ -50,7 +50,9 @@ import {
   getTypeFieldKey,
   incrementEntityId,
   isClearChange,
+  isEntityDelete,
   isEntityUpdate,
+  type EntityMutationInput,
   isInsertMutation,
   isListMutation,
   isListMutationArray,
@@ -257,7 +259,7 @@ const validateMutations = <N extends NamespaceEditable>(
 };
 
 const validateFieldDefaultValue = (
-  input: EntityChangesetInput<"config">,
+  input: EntityMutationInput<"config">,
   existingEntity: Fieldset | undefined,
 ): ValidationError[] => {
   const errors: ValidationError[] = [];
@@ -296,9 +298,9 @@ const validateFieldDefaultValue = (
 };
 
 const validateInverseOfField = (
-  input: EntityChangesetInput<"config">,
+  input: EntityMutationInput<"config">,
   schema: EntitySchema,
-  batchInputs: EntityChangesetInput<"config">[],
+  batchInputs: EntityMutationInput<"config">[],
 ): ValidationError[] => {
   const inverseOfValue = input["inverseOf"] as string | undefined;
   if (!inverseOfValue) return [];
@@ -363,7 +365,7 @@ const validateInverseOfField = (
 };
 
 const validateTypeFieldDefaults = (
-  input: EntityChangesetInput<"config">,
+  input: EntityMutationInput<"config">,
   schema: EntitySchema,
 ): ValidationError[] => {
   const errors: ValidationError[] = [];
@@ -403,7 +405,7 @@ const validateTypeFieldDefaults = (
 
 const validateChangesetInput = <N extends NamespaceEditable>(
   namespace: N,
-  input: EntityChangesetInput<N>,
+  input: EntityMutationInput<N>,
   schema: EntitySchema,
 ): ValidationError[] => {
   const errors: ValidationError[] = [];
@@ -549,7 +551,7 @@ const validateChangesetInput = <N extends NamespaceEditable>(
 const validateUniquenessConstraints = async <N extends NamespaceEditable>(
   tx: DbTransaction,
   namespace: N,
-  input: EntityChangesetInput<N>,
+  input: EntityMutationInput<N>,
   schema: EntitySchema,
   currentEntityUid?: EntityNsUid[N],
 ): ResultAsync<ValidationError[]> => {
@@ -656,7 +658,10 @@ export const applyConfigChangesetToSchema = (
   for (const [configKey, changeset] of Object.entries(configsChangeset)) {
     const idChange = changeset.id ? normalizeValueChange(changeset.id) : null;
 
-    if (idChange && isSetChange(idChange) && idChange.length === 2) {
+    if (idChange && isClearChange(idChange)) {
+      delete newFields[configKey as FieldKey];
+      delete newTypes[configKey as EntityType];
+    } else if (idChange && isSetChange(idChange) && idChange.length === 2) {
       const entity = applyChangesetModel(emptyFieldset, changeset);
 
       if (includes(fieldTypes, entity.type)) {
@@ -830,6 +835,7 @@ const resolveRelations = <N extends NamespaceEditable>(
   schema: NamespaceSchema<N>,
   refToUid: RefToUidMap,
 ): EntityChangesetInput<N> => {
+  if (isEntityDelete(input)) return input;
   const resolved: EntityChangesetInput<N> = { ...input };
 
   for (const [fieldKey, value] of objEntries(input)) {
@@ -1057,6 +1063,7 @@ const expandInverseRelations = async <N extends NamespaceEditable>(
 
   return ok(result);
 };
+
 const buildChangeset = async <N extends NamespaceEditable>(
   namespace: N,
   schema: NamespaceSchema<N>,
@@ -1065,6 +1072,24 @@ const buildChangeset = async <N extends NamespaceEditable>(
   generateEntityId: () => EntityId,
   batchInputs: EntityChangesetInput<N>[],
 ): ResultAsync<[EntityChangesetRef<N>, FieldChangeset], ValidationError[]> => {
+  if (isEntityDelete(input)) {
+    const ref = input.$ref as EntityNsRef[N];
+    const selectResult = await fetchEntityFieldset(tx, namespace, ref, [
+      "id",
+      "key",
+      "uid",
+    ]);
+    if (isErr(selectResult))
+      return validationError(
+        selectResult.error.message ?? selectResult.error.key,
+      );
+    const current = selectResult.data;
+    const changesetRef = (
+      namespace === "record" ? current.uid : assertDefinedPass(current.key)
+    ) as EntityChangesetRef<N>;
+    return ok([changesetRef, { id: ["clear", current.id as FieldValue] }]);
+  }
+
   const updatedSystemField = systemGeneratedFields.find(
     (field) => field in input,
   );

@@ -133,7 +133,6 @@ describe("changeset processor", () => {
   });
 
   describe("processChangesetInput", () => {
-    const mockTask1LastEntityId = mockTask1Record.id;
     const invalidConfigType = "InvalidConfigType" as ConfigType;
     const testFieldKey = "testField" as ConfigKey;
 
@@ -199,7 +198,7 @@ describe("changeset processor", () => {
               "record",
               [mockChangesetInputUpdateTask1],
               mockRecordSchema,
-              mockTask1LastEntityId,
+              mockTask1Record.id,
             ),
           ),
         );
@@ -235,6 +234,39 @@ describe("changeset processor", () => {
           type: fieldSystemType,
           dataType: "plaintext",
         });
+      });
+    });
+
+    describe("delete", () => {
+      it("creates deletion changeset for record entity", async () => {
+        await insertRecord(db, mockTask1Record);
+
+        const result = throwIfError(
+          await process([{ $ref: mockTask1Uid, $delete: true }]),
+        );
+
+        expect(result).toEqual({
+          [mockTask1Uid]: { id: ["clear", mockTask1Record.id] },
+        });
+      });
+
+      it("creates deletion changeset for config entity", async () => {
+        await insertConfig(db, mockTaskType);
+
+        const result = throwIfError(
+          await process([{ $ref: mockTaskType.uid, $delete: true }], "config"),
+        );
+
+        expect(result).toEqual({
+          [mockTaskTypeKey]: { id: ["clear", mockTaskType.id] },
+        });
+      });
+
+      it("returns error when deleting non-existent entity", async () => {
+        const result = await process([
+          { $ref: "_nonexistent" as RecordUid, $delete: true },
+        ]);
+        expect(result).toBeErr();
       });
     });
 
@@ -840,67 +872,6 @@ describe("changeset processor", () => {
           "config",
         ));
 
-      describe("normalization", () => {
-        const checkNormalized = async (
-          input: EntityChangesetInput<"record">,
-          expected: Record<string, unknown>,
-        ) => {
-          const result = throwIfError(await process([input]));
-          expect(Object.values(result)[0]).toMatchObject(expected);
-        };
-
-        it("normalizes single value to array for allowMultiple plaintext identifier field", () =>
-          checkNormalized(
-            { type: mockTaskTypeKey, title: "Test Task", tags: "single-tag" },
-            { tags: ["single-tag"] },
-          ));
-
-        it("normalizes comma-separated string to array for allowMultiple plaintext identifier field", () =>
-          checkNormalized(
-            {
-              type: mockTaskTypeKey,
-              title: "Test Task",
-              tags: "tag1, tag2, tag3",
-            },
-            { tags: ["tag1", "tag2", "tag3"] },
-          ));
-
-        it("preserves array values for allowMultiple fields", () =>
-          checkNormalized(
-            { type: mockTaskTypeKey, title: "Test Task", tags: ["a", "b"] },
-            { tags: ["a", "b"] },
-          ));
-
-        it("filters empty items when splitting by delimiter", () =>
-          checkNormalized(
-            { type: mockTaskTypeKey, title: "Test Task", tags: "a,,b" },
-            { tags: ["a", "b"] },
-          ));
-
-        it("does not split non-allowMultiple fields", () =>
-          checkNormalized(
-            { type: mockTaskTypeKey, title: "Title, with comma" },
-            { title: "Title, with comma" },
-          ));
-
-        it("handles ObjTuple format in relation array field", async () => {
-          await insertRecord(db, mockUserRecord);
-
-          const result = throwIfError(
-            await process([
-              {
-                type: mockTeamTypeKey,
-                members: [{ [mockUserUid]: { role: "admin" } }],
-              },
-            ]),
-          );
-
-          expect(Object.values(result)[0]).toMatchObject({
-            members: [[mockUserUid, { role: "admin" }]],
-          });
-        });
-      });
-
       describe("patch", () => {
         it("validates patch attrs against field attributes", async () => {
           await insertRecord(db, mockTaskWithOwnersRecord);
@@ -1133,6 +1104,67 @@ describe("changeset processor", () => {
             ],
             "config",
           ));
+      });
+    });
+
+    describe("normalization", () => {
+      const checkNormalized = async (
+        input: EntityChangesetInput<"record">,
+        expected: Record<string, unknown>,
+      ) => {
+        const result = throwIfError(await process([input]));
+        expect(Object.values(result)[0]).toMatchObject(expected);
+      };
+
+      it("normalizes single value to array for allowMultiple plaintext identifier field", () =>
+        checkNormalized(
+          { type: mockTaskTypeKey, title: "Test Task", tags: "single-tag" },
+          { tags: ["single-tag"] },
+        ));
+
+      it("normalizes comma-separated string to array for allowMultiple plaintext identifier field", () =>
+        checkNormalized(
+          {
+            type: mockTaskTypeKey,
+            title: "Test Task",
+            tags: "tag1, tag2, tag3",
+          },
+          { tags: ["tag1", "tag2", "tag3"] },
+        ));
+
+      it("preserves array values for allowMultiple fields", () =>
+        checkNormalized(
+          { type: mockTaskTypeKey, title: "Test Task", tags: ["a", "b"] },
+          { tags: ["a", "b"] },
+        ));
+
+      it("filters empty items when splitting by delimiter", () =>
+        checkNormalized(
+          { type: mockTaskTypeKey, title: "Test Task", tags: "a,,b" },
+          { tags: ["a", "b"] },
+        ));
+
+      it("does not split non-allowMultiple fields", () =>
+        checkNormalized(
+          { type: mockTaskTypeKey, title: "Title, with comma" },
+          { title: "Title, with comma" },
+        ));
+
+      it("handles ObjTuple format in relation array field", async () => {
+        await insertRecord(db, mockUserRecord);
+
+        const result = throwIfError(
+          await process([
+            {
+              type: mockTeamTypeKey,
+              members: [{ [mockUserUid]: { role: "admin" } }],
+            },
+          ]),
+        );
+
+        expect(Object.values(result)[0]).toMatchObject({
+          members: [[mockUserUid, { role: "admin" }]],
+        });
       });
     });
 
@@ -1624,9 +1656,33 @@ describe("changeset processor", () => {
 
       const result = applyConfigChangesetToSchema(mockRecordSchema, changeset);
 
-      expect(result.fields[mockPriorityFieldKey]?.description).toBe(
-        "Updated description",
-      );
+      expect(result.fields[mockPriorityFieldKey]).toMatchObject({
+        description: "Updated description",
+      });
+    });
+
+    it("removes field from schema", () => {
+      const changeset: EntitiesChangeset<"config"> = {
+        [mockPriorityFieldKey]: {
+          id: ["clear", mockPriorityField.id],
+        },
+      };
+
+      const result = applyConfigChangesetToSchema(mockRecordSchema, changeset);
+
+      expect(result.fields[mockPriorityFieldKey]).toBeUndefined();
+    });
+
+    it("removes type from schema", () => {
+      const changeset: EntitiesChangeset<"config"> = {
+        [mockTaskTypeKey]: {
+          id: ["clear", mockTaskType.id],
+        },
+      };
+
+      const result = applyConfigChangesetToSchema(mockRecordSchema, changeset);
+
+      expect(result.types[mockTaskTypeKey]).toBeUndefined();
     });
   });
 });

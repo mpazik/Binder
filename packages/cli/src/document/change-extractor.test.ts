@@ -1,5 +1,4 @@
 import { dirname, join } from "path";
-import * as YAML from "yaml";
 import { beforeEach, describe, expect, it } from "bun:test";
 import { pick, throwIfError } from "@binder/utils";
 import "@binder/utils/tests";
@@ -74,7 +73,7 @@ const taskMarkdown = (
 ${description}
 `;
 
-describe("synchronizeFile", () => {
+describe("change-extractor", () => {
   let ctx: RuntimeContextWithDb;
   let kg: KnowledgeGraph;
 
@@ -307,6 +306,12 @@ ${mockTask2Record.description}
         ],
       );
     });
+
+    it("detects removal of entity from list", async () => {
+      await check("all-tasks.yaml", renderYamlList([mockTask1Record]), [
+        { $ref: mockTask2Uid, $delete: true },
+      ]);
+    });
   });
 
   describe("synchronizeModifiedFiles", () => {
@@ -348,7 +353,10 @@ ${mockTask2Record.description}
         renderYamlList([{ ...mockTask1Record, title: "Updated Title" }]),
         {
           author: ctx.config.author,
-          records: [{ $ref: mockTask1Uid, title: "Updated Title" }],
+          records: [
+            { $ref: mockTask1Uid, title: "Updated Title" },
+            { $ref: mockTask2Uid, $delete: true },
+          ],
           configs: [],
         },
       );
@@ -358,36 +366,44 @@ ${mockTask2Record.description}
       await check(
         join(ctx.config.paths.docs, "all-tasks.yaml"),
         renderYamlList([{ ...mockTask1Record, title: "Scoped Update" }]),
-        { records: [{ $ref: mockTask1Uid, title: "Scoped Update" }] },
+        {
+          records: [
+            { $ref: mockTask1Uid, title: "Scoped Update" },
+            { $ref: mockTask2Uid, $delete: true },
+          ],
+        },
       );
     });
 
-    it("detects conflict when two files change same entity field to different values", async () => {
-      const yamlPath = join(
-        ctx.config.paths.docs,
-        `tasks/${mockTask1Record.key}.yaml`,
-      );
-      const mdPath = join(
-        ctx.config.paths.docs,
-        `md-tasks/${mockTask1Record.key}.md`,
-      );
+    describe("conflict detection", () => {
+      it("detects conflict when two files change same entity field to different values", async () => {
+        const yamlPath = join(
+          ctx.config.paths.docs,
+          `tasks/${mockTask1Record.key}.yaml`,
+        );
+        const mdPath = join(
+          ctx.config.paths.docs,
+          `md-tasks/${mockTask1Record.key}.md`,
+        );
 
-      throwIfError(await ctx.fs.mkdir(dirname(yamlPath), { recursive: true }));
-      throwIfError(await ctx.fs.mkdir(dirname(mdPath), { recursive: true }));
+        throwIfError(
+          await ctx.fs.mkdir(dirname(yamlPath), { recursive: true }),
+        );
+        throwIfError(await ctx.fs.mkdir(dirname(mdPath), { recursive: true }));
 
-      throwIfError(
-        await ctx.fs.writeFile(
-          yamlPath,
-          renderYamlEntity({
-            title: "Title From YAML",
-            status: mockTask1Record.status,
-          }),
-        ),
-      );
-      throwIfError(
-        await ctx.fs.writeFile(
-          mdPath,
-          `---
+        throwIfError(
+          await ctx.fs.writeFile(
+            yamlPath,
+            renderYamlEntity({
+              title: "Title From YAML",
+              status: mockTask1Record.status,
+            }),
+          ),
+        );
+        throwIfError(
+          await ctx.fs.writeFile(
+            mdPath,
+            `---
 status: ${mockTask1Record.status}
 ---
 
@@ -397,84 +413,118 @@ status: ${mockTask1Record.status}
 
 ${mockTask1Record.description}
 `,
-        ),
-      );
+          ),
+        );
 
-      const result = await extractModifiedFileChanges(
-        ctx,
-        ctx.config.paths.docs,
-      );
-      expect(result).toBeErrWithKey("field-conflict");
-    });
-
-    it("detects changes in config namespace", async () => {
-      await check(
-        join(ctx.config.paths.binder, "types.yaml"),
-        renderYamlList([{ ...mockTaskType, name: "Updated Task Type" }]),
-        {
-          records: [],
-          configs: [{ $ref: mockTaskType.uid, name: "Updated Task Type" }],
-        },
-      );
-    });
-
-    it("detects added navigation entry", async () => {
-      const navPath = join(ctx.config.paths.binder, "navigation.yaml");
-      const navContent = throwIfError(await ctx.fs.readFile(navPath));
-      const parsed = YAML.parse(navContent) as {
-        items: Record<string, unknown>[];
-      };
-      parsed.items.push({
-        key: "nav-new-entry",
-        where: { type: "Task" },
-        path: "new-tasks/{key}",
+        const result = await extractModifiedFileChanges(
+          ctx,
+          ctx.config.paths.docs,
+        );
+        expect(result).toBeErrWithKey("field-conflict");
       });
 
-      await check(navPath, YAML.stringify(parsed), {
-        configs: expect.arrayContaining([
-          expect.objectContaining({
-            type: "Navigation",
-            key: "nav-new-entry",
-            path: "new-tasks/{key}",
-          }),
-        ]),
+      it("detects conflict when one file deletes and another updates same entity", async () => {
+        const listPath = join(ctx.config.paths.docs, "all-tasks.yaml");
+        const itemPath = join(
+          ctx.config.paths.docs,
+          `tasks/${mockTask2Record.key}.yaml`,
+        );
+
+        throwIfError(
+          await ctx.fs.writeFile(listPath, renderYamlList([mockTask1Record])),
+        );
+        throwIfError(
+          await ctx.fs.writeFile(
+            itemPath,
+            renderYamlEntity({
+              title: "Task 2 Updated",
+              status: mockTask2Record.status,
+              description: mockTask2Record.description,
+            }),
+          ),
+        );
+
+        const result = await extractModifiedFileChanges(
+          ctx,
+          ctx.config.paths.docs,
+        );
+        expect(result).toBeErrWithKey("field-conflict");
       });
     });
 
-    it.todo("detects removed navigation entry", async () => {
-      // Requires entity deletion support (not yet implemented).
-      // diffQueryResults only computes toCreate/toUpdate, never toRemove.
-      const navPath = join(ctx.config.paths.binder, "navigation.yaml");
-      const navContent = throwIfError(await ctx.fs.readFile(navPath));
+    describe("config namespace", () => {
+      it("detects changes", async () => {
+        await check(
+          join(ctx.config.paths.binder, "types.yaml"),
+          renderYamlList([{ ...mockTaskType, name: "Updated Task Type" }]),
+          {
+            records: [],
+            configs: expect.arrayContaining([
+              { $ref: mockTaskType.uid, name: "Updated Task Type" },
+              { $ref: mockProjectType.uid, $delete: true },
+              { $ref: mockUserType.uid, $delete: true },
+              { $ref: mockTeamType.uid, $delete: true },
+            ]),
+          },
+        );
+      });
 
-      const parsed = YAML.parse(navContent) as {
-        items: Record<string, unknown>[];
-      };
-      parsed.items = parsed.items.filter(
-        (item) => item.key !== "nav-all-tasks",
-      );
-      throwIfError(await ctx.fs.writeFile(navPath, YAML.stringify(parsed)));
+      it("detects removal of entity from list", async () => {
+        await check(
+          join(ctx.config.paths.binder, "types.yaml"),
+          renderYamlList([mockTaskType, mockProjectType]),
+          {
+            records: [],
+            configs: expect.arrayContaining([
+              { $ref: mockUserType.uid, $delete: true },
+              { $ref: mockTeamType.uid, $delete: true },
+            ]),
+          },
+        );
+      });
 
-      const result = throwIfError(await extractModifiedFileChanges(ctx));
+      it("keeps key when creating entity from list", async () => {
+        const newType = {
+          ...mockTaskType,
+          uid: "_new_type" as typeof mockTaskType.uid,
+          key: "EpicType",
+          name: "Epic Type",
+        };
 
-      expect(result).not.toBeNull();
-    });
+        await check(
+          join(ctx.config.paths.binder, "types.yaml"),
+          renderYamlList([
+            mockTaskType,
+            mockProjectType,
+            mockUserType,
+            mockTeamType,
+            newType,
+          ]),
+          {
+            records: [],
+            configs: expect.arrayContaining([
+              expect.objectContaining({
+                type: mockTaskType.type,
+                key: "EpicType",
+                name: "Epic Type",
+              }),
+            ]),
+          },
+        );
+      });
 
-    it("returns null when config types with TypeFieldRef tuples are unchanged", async () => {
-      // Regression: normalizeReferences was converting TypeFieldRef tuples like
-      // ["title", { required: true }] to ObjTuples like { title: { required: true } },
-      // causing phantom diffs against KG-side entities that retain the canonical tuple format.
-      const allTypes = [
-        mockTaskType,
-        mockProjectType,
-        mockUserType,
-        mockTeamType,
-      ];
-      await check(
-        join(ctx.config.paths.binder, "types.yaml"),
-        renderYamlList(allTypes),
-        null,
-      );
+      it("returns null when TypeFieldRef tuples are unchanged", async () => {
+        await check(
+          join(ctx.config.paths.binder, "types.yaml"),
+          renderYamlList([
+            mockTaskType,
+            mockProjectType,
+            mockUserType,
+            mockTeamType,
+          ]),
+          null,
+        );
+      });
     });
   });
 });

@@ -10,7 +10,7 @@ import type {
   QueryParams,
   TransactionInput,
 } from "@binder/db";
-import { includesWithUid } from "@binder/db";
+import { includesWithUid, isEntityDelete } from "@binder/db";
 import {
   fail,
   isEqual,
@@ -84,29 +84,19 @@ const diffSingle = async (
   );
 };
 
-const diffList = async (
+const diffQueryWithEntities = async (
   kg: KnowledgeGraph,
   schema: EntitySchema,
   namespace: NamespaceEditable,
   entities: FieldsetNested[],
   query: QueryParams,
   pathFields: Fieldset,
-  log?: Logger,
 ): ResultAsync<ChangesetsInput> => {
   const interpolatedQuery = interpolateQueryParams(schema, query, [pathFields]);
   if (isErr(interpolatedQuery)) return interpolatedQuery;
 
   const kgResult = await kg.search(interpolatedQuery.data, namespace);
   if (isErr(kgResult)) return kgResult;
-
-  log?.debug("diffList", {
-    query: interpolatedQuery.data,
-    fileEntities: entities.map((e) => ({ uid: e.uid, milestone: e.milestone })),
-    dbEntities: kgResult.data.items.map((e) => ({
-      uid: e.uid,
-      milestone: e.milestone,
-    })),
-  });
 
   const normalizedResult = await normalizeReferencesList(entities, schema, kg);
   if (isErr(normalizedResult)) return normalizedResult;
@@ -118,44 +108,41 @@ const diffList = async (
     interpolatedQuery.data,
   );
 
-  log?.debug("diffList diffResult", {
-    toCreate: diffResult.toCreate.length,
-    toUpdate: diffResult.toUpdate.length,
-  });
+  const toDelete = diffResult.toRemove.map((uid) => ({
+    $ref: uid,
+    $delete: true as const,
+  }));
 
-  return ok([...diffResult.toCreate, ...diffResult.toUpdate]);
+  return ok([...diffResult.toCreate, ...diffResult.toUpdate, ...toDelete]);
 };
 
-const diffProjection = async (
+const diffList = async (
   kg: KnowledgeGraph,
   schema: EntitySchema,
   namespace: NamespaceEditable,
-  projection: ExtractedProjection,
+  entities: FieldsetNested[],
+  query: QueryParams,
   pathFields: Fieldset,
+  log?: Logger,
 ): ResultAsync<ChangesetsInput> => {
-  const interpolatedQuery = interpolateQueryParams(schema, projection.query, [
-    pathFields,
-  ]);
-  if (isErr(interpolatedQuery)) return interpolatedQuery;
+  log?.debug("diffList", {
+    fileEntities: entities.map((e) => ({ uid: e.uid, milestone: e.milestone })),
+  });
 
-  const kgResult = await kg.search(interpolatedQuery.data, namespace);
-  if (isErr(kgResult)) return kgResult;
-
-  const normalizedResult = await normalizeReferencesList(
-    projection.items,
-    schema,
+  const result = await diffQueryWithEntities(
     kg,
-  );
-  if (isErr(normalizedResult)) return normalizedResult;
-
-  const diffResult = diffQueryResults(
     schema,
-    normalizedResult.data,
-    kgResult.data.items,
-    interpolatedQuery.data,
+    namespace,
+    entities,
+    query,
+    pathFields,
   );
 
-  return ok([...diffResult.toCreate, ...diffResult.toUpdate]);
+  if (!isErr(result)) {
+    log?.debug("diffList result", { changesetCount: result.data.length });
+  }
+
+  return result;
 };
 
 const diffDocument = async (
@@ -194,11 +181,12 @@ const diffDocument = async (
   );
 
   for (const projection of projections) {
-    const projectionResult = await diffProjection(
+    const projectionResult = await diffQueryWithEntities(
       kg,
       schema,
       namespace,
-      projection,
+      projection.items,
+      projection.query,
       pathFields,
     );
     if (isErr(projectionResult)) return projectionResult;
@@ -244,10 +232,9 @@ const diffExtracted = (
   );
 };
 
-// NOTE: Do not write to the database in this function. extractFileChanges runs
-// outside the file lock scope. DB writes here cause "database is locked"
-// errors under concurrent access (LSP + CLI, or parallel CLI processes).
-// See: fix-lsp-db-locking-on-save
+// Do not write to the database here — extractFileChanges runs outside the
+// file lock scope. DB writes cause "database is locked" errors under
+// concurrent access (LSP + CLI, or parallel CLI processes).
 export const extractFileChanges = async <N extends NamespaceEditable>(
   fs: FileSystem,
   kg: KnowledgeGraph,
@@ -374,6 +361,19 @@ const detectCrossFileConflicts = <N extends NamespaceEditable>(
 
   for (const [ref, group] of byRef) {
     if (group.length < 2) continue;
+
+    const hasDelete = group.some((cs) => isEntityDelete(cs));
+    if (hasDelete) {
+      return fail(
+        "field-conflict",
+        `Conflicting changes for entity '${ref}': deletion cannot be combined with other updates from different files`,
+        {
+          fieldPath: ["$delete"],
+          values: group.map((cs) => ({ value: cs })),
+          baseValue: null,
+        },
+      );
+    }
 
     // Check all field keys across the group for conflicting values
     const fieldValues = new Map<string, unknown>();

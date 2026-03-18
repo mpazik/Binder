@@ -36,7 +36,11 @@ const extractTypesFromTransactions = (
 
   for (const tx of transactions) {
     for (const config of tx.configs ?? []) {
-      if (config.type === typeSystemType && "key" in config) {
+      if (
+        "type" in config &&
+        config.type === typeSystemType &&
+        "key" in config
+      ) {
         types.push(config.key as EntityKey);
       }
     }

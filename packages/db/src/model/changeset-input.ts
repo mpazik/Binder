@@ -86,9 +86,16 @@ export type EntityCreate<N extends NamespaceEditable> = FieldChangesetInput & {
   type: EntityNsType[N];
   key?: EntityNsKey[N];
 };
-export type EntityChangesetInput<N extends NamespaceEditable> =
+export type EntityDelete<N extends NamespaceEditable> = {
+  $ref: EntityNsRef[N];
+  $delete: true;
+};
+export type EntityMutationInput<N extends NamespaceEditable> =
   | EntityUpdate<N>
   | EntityCreate<N>;
+export type EntityChangesetInput<N extends NamespaceEditable> =
+  | EntityMutationInput<N>
+  | EntityDelete<N>;
 
 export type ChangesetsInput<N extends NamespaceEditable = NamespaceEditable> =
   EntityChangesetInput<N>[];
@@ -97,9 +104,14 @@ export const changesetInputForNewEntity = <N extends NamespaceEditable>(
   entity: Fieldset,
 ): EntityChangesetInput<N> => omit(entity, ["id"]) as EntityChangesetInput<N>;
 
+export const isEntityDelete = <N extends NamespaceEditable>(
+  input: EntityChangesetInput<N>,
+): input is EntityDelete<N> =>
+  "$ref" in input && "$delete" in input && input.$delete === true;
+
 export const isEntityUpdate = <N extends NamespaceEditable>(
   input: EntityChangesetInput<N>,
-): input is EntityUpdate<N> => "$ref" in input;
+): input is EntityUpdate<N> => "$ref" in input && !isEntityDelete(input);
 
 export const getMutationInputRef = (value: ListMutationInputValue): string =>
   isObjTuple(value) ? objTupleKey(value) : (value as string);
@@ -190,7 +202,6 @@ const normalizeFieldValue = (
     return normalizeInputValue(value);
   }
   if (fieldDef?.allowMultiple && !Array.isArray(value)) {
-    // For text fields, split by the appropriate delimiter
     if (
       typeof value === "string" &&
       (fieldDef.dataType === "plaintext" || fieldDef.dataType === "richtext")
@@ -209,6 +220,7 @@ export const normalizeInput = <N extends NamespaceEditable>(
   input: EntityChangesetInput<N>,
   schema: NamespaceSchema<N>,
 ): EntityChangesetInput<N> => {
+  if (isEntityDelete(input)) return input;
   const normalized: EntityChangesetInput<N> = { ...input };
 
   for (const [fieldKey, value] of objEntries(input)) {
@@ -260,3 +272,8 @@ export const EntityUpdateInputSchema = z
   .object({ $ref: z.string() })
   .passthrough()
   .transform((val) => val as EntityUpdate<NamespaceEditable>);
+
+export const EntityDeleteInputSchema = z
+  .object({ $ref: z.string(), $delete: z.literal(true) })
+  .strict()
+  .transform((val) => val as EntityDelete<NamespaceEditable>);

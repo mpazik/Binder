@@ -29,6 +29,20 @@ const getType = (node: Fieldset): EntityType | undefined => {
   return typeof type === "string" ? (type as EntityType) : undefined;
 };
 
+const collectNonIdentityFields = (
+  schema: EntitySchema,
+  node: FieldsetNested,
+): Record<string, unknown> => {
+  const fields: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(node)) {
+    if (key === "id" || key === "uid" || key === "type") continue;
+    const fieldDef = schema.fields[key as FieldKey];
+    if (fieldDef?.dataType === "relation" && fieldDef.allowMultiple) continue;
+    fields[key] = value;
+  }
+  return fields;
+};
+
 const buildEntityCreate = (
   schema: EntitySchema,
   node: FieldsetNested,
@@ -38,17 +52,11 @@ const buildEntityCreate = (
   const type = getType(node) ?? (range?.length === 1 ? range[0] : undefined);
   if (!type) return null;
 
-  const fields: Record<string, unknown> = { uid: generatedUid };
-  for (const [key, value] of Object.entries(node)) {
-    if (key === "id" || key === "uid") continue;
-
-    const fieldDef = schema.fields[key as FieldKey];
-    if (fieldDef?.dataType === "relation" && fieldDef.allowMultiple) continue;
-
-    fields[key] = value;
-  }
-
-  return { type, ...fields } as EntityChangesetInput<"record">;
+  return {
+    type,
+    uid: generatedUid,
+    ...collectNonIdentityFields(schema, node),
+  } as EntityChangesetInput<"record">;
 };
 
 const extractOwnedChildren = (value: FieldNestedValue): FieldsetNested[] => {
@@ -152,12 +160,12 @@ const diffMultipleValues = (
 const collectAllFieldKeys = (
   newEntity: FieldsetNested,
   oldEntity: FieldsetNested,
-): FieldKey[] => {
-  const keys = new Set<FieldKey>();
-  for (const key of Object.keys(newEntity)) keys.add(key as FieldKey);
-  for (const key of Object.keys(oldEntity)) keys.add(key as FieldKey);
-  return [...keys];
-};
+): FieldKey[] => [
+  ...new Set([
+    ...Object.keys(newEntity),
+    ...Object.keys(oldEntity),
+  ] as FieldKey[]),
+];
 
 type FieldDiffResult = {
   changesets?: ChangesetsInput;
@@ -259,6 +267,7 @@ export const diffEntities = (
 export type DiffQueryResult = {
   toCreate: EntityChangesetInput<"record">[];
   toUpdate: ChangesetsInput<"record">;
+  toRemove: EntityUid[];
 };
 
 const hydrateEntity = (
@@ -270,15 +279,10 @@ const hydrateEntity = (
   const type = hydrated.type;
   if (typeof type !== "string") return null;
 
-  const fields: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(hydrated)) {
-    if (key === "id") continue;
-    const fieldDef = schema.fields[key as FieldKey];
-    if (fieldDef?.dataType === "relation" && fieldDef.allowMultiple) continue;
-    fields[key] = value;
-  }
-
-  return { type, ...fields } as EntityChangesetInput<"record">;
+  return {
+    type,
+    ...collectNonIdentityFields(schema, hydrated),
+  } as EntityChangesetInput<"record">;
 };
 
 export const diffQueryResults = (
@@ -312,5 +316,13 @@ export const diffQueryResults = (
     toUpdate.push(...entityChangesets);
   }
 
-  return { toCreate, toUpdate };
+  const toRemove: EntityUid[] = [];
+  for (const oldIdx of matchResult.toRemove) {
+    const oldEntity = oldEntities[oldIdx]!;
+    const uid = getUid(oldEntity);
+    assertDefined(uid, "uid in diffQueryResults toRemove");
+    toRemove.push(uid as EntityUid);
+  }
+
+  return { toCreate, toUpdate, toRemove };
 };

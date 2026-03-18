@@ -73,7 +73,6 @@ export const createLspServer = (
     hasWorkspaceFolderCapability =
       params.capabilities.workspace?.workspaceFolders === true;
 
-    // Initialize all Binder workspaces from the provided workspace folders
     const workspaceFolders = params.workspaceFolders ?? [];
     for (const folder of workspaceFolders) {
       const isBinder = await workspaceManager.isBinderWorkspace(folder.uri);
@@ -109,14 +108,6 @@ export const createLspServer = (
           codeActionKinds: [CodeActionKind.QuickFix],
         },
         inlayHintProvider: true,
-        // disabled until exact tokens are figured out
-        // semanticTokensProvider: {
-        //   legend: {
-        //     tokenTypes: [...TOKEN_TYPES],
-        //     tokenModifiers: [...TOKEN_MODIFIERS],
-        //   },
-        //   full: true,
-        // },
         workspace: {
           workspaceFolders: {
             supported: true,
