@@ -10,7 +10,11 @@ sourceFiles:
   - packages/db/src/model/record.ts
   - packages/db/src/model/config.ts
   - packages/db/src/utils/uid.ts
-relatesTo: [ 2bnjp8SIcxw, 7WvTtH5WoOs, 2xmBgK7CHYQ, 3hEXbum7eBs ]
+relatesTo:
+  - field
+  - type
+  - reference
+  - changeset
 ---
 
 # Entity

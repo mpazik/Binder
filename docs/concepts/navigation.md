@@ -9,7 +9,10 @@ sourceFiles:
   - packages/cli/src/document/navigation.ts
   - packages/cli/src/document/synchronizer.ts
   - packages/cli/src/lib/snapshot.ts
-relatesTo: [ 115DOOPKUWE, 0ulVL40V63M, 7WvTtH5WoOs ]
+relatesTo:
+  - view
+  - query
+  - type
 ---
 
 # Navigation

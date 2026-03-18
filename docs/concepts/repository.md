@@ -10,7 +10,10 @@ sourceFiles:
   - packages/db/src/knowledge-graph.ts
   - packages/db/src/entity-store.ts
   - packages/db/src/transaction-store.ts
-relatesTo: [ 6cturAm-zGU, 9vplzWrd_NI, 8kq_IcULJx0 ]
+relatesTo:
+  - entity
+  - namespace
+  - transaction
 ---
 
 # Repository

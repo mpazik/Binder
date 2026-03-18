@@ -199,6 +199,25 @@ items:
     richtextFormat: section
     sectionDepth: 2
 
+  - key: specification
+    name: Specification
+    description: Detailed technical specification — approach, interfaces, and implementation plan
+    dataType: richtext
+    richtextFormat: section
+    sectionDepth: 2
+
+  - key: stepsToReproduce
+    name: Steps to Reproduce
+    description: Steps to reproduce an issue or demonstrate a scenario
+    dataType: richtext
+    richtextFormat: block
+
+  - key: rootCause
+    name: Root Cause
+    description: The underlying cause of an issue or problem
+    dataType: richtext
+    richtextFormat: block
+
   - key: question
     name: Question
     description: The core question to be answered or resolved
@@ -234,19 +253,22 @@ items:
     name: Problem
     description: The problem this decision resolves
     dataType: relation
-    range: [ Problem ]
+    range:
+      - Problem
 
   - key: decisionOption
     name: Chosen Option
     description: The option that was selected as the answer
     dataType: relation
-    range: [ Option ]
+    range:
+      - Option
 
   - key: problemDecisions
     name: Decisions
     description: Decisions that have been made for this problem
     dataType: relation
-    range: [ Decision ]
+    range:
+      - Decision
     allowMultiple: true
     inverseOf: decisionProblem
 
@@ -254,7 +276,8 @@ items:
     name: Decisions
     description: Decisions where this option was chosen
     dataType: relation
-    range: [ Decision ]
+    range:
+      - Decision
     allowMultiple: true
     inverseOf: decisionOption
 

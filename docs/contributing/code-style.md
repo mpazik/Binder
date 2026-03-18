@@ -3,36 +3,210 @@ key: code-style
 title: Code Style
 tags: [ contributing ]
 description: Coding conventions and style guidelines for the binder codebase.
-relatesTo: [ _2x8OuSEKLY ]
+relatesTo:
+  - testing-style
 ---
 
 # Code Style
 
-### TypeScript
+## Conventions
+
+- No classes. Use factory functions that return object literals.
+- Use arrow functions with `const` declarations.
+- Prefer early returns for guard clauses. Omit braces for single-line returns.
+- Return Results directly. Do not store in intermediate variables just to return them.
+- When branches share logic with different values, compute the varying value and execute once.
+- No `try-catch` or `throw`. All fallible operations return `Result<T, E>`.
+- Use assertions for developer errors and invariants. Use Results for runtime failures.
+- Use explicit return types on exported functions.
+- Prefer `type` over `interface` for object shapes.
+- Use `const` by default. `let` only when reassignment is needed.
+- Avoid `any`. Use `unknown` with narrowing or define a proper type.
+
+## Code Structure
+
+### Factory Functions
+
+Use factory functions that return object literals. No classes.
+
+```typescript
+export const createUserService = (db: Db): UserService => {
+  return {
+    getUser: async (id: UserId) => {
+      // implementation
+    },
+  };
+};
+```
+
+### Arrow Functions
+
+Use arrow functions with `const` declarations.
+
+```typescript
+// Top-level export
+export const processData = (
+  input: DataInput,
+): Result<ProcessedData, ErrorObject> => {};
+
+// Object method
+export const createProcessor = () => {
+  return {
+    process: (data: RawData) => {},
+  };
+};
+
+// Internal function
+const transform = (items: Item[]) => {
+  return items.filter((item) => item.isActive);
+};
+```
+
+### Early Returns
+
+Prefer early returns for guard clauses and error handling. Omit braces for single-line returns.
+
+```typescript
+const processUser = (user: User | null): Result<ProcessedUser> => {
+  if (!user) return fail("user-not-found", "User is null");
+  if (!user.isActive) return fail("user-inactive", "User is not active");
+  if (user.role !== "admin")
+    return fail("insufficient-permissions", "Admin role required");
+
+  // main logic here with happy path
+};
+```
+
+Return Results directly. Do not store in an intermediate variable when the caller just passes it through.
+
+```typescript
+return resultToJsonRpcResult(await generateSchema(params));
+```
+
+Assertions work as early guards for developer invariants:
+
+```typescript
+const calculateDiscount = (price: number, percentage: number): number => {
+  assertGreaterThan(price, 0, "price");
+  assertInRange(percentage, 0, 100, "percentage");
+
+  if (percentage === 0) return price;
+  if (percentage === 100) return 0;
+
+  return price * (1 - percentage / 100);
+};
+```
+
+### Avoid Duplicate Logic in Branches
+
+When branches share the same logic with different values, compute the varying value and execute once. Do not duplicate the call across branches.
+
+```typescript
+const table = namespace === "config" ? configTable : recordTable;
+return tryCatch(
+  tx.select().from(table).where(buildWhereClause(table, filters, schema)),
+);
+```
+
+The same applies to function references:
+
+```typescript
+const visit = isDirectory ? visitDirectoryNode : visitEntityNode;
+return visit(doc.contents, entityType, context);
+```
+
+Extract complex conditions to named variables:
+
+```typescript
+const useAlternative = checkA && checkB && !checkC;
+return fetchFrom(useAlternative ? alternativeSource : defaultSource);
+```
+
+## Naming Conventions
+
+**Files**: `kebab-case` -- `user-store.ts`, `oauth-client.ts`
+
+**Types**
+- Branded types: `PascalCase` -- `UserId`, `SpaceId`, `EntityId`
+- Type guards: `is*()` -- `isUserId()`, `isValidEmail()`
+
+**Functions**
+- Factories: `create*()` -- `createUserStore()`, `createEntity()`
+- Validators: `validate*()` -- `validateUserInput()`
+
+**Tests**: `*.test.ts`, mocks: `*.mock.ts`
+
+## Type Safety
+
+### Branded Types
+
+Define branded types with a `create*` factory. Each branded type wraps a base type with a unique tag.
+
+```typescript
+export type UserId = BrandDerived<Uid, "UserId">;
+export const createUserId = (): UserId => createUid(7, "u") as UserId;
+```
+
+### General Rules
 
 - Use explicit return types on exported functions
 - Prefer `type` over `interface` for object shapes
 - Use `const` by default; `let` only when reassignment is needed
-- Avoid `any` — use `unknown` with narrowing or define a proper type
+- Avoid `any` -- use `unknown` with narrowing or define a proper type
 
-### Naming
+## Error Handling
 
-- Files: `kebab-case.ts`
-- Types and classes: `PascalCase`
-- Variables and functions: `camelCase`
-- Constants: `SCREAMING_SNAKE_CASE` for module-level config; `camelCase` for local constants
+### No Exceptions, Only Results
 
-### Formatting
+No `try-catch` or `throw`. All fallible operations return `Result<T, E>` or `ResultAsync<T, E>`. Errors use `ErrorObject: { key, message, data? }`.
 
-Binder uses Biome for formatting and linting. Run `bun check` before committing.
+Wrap external calls that may throw with `tryCatch`:
 
-### Imports
+```typescript
+import { tryCatch, isErr } from "@binder/utils";
 
-- Group: external packages, then internal `@binder/*`, then relative paths
-- No barrel re-exports from `index.ts` unless intentional for the public API
+const result = await tryCatch(operation());
+if (isErr(result)) return result;
+```
 
-### Error Handling
+Use `fail()` for early-exit errors:
 
-- Throw typed errors with descriptive messages
-- Avoid swallowing errors silently — log or propagate
-- Use `Result`-style returns in library code where callers need to distinguish success from failure
+```typescript
+if (!user) return fail("user-not-found", "User not found");
+if (!user.isActive) return fail("user-inactive", "User is not active");
+```
+
+Use `wrapError` to add context when propagating a failure:
+
+```typescript
+const configResult = await loadConfig();
+if (isErr(configResult)) {
+  return wrapError(configResult, "Failed to initialize app", { component: "bootstrap" });
+}
+```
+
+### Assertions vs Results
+
+Use assertions for developer errors and invariants. These throw on violation and should not be caught.
+
+```typescript
+import { assertDefined, assertGreaterThan } from "@binder/utils";
+
+const processEntity = (entity: Entity, index: number) => {
+  assertDefined(CONFIG_KEY, "entity CONFIG_KEY");
+  assertGreaterThan(index, 0, "entity index");
+};
+```
+
+Use Results for runtime failures, user input, and external operations:
+
+```typescript
+import { fail, ok, type Result } from "@binder/utils";
+
+const validateUserInput = (input: unknown): Result<UserData> => {
+  if (!isValidEmail(input.email))
+    return fail("invalid-email", "Invalid email format");
+
+  return ok(input as UserData);
+};
+```

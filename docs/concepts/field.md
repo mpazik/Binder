@@ -9,7 +9,12 @@ sourceFiles:
   - packages/db/src/model/field.ts
   - packages/db/src/model/ref.ts
   - packages/db/src/relationship-resolver.ts
-relatesTo: [ 8Pt7bEtQJio, 2xmBgK7CHYQ, _xdxNQVej6w, 6cturAm-zGU, 15-m_r1NKPA ]
+relatesTo:
+  - data-type
+  - reference
+  - field-attribute
+  - entity
+  - vocabulary
 ---
 
 # Field

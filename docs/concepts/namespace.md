@@ -6,7 +6,9 @@ status: active
 description: An isolated partition within the repository functioning as a sub-database with its own schema, identifier strategy, and storage characteristics. Three namespaces separate user data, schema definitions, and change history.
 alternativeNames: [ partition, sub-database ]
 sourceFiles: [ packages/db/src/model/namespace.ts ]
-relatesTo: [ 0-tgGe9V-fM, 6cturAm-zGU ]
+relatesTo:
+  - repository
+  - entity
 ---
 
 # Namespace

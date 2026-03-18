@@ -6,7 +6,11 @@ status: active
 description: The complete set of user-defined types, fields, and relations that give structure to repository data. Vocabulary is stored as entities in the config namespace and evolves dynamically through transactions without breaking existing records.
 alternativeNames: [ schema ]
 sourceFiles: [ packages/db/src/model/schema.ts, packages/db/src/schema.ts ]
-relatesTo: [ 7WvTtH5WoOs, 2bnjp8SIcxw, 8Pt7bEtQJio, 0-tgGe9V-fM ]
+relatesTo:
+  - type
+  - field
+  - data-type
+  - repository
 ---
 
 # Vocabulary

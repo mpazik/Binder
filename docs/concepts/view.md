@@ -10,7 +10,11 @@ sourceFiles:
   - packages/cli/src/document/template-entity.ts
   - packages/cli/src/document/extraction.ts
   - packages/cli/src/document/synchronizer.ts
-relatesTo: [ 6cturAm-zGU, 7WvTtH5WoOs, 2_gjNlhA5bw, 0ulVL40V63M ]
+relatesTo:
+  - entity
+  - type
+  - navigation
+  - query
 ---
 
 # View

@@ -6,7 +6,10 @@ status: active
 description: A flexible entity class that provides identity, organisation, and field configuration without enforcing structure at the storage level. Types compose fields with constraints but don't own them.
 alternativeNames: [ entity type, record type ]
 sourceFiles: [ packages/db/src/model/schema.ts, packages/db/src/schema.ts ]
-relatesTo: [ 2bnjp8SIcxw, 6cturAm-zGU, 15-m_r1NKPA ]
+relatesTo:
+  - field
+  - entity
+  - vocabulary
 ---
 
 # Type

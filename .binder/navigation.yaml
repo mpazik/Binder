@@ -52,15 +52,8 @@ items:
   - key: nav-problems
     where:
       type: Problem
-      status: { op: notIn, value: [ draft, cancelled ] }
+      status: { op: notIn, value: [ cancelled ] }
     path: problems/{key}
-    template: problem-template
-
-  - key: nav-problems-draft
-    where:
-      type: Problem
-      status: draft
-    path: drafts/problems/{key}
     template: problem-template
 
   - key: nav-archive-problems
@@ -81,15 +74,8 @@ items:
   - key: nav-decisions
     where:
       type: Decision
-      status: { op: notIn, value: [ draft, cancelled ] }
+      status: { op: notIn, value: [ cancelled ] }
     path: decisions/{key}
-    template: decision-template
-
-  - key: nav-decisions-draft
-    where:
-      type: Decision
-      status: draft
-    path: drafts/decisions/{key}
     template: decision-template
 
   - key: nav-archive-decisions

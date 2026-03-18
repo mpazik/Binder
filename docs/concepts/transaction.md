@@ -10,7 +10,9 @@ sourceFiles:
   - packages/db/src/model/transaction-input.ts
   - packages/db/src/transaction-processor.ts
   - packages/db/src/transaction-store.ts
-relatesTo: [ 3hEXbum7eBs, 0-tgGe9V-fM ]
+relatesTo:
+  - changeset
+  - repository
 ---
 
 # Transaction

@@ -6,7 +6,10 @@ status: active
 description: The value format assigned to a field. Defines what values are valid, what operations apply, and how values are stored and indexed.
 alternativeNames: [ field type, value type, format ]
 sourceFiles: [ packages/db/src/model/data-type.ts, packages/db/src/data-type-validators.ts ]
-relatesTo: [ 2bnjp8SIcxw, 2xmBgK7CHYQ, _xdxNQVej6w ]
+relatesTo:
+  - field
+  - reference
+  - field-attribute
 ---
 
 # Data Type

@@ -9,7 +9,10 @@ sourceFiles:
   - packages/db/src/model/ref.ts
   - packages/db/src/relationship-resolver.ts
   - packages/db/src/filter-entities.ts
-relatesTo: [ 2bnjp8SIcxw, 8Pt7bEtQJio, 6cturAm-zGU ]
+relatesTo:
+  - field
+  - data-type
+  - entity
 ---
 
 # Reference
