@@ -11,7 +11,6 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { isErr } from "@binder/utils";
 import { type RuntimeContextInit } from "../runtime.ts";
 import { BINDER_VERSION } from "../build-time.ts";
-import { calculateContentHash } from "../lib/snapshot.ts";
 import { handleDocumentSave } from "./handlers/save-handler.ts";
 import { handleHover } from "./handlers/hover.ts";
 import { handleCompletion } from "./handlers/completion.ts";
@@ -26,10 +25,6 @@ import {
   withWorkspaceContext,
 } from "./workspace-manager.ts";
 
-/** Truncated SHA-256 for log readability. */
-const shortHash = (text: string | undefined): string =>
-  text ? calculateContentHash(text).slice(0, 12) : "none";
-
 export const createLspServer = (
   minimalContext: RuntimeContextInit,
 ): Connection => {
@@ -40,7 +35,6 @@ export const createLspServer = (
   );
   const lspDocuments = new TextDocuments(TextDocument);
   const log = minimalContext.log;
-  const { fs } = minimalContext;
 
   const workspaceManager = createWorkspaceManager(
     minimalContext,
@@ -180,12 +174,7 @@ export const createLspServer = (
 
   lspDocuments.onDidChangeContent(
     withWorkspaceContext("didChange", deps, async (event, { runtime }) => {
-      const text = event.document.getText();
-      runtime.log.info("didChange", {
-        uri: event.document.uri,
-        contentLength: text.length,
-        contentHash: shortHash(text),
-      });
+      runtime.log.debug("Document changed", { uri: event.document.uri });
     }),
   );
 
@@ -202,22 +191,10 @@ export const createLspServer = (
       const uri = event.document.uri;
       const wsLog = runtime.log;
 
-      // Use open document content as canonical source (avoids disk races
-      // from editor safe-write / atomic-rename save strategies).
-      const sourceContent = lspDocuments.get(uri)?.getText();
-      const absolutePath = new URL(uri).pathname;
-      const diskResult = await fs.readFile(absolutePath);
-      const diskContent = isErr(diskResult) ? undefined : diskResult.data;
-
-      wsLog.info("didSave", {
-        uri,
-        bufferLength: sourceContent?.length,
-        bufferHash: shortHash(sourceContent),
-        diskLength: diskContent?.length,
-        diskHash: shortHash(diskContent),
-      });
-
-      const result = await handleDocumentSave(runtime, uri, sourceContent);
+      // Don't pass sourceContent — let extractFileChanges read from disk.
+      // WebStorm sends didSave before didChange on external file reload,
+      // so the in-memory buffer has stale content. Disk is always current.
+      const result = await handleDocumentSave(runtime, uri);
 
       if (isErr(result)) {
         wsLog.error("Sync failed", { error: result.error, uri });

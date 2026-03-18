@@ -35,6 +35,7 @@ import {
   mockPreambleTemplate,
   mockTemplates,
 } from "./template.mock.ts";
+import { createTemplateEntity } from "./template-entity.ts";
 
 const navigationItems: NavigationItem[] = [
   {
@@ -168,6 +169,52 @@ status: active
         preambleTemplates,
       );
       expect(result).toBeErrWithKey("field-conflict");
+    });
+
+    it("does not produce changeset for preamble relation field absent from frontmatter", async () => {
+      // Reproduction for fix-sync-oscillates-inverse-relations:
+      // task2 has project: mockProjectUid in DB. The template includes
+      // "project" in its preamble. But the markdown frontmatter omits
+      // "project". The sync should NOT produce a changeset nulling it out.
+      const preambleProjectTemplate = createTemplateEntity(
+        "task-preamble-project",
+        `# {title}\n\n**Status:** {status}\n\n## Description\n\n{description}\n`,
+        { preamble: ["status", "project"] },
+      );
+      const preambleTemplates = [preambleProjectTemplate, ...mockTemplates];
+      const preambleNavItems: NavigationItem[] = [
+        { path: "tasks/{key}", template: "task-preamble-project" },
+      ];
+      // Frontmatter has status but NOT project
+      const markdown = `---
+status: ${mockTask2Record.status}
+---
+
+# ${mockTask2Record.title}
+
+**Status:** ${mockTask2Record.status}
+
+## Description
+
+${mockTask2Record.description}
+`;
+      const filePath = `tasks/${mockTask2Record.key}.md`;
+      const fullPath = join(ctx.config.paths.docs, filePath);
+      throwIfError(await ctx.fs.mkdir(dirname(fullPath), { recursive: true }));
+      throwIfError(await ctx.fs.writeFile(fullPath, markdown));
+      const result = throwIfError(
+        await extractFileChanges(
+          ctx.fs,
+          kg,
+          ctx.config,
+          preambleNavItems,
+          mockRecordSchema,
+          filePath,
+          "record",
+          preambleTemplates,
+        ),
+      );
+      expect(result).toEqual([]);
     });
   });
 
