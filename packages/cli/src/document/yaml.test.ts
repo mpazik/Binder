@@ -24,7 +24,7 @@ describe("yaml", () => {
     });
   });
 
-  describe("block formatting for relations and non-comma fields", () => {
+  describe("block formatting", () => {
     it("renders multi-value relation as block list", () => {
       const yaml = renderYamlEntity(
         { title: "Task", relatedTo: ["task-a", "task-b"] },
@@ -40,17 +40,32 @@ describe("yaml", () => {
       expect(yaml).toContain("relatedTo:\n  - a");
     });
 
-    it("renders relation fields as block list in list items", () => {
-      const yaml = renderYamlList(
-        [
-          { title: "Task 1", relatedTo: ["task-a", "task-b"] },
-          { title: "Task 2", relatedTo: ["task-c"] },
-        ],
-        mockRecordSchema,
+    it("keeps nested object and enum formatting inline inside forced block lists", () => {
+      const schema = {
+        fields: {
+          fields: { dataType: "relation", allowMultiple: true },
+          only: {
+            dataType: "plaintext",
+            allowMultiple: true,
+            plaintextFormat: "identifier",
+          },
+          required: { dataType: "boolean" },
+        },
+        types: {},
+      };
+
+      const yaml = renderYamlEntity(
+        {
+          fields: [
+            { key: { required: true } },
+            { status: { only: ["draft", "active"] } },
+          ],
+        },
+        schema as any,
       );
-      expect(yaml).not.toContain("[");
-      expect(yaml).toContain("relatedTo:\n      - task-a\n      - task-b");
-      expect(yaml).toContain("relatedTo:\n      - task-c");
+
+      expect(yaml).toContain("fields:\n  - key: { required: true }");
+      expect(yaml).toContain("- status: { only: [ draft, active ] }");
     });
 
     it("renders newline-delimited field as block list", () => {
@@ -85,6 +100,13 @@ describe("yaml", () => {
     });
   });
 
+  describe("without schema", () => {
+    it("renders arrays inline", () => {
+      const yaml = renderYamlEntity({ relatedTo: ["a", "b"] });
+      expect(yaml).toContain("[ a, b ]");
+    });
+  });
+
   describe("list rendering", () => {
     it("wraps items in an items key", () => {
       const yaml = renderYamlList([{ title: "Task 1" }]);
@@ -105,6 +127,19 @@ describe("yaml", () => {
     it("renders empty list", () => {
       const yaml = renderYamlList([]);
       expect(yaml).toContain("items: []");
+    });
+
+    it("renders relation fields as block list in list items", () => {
+      const yaml = renderYamlList(
+        [
+          { title: "Task 1", relatedTo: ["task-a", "task-b"] },
+          { title: "Task 2", relatedTo: ["task-c"] },
+        ],
+        mockRecordSchema,
+      );
+      expect(yaml).not.toContain("[");
+      expect(yaml).toContain("relatedTo:\n      - task-a\n      - task-b");
+      expect(yaml).toContain("relatedTo:\n      - task-c");
     });
   });
 
@@ -132,13 +167,6 @@ describe("yaml", () => {
       const rendered = renderYamlList(items, mockRecordSchema);
       const parsed = parseYamlList(rendered);
       expect(parsed.data).toEqual(items);
-    });
-  });
-
-  describe("without schema", () => {
-    it("renders all arrays with default heuristics when no schema given", () => {
-      const yaml = renderYamlEntity({ relatedTo: ["a", "b"] });
-      expect(yaml).toContain("[ a, b ]");
     });
   });
 
@@ -176,24 +204,19 @@ describe("yaml", () => {
 - uid: abc-123
   title: Third`;
 
-    it("finds entity by key", () => {
-      expect(findEntityInYamlList(yaml, "task-2", undefined)).toBe(2);
-    });
+    const check = (
+      key: string | undefined,
+      uid: string | undefined,
+      expected: number,
+    ) => {
+      expect(findEntityInYamlList(yaml, key, uid)).toBe(expected);
+    };
 
-    it("finds entity by uid", () => {
-      expect(findEntityInYamlList(yaml, undefined, "abc-123")).toBe(4);
-    });
-
-    it("returns 0 for first entity", () => {
-      expect(findEntityInYamlList(yaml, "task-1", undefined)).toBe(0);
-    });
-
-    it("returns 0 when entity not found", () => {
-      expect(findEntityInYamlList(yaml, "missing", undefined)).toBe(0);
-    });
-
-    it("returns 0 when both key and uid are undefined", () => {
-      expect(findEntityInYamlList(yaml, undefined, undefined)).toBe(0);
-    });
+    it("finds entity by key", () => check("task-2", undefined, 2));
+    it("finds entity by uid", () => check(undefined, "abc-123", 4));
+    it("returns 0 for first entity", () => check("task-1", undefined, 0));
+    it("returns 0 when entity not found", () => check("missing", undefined, 0));
+    it("returns 0 when both key and uid are undefined", () =>
+      check(undefined, undefined, 0));
   });
 });

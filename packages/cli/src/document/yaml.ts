@@ -107,8 +107,11 @@ export const applyInlineFormatting = (
         } else {
           applyInlineFormatting(value, blockFields);
         }
-      } else if (isSeq(value) && !forceBlock) {
+      } else if (isSeq(value)) {
         applyInlineFormatting(value, blockFields);
+        if (forceBlock) {
+          value.flow = false;
+        }
       }
     }
   }
@@ -123,9 +126,12 @@ const applyEntityFormatting = (
     const key = isScalar(pair.key) ? String(pair.key.value) : undefined;
     const forceBlock = key !== undefined && blockFields?.has(key);
     if (isMap(value)) {
-      applyInlineFormatting(value);
-    } else if (isSeq(value) && !forceBlock) {
-      applyInlineFormatting(value);
+      applyInlineFormatting(value, blockFields);
+    } else if (isSeq(value)) {
+      applyInlineFormatting(value, blockFields);
+      if (forceBlock) {
+        value.flow = false;
+      }
     }
   }
 };
