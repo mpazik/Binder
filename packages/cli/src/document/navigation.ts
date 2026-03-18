@@ -142,22 +142,9 @@ export const getNavigationFilePatterns = (items: NavigationItem[]): string[] =>
     return isErr(result) ? template : result.data;
   });
 
-export const loadNavigation = async (
-  kg: KnowledgeGraph,
-  namespace: NamespaceEditable = "record",
-): ResultAsync<NavigationItem[]> => {
-  if (namespace === "config") return ok(CONFIG_NAVIGATION_ITEMS);
-
-  const searchResult = await kg.search(
-    {
-      filters: { type: "Navigation" },
-    },
-    "config",
-  );
-
-  if (isErr(searchResult)) return searchResult;
-
-  const items = searchResult.data.items;
+export const buildNavigationTree = (
+  items: FieldsetNested[],
+): NavigationItem[] => {
   const childrenByParentKey = new Map<string, FieldsetNested[]>();
 
   for (const item of items) {
@@ -184,11 +171,25 @@ export const loadNavigation = async (
     };
   };
 
-  const roots = items
-    .filter((item) => !item.parent)
-    .map((root) => buildTree(root));
+  return items.filter((item) => !item.parent).map((root) => buildTree(root));
+};
 
-  return ok(roots);
+export const loadNavigation = async (
+  kg: KnowledgeGraph,
+  namespace: NamespaceEditable = "record",
+): ResultAsync<NavigationItem[]> => {
+  if (namespace === "config") return ok(CONFIG_NAVIGATION_ITEMS);
+
+  const searchResult = await kg.search(
+    {
+      filters: { type: "Navigation" },
+    },
+    "config",
+  );
+
+  if (isErr(searchResult)) return searchResult;
+
+  return ok(buildNavigationTree(searchResult.data.items));
 };
 
 export const findNavigationItemByPath = (

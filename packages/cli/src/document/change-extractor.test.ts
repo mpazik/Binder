@@ -1,4 +1,5 @@
 import { dirname, join } from "path";
+import * as YAML from "yaml";
 import { beforeEach, describe, expect, it } from "bun:test";
 import { pick, throwIfError } from "@binder/utils";
 import "@binder/utils/tests";
@@ -415,6 +416,48 @@ ${mockTask1Record.description}
           configs: [{ $ref: mockTaskType.uid, name: "Updated Task Type" }],
         },
       );
+    });
+
+    it("detects added navigation entry", async () => {
+      const navPath = join(ctx.config.paths.binder, "navigation.yaml");
+      const navContent = throwIfError(await ctx.fs.readFile(navPath));
+      const parsed = YAML.parse(navContent) as {
+        items: Record<string, unknown>[];
+      };
+      parsed.items.push({
+        key: "nav-new-entry",
+        where: { type: "Task" },
+        path: "new-tasks/{key}",
+      });
+
+      await check(navPath, YAML.stringify(parsed), {
+        configs: expect.arrayContaining([
+          expect.objectContaining({
+            type: "Navigation",
+            key: "nav-new-entry",
+            path: "new-tasks/{key}",
+          }),
+        ]),
+      });
+    });
+
+    it.todo("detects removed navigation entry", async () => {
+      // Requires entity deletion support (not yet implemented).
+      // diffQueryResults only computes toCreate/toUpdate, never toRemove.
+      const navPath = join(ctx.config.paths.binder, "navigation.yaml");
+      const navContent = throwIfError(await ctx.fs.readFile(navPath));
+
+      const parsed = YAML.parse(navContent) as {
+        items: Record<string, unknown>[];
+      };
+      parsed.items = parsed.items.filter(
+        (item) => item.key !== "nav-all-tasks",
+      );
+      throwIfError(await ctx.fs.writeFile(navPath, YAML.stringify(parsed)));
+
+      const result = throwIfError(await extractModifiedFileChanges(ctx));
+
+      expect(result).not.toBeNull();
     });
 
     it("returns null when config types with TypeFieldRef tuples are unchanged", async () => {

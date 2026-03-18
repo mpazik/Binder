@@ -40,7 +40,7 @@ const buildEntityCreate = (
 
   const fields: Record<string, unknown> = { uid: generatedUid };
   for (const [key, value] of Object.entries(node)) {
-    if (includes(coreIdentityFieldKeys, key)) continue;
+    if (key === "id" || key === "uid") continue;
 
     const fieldDef = schema.fields[key as FieldKey];
     if (fieldDef?.dataType === "relation" && fieldDef.allowMultiple) continue;
@@ -272,7 +272,7 @@ const hydrateEntity = (
 
   const fields: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(hydrated)) {
-    if (includes(coreIdentityFieldKeys, key)) continue;
+    if (key === "id") continue;
     const fieldDef = schema.fields[key as FieldKey];
     if (fieldDef?.dataType === "relation" && fieldDef.allowMultiple) continue;
     fields[key] = value;

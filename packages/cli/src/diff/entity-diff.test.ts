@@ -370,6 +370,7 @@ describe("entity-diff", () => {
             toCreate: [
               {
                 type: mockTaskTypeKey,
+                uid: "new-task-uid",
                 title: "Brand New Task",
                 status: "pending",
               },

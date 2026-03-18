@@ -30,17 +30,19 @@ import {
   type SnapshotChangeMetadata,
   snapshotRootForNamespace,
 } from "../lib/snapshot.ts";
-import { type AppConfig } from "../config.ts";
+import { type AppConfig, BINDER_DIR } from "../config.ts";
 import type { MatchOptions } from "../utils/file.ts";
 import type { Logger } from "../log.ts";
 import type { RuntimeContextWithDb } from "../runtime.ts";
 import {
+  buildNavigationTree,
   CONFIG_NAVIGATION_ITEMS,
   findNavigationItemByPath,
   getNavigationFilePatterns,
   getPathTemplate,
   type NavigationItem,
 } from "./navigation.ts";
+import { parseYamlList } from "./yaml.ts";
 import {
   extract,
   type ExtractedFileData,
@@ -422,24 +424,41 @@ export const extractModifiedFileChanges = async (
     CONFIG_NAVIGATION_ITEMS,
   );
 
-  const nodeNavigationResult = await runtime.nav("record");
-  if (isErr(nodeNavigationResult)) return nodeNavigationResult;
+  const configResult = await scanNamespace("config", {
+    include: configIncludePatterns,
+  });
+  if (isErr(configResult)) return configResult;
+  const configFiles = configResult.data;
+
+  // When the navigation file is modified, read it from disk and build a fresh
+  // navigation tree so record scanning uses the updated paths.
+  const navFilePath = `${BINDER_DIR}/navigation.yaml`;
+  const hasNavChange = configFiles.some((f) => f.path === navFilePath);
+
+  let recordNavigation: NavigationItem[];
+  if (hasNavChange) {
+    const absNavPath = resolveSnapshotPath(navFilePath, config.paths);
+    const navContentResult = await fs.readFile(absNavPath);
+    if (isErr(navContentResult)) return navContentResult;
+    const navEntitiesResult = parseYamlList(navContentResult.data);
+    if (isErr(navEntitiesResult)) return navEntitiesResult;
+    recordNavigation = buildNavigationTree(navEntitiesResult.data);
+  } else {
+    const nodeNavigationResult = await runtime.nav("record");
+    if (isErr(nodeNavigationResult)) return nodeNavigationResult;
+    recordNavigation = nodeNavigationResult.data;
+  }
+
   const nodeIncludePatterns = [
-    ...getNavigationFilePatterns(nodeNavigationResult.data),
+    ...getNavigationFilePatterns(recordNavigation),
     ...(config.include ?? []),
   ];
 
-  const [configResult, nodeResult] = await Promise.all([
-    scanNamespace("config", { include: configIncludePatterns }),
-    scanNamespace("record", {
-      include: nodeIncludePatterns,
-      exclude: config.exclude,
-    }),
-  ]);
-
-  if (isErr(configResult)) return configResult;
+  const nodeResult = await scanNamespace("record", {
+    include: nodeIncludePatterns,
+    exclude: config.exclude,
+  });
   if (isErr(nodeResult)) return nodeResult;
-  const configFiles = configResult.data;
   const nodeFiles = nodeResult.data;
 
   log?.debug("Modified files detected", {
@@ -453,9 +472,19 @@ export const extractModifiedFileChanges = async (
   if (isErr(templatesResult)) return templatesResult;
   const templates = templatesResult.data;
 
+  const recordRuntime = hasNavChange
+    ? {
+        ...runtime,
+        nav: ((ns?: NamespaceEditable) =>
+          ns === "config"
+            ? runtime.nav("config")
+            : ok(recordNavigation)) as typeof runtime.nav,
+      }
+    : runtime;
+
   const [configsResult, recordsResult] = await Promise.all([
     extractNamespaceChanges(runtime, configFiles, "config", templates),
-    extractNamespaceChanges(runtime, nodeFiles, "record", templates),
+    extractNamespaceChanges(recordRuntime, nodeFiles, "record", templates),
   ]);
 
   if (isErr(configsResult)) return configsResult;
