@@ -233,12 +233,12 @@ export const resolveEntityRefs = async (
           if (isEntityId(ref))
             return assertDefinedPass(
               it.find((it) => it.id === ref),
-              "id",
+              `${namespace} entity with id ${ref}`,
             ).uid;
           if (isEntityUid(ref)) return ref as EntityUid;
           return assertDefinedPass(
             it.find((it) => it.key === ref),
-            "key",
+            `${namespace} entity with key "${ref}"`,
           ).uid;
         }),
       ),
