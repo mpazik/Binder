@@ -280,19 +280,10 @@ export const transactionVerifyHandler: CommandHandlerWithDb = async ({
   fs,
 }) => {
   const transactionLogPath = join(config.paths.binder, TRANSACTION_LOG_FILE);
-  const configSchema = kg.getConfigSchema();
-  const recordSchemaResult = await kg.getRecordSchema();
-  if (isErr(recordSchemaResult)) return recordSchemaResult;
 
-  const logIntegrityResult = await verifyLog(
-    fs,
-    configSchema,
-    recordSchemaResult.data,
-    transactionLogPath,
-    {
-      verifyIntegrity: true,
-    },
-  );
+  const logIntegrityResult = await verifyLog(fs, transactionLogPath, {
+    verifyIntegrity: true,
+  });
   if (isErr(logIntegrityResult)) {
     if (logIntegrityResult.error.key === "hash-mismatch") {
       ui.block(() => {
@@ -395,16 +386,7 @@ export const transactionRepairHandler: CommandHandlerWithDb<{
 
     ui.info("Reading transaction log...");
 
-    const configSchema = kg.getConfigSchema();
-    const recordSchemaResult = await kg.getRecordSchema();
-    if (isErr(recordSchemaResult)) return recordSchemaResult;
-
-    const rehashResult = await rehashLog(
-      fs,
-      configSchema,
-      recordSchemaResult.data,
-      transactionLogPath,
-    );
+    const rehashResult = await rehashLog(fs, transactionLogPath);
     if (isErr(rehashResult)) {
       log.error("Failed to rehash log", { error: rehashResult.error });
       return rehashResult;

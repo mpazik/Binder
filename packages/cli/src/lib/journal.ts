@@ -1,9 +1,6 @@
-/**
- * Facilitates writing to log files
- */
-
 import {
-  type ConfigSchema,
+  applyConfigChangesetToSchema,
+  coreSchema,
   GENESIS_VERSION,
   hashTransaction,
   type RecordSchema,
@@ -22,6 +19,7 @@ import {
   type Result,
   type ResultAsync,
 } from "@binder/utils";
+import { cliFullConfigSchema } from "../cli-config-schema.ts";
 import type { FileSystem } from "./filesystem.ts";
 
 const CHUNK_SIZE = 65536;
@@ -133,20 +131,16 @@ const readLinesFromBeginning = async function* (
   }
 };
 
-const parseTransaction = (line: string): Result<Transaction> => {
-  return parseJson<Transaction>(line, "Failed to parse transaction from log");
-};
+const parseTransaction = (line: string): Result<Transaction> =>
+  parseJson<Transaction>(line, "Failed to parse transaction from log");
 
 export const readTransactionsFromEnd = async function* (
   fs: FileSystem,
   path: string,
 ): AsyncGenerator<Result<Transaction>, void, unknown> {
   for await (const result of readLinesFromEnd(fs, path)) {
-    if (isErr(result)) {
-      yield result;
-    } else {
-      yield parseTransaction(result.data.line);
-    }
+    if (isErr(result)) yield result;
+    else yield parseTransaction(result.data.line);
   }
 };
 
@@ -155,11 +149,8 @@ const readTransactionsFromBeginning = async function* (
   path: string,
 ): AsyncGenerator<Result<Transaction>, void, unknown> {
   for await (const result of readLinesFromBeginning(fs, path)) {
-    if (isErr(result)) {
-      yield result;
-    } else {
-      yield parseTransaction(result.data);
-    }
+    if (isErr(result)) yield result;
+    else yield parseTransaction(result.data);
   }
 };
 
@@ -167,10 +158,7 @@ export const logTransaction = (
   fs: FileSystem,
   path: string,
   transaction: Transaction,
-): ResultAsync<void> => {
-  const json = JSON.stringify(transaction);
-  return fs.appendFile(path, json + "\n");
-};
+): ResultAsync<void> => fs.appendFile(path, JSON.stringify(transaction) + "\n");
 
 export const logTransactions = async (
   fs: FileSystem,
@@ -219,10 +207,9 @@ export const readTransactions = async (
   for await (const result of generator) {
     if (isErr(result)) return result;
 
-    const transaction = result.data;
-    if (filter.author && transaction.author !== filter.author) continue;
+    if (filter.author && result.data.author !== filter.author) continue;
 
-    transactions.push(transaction);
+    transactions.push(result.data);
     if (transactions.length >= count) break;
   }
   return ok(transactions);
@@ -273,18 +260,14 @@ export const removeLastFromLog = async (
       `Cannot remove ${count} transactions, only ${transactionsFound} available in log`,
     );
 
-  return await fs.truncate(path, truncatePosition);
+  return fs.truncate(path, truncatePosition);
 };
 
-export const clearLog = async (
-  fs: FileSystem,
-  path: string,
-): ResultAsync<void> => await fs.writeFile(path, "");
+export const clearLog = (fs: FileSystem, path: string): ResultAsync<void> =>
+  fs.writeFile(path, "");
 
 export const verifyLog = async (
   fs: FileSystem,
-  configSchema: ConfigSchema,
-  recordSchema: RecordSchema,
   path: string,
   options?: { verifyIntegrity?: boolean },
 ): ResultAsync<{ count: number }> => {
@@ -293,6 +276,7 @@ export const verifyLog = async (
   let count = 0;
   let lineNumber = 0;
   let previousHash: TransactionHash = GENESIS_VERSION.hash;
+  let recordSchema: RecordSchema = coreSchema();
 
   for await (const result of readTransactionsFromBeginning(fs, path)) {
     lineNumber++;
@@ -319,9 +303,16 @@ export const verifyLog = async (
         },
       );
 
+    if (Object.keys(transaction.configs).length > 0) {
+      recordSchema = applyConfigChangesetToSchema(
+        recordSchema,
+        transaction.configs,
+      );
+    }
+
     if (options?.verifyIntegrity) {
       const canonical = transactionToCanonical(
-        configSchema,
+        cliFullConfigSchema,
         recordSchema,
         transaction,
       );
@@ -348,8 +339,6 @@ export const verifyLog = async (
 
 export const rehashLog = async (
   fs: FileSystem,
-  configSchema: ConfigSchema,
-  recordSchema: RecordSchema,
   path: string,
 ): ResultAsync<{ transactionsRehashed: number; backupPath: string }> => {
   if (!(await fs.exists(path)))
@@ -367,14 +356,18 @@ export const rehashLog = async (
   if (isErr(clearResult)) return clearResult;
 
   let previousHash: TransactionHash = GENESIS_VERSION.hash;
+  let recordSchema: RecordSchema = coreSchema();
   let transactionsRehashed = 0;
 
   for await (const result of readTransactionsFromBeginning(fs, backupPath)) {
     if (isErr(result)) return result;
 
     const tx = { ...result.data, previous: previousHash };
+    if (Object.keys(tx.configs).length > 0) {
+      recordSchema = applyConfigChangesetToSchema(recordSchema, tx.configs);
+    }
     const rehashedTx = await withHashTransaction(
-      configSchema,
+      cliFullConfigSchema,
       recordSchema,
       tx,
       tx.id,

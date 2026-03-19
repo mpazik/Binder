@@ -48,17 +48,8 @@ export const verifySync = async (
   kg: KnowledgeGraph,
   binderPath: string,
 ): ResultAsync<VerifySync> => {
-  const configSchema = kg.getConfigSchema();
-  const recordSchemaResult = await kg.getRecordSchema();
-  if (isErr(recordSchemaResult)) return recordSchemaResult;
-
   const logPath = join(binderPath, TRANSACTION_LOG_FILE);
-  const logVerifyResult = await verifyLog(
-    fs,
-    configSchema,
-    recordSchemaResult.data,
-    logPath,
-  );
+  const logVerifyResult = await verifyLog(fs, logPath);
   if (isErr(logVerifyResult)) return logVerifyResult;
 
   const versionResult = await kg.version();

@@ -1,12 +1,15 @@
 import {
   type ConfigDataType,
   type ConfigKey,
+  type ConfigSchema,
   type ConfigUid,
+  coreConfigSchema,
   createSchema,
   dataTypeDefsToOptions,
   type EntitySchema,
   type FieldDef,
   fieldSystemType,
+  mergeSchema,
   newAppSystemId,
   richtextFormats,
   type RichtextFormat,
@@ -161,3 +164,8 @@ export const cliConfigSchema: EntitySchema<ConfigDataType> = createSchema(
   ],
   [typeNavigation, typeTemplate],
 );
+
+export const cliFullConfigSchema = mergeSchema(
+  coreConfigSchema,
+  cliConfigSchema,
+) as ConfigSchema;

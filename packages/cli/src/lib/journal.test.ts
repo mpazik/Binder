@@ -1,13 +1,8 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import "@binder/utils/tests";
-import {
-  coreConfigSchema,
-  type Transaction,
-  type TransactionHash,
-} from "@binder/db";
+import { type Transaction, type TransactionHash } from "@binder/db";
 import {
   mockAuthor2,
-  mockRecordSchema,
   mockTransaction3,
   mockTransaction4,
   mockTransactionInit,
@@ -43,69 +38,70 @@ describe("journal", () => {
     );
   });
 
-  it("logTransaction appends transaction as JSON with newline", async () => {
-    const content = throwIfError(await fs.readFile(path));
-    expect(content).toContain(JSON.stringify(mockTransactionInit) + "\n");
+  describe("logTransactions", () => {
+    it("appends transaction as JSON with newline", async () => {
+      const content = throwIfError(await fs.readFile(path));
+      expect(content).toContain(JSON.stringify(mockTransactionInit) + "\n");
+    });
   });
 
-  it("readLastTransactions returns empty array when file missing", async () => {
-    const missingPath = `${root}/missing.txt`;
-    const result = await readLastTransactions(fs, missingPath, 5);
+  describe("readLastTransactions", () => {
+    const check = async (count: number, expected: Transaction[]) => {
+      const result = await readLastTransactions(fs, path, count);
+      expect(throwIfError(result)).toEqual(expected);
+    };
 
-    expect(throwIfError(result)).toEqual([]);
+    it("returns empty array when file missing", async () => {
+      const result = await readLastTransactions(fs, `${root}/missing.txt`, 5);
+      expect(throwIfError(result)).toEqual([]);
+    });
+
+    it("reads last N from single chunk", async () => {
+      await check(1, [mockTransaction4]);
+    });
+
+    it("reads across multiple chunks", async () => {
+      await check(3, [
+        mockTransactionUpdate,
+        mockTransaction3,
+        mockTransaction4,
+      ]);
+    });
+
+    it("returns all when count exceeds available", async () => {
+      await check(10, [
+        mockTransactionInit,
+        mockTransactionUpdate,
+        mockTransaction3,
+        mockTransaction4,
+      ]);
+    });
   });
 
-  it("readLastTransactions reads last N transactions from single chunk", async () => {
-    const result = await readLastTransactions(fs, path, 1);
+  describe("removeLastFromLog", () => {
+    it("removes N transactions", async () => {
+      const result = await removeLastFromLog(fs, path, 1);
 
-    expect(throwIfError(result)).toEqual([mockTransaction4]);
+      expect(result).toBeOk();
+      const remaining = throwIfError(await readLastTransactions(fs, path, 10));
+      expect(remaining).toEqual([
+        mockTransactionInit,
+        mockTransactionUpdate,
+        mockTransaction3,
+      ]);
+    });
+
+    it("errors when count exceeds available", async () => {
+      expect(await removeLastFromLog(fs, path, 5)).toBeErr();
+    });
   });
 
-  it("readLastTransactions reads across multiple chunks", async () => {
-    const result = await readLastTransactions(fs, path, 3);
-
-    expect(throwIfError(result)).toEqual([
-      mockTransactionUpdate,
-      mockTransaction3,
-      mockTransaction4,
-    ]);
-  });
-
-  it("readLastTransactions returns all when count exceeds available", async () => {
-    const result = await readLastTransactions(fs, path, 10);
-
-    expect(throwIfError(result)).toEqual([
-      mockTransactionInit,
-      mockTransactionUpdate,
-      mockTransaction3,
-      mockTransaction4,
-    ]);
-  });
-
-  it("removeLastFromLog removes N transactions", async () => {
-    const result = await removeLastFromLog(fs, path, 1);
-
-    expect(result).toBeOk();
-    const remaining = throwIfError(await readLastTransactions(fs, path, 10));
-    expect(remaining).toEqual([
-      mockTransactionInit,
-      mockTransactionUpdate,
-      mockTransaction3,
-    ]);
-  });
-
-  it("removeLastFromLog errors when count exceeds available", async () => {
-    const result = await removeLastFromLog(fs, path, 5);
-
-    expect(result).toBeErr();
-  });
-
-  it("clearLog clears file to empty string", async () => {
-    const result = await clearLog(fs, path);
-
-    throwIfError(result);
-    const content = throwIfError(await fs.readFile(path));
-    expect(content).toBe("");
+  describe("clearLog", () => {
+    it("clears file to empty string", async () => {
+      throwIfError(await clearLog(fs, path));
+      const content = throwIfError(await fs.readFile(path));
+      expect(content).toBe("");
+    });
   });
 
   describe("verifyLog", () => {
@@ -122,13 +118,7 @@ describe("journal", () => {
         throwIfError(await logTransactions(fs, verifyPath, txs));
       }
 
-      const result = await verifyLog(
-        fs,
-        coreConfigSchema,
-        mockRecordSchema,
-        verifyPath,
-        options,
-      );
+      const result = await verifyLog(fs, verifyPath, options);
 
       if (typeof expected === "number") {
         expect(result).toBeOk();
@@ -209,80 +199,73 @@ describe("journal", () => {
   });
 
   describe("readTransactions", () => {
-    it("reads last N transactions in newest-first order by default", async () => {
-      const result = await readTransactions(fs, path, 2);
+    const check = async (
+      count: number,
+      expected: Transaction[],
+      opts?: { filters?: { author?: string }; order?: "asc" | "desc" },
+    ) => {
+      const result = await readTransactions(
+        fs,
+        path,
+        count,
+        opts?.filters ?? {},
+        opts?.order,
+      );
+      expect(throwIfError(result)).toEqual(expected);
+    };
 
-      expect(throwIfError(result)).toEqual([
-        mockTransaction4,
-        mockTransaction3,
-      ]);
+    it("reads last N in newest-first order by default", async () => {
+      await check(2, [mockTransaction4, mockTransaction3]);
     });
 
-    it("reads first N transactions in oldest-first order with asc", async () => {
-      const result = await readTransactions(fs, path, 2, {}, "asc");
-
-      expect(throwIfError(result)).toEqual([
-        mockTransactionInit,
-        mockTransactionUpdate,
-      ]);
+    it("reads first N in oldest-first order with asc", async () => {
+      await check(2, [mockTransactionInit, mockTransactionUpdate], {
+        order: "asc",
+      });
     });
 
-    it("reads all transactions in oldest-first order with asc", async () => {
-      const result = await readTransactions(fs, path, 10, {}, "asc");
-
-      expect(throwIfError(result)).toEqual([
-        mockTransactionInit,
-        mockTransactionUpdate,
-        mockTransaction3,
-        mockTransaction4,
-      ]);
+    it("reads all in oldest-first order with asc", async () => {
+      await check(
+        10,
+        [
+          mockTransactionInit,
+          mockTransactionUpdate,
+          mockTransaction3,
+          mockTransaction4,
+        ],
+        { order: "asc" },
+      );
     });
 
-    it("reads all transactions in newest-first order with desc", async () => {
-      const result = await readTransactions(fs, path, 10, {}, "desc");
-
-      expect(throwIfError(result)).toEqual([
-        mockTransaction4,
-        mockTransaction3,
-        mockTransactionUpdate,
-        mockTransactionInit,
-      ]);
+    it("reads all in newest-first order with desc", async () => {
+      await check(
+        10,
+        [
+          mockTransaction4,
+          mockTransaction3,
+          mockTransactionUpdate,
+          mockTransactionInit,
+        ],
+        { order: "desc" },
+      );
     });
 
     it("filters by author with desc order", async () => {
-      const result = await readTransactions(
-        fs,
-        path,
-        10,
-        { author: mockAuthor2 },
-        "desc",
-      );
-
-      expect(throwIfError(result)).toEqual([
-        mockTransaction4,
-        mockTransaction3,
-      ]);
+      await check(10, [mockTransaction4, mockTransaction3], {
+        filters: { author: mockAuthor2 },
+        order: "desc",
+      });
     });
 
-    it("filters by author and returns in oldest-first order with asc", async () => {
-      const result = await readTransactions(
-        fs,
-        path,
-        10,
-        { author: mockAuthor2 },
-        "asc",
-      );
-
-      expect(throwIfError(result)).toEqual([
-        mockTransaction3,
-        mockTransaction4,
-      ]);
+    it("filters by author with asc order", async () => {
+      await check(10, [mockTransaction3, mockTransaction4], {
+        filters: { author: mockAuthor2 },
+        order: "asc",
+      });
     });
 
     it("returns empty array for count 0", async () => {
-      const result = await readTransactions(fs, path, 0);
-
-      expect(throwIfError(result)).toEqual([]);
+      await check(0, []);
     });
   });
 
@@ -291,41 +274,53 @@ describe("journal", () => {
 
     it("rehashes all transactions with correct chain", async () => {
       const badHash1 = "bad-hash-1" as TransactionHash;
-      const transactionsWithBadHashes: Transaction[] = [
-        {
-          ...mockTransactionInit,
-          hash: badHash1,
-          previous: "bad-previous-1" as TransactionHash,
-        },
-        {
-          ...mockTransactionUpdate,
-          hash: "bad-hash-2" as TransactionHash,
-          previous: badHash1,
-        },
-      ];
       throwIfError(
-        await logTransactions(fs, rehashPath, transactionsWithBadHashes),
+        await logTransactions(fs, rehashPath, [
+          {
+            ...mockTransactionInit,
+            hash: badHash1,
+            previous: "bad-previous-1" as TransactionHash,
+          },
+          {
+            ...mockTransactionUpdate,
+            hash: "bad-hash-2" as TransactionHash,
+            previous: badHash1,
+          },
+        ]),
       );
 
-      const result = await rehashLog(
-        fs,
-        coreConfigSchema,
-        mockRecordSchema,
-        rehashPath,
-      );
+      const result = await rehashLog(fs, rehashPath);
 
       expect(result).toBeOkWith({
         transactionsRehashed: 2,
         backupPath: expect.stringMatching(/rehash-log-.*\.jsonl\.bac$/),
       });
+      expect(
+        throwIfError(
+          await readTransactions(fs, rehashPath, 10, undefined, "asc"),
+        ),
+      ).toEqual([mockTransactionInit, mockTransactionUpdate]);
+    });
 
-      const rehashedTransactions = throwIfError(
-        await readTransactions(fs, rehashPath, 10, undefined, "asc"),
+    it("rehashes correctly when started with empty record schema", async () => {
+      throwIfError(
+        await logTransactions(fs, rehashPath, [
+          mockTransactionInit,
+          mockTransactionUpdate,
+        ]),
       );
-      expect(rehashedTransactions).toEqual([
-        mockTransactionInit,
-        mockTransactionUpdate,
-      ]);
+
+      const result = await rehashLog(fs, rehashPath);
+
+      expect(result).toBeOkWith({
+        transactionsRehashed: 2,
+        backupPath: expect.stringMatching(/rehash-log-.*\.jsonl\.bac$/),
+      });
+      expect(
+        throwIfError(
+          await readTransactions(fs, rehashPath, 10, undefined, "asc"),
+        ),
+      ).toEqual([mockTransactionInit, mockTransactionUpdate]);
     });
   });
 });
