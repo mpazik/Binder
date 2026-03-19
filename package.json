@@ -18,6 +18,7 @@
     "lint": "bun --filter '*' lint",
     "typecheck": "bun --filter '*' typecheck",
     "test": "bun --filter '*' test",
+    "test:e2e": "bun --filter '*' test:e2e",
     "check": "bun typecheck && bun test && bun lint &&  bun format",
     "check:verify": "prettier --check . && eslint . && bun typecheck && bun test",
     "mcp:inspect": "bunx @modelcontextprotocol/inspector bun run dev mcp"

@@ -21,3 +21,8 @@ Bun workspaces monorepo with three packages under `packages/`:
 - **`@binder/cli`** — Main entry point. Contains the CLI, LSP server, MCP server, Markdown document sync/diffing, schema loading, and validation logic.
 - **`@binder/db`** — Core data layer. Knowledge graph engine, entity/relationship storage, transaction processing, changeset computation, filtering.
 - **`@binder/utils`** — Shared utilities. Pure helpers for arrays, strings, encoding, error handling etc.
+
+## Testing
+
+- **Unit tests** — `bun test` runs unit tests under each package's `src/` directory.
+- **E2E tests** — `bun test:e2e` runs end-to-end smoke tests under `packages/cli/tests/`. These spin up temporary workspaces, seed data, and exercise CLI, LSP, and MCP workflows against a real runtime.
