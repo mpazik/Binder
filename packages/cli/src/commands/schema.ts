@@ -5,7 +5,11 @@ import { type CommandHandlerWithDb, runtimeWithDb } from "../runtime.ts";
 import { renderSchemaPreview } from "../schema/schema-preview.ts";
 import { filterSchemaByTypes } from "../schema/schema-filter.ts";
 import { types } from "../cli/types.ts";
-import { itemFormatOption, namespaceOption } from "../cli/options.ts";
+import {
+  itemFormatOption,
+  namespaceOption,
+  parseCommaSeparatedList,
+} from "../cli/options.ts";
 import type { SerializeItemFormat } from "../utils/serialize.ts";
 
 export const schemaHandler: CommandHandlerWithDb<{
@@ -38,7 +42,8 @@ export const SchemaCommand = types({
       .option("types", {
         describe: "comma-separated list of type names to include",
         type: "array",
-        coerce: (value: string[]) => value as EntityType[],
+        coerce: (value: string[] | string) =>
+          parseCommaSeparatedList<EntityType>(value),
       })
       .options({ ...namespaceOption, ...itemFormatOption }),
   handler: runtimeWithDb(schemaHandler),

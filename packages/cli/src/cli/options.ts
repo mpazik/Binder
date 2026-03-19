@@ -122,6 +122,21 @@ export type SelectionArgs = {
   skip?: number;
 };
 
+/**
+ * Parse CLI values that may be passed either as repeated args
+ * (`--x a --x b`) or as comma-delimited strings (`--x a,b`).
+ */
+export const parseCommaSeparatedList = <T extends string = string>(
+  value: string | string[],
+): T[] => {
+  const values = Array.isArray(value) ? value : [value];
+  const items = values
+    .flatMap((item) => item.split(","))
+    .map((item) => item.trim())
+    .filter((item): item is T => item.length > 0);
+  return [...new Set(items)];
+};
+
 export const fieldsOption = {
   fields: {
     alias: "f",
