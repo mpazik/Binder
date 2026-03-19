@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "b8284ec5-1c97-493d-9eb2-e6c782e47b0a",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "f0ae0acd-1afc-4077-afaf-b6522a2304da",
+  "prevId": "b8284ec5-1c97-493d-9eb2-e6c782e47b0a",
   "tables": {
     "cli_snapshot_metadata": {
       "name": "cli_snapshot_metadata",
@@ -26,6 +26,13 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "entity_uid": {
+          "name": "entity_uid",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "mtime": {
@@ -69,6 +76,13 @@
           "name": "cli_snapshot_tx_idx",
           "columns": [
             "tx_id"
+          ],
+          "isUnique": false
+        },
+        "cli_snapshot_entity_uid_idx": {
+          "name": "cli_snapshot_entity_uid_idx",
+          "columns": [
+            "entity_uid"
           ],
           "isUnique": false
         }

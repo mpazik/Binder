@@ -7,7 +7,7 @@ description: The configuration that materializes repository data as files on dis
 alternativeNames: [ navigation config, routing, rendering pipeline ]
 sourceFiles:
   - packages/cli/src/document/navigation.ts
-  - packages/cli/src/document/synchronizer.ts
+  - packages/cli/src/document/change-extractor.ts
   - packages/cli/src/lib/snapshot.ts
 relatesTo:
   - view
@@ -44,13 +44,15 @@ The system infers the output format from the navigation item:
 
 ### Path Resolution
 
-Path templates use `{fieldName}` interpolation. When rendering, the system resolves each entity's field values into the path, sanitising for filesystem safety:
+Path templates use `{fieldName}` interpolation. When rendering, the system resolves each entity's field values into the path, sanitising for filesystem safety (replacing characters like `:`, `"`, `<`, `>`, `|`, `*`, `?` with `-`):
 
 ```yaml
 path: tasks/{key}          # → tasks/implement-auth.md
 path: milestones/{key}     # → milestones/alpha-release.md
 path: projects/{key}/       # → projects/core-platform/ (directory for children)
 ```
+
+Because sanitisation is lossy (e.g. `1:1 Meeting` becomes `1-1 Meeting`), the system cannot always recover field values by parsing the filename alone. To guarantee correct round-trip sync, the rendering pipeline records each file's entity UID in snapshot metadata. During sync-back, this stored UID is used to identify the entity instead of reverse-engineering it from the path.
 
 For nested navigation, child items inherit parent entity context. A child can reference parent fields in its path and query:
 
@@ -70,7 +72,7 @@ The full rendering flow:
 2. **For each item**: execute the `where` filter as a query against the entity store
 3. **For each matching entity**: resolve the file path from the path pattern
 4. **Render content**: apply the view (markdown) or serialise fields (YAML)
-5. **Save snapshot**: write the file with version tracking metadata
+5. **Save snapshot**: write the file with version tracking metadata including the entity UID
 6. **Recurse children**: process child navigation items with parent entity as context
 
 ### Config Navigation

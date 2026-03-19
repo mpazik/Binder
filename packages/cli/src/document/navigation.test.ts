@@ -296,6 +296,7 @@ describe("navigation", () => {
               omit({ ...mockTask2Record, project: mockProjectKey }, [
                 "id",
                 "type",
+                "uid",
               ]),
             ],
           },
@@ -508,11 +509,12 @@ describe("navigation", () => {
         },
         "all-tasks.yaml",
         renderYamlList([
-          reorderTagsField(omit(mockTask1Record, ["id", "type"])),
+          reorderTagsField(omit(mockTask1Record, ["id", "type", "uid"])),
           reorderTagsField(
             omit({ ...mockTask2Record, project: mockProjectKey }, [
               "id",
               "type",
+              "uid",
             ]),
           ),
         ]),

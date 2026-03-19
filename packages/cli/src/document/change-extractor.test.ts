@@ -527,4 +527,147 @@ ${mockTask1Record.description}
       });
     });
   });
+
+  describe("path sanitization", () => {
+    const checkSanitizedPath = async (
+      taskUid: typeof mockTask1Uid,
+      record: { title: string; status: string; description: string },
+      navItems: NavigationItem[],
+      filePath: string,
+      fileContent: string,
+      expected: EntityChangesetInput<"record">[],
+    ) => {
+      throwIfError(
+        await kg.update({
+          author: "test",
+          records: [{ uid: taskUid, type: mockTaskTypeKey, ...record }],
+        }),
+      );
+      const fullPath = join(ctx.config.paths.docs, filePath);
+      throwIfError(await ctx.fs.mkdir(dirname(fullPath), { recursive: true }));
+      throwIfError(await ctx.fs.writeFile(fullPath, fileContent));
+      const result = await extractFileChanges(
+        ctx.fs,
+        kg,
+        ctx.config,
+        navItems,
+        mockRecordSchema,
+        filePath,
+        "record",
+        mockTemplates,
+        undefined,
+        taskUid,
+      );
+      expect(result).toBeOk();
+      expect(throwIfError(result)).toEqual(expected);
+    };
+
+    it("resolves entity when path field value contains colons", async () => {
+      const taskUid = "_taskColon0" as typeof mockTask1Uid;
+      await checkSanitizedPath(
+        taskUid,
+        { title: "1:1 Meeting", status: "pending", description: "Weekly sync" },
+        [
+          {
+            path: "notes/{title}",
+            where: { type: "Task", title: "1:1 Meeting" },
+            includes: { title: true, status: true, description: true },
+          },
+        ],
+        "notes/1-1 Meeting.yaml",
+        renderYamlEntity({
+          title: "1:1 Meeting",
+          status: "done",
+          description: "Weekly sync",
+        }),
+        [{ $ref: taskUid, status: "done" }],
+      );
+    });
+
+    it("resolves entity when path field value contains multiple special chars", async () => {
+      const taskUid = "_taskSpecCh" as typeof mockTask1Uid;
+      await checkSanitizedPath(
+        taskUid,
+        {
+          title: 'Q&A: "Why?" <explained>',
+          status: "pending",
+          description: "Special chars test",
+        },
+        [
+          {
+            path: "notes/{title}",
+            where: { type: "Task", title: 'Q&A: "Why?" <explained>' },
+            includes: { title: true, status: true, description: true },
+          },
+        ],
+        "notes/Q&A- -Why-- -explained-.yaml",
+        renderYamlEntity({
+          title: 'Q&A: "Why?" <explained>',
+          status: "done",
+          description: "Special chars test",
+        }),
+        [{ $ref: taskUid, status: "done" }],
+      );
+    });
+
+    it("resolves entity for markdown files with sanitized path", async () => {
+      const taskUid = "_taskSanMd0" as typeof mockTask1Uid;
+      await checkSanitizedPath(
+        taskUid,
+        {
+          title: "Design: Phase 1",
+          status: "pending",
+          description: "First phase",
+        },
+        [
+          {
+            path: "tasks/{title}",
+            where: { type: "Task", title: "Design: Phase 1" },
+            template: "task-template",
+          },
+        ],
+        "tasks/Design- Phase 1.md",
+        taskMarkdown("Design: Phase 1", "done", "First phase"),
+        [{ $ref: taskUid, status: "done" }],
+      );
+    });
+
+    it("returns no changes when sanitized path file is unchanged", async () => {
+      const taskUid = "_taskNoCh00" as typeof mockTask1Uid;
+      await checkSanitizedPath(
+        taskUid,
+        {
+          title: "Topic: Overview",
+          status: "pending",
+          description: "Summary",
+        },
+        [
+          {
+            path: "notes/{title}",
+            where: { type: "Task", title: "Topic: Overview" },
+            includes: { title: true, status: true, description: true },
+          },
+        ],
+        "notes/Topic- Overview.yaml",
+        renderYamlEntity({
+          title: "Topic: Overview",
+          status: "pending",
+          description: "Summary",
+        }),
+        [],
+      );
+    });
+
+    it("still works for paths without sanitized characters", async () => {
+      await check(
+        `tasks/${mockTask1Record.key}.yaml`,
+        renderYamlEntity({
+          title: "Updated Title",
+          status: mockTask1Record.status,
+          description: mockTask1Record.description,
+        }),
+        [{ $ref: mockTask1Uid, title: "Updated Title" }],
+      );
+    });
+  });
 });

@@ -111,6 +111,7 @@ export const createWorkspaceManager = (
       const entityContextCache = createEntityContextCache(
         runtime.log,
         runtime.kg,
+        runtime.db,
       );
 
       const entry: WorkspaceEntry = {

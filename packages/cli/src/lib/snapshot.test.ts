@@ -2,6 +2,7 @@ import { dirname } from "path";
 import { beforeEach, describe, expect, it } from "bun:test";
 import { throwIfError } from "@binder/utils";
 import {
+  type EntityUid,
   type GraphVersion,
   type TransactionId,
   versionFromTransaction,
@@ -29,6 +30,7 @@ const filePath = `${docsPath}/test.md`;
 const filePath2 = `${docsPath}/test2.md`;
 
 const version: GraphVersion = versionFromTransaction(mockTransactionInit);
+const mockEntityUid = "mock-entity-uid" as EntityUid;
 
 describe("snapshot", () => {
   let fs: FileSystem;
@@ -80,6 +82,7 @@ describe("snapshot", () => {
             filePath,
             scenario.existingContent,
             version,
+            mockEntityUid,
           ),
         );
       }
@@ -92,6 +95,7 @@ describe("snapshot", () => {
           filePath,
           scenario.newContent,
           version,
+          mockEntityUid,
         ),
       );
       expect(result).toBe(expectedWritten);
@@ -105,6 +109,7 @@ describe("snapshot", () => {
           id: 1,
           path: "test.md",
           txId: version.id,
+          entityUid: mockEntityUid,
           ...throwIfError(fs.stat(filePath)),
           hash: await calculateSnapshotHash(fs, filePath),
         },
@@ -132,9 +137,11 @@ describe("snapshot", () => {
 
     type MetadataInput = Omit<
       SnapshotMetadata,
-      "id" | "txId" | "mtime" | "size" | "hash"
+      "id" | "txId" | "entityUid" | "mtime" | "size" | "hash"
     > &
-      Partial<Pick<SnapshotMetadata, "txId" | "mtime" | "size" | "hash">>;
+      Partial<
+        Pick<SnapshotMetadata, "txId" | "entityUid" | "mtime" | "size" | "hash">
+      >;
 
     const check = async (
       scenario: {
@@ -160,6 +167,7 @@ describe("snapshot", () => {
           return {
             path: m.path,
             txId: m.txId ?? version.id,
+            entityUid: m.entityUid ?? mockEntityUid,
             mtime: m.mtime ?? Date.now() + 1000,
             size: m.size ?? stat.data?.size ?? 0,
             hash:
@@ -207,7 +215,14 @@ describe("snapshot", () => {
           files: [{ path: "test.md", content: "updated" }],
           metadata: [{ path: "test.md", mtime: 1000, hash: "old" }],
         },
-        [{ type: "updated", path: "test.md", txId: version.id }],
+        [
+          {
+            type: "updated",
+            path: "test.md",
+            txId: version.id,
+            entityUid: mockEntityUid,
+          },
+        ],
       );
     });
 
@@ -219,14 +234,28 @@ describe("snapshot", () => {
             { path: "test.md", mtime: Date.now() + 10000, hash: "new" },
           ],
         },
-        [{ type: "outdated", path: "test.md", txId: version.id }],
+        [
+          {
+            type: "outdated",
+            path: "test.md",
+            txId: version.id,
+            entityUid: mockEntityUid,
+          },
+        ],
       );
     });
 
     it("detects removed file", async () => {
       await check(
         { metadata: [{ path: "test.md", mtime: 1000, size: 10, hash: "x" }] },
-        [{ type: "removed", path: "test.md", txId: version.id }],
+        [
+          {
+            type: "removed",
+            path: "test.md",
+            txId: version.id,
+            entityUid: mockEntityUid,
+          },
+        ],
       );
     });
 
@@ -255,8 +284,18 @@ describe("snapshot", () => {
         },
         [
           { type: "untracked", path: "untracked.md" },
-          { type: "updated", path: "updated.md", txId: 2 as TransactionId },
-          { type: "removed", path: "removed.md", txId: 3 as TransactionId },
+          {
+            type: "updated",
+            path: "updated.md",
+            txId: 2 as TransactionId,
+            entityUid: mockEntityUid,
+          },
+          {
+            type: "removed",
+            path: "removed.md",
+            txId: 3 as TransactionId,
+            entityUid: mockEntityUid,
+          },
         ],
       );
     });
@@ -283,7 +322,14 @@ describe("snapshot", () => {
           ],
           scope: `${docsPath}/tasks`,
         },
-        [{ type: "removed", path: "tasks/removed1.md", txId: version.id }],
+        [
+          {
+            type: "removed",
+            path: "tasks/removed1.md",
+            txId: version.id,
+            entityUid: mockEntityUid,
+          },
+        ],
       );
     });
 
@@ -297,7 +343,14 @@ describe("snapshot", () => {
           metadata: [{ path: "file1.md", mtime: 1000, hash: "old" }],
           scope: `${docsPath}/file1.md`,
         },
-        [{ type: "updated", path: "file1.md", txId: version.id }],
+        [
+          {
+            type: "updated",
+            path: "file1.md",
+            txId: version.id,
+            entityUid: mockEntityUid,
+          },
+        ],
       );
     });
 
@@ -338,6 +391,7 @@ describe("snapshot", () => {
             type: "updated",
             path: `${BINDER_DIR}/fields.yaml`,
             txId: version.id,
+            entityUid: mockEntityUid,
           },
         ],
       );
@@ -384,6 +438,7 @@ describe("snapshot", () => {
             type: "removed",
             path: `${BINDER_DIR}/fields.yaml`,
             txId: version.id,
+            entityUid: mockEntityUid,
           },
         ],
       );

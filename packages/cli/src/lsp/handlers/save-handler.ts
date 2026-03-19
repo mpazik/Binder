@@ -4,11 +4,12 @@ import { loadNavigation } from "../../document/navigation.ts";
 import type { RuntimeContextWithDb } from "../../runtime.ts";
 import {
   getRelativeSnapshotPath,
+  getSnapshotEntityUid,
   namespaceFromSnapshotPath,
 } from "../../lib/snapshot.ts";
 
 // Note: this handler doesn't use the withDocumentContext/LspHandler pattern
-// because it runs its own extraction pipeline via synchronizeFile. The
+// because it runs its own extraction pipeline via extractFileChanges. The
 // DocumentContext built by withDocumentContext (parsed AST, field mappings,
 // entity mappings) would be redundant work discarded by the sync path.
 export const handleDocumentSave = async (
@@ -45,6 +46,8 @@ export const handleDocumentSave = async (
   const templatesResult = await context.templates();
   if (isErr(templatesResult)) return templatesResult;
 
+  const entityUid = getSnapshotEntityUid(context.db, relativePath);
+
   const syncResult = await extractFileChanges(
     fs,
     kg,
@@ -55,6 +58,7 @@ export const handleDocumentSave = async (
     namespace,
     templatesResult.data,
     sourceContent,
+    entityUid,
   );
   if (isErr(syncResult)) return syncResult;
 

@@ -45,7 +45,7 @@ describe("entity-context", () => {
     expected: EntityMappings,
   ) => {
     const entityContext = throwIfError(
-      await fetchEntityContext(kg, schema, navItem, filePath),
+      await fetchEntityContext(kg, ctx.db, schema, navItem, filePath),
     );
 
     const extracted = throwIfError(
@@ -234,6 +234,7 @@ ${task.description}
       const result = throwIfError(
         await fetchEntityContext(
           kg,
+          ctx.db,
           schema,
           navItem,
           `tasks/${mockTask1Record.key}.yaml`,
@@ -251,7 +252,7 @@ ${task.description}
         query: { filters: { type: mockTaskTypeKey } },
       };
       const result = throwIfError(
-        await fetchEntityContext(kg, schema, navItem, "all-tasks.yaml"),
+        await fetchEntityContext(kg, ctx.db, schema, navItem, "all-tasks.yaml"),
       );
       expect(result).toMatchObject({
         kind: "list",
@@ -268,7 +269,13 @@ ${task.description}
         includes: { title: true },
       };
       const result = throwIfError(
-        await fetchEntityContext(kg, schema, navItem, "tasks/nonexistent.yaml"),
+        await fetchEntityContext(
+          kg,
+          ctx.db,
+          schema,
+          navItem,
+          "tasks/nonexistent.yaml",
+        ),
       );
       expect(result).toEqual({
         kind: "single",

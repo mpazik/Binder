@@ -2,6 +2,7 @@ import type {
   ChangesetsInput,
   EntityChangesetInput,
   EntitySchema,
+  EntityUid,
   Fieldset,
   FieldsetNested,
   Includes,
@@ -116,35 +117,6 @@ const diffQueryWithEntities = async (
   return ok([...diffResult.toCreate, ...diffResult.toUpdate, ...toDelete]);
 };
 
-const diffList = async (
-  kg: KnowledgeGraph,
-  schema: EntitySchema,
-  namespace: NamespaceEditable,
-  entities: FieldsetNested[],
-  query: QueryParams,
-  pathFields: Fieldset,
-  log?: Logger,
-): ResultAsync<ChangesetsInput> => {
-  log?.debug("diffList", {
-    fileEntities: entities.map((e) => ({ uid: e.uid, milestone: e.milestone })),
-  });
-
-  const result = await diffQueryWithEntities(
-    kg,
-    schema,
-    namespace,
-    entities,
-    query,
-    pathFields,
-  );
-
-  if (!isErr(result)) {
-    log?.debug("diffList result", { changesetCount: result.data.length });
-  }
-
-  return result;
-};
-
 const diffDocument = async (
   kg: KnowledgeGraph,
   schema: EntitySchema,
@@ -203,21 +175,19 @@ const diffExtracted = (
   data: ExtractedFileData,
   pathFields: Fieldset,
   includes?: Includes,
-  log?: Logger,
 ): ResultAsync<ChangesetsInput> => {
   if (data.kind === "single") {
     return diffSingle(kg, schema, namespace, data.entity, pathFields, includes);
   }
 
   if (data.kind === "list") {
-    return diffList(
+    return diffQueryWithEntities(
       kg,
       schema,
       namespace,
       data.entities,
       data.query,
       pathFields,
-      log,
     );
   }
 
@@ -245,6 +215,7 @@ export const extractFileChanges = async <N extends NamespaceEditable>(
   namespace: N,
   templates: Templates,
   sourceContent?: string,
+  entityUid?: EntityUid,
 ): ResultAsync<ChangesetsInput<N>> => {
   const navItem = findNavigationItemByPath(navigationItems, relativePath);
   if (!navItem) {
@@ -255,12 +226,17 @@ export const extractFileChanges = async <N extends NamespaceEditable>(
     );
   }
 
-  const pathFieldsResult = extractFieldValues(
-    getPathTemplate(navItem),
-    relativePath,
-  );
-  if (isErr(pathFieldsResult)) return pathFieldsResult;
-  const pathFields = pathFieldsResult.data;
+  let pathFields: Fieldset;
+  if (entityUid) {
+    pathFields = { uid: entityUid };
+  } else {
+    const pathFieldsResult = extractFieldValues(
+      getPathTemplate(navItem),
+      relativePath,
+    );
+    if (isErr(pathFieldsResult)) return pathFieldsResult;
+    pathFields = pathFieldsResult.data;
+  }
 
   const absolutePath = resolveSnapshotPath(relativePath, config.paths);
 
@@ -268,7 +244,6 @@ export const extractFileChanges = async <N extends NamespaceEditable>(
     ? ok(sourceContent)
     : await fs.readFile(absolutePath);
   if (isErr(contentResult)) return contentResult;
-  const content = contentResult.data;
 
   const templateIncludes = navItem.template
     ? templates.find((t) => t.key === navItem.template)?.templateIncludes
@@ -290,7 +265,7 @@ export const extractFileChanges = async <N extends NamespaceEditable>(
   const extractResult = extract(
     schema,
     navItem,
-    content,
+    contentResult.data,
     absolutePath,
     templates,
     base,
@@ -329,6 +304,8 @@ const extractNamespaceChanges = async <N extends NamespaceEditable>(
   if (isErr(schemaResult)) return schemaResult;
 
   for (const file of modifiedFiles) {
+    const entityUid =
+      file.type !== "untracked" ? (file.entityUid ?? undefined) : undefined;
     const syncResult = await extractFileChanges(
       fs,
       kg,
@@ -338,6 +315,8 @@ const extractNamespaceChanges = async <N extends NamespaceEditable>(
       file.path,
       namespace,
       templates,
+      undefined,
+      entityUid,
     );
     if (isErr(syncResult)) return syncResult;
 
@@ -362,7 +341,7 @@ const detectCrossFileConflicts = <N extends NamespaceEditable>(
   for (const [ref, group] of byRef) {
     if (group.length < 2) continue;
 
-    const hasDelete = group.some((cs) => isEntityDelete(cs));
+    const hasDelete = group.some(isEntityDelete);
     if (hasDelete) {
       return fail(
         "field-conflict",
@@ -515,6 +494,6 @@ export const extractModifiedFileChanges = async (
   return ok({
     author: config.author,
     records,
-    configs: configs,
+    configs,
   });
 };

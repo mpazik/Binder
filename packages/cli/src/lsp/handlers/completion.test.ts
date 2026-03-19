@@ -58,7 +58,11 @@ describe("completion", () => {
       }),
     );
     documentCache = createDocumentCache(runtime.log);
-    entityContextCache = createEntityContextCache(runtime.log, runtime.kg);
+    entityContextCache = createEntityContextCache(
+      runtime.log,
+      runtime.kg,
+      runtime.db,
+    );
   });
 
   const complete = async (

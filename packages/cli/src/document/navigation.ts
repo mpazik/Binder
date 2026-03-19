@@ -4,6 +4,7 @@ import {
   buildIncludes,
   emptyFieldset,
   type EntitySchema,
+  type EntityUid,
   type Fieldset,
   type FieldsetNested,
   type Filter,
@@ -337,12 +338,16 @@ const renderContent = async (
       );
       if (isErr(formattedItems)) return formattedItems;
 
-      if (item.query.includes)
-        return ok(renderYamlList(formattedItems.data, schema));
+      if (item.query.includes) {
+        const items = item.query.includes.uid
+          ? formattedItems.data
+          : formattedItems.data.map((e) => omit(e, ["uid"]));
+        return ok(renderYamlList(items, schema));
+      }
 
       const excludedFields = getExcludedFields(namespace, item.query.filters);
       const filteredItems = formattedItems.data.map((e) =>
-        omit(e, excludedFields),
+        omit(e, [...excludedFields, "uid"]),
       );
       return ok(renderYamlList(filteredItems, schema));
     }
@@ -387,7 +392,12 @@ export const renderNavigationItem = async (
           interpolatedQuery.data.includes,
           template.templateIncludes,
         ),
-        { key: true },
+        { key: true, uid: true },
+      );
+    } else if (interpolatedQuery.data.includes) {
+      interpolatedQuery.data.includes = mergeIncludes(
+        interpolatedQuery.data.includes,
+        { uid: true },
       );
     }
 
@@ -406,7 +416,14 @@ export const renderNavigationItem = async (
     entities = [parentEntities[0] ?? emptyFieldset];
   }
 
+  // Strip uid from rendered output when the user specified includes but
+  // didn't list uid. Templates control their own output so no stripping needed.
+  // When includes is undefined (all fields), uid stays.
+  const stripUid = !item.template && !!item.includes && !item.includes.uid;
+
   for (const entity of entities) {
+    const entityUid = (entity.uid as EntityUid) ?? null;
+
     const resolvedPath = resolvePath(
       schema,
       item,
@@ -416,11 +433,16 @@ export const renderNavigationItem = async (
     if (isErr(resolvedPath)) return resolvedPath;
     const filePath = join(parentPath, resolvedPath.data);
 
+    const renderEntity =
+      stripUid && "uid" in entity
+        ? (omit(entity, ["uid"]) as FieldsetNested)
+        : entity;
+
     const renderContentResult = await renderContent(
       kg,
       schema,
       item,
-      entity,
+      renderEntity,
       parentEntities,
       fileType,
       namespace,
@@ -436,6 +458,7 @@ export const renderNavigationItem = async (
         filePath,
         renderContentResult.data,
         version,
+        entityUid,
       );
       if (isErr(saveResult)) return saveResult;
 

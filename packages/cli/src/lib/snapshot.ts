@@ -1,6 +1,7 @@
 import { dirname, isAbsolute, relative, resolve } from "path";
 import { eq, like } from "drizzle-orm";
 import type {
+  EntityUid,
   GraphVersion,
   NamespaceEditable,
   TransactionId,
@@ -22,6 +23,7 @@ export type SnapshotMetadata = {
   id?: number;
   path: string;
   txId: TransactionId;
+  entityUid: EntityUid | null;
   mtime: number;
   size: number;
   hash: string;
@@ -49,6 +51,7 @@ const upsertSnapshotMetadata = (
   metadata: {
     path: string;
     txId: TransactionId;
+    entityUid: EntityUid | null;
     mtime: number;
     size: number;
     hash: string;
@@ -61,6 +64,7 @@ const upsertSnapshotMetadata = (
         target: cliSnapshotMetadataTable.path,
         set: {
           txId: metadata.txId,
+          entityUid: metadata.entityUid,
           mtime: metadata.mtime,
           size: metadata.size,
           hash: metadata.hash,
@@ -80,6 +84,7 @@ export const saveSnapshotMetadata = async (
     snapshots.map((snapshot) => ({
       path: snapshot.path,
       txId: snapshot.txId,
+      entityUid: snapshot.entityUid,
       mtime: snapshot.mtime,
       size: snapshot.size,
       hash: snapshot.hash,
@@ -104,6 +109,18 @@ export const getSnapshotMetadata = (
   );
 };
 
+export const getSnapshotEntityUid = (
+  db: DatabaseCli,
+  path: string,
+): EntityUid | undefined => {
+  const row = db
+    .select({ entityUid: cliSnapshotMetadataTable.entityUid })
+    .from(cliSnapshotMetadataTable)
+    .where(eq(cliSnapshotMetadataTable.path, path))
+    .get();
+  return row?.entityUid ?? undefined;
+};
+
 export type SnapshotChangeMetadata = { path: string } & (
   | {
       type: "untracked";
@@ -111,10 +128,12 @@ export type SnapshotChangeMetadata = { path: string } & (
   | {
       type: "outdated" | "updated";
       txId: TransactionId;
+      entityUid: EntityUid | null;
     }
   | {
       type: "removed";
       txId: TransactionId;
+      entityUid: EntityUid | null;
     }
 );
 
@@ -197,6 +216,7 @@ export const modifiedSnapshots = async (
       type: stats.mtime > metadata.mtime ? "updated" : "outdated",
       path: snapshotPath,
       txId: metadata.txId,
+      entityUid: metadata.entityUid,
     });
   };
 
@@ -234,6 +254,7 @@ export const modifiedSnapshots = async (
         type: "removed",
         path: metadata.path,
         txId: metadata.txId,
+        entityUid: metadata.entityUid,
       });
     }
   }
@@ -248,6 +269,7 @@ export const saveSnapshot = async (
   filePath: string,
   content: string,
   version: GraphVersion,
+  entityUid: EntityUid | null,
 ): ResultAsync<boolean> => {
   const absolutePath = resolveSnapshotPath(filePath, paths);
   const snapshotPath = getRelativeSnapshotPath(absolutePath, paths);
@@ -278,6 +300,7 @@ export const saveSnapshot = async (
   const insertResult = upsertSnapshotMetadata(db, {
     path: snapshotPath,
     txId: version.id,
+    entityUid,
     mtime: statResult.data.mtime,
     size: statResult.data.size,
     hash: newHash,
@@ -294,6 +317,7 @@ export const refreshSnapshotMetadata = (
   absolutePath: string,
   content: string,
   version: GraphVersion,
+  entityUid: EntityUid | null,
 ): Result<void> => {
   const snapshotPath = getRelativeSnapshotPath(absolutePath, paths);
   const hash = calculateContentHash(content);
@@ -304,6 +328,7 @@ export const refreshSnapshotMetadata = (
   return upsertSnapshotMetadata(db, {
     path: snapshotPath,
     txId: version.id,
+    entityUid,
     mtime: statResult.data.mtime,
     size: statResult.data.size,
     hash,

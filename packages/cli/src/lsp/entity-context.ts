@@ -10,7 +10,9 @@ import type {
 import { isErr, ok, type ResultAsync } from "@binder/utils";
 import { extractFieldValues } from "../utils/interpolate-fields.ts";
 import { getTypeFromFilters, interpolateQueryParams } from "../utils/query.ts";
-import type { NavigationItem } from "../document/navigation.ts";
+import { type NavigationItem } from "../document/navigation.ts";
+import type { DatabaseCli } from "../db";
+import { getSnapshotEntityUid } from "../lib/snapshot.ts";
 import type { Logger } from "../log.ts";
 
 export type DocumentEntityContext =
@@ -40,12 +42,19 @@ const fetchListContext = async (
 
 export const fetchEntityContext = async (
   kg: KnowledgeGraph,
+  db: DatabaseCli,
   schema: EntitySchema,
   navItem: NavigationItem,
   filePath: string,
 ): ResultAsync<DocumentEntityContext> => {
-  const pathFieldsResult = extractFieldValues(navItem.path, filePath);
-  const pathFields = isErr(pathFieldsResult) ? {} : pathFieldsResult.data;
+  const snapshotUid = getSnapshotEntityUid(db, filePath);
+  let pathFields: Fieldset;
+  if (snapshotUid) {
+    pathFields = { uid: snapshotUid };
+  } else {
+    const pathFieldsResult = extractFieldValues(navItem.path, filePath);
+    pathFields = isErr(pathFieldsResult) ? {} : pathFieldsResult.data;
+  }
 
   if (navItem.includes) {
     const entities = await fetchSingleContext(kg, pathFields);
@@ -93,6 +102,7 @@ export type EntityContextCache = {
 export const createEntityContextCache = (
   log: Logger,
   kg: KnowledgeGraph,
+  db: DatabaseCli,
 ): EntityContextCache => {
   const cache = new Map<string, DocumentEntityContext>();
   let hits = 0;
@@ -111,6 +121,7 @@ export const createEntityContextCache = (
       const filePath = uri.replace(/^file:\/\//, "");
       const contextResult = await fetchEntityContext(
         kg,
+        db,
         schema,
         navigationItem,
         filePath,
