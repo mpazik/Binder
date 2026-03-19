@@ -142,7 +142,7 @@ const rebasePositionalMutation = (
   baseMutations: ListMutation[],
 ): ListMutationInsert | ListMutationRemove => {
   const [kind, value, position] = mutation;
-  if (position === undefined) return mutation;
+  if (position == null) return mutation;
 
   let adjustedPosition = position;
 
@@ -150,7 +150,7 @@ const rebasePositionalMutation = (
     if (isPatchMutation(baseMutation)) continue;
 
     const [baseKind, , basePos] = baseMutation;
-    if (basePos === undefined) continue;
+    if (basePos == null) continue;
 
     if (baseKind === "insert" && basePos <= adjustedPosition) {
       adjustedPosition++;
@@ -391,7 +391,7 @@ const squashPositionalMutation = (
     const cancelIndex = combinedMutations.findIndex(
       (m) =>
         isInsertMutation(m) &&
-        (m[2] === position || (m[2] === undefined && position === undefined)) &&
+        (m[2] === position || (m[2] == null && position == null)) &&
         isEqual(m[1], value),
     );
 
@@ -402,12 +402,12 @@ const squashPositionalMutation = (
       const removedInsertPos = removedInsert[2];
       combinedMutations.splice(cancelIndex, 1);
 
-      if (removedInsertPos !== undefined) {
+      if (removedInsertPos != null) {
         for (let i = cancelIndex; i < combinedMutations.length; i++) {
           const m = combinedMutations[i]!;
           if (isPatchMutation(m)) continue;
           const pos = m[2];
-          if (pos !== undefined && pos > removedInsertPos) {
+          if (pos != null && pos > removedInsertPos) {
             combinedMutations[i] = [m[0], m[1], pos - 1];
           }
         }
@@ -416,7 +416,7 @@ const squashPositionalMutation = (
     }
   }
 
-  if (position === undefined) {
+  if (position == null) {
     return mutation;
   }
 
@@ -424,7 +424,7 @@ const squashPositionalMutation = (
   for (const m of combinedMutations) {
     if (isPatchMutation(m)) continue;
     const basePos = m[2];
-    if (basePos === undefined) continue;
+    if (basePos == null) continue;
     if (m[0] === "insert" && basePos <= adjustedPosition) {
       adjustedPosition++;
     } else if (m[0] === "remove" && basePos < adjustedPosition) {
