@@ -36,8 +36,11 @@ export const docsRenderHandler: CommandHandlerWithDb = async (context) => {
 export const docsSyncHandler: CommandHandlerWithDb<{
   path?: string;
 }> = async (ctx) => {
-  const { kg, ui, args, log } = ctx;
-  const syncResult = await extractModifiedFileChanges(ctx, args.path, log);
+  const { kg, ui, args, log, config } = ctx;
+  const resolvedPath = args.path
+    ? resolveSnapshotPath(args.path, config.paths)
+    : undefined;
+  const syncResult = await extractModifiedFileChanges(ctx, resolvedPath, log);
   if (isErr(syncResult)) return syncResult;
 
   if (syncResult.data === null) {
@@ -77,8 +80,9 @@ const lintNamespace = async <N extends NamespaceEditable>(
       currentFile = relativePath;
     }
     const location = `${error.range.start.line + 1}:${error.range.start.character + 1}`;
-    const severity = error.severity === "error" ? "error" : error.severity;
-    ui.println(`  ${location} ${severity} ${error.message} (${error.code})`);
+    ui.println(
+      `  ${location} ${error.severity} ${error.message} (${error.code})`,
+    );
   };
 
   const navigationResult = await loadNavigation(kg, namespace);
@@ -97,13 +101,12 @@ const lintNamespace = async <N extends NamespaceEditable>(
     if (fileType === undefined) continue;
 
     const relativePath = getRelativeSnapshotPath(filePath, config.paths);
-
     if (!shouldInclude(relativePath)) continue;
+
     const navigationItem = findNavigationItemByPath(
       navigationResult.data,
       relativePath,
     );
-
     if (!navigationItem) continue;
 
     const contentResult = await fs.readFile(filePath);
@@ -154,7 +157,8 @@ export const docsLintHandler: CommandHandlerWithDb<{
       "Cannot specify path with --all or --config flags",
     );
   }
-  let toLint: [NamespaceEditable, string][] = [];
+
+  let toLint: [NamespaceEditable, string][];
 
   if (args.path) {
     const absolutePath = resolveSnapshotPath(args.path, config.paths);
@@ -167,12 +171,12 @@ export const docsLintHandler: CommandHandlerWithDb<{
     }
     toLint = [[namespace, absolutePath]];
   } else {
-    const namespacesToLint: NamespaceEditable[] = args.all
+    const namespaces: NamespaceEditable[] = args.all
       ? ["record", "config"]
       : args.config
         ? ["config"]
         : ["record"];
-    toLint = namespacesToLint.map((ns) => [
+    toLint = namespaces.map((ns) => [
       ns,
       snapshotRootForNamespace(ns, config.paths),
     ]);

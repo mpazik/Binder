@@ -158,8 +158,16 @@ export const resolveSnapshotPath = (
   if (!userPath) return paths.docs;
   if (isAbsolute(userPath)) return userPath;
 
-  const root = userPath === BINDER_DIR || userPath.startsWith(BINDER_DIR + "/");
-  return resolve(root ? paths.root : paths.docs, userPath);
+  const docsDir = relative(paths.root, paths.docs);
+  const isBinderPath =
+    userPath === BINDER_DIR || userPath.startsWith(BINDER_DIR + "/");
+  const isRootRelativeDocsPath =
+    docsDir !== "" &&
+    (userPath === docsDir || userPath.startsWith(`${docsDir}/`));
+  return resolve(
+    isBinderPath || isRootRelativeDocsPath ? paths.root : paths.docs,
+    userPath,
+  );
 };
 
 export const getRelativeSnapshotPath = (
@@ -179,11 +187,11 @@ export const modifiedSnapshots = async (
   scopePath: string = paths.docs,
   options: MatchOptions = {},
 ): ResultAsync<SnapshotChangeMetadata[]> => {
-  const snapshotMetadataResult = getSnapshotMetadata(db, undefined);
-  if (isErr(snapshotMetadataResult)) return snapshotMetadataResult;
-  const snapshotMetadata = snapshotMetadataResult.data;
+  const allMetadataResult = getSnapshotMetadata(db, undefined);
+  if (isErr(allMetadataResult)) return allMetadataResult;
+  const allMetadata = allMetadataResult.data;
 
-  const metadataByPath = new Map(snapshotMetadata.map((m) => [m.path, m]));
+  const metadataByPath = new Map(allMetadata.map((m) => [m.path, m]));
   const seenPaths = new Set<string>();
   const shouldInclude = createPathMatcher(options);
 
@@ -206,14 +214,13 @@ export const modifiedSnapshots = async (
 
     const statResult = fs.stat(absolutePath);
     if (isErr(statResult)) return statResult;
-    const stats = statResult.data;
-    if (stats.size === metadata.size) {
+    if (statResult.data.size === metadata.size) {
       const hash = await calculateSnapshotHash(fs, absolutePath);
       if (hash === metadata.hash) return ok(null);
     }
 
     return ok({
-      type: stats.mtime > metadata.mtime ? "updated" : "outdated",
+      type: statResult.data.mtime > metadata.mtime ? "updated" : "outdated",
       path: snapshotPath,
       txId: metadata.txId,
       entityUid: metadata.entityUid,
@@ -222,9 +229,9 @@ export const modifiedSnapshots = async (
 
   const scanResults: SnapshotChangeMetadata[] = [];
 
-  const isDirectoryResult = await fs.readdir(scopePath);
+  const readdirResult = await fs.readdir(scopePath);
 
-  if (isErr(isDirectoryResult)) {
+  if (isErr(readdirResult)) {
     const fileResult = await checkFile(scopePath);
     if (isErr(fileResult)) return fileResult;
     if (fileResult.data) scanResults.push(fileResult.data);
@@ -239,7 +246,7 @@ export const modifiedSnapshots = async (
   const scopePrefix = getRelativeSnapshotPath(scopePath, paths);
 
   const removedFiles: SnapshotChangeMetadata[] = [];
-  for (const metadata of snapshotMetadata) {
+  for (const metadata of allMetadata) {
     if (seenPaths.has(metadata.path)) continue;
     if (!shouldInclude(metadata.path)) continue;
 

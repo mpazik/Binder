@@ -1,4 +1,4 @@
-import { dirname } from "path";
+import { dirname, relative } from "path";
 import { beforeEach, describe, expect, it } from "bun:test";
 import { throwIfError } from "@binder/utils";
 import {
@@ -13,11 +13,12 @@ import type { DatabaseCli } from "../db";
 import { BINDER_DIR } from "../config.ts";
 import { mockConfig } from "../runtime.mock.ts";
 import { createInMemoryFileSystem } from "./filesystem.mock.ts";
-import { type FileSystem } from "./filesystem.ts";
+import type { FileSystem } from "./filesystem.ts";
 import {
   calculateSnapshotHash,
   getSnapshotMetadata,
   modifiedSnapshots,
+  resolveSnapshotPath,
   saveSnapshot,
   saveSnapshotMetadata,
   type SnapshotChangeMetadata,
@@ -42,7 +43,7 @@ describe("snapshot", () => {
     db = getTestDatabaseCli();
   });
 
-  describe("calculateFileHash", () => {
+  describe("calculateSnapshotHash", () => {
     it("calculates SHA-256 hash of file content", async () => {
       await fs.writeFile(filePath, "hello world");
       const hash = await calculateSnapshotHash(fs, filePath);
@@ -129,7 +130,7 @@ describe("snapshot", () => {
     });
   });
 
-  describe("modifiedFiles", () => {
+  describe("modifiedSnapshots", () => {
     const toAbsolutePath = (path: string) =>
       path.startsWith(BINDER_DIR)
         ? `${paths.binder}/${path.slice(BINDER_DIR.length + 1)}`
@@ -461,6 +462,36 @@ describe("snapshot", () => {
           { type: "untracked", path: "tasks/task2.md" },
         ],
       );
+    });
+  });
+
+  describe("resolveSnapshotPath", () => {
+    const check = (input: string | undefined, expected: string) => {
+      expect(resolveSnapshotPath(input, paths)).toBe(expected);
+    };
+
+    it("returns paths.docs when path is undefined", () => {
+      check(undefined, paths.docs);
+    });
+
+    it("returns absolute path as-is", () => {
+      check("/some/absolute/path", "/some/absolute/path");
+    });
+
+    it("resolves binder-relative path against paths.root", () => {
+      check(
+        `${BINDER_DIR}/config.yaml`,
+        `${paths.root}/${BINDER_DIR}/config.yaml`,
+      );
+    });
+
+    it("resolves root-relative docs path against paths.root", () => {
+      const docsDir = relative(paths.root, paths.docs);
+      check(`${docsDir}/tasks/foo.md`, `${paths.root}/${docsDir}/tasks/foo.md`);
+    });
+
+    it("resolves snapshot-relative path against paths.docs", () => {
+      check("tasks/foo.md", `${paths.docs}/tasks/foo.md`);
     });
   });
 });
