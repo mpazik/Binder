@@ -54,12 +54,21 @@ export const logo = () => {
 };
 
 const print = (...message: string[]) => {
-  Bun.stdout.write(message.join(" "));
+  process.stdout.write(message.join(" "));
 };
 
 const println = (...message: string[]) => {
   print(...message);
-  Bun.stdout.write(EOL);
+  process.stdout.write(EOL);
+};
+
+const eprint = (...message: string[]) => {
+  process.stderr.write(message.join(" "));
+};
+
+const eprintln = (...message: string[]) => {
+  eprint(...message);
+  process.stderr.write(EOL);
 };
 
 const input = async (prompt: string): Promise<string> => {
@@ -117,11 +126,11 @@ const keyValuesInline = (...pairs: [string, string][]) => {
 };
 
 const error = (message: string) => {
-  println(Style.TEXT_DANGER_BOLD + "Error: " + Style.TEXT_NORMAL + message);
+  eprintln(Style.TEXT_DANGER_BOLD + "Error: " + Style.TEXT_NORMAL + message);
 };
 
 const printError = (err: ErrorObject) => {
-  println(
+  eprintln(
     Style.TEXT_DANGER_BOLD +
       "Error: " +
       Style.TEXT_NORMAL +
@@ -168,22 +177,22 @@ const printError = (err: ErrorObject) => {
   ) {
     const errors = (err.data as any).errors as any[];
     if (Array.isArray(errors) && errors.length > 0) {
-      println(Style.TEXT_DANGER + "Validation errors:" + Style.TEXT_NORMAL);
+      eprintln(Style.TEXT_DANGER + "Validation errors:" + Style.TEXT_NORMAL);
       for (const validationError of errors) {
         const fieldName = validationError.field ?? validationError.fieldKey;
         const message =
           fieldName && validationError.message
             ? `Field '${Style.TEXT_INFO}${fieldName}${Style.TEXT_NORMAL}': ${validationError.message}`
             : formatValue(validationError, "    ");
-        println(`  - ${message}`);
+        eprintln(`  - ${message}`);
       }
       return;
     }
   }
 
-  println(Style.TEXT_DIM + "Error details:" + Style.TEXT_NORMAL);
+  eprintln(Style.TEXT_DIM + "Error details:" + Style.TEXT_NORMAL);
   const formatted = formatValue(err.data, "");
-  println(formatted);
+  eprintln(formatted);
 };
 
 const printData = (data: unknown, format?: SerializeFormat) => {

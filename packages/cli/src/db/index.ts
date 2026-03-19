@@ -8,9 +8,8 @@ import { isBundled } from "../build-time.ts";
 import { schema } from "./schema.ts";
 import { mergeMigrationFolders } from "./merge-migrations.ts";
 
-export type DatabaseCli = ReturnType<typeof openDb<typeof schema>> extends Result<infer T>
-  ? T
-  : never;
+export type DatabaseCli =
+  ReturnType<typeof openDb<typeof schema>> extends Result<infer T> ? T : never;
 
 type FileDbOptions = {
   path: string;
@@ -50,7 +49,9 @@ export const openCliDb = (
             } else {
               // Dev/test: merge core + CLI migrations on the fly into a temp folder
               const cliMigrationsPath = join(__dirname, "migrations");
-              migrationsPath = mkdtempSync(join(tmpdir(), "binder-migrations-"));
+              migrationsPath = mkdtempSync(
+                join(tmpdir(), "binder-migrations-"),
+              );
               mergeMigrationFolders(
                 [defaultMigrationsFolder, cliMigrationsPath],
                 migrationsPath,

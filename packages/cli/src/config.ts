@@ -1,4 +1,5 @@
 import { dirname, join, resolve } from "path";
+import { readFile, access } from "node:fs/promises";
 import { homedir } from "os";
 import { z } from "zod";
 import * as YAML from "yaml";
@@ -54,12 +55,25 @@ const loadConfigFile = async <T extends z.ZodTypeAny>(
   path: string,
   schema: T,
 ): ResultAsync<z.infer<T>> => {
+  const exists = await access(path).then(
+    () => true,
+    () => false,
+  );
+  if (!exists)
+    return tryCatch(
+      () => schema.parse({}),
+      (error) =>
+        createError(
+          "config-parse-failed",
+          `Failed to parse config at ${path}`,
+          {
+            error,
+          },
+        ),
+    );
+
   const fileResult = await tryCatch(async () => {
-    const bunFile = Bun.file(path);
-    if (!(await bunFile.exists())) {
-      return null;
-    }
-    const text = await bunFile.text();
+    const text = await readFile(path, "utf-8");
     return YAML.parse(text);
   });
 

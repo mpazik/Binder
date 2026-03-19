@@ -1,5 +1,5 @@
 import { join } from "path";
-import { renameSync } from "fs";
+import { renameSync, copyFileSync } from "fs";
 import type { Argv } from "yargs";
 import {
   createError,
@@ -22,7 +22,6 @@ import { types } from "../cli/types.ts";
 
 export const backupHandler: CommandHandlerWithDb = async ({
   ui,
-  kg,
   fs,
   config,
 }) => {
@@ -71,8 +70,8 @@ export const backupHandler: CommandHandlerWithDb = async ({
     renamedBackup = timestampedBackup;
   }
 
-  const copyResult = await tryCatch(async () => {
-    await Bun.write(backupPath, Bun.file(transactionLogPath));
+  const copyResult = tryCatch(() => {
+    copyFileSync(transactionLogPath, backupPath);
   });
 
   if (isErr(copyResult))
@@ -100,7 +99,7 @@ export const backupHandler: CommandHandlerWithDb = async ({
 };
 
 export const resetHandler: CommandHandlerWithDb = async (ctx) => {
-  const { ui, kg, fs, config, log } = ctx;
+  const { ui, fs, config, log } = ctx;
   const binderPath = config.paths.binder;
   const backupPath = join(binderPath, `${TRANSACTION_LOG_FILE}.bac`);
   const transactionLogPath = join(binderPath, TRANSACTION_LOG_FILE);
@@ -138,8 +137,8 @@ export const resetHandler: CommandHandlerWithDb = async (ctx) => {
     ]);
   });
 
-  const copyResult = await tryCatch(async () => {
-    await Bun.write(transactionLogPath, Bun.file(backupPath));
+  const copyResult = tryCatch(() => {
+    copyFileSync(backupPath, transactionLogPath);
   });
 
   if (isErr(copyResult))

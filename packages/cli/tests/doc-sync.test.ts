@@ -2,6 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
+  binderDir,
   createRunHelpers,
   setupWorkspace,
   teardownWorkspace,
@@ -95,7 +96,7 @@ describe("Doc Sync", () => {
     });
 
     it("invalid config file reports error", async () => {
-      const typesPath = join(dir, ".binder-dev", "types.yaml");
+      const typesPath = join(dir, binderDir, "types.yaml");
       const original = await readFile(typesPath, "utf-8");
 
       await writeFile(typesPath, "items:\n  - key: [[[broken\n");

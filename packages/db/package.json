@@ -30,8 +30,12 @@
   },
   "dependencies": {
     "@binder/utils": "workspace:*",
+    "better-sqlite3": "^12.8.0",
     "drizzle-kit": "^0.31.5",
     "drizzle-orm": "^0.44.5",
     "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13"
   }
 }

@@ -54,6 +54,9 @@ const getCommand = (): string[] => {
 
 const CMD = getCommand();
 
+/** `.binder` when testing a bundled binary, `.binder-dev` when running unbundled via Bun. */
+export const binderDir = process.env.BINDER_CLI ? ".binder" : ".binder-dev";
+
 export const run = async (args: string[], opts?: { cwd?: string }) => {
   const result = await $`${CMD} ${args}`
     .cwd(opts?.cwd ?? process.cwd())

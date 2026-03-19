@@ -1,4 +1,5 @@
 import { fstatSync } from "node:fs";
+import { spawn } from "node:child_process";
 import { isErr, resultFallback, tryCatch } from "@binder/utils";
 
 const isStdoutTTY = (): boolean =>
@@ -16,18 +17,20 @@ const findPager = (): string[] | undefined => {
 
 const captureOutput = (fn: () => void): string => {
   const chunks: string[] = [];
-  const originalWrite = Bun.stdout.write.bind(Bun.stdout);
-  (Bun.stdout as { write: unknown }).write = (
-    data: string | Uint8Array,
-  ): Promise<number> => {
-    const str =
-      typeof data === "string" ? data : new TextDecoder().decode(data);
-    chunks.push(str);
-    return Promise.resolve(str.length);
+  const originalWrite = process.stdout.write.bind(process.stdout);
+  (process.stdout.write as unknown) = (data: string | Uint8Array): boolean => {
+    chunks.push(
+      typeof data === "string" ? data : new TextDecoder().decode(data),
+    );
+    return true;
   };
 
-  fn();
-  Bun.stdout.write = originalWrite;
+  // eslint-disable-next-line no-restricted-syntax -- try/finally for cleanup, not error handling
+  try {
+    fn();
+  } finally {
+    process.stdout.write = originalWrite;
+  }
 
   return chunks.join("");
 };
@@ -35,14 +38,15 @@ const captureOutput = (fn: () => void): string => {
 const spawnPager = async (cmd: string[], output: string): Promise<boolean> => {
   const [bin, ...args] = cmd;
   const result = await tryCatch(async () => {
-    const proc = Bun.spawn([bin!, ...args], {
-      stdin: "pipe",
-      stdout: "inherit",
-      stderr: "inherit",
+    const proc = spawn(bin!, args, {
+      stdio: ["pipe", "inherit", "inherit"],
     });
-    proc.stdin.write(output);
-    proc.stdin.end();
-    await proc.exited;
+    proc.stdin!.write(output);
+    proc.stdin!.end();
+    await new Promise<void>((resolve, reject) => {
+      proc.on("close", () => resolve());
+      proc.on("error", reject);
+    });
   });
   return !isErr(result);
 };
@@ -63,5 +67,5 @@ export const withPager = async (fn: () => void): Promise<void> => {
   if (output.length === 0) return;
 
   const paged = await spawnPager(pagerCmd, output);
-  if (!paged) Bun.stdout.write(output);
+  if (!paged) process.stdout.write(output);
 };

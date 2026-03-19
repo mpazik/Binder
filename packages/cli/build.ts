@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 /* eslint-disable no-console */
 import { readFileSync, cpSync, mkdirSync } from "fs";
-import { join } from "path";
+import { join, resolve, dirname } from "path";
+import type { BunPlugin } from "bun";
 
 const isProd = process.argv.includes("--prod");
 
@@ -18,14 +19,39 @@ console.log(
   `Building Binder CLI v${version}${isProd ? " (production)" : " (development)"}...`,
 );
 
+/**
+ * Build plugin that swaps *.bun.ts imports for *.node.ts counterparts.
+ *
+ * Convention: when a module needs different implementations for Bun and Node,
+ * create two files side by side -- `foo.bun.ts` (used during dev/test under
+ * Bun) and `foo.node.ts` (bundled into the production Node build). Source
+ * code always imports the `.bun.ts` variant; this plugin rewires it at
+ * build time.
+ *
+ * See docs/contributing/node-compatibility.md for details.
+ */
+const nodeCompatPlugin: BunPlugin = {
+  name: "node-compat",
+  setup(build) {
+    build.onResolve({ filter: /\.bun(\.ts)?$/ }, (args) => {
+      const nodeVersion = args.path.replace(/\.bun(\.ts)?$/, ".node.ts");
+      return {
+        path: resolve(dirname(args.importer), nodeVersion),
+      };
+    });
+  },
+};
+
 const result = await Bun.build({
   entrypoints: ["./src/index.ts"],
   outdir: "./dist",
-  target: "bun",
+  target: "node",
   packages: "bundle",
+  external: ["better-sqlite3"],
   define: {
     __BINDER_VERSION__: JSON.stringify(version),
   },
+  plugins: [nodeCompatPlugin],
 });
 
 if (!result.success) {

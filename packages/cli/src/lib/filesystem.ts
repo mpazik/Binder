@@ -1,4 +1,15 @@
-import { mkdir, readdir, rename, rm, truncate, access } from "fs/promises";
+import {
+  mkdir,
+  readdir,
+  readFile,
+  rename,
+  rm,
+  truncate,
+  writeFile,
+  access,
+  open,
+} from "fs/promises";
+import { createReadStream, statSync } from "fs";
 import { isErr, type Result, type ResultAsync, tryCatch } from "@binder/utils";
 
 export type FileStat = {
@@ -34,7 +45,6 @@ export type FileSystem = {
 export const createRealFileSystem = (): FileSystem => {
   return {
     exists: async (path: string) => {
-      // apparently checking is usser has access is a correct way that also does directory check
       // eslint-disable-next-line no-restricted-syntax
       try {
         await access(path);
@@ -44,49 +54,62 @@ export const createRealFileSystem = (): FileSystem => {
       }
     },
 
-    readFile: async (path: string) =>
-      tryCatch(async () => await Bun.file(path).text()),
+    readFile: (path: string) => tryCatch(() => readFile(path, "utf-8")),
 
-    readFileStream: (path: string) => Bun.file(path).stream(),
+    readFileStream: (path: string) => {
+      const stream = createReadStream(path);
+      return (async function* () {
+        for await (const chunk of stream) {
+          yield chunk instanceof Buffer
+            ? new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength)
+            : (chunk as Uint8Array);
+        }
+      })();
+    },
 
-    writeFile: async (path: string, content: string) =>
-      tryCatch(async () => {
-        await Bun.write(path, content);
-      }),
+    writeFile: (path: string, content: string) =>
+      tryCatch(() => writeFile(path, content, "utf-8")),
 
     appendFile: async (path: string, content: string) =>
       tryCatch(async () => {
-        const file = Bun.file(path);
-        const existingContent = (await file.exists()) ? await file.text() : "";
-        await Bun.write(path, existingContent + content);
+        const existingContent = await readFile(path, "utf-8").catch(() => "");
+        await writeFile(path, existingContent + content, "utf-8");
       }),
 
     stat: (path: string) =>
       tryCatch(() => {
-        const file = Bun.file(path);
+        const stats = statSync(path);
         return {
-          size: file.size,
-          mtime: file.lastModified,
+          size: stats.size,
+          mtime: stats.mtimeMs,
         };
       }),
 
     slice: async (path: string, start: number, end: number) =>
-      tryCatch(
-        async () => await Bun.file(path).slice(start, end).arrayBuffer(),
-      ),
+      tryCatch(async () => {
+        const length = end - start;
+        const buffer = Buffer.alloc(length);
+        const fh = await open(path, "r");
+        const result = await fh
+          .read(buffer, 0, length, start)
+          .finally(() => fh.close());
+        void result;
+        return buffer.buffer.slice(
+          buffer.byteOffset,
+          buffer.byteOffset + buffer.byteLength,
+        ) as ArrayBuffer;
+      }),
 
     truncate: async (path: string, size: number) =>
       tryCatch(() => truncate(path, size)),
 
-    mkdir: async (path: string, options?: { recursive?: boolean }) =>
+    mkdir: (path: string, options?: { recursive?: boolean }) =>
       tryCatch(async () => {
         await mkdir(path, options);
       }),
 
-    rm: async (
-      path: string,
-      options?: { recursive?: boolean; force?: boolean },
-    ) => tryCatch(async () => await rm(path, options)),
+    rm: (path: string, options?: { recursive?: boolean; force?: boolean }) =>
+      tryCatch(() => rm(path, options)),
 
     readdir: async (path: string) =>
       tryCatch(async () => {
@@ -98,8 +121,8 @@ export const createRealFileSystem = (): FileSystem => {
         }));
       }),
 
-    renameFile: async (oldPath: string, newPath: string) =>
-      tryCatch(async () => await rename(oldPath, newPath)),
+    renameFile: (oldPath: string, newPath: string) =>
+      tryCatch(() => rename(oldPath, newPath)),
 
     scan: async function* (
       startPath: string,

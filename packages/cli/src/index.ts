@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { isErr, tryCatch } from "@binder/utils";
@@ -18,10 +18,10 @@ import { McpCommand } from "./commands/mcp.ts";
 import { LspCommand } from "./commands/lsp.ts";
 import { LocateCommand } from "./commands/locate.ts";
 import { createUi, logo } from "./cli/ui.ts";
-
-const ui = createUi();
 import { BINDER_VERSION, isDevMode } from "./build-time";
 import { LOG_LEVELS } from "./log.ts";
+
+const ui = createUi();
 
 let cli = yargs(hideBin(process.argv))
   .scriptName("binder")

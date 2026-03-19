@@ -1,7 +1,7 @@
 import { join } from "path";
+import { execSync } from "node:child_process";
 import type { Argv } from "yargs";
 import * as YAML from "yaml";
-import { $ } from "bun";
 import { isCancel, select } from "@clack/prompts";
 import { fail, isErr, isOk, ok, tryCatch } from "@binder/utils";
 import {
@@ -17,19 +17,18 @@ import {
   loadBlueprint,
 } from "../lib/blueprint.ts";
 import { createUi } from "../cli/ui.ts";
+import { types } from "../cli/types.ts";
 
 const ui = createUi();
-import { types } from "../cli/types.ts";
 
 const GITIGNORE_CONTENT = `*
 !transactions.jsonl
 !config.yaml
 `;
 
-const getAuthorNameFromGit = async (): Promise<string | undefined> => {
-  const gitResult = await tryCatch(async () => {
-    const result = await $`git config user.name`.text();
-    return result.trim();
+const getAuthorNameFromGit = (): string | undefined => {
+  const gitResult = tryCatch(() => {
+    return execSync("git config user.name", { encoding: "utf-8" }).trim();
   });
 
   if (isOk(gitResult)) return gitResult.data ?? undefined;
@@ -82,7 +81,7 @@ const initSetupHandler: CommandHandlerMinimal<{
     );
   }
 
-  const gitAuthor = !args.author ? await getAuthorNameFromGit() : undefined;
+  const gitAuthor = !args.author ? getAuthorNameFromGit() : undefined;
   const author =
     args.author ??
     (args.quiet

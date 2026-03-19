@@ -6,6 +6,9 @@
   "bin": {
     "binder": "./dist/index.js"
   },
+  "engines": {
+    "node": ">=22"
+  },
   "files": [
     "dist"
   ],
@@ -17,6 +20,7 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test src/",
     "test:e2e": "bun test ./tests/",
+    "test:e2e:node": "BINDER_CLI=\"node $PWD/dist/index.js\" bun test ./tests/",
     "check": "bun lint && bun format && bun typecheck && bun test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

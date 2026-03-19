@@ -185,6 +185,43 @@ if (isErr(configResult)) {
 }
 ```
 
+### Avoiding try-catch with Promise Chains
+
+Some Node APIs throw on failure (e.g. `fs/promises`). Use promise combinators instead of try-catch.
+
+For existence checks, use `.then` with two callbacks:
+
+```typescript
+const exists = await access(path).then(
+  () => true,
+  () => false,
+);
+```
+
+For optional reads with a fallback, use `.catch`:
+
+```typescript
+const content = await readFile(path, "utf-8").catch(() => "");
+```
+
+For resource cleanup, use `.finally`:
+
+```typescript
+const fh = await open(path, "r");
+await fh.read(buffer, 0, length, start).finally(() => fh.close());
+```
+
+If none of these work and `try/finally` is genuinely needed (no `catch`), add an eslint-disable comment:
+
+```typescript
+// eslint-disable-next-line no-restricted-syntax -- try/finally for cleanup, not error handling
+try {
+  doWork();
+} finally {
+  releaseResource();
+}
+```
+
 ### Assertions vs Results
 
 Use assertions for developer errors and invariants. These throw on violation and should not be caught.

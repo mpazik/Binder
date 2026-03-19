@@ -1,3 +1,5 @@
+import { createWriteStream, type WriteStream } from "node:fs";
+import { stat as fsStat, rename as fsRename, access } from "node:fs/promises";
 import {
   isErr,
   isErrorObject,
@@ -34,13 +36,16 @@ export type Logger = {
   };
 };
 
-const rotateLogFile = async (logFilePath: string): Promise<void> => {
-  const file = Bun.file(logFilePath);
-  if (!(await file.exists())) return;
+const fileExists = (path: string): Promise<boolean> =>
+  access(path).then(
+    () => true,
+    () => false,
+  );
 
-  const stats = await Bun.file(logFilePath)
-    .stat()
-    .catch(() => null);
+const rotateLogFile = async (logFilePath: string): Promise<void> => {
+  if (!(await fileExists(logFilePath))) return;
+
+  const stats = await fsStat(logFilePath).catch(() => null);
   if (!stats) return;
 
   const maxSize = 10 * 1024 * 1024;
@@ -48,7 +53,7 @@ const rotateLogFile = async (logFilePath: string): Promise<void> => {
 
   const timestamp = new Date().toISOString().split(".")[0].replace(/:/g, "");
   const archivePath = logFilePath.replace(".log", `.${timestamp}.log`);
-  await Bun.$`mv ${logFilePath} ${archivePath}`.quiet().catch(() => {});
+  await fsRename(logFilePath, archivePath).catch(() => {});
 };
 
 const formatError = (error: Error, depth = 0): string => {
@@ -94,12 +99,10 @@ export const createLogger = async (
 
   await rotateLogFile(logFilePath);
 
-  const logfile = Bun.file(logFilePath);
-  const writer = logfile.writer();
+  const writer: WriteStream = createWriteStream(logFilePath, { flags: "a" });
 
   const writeLog = (message: string) => {
     writer.write(message);
-    writer.flush();
     if (options.printLogs) {
       process.stderr.write(message);
     }
@@ -219,5 +222,10 @@ export const createLogger = async (
     },
   };
 
-  return ok({ log, close: () => writer.end() });
+  return ok({
+    log,
+    close: () => {
+      writer.end();
+    },
+  });
 };

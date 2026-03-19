@@ -1,8 +1,5 @@
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
-import { drizzle, type BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
-import { Database as BunDatabase } from "bun:sqlite";
-import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 import type { SQLiteTransaction } from "drizzle-orm/sqlite-core";
 import {
   createError,
@@ -12,6 +9,7 @@ import {
   tryCatch,
   serializeErrorData,
 } from "@binder/utils";
+import { Database as SqliteDatabase, drizzle, migrate } from "./sqlite.bun.ts";
 import * as coreSchema from "./schema";
 
 type DbSchema = Record<string, unknown>;
@@ -19,8 +17,8 @@ type DbSchema = Record<string, unknown>;
 type CustomMigrationResult = Result<void> | void;
 
 export type DrizzleDb<TSchema extends DbSchema = typeof coreSchema> =
-  BunSQLiteDatabase<TSchema> & {
-    $client: BunDatabase;
+  ReturnType<typeof drizzle<TSchema>> & {
+    $client: InstanceType<typeof SqliteDatabase>;
   };
 
 export type Database = DrizzleDb<typeof coreSchema>;
@@ -28,7 +26,7 @@ export type DbTransaction = SQLiteTransaction<any, any, any, any>;
 
 export type OpenDbMigrationContext<TSchema extends DbSchema> = {
   db: DrizzleDb<TSchema>;
-  sqlite: BunDatabase;
+  sqlite: InstanceType<typeof SqliteDatabase>;
   defaultMigrationsFolder: string;
   migrateDefault: (migrationsFolder?: string) => Result<void>;
 };
@@ -54,8 +52,64 @@ export type OpenDbOptions<TSchema extends DbSchema = typeof coreSchema> =
   | FileDbOptions<TSchema>
   | MemoryDbOptions<TSchema>;
 
-const applyBalancedSqlitePragmas = (sqlite: BunDatabase): Result<void> => {
-  const pragmaResult = tryCatch(
+/**
+ * Patch transaction() to tolerate async callbacks.
+ *
+ * The knowledge-graph transaction callbacks are `async (tx) => { ... }`.
+ * All Drizzle SQLite operations inside resolve synchronously, so the async
+ * is effectively a no-op. But better-sqlite3 explicitly throws when a
+ * transaction callback returns a Promise. This wrapper captures the return
+ * value before better-sqlite3 sees it.
+ *
+ * Under Bun (bun:sqlite) the patch is harmless -- it just adds an extra
+ * indirection layer that doesn't change behavior.
+ */
+const patchTransactionForAsyncCompat = (
+  db: InstanceType<typeof SqliteDatabase>,
+): void => {
+  const origTransaction = db.transaction.bind(db);
+
+  db.transaction = ((fn: (...args: any[]) => any) => {
+    let capturedResult: any;
+    // typed as `any` because bun:sqlite and better-sqlite3 expose different
+    // transaction method shapes (.default exists only in better-sqlite3)
+    const wrapped: any = origTransaction((...args: any[]) => {
+      capturedResult = fn(...args);
+    });
+
+    const patched = Object.assign(
+      (...args: any[]) => {
+        wrapped(...args);
+        return capturedResult;
+      },
+      {
+        default: (...args: any[]) => {
+          wrapped.default(...args);
+          return capturedResult;
+        },
+        deferred: (...args: any[]) => {
+          wrapped.deferred(...args);
+          return capturedResult;
+        },
+        immediate: (...args: any[]) => {
+          wrapped.immediate(...args);
+          return capturedResult;
+        },
+        exclusive: (...args: any[]) => {
+          wrapped.exclusive(...args);
+          return capturedResult;
+        },
+      },
+    );
+
+    return patched;
+  }) as typeof db.transaction;
+};
+
+const applyBalancedSqlitePragmas = (
+  sqlite: InstanceType<typeof SqliteDatabase>,
+): Result<void> =>
+  tryCatch(
     () => {
       sqlite.exec(`
         -- Integrity and lock behavior
@@ -67,10 +121,8 @@ const applyBalancedSqlitePragmas = (sqlite: BunDatabase): Result<void> => {
         PRAGMA synchronous = NORMAL;
 
         -- Modest memory tuning
-        -- cache_size default is commonly 2000 pages; set ~16 MiB explicitly
-        PRAGMA cache_size = -16384;
-        -- mmap_size default is 0 (disabled); allow up to 64 MiB
-        PRAGMA mmap_size = 67108864;
+        PRAGMA cache_size = -16384;   -- ~16 MiB (default is commonly 2000 pages)
+        PRAGMA mmap_size = 67108864;  -- up to 64 MiB (default is 0 / disabled)
       `);
     },
     (error) =>
@@ -78,10 +130,6 @@ const applyBalancedSqlitePragmas = (sqlite: BunDatabase): Result<void> => {
         error: serializeErrorData(error),
       }),
   );
-
-  if (isErr(pragmaResult)) return pragmaResult;
-  return ok(undefined);
-};
 
 export const openDb = <TSchema extends DbSchema = typeof coreSchema>(
   options: OpenDbOptions<TSchema>,
@@ -95,7 +143,7 @@ export const openDb = <TSchema extends DbSchema = typeof coreSchema>(
     migrateOption === undefined ? isMemory : migrateOption !== false;
 
   const sqliteResult = tryCatch(
-    () => new BunDatabase(dbPath),
+    () => new SqliteDatabase(dbPath),
     (error) =>
       createError("db-open-failed", `Failed to open database at ${dbPath}`, {
         error,
@@ -105,6 +153,8 @@ export const openDb = <TSchema extends DbSchema = typeof coreSchema>(
   if (isErr(sqliteResult)) return sqliteResult;
 
   const sqlite = sqliteResult.data;
+  patchTransactionForAsyncCompat(sqlite);
+
   const pragmaResult = applyBalancedSqlitePragmas(sqlite);
   if (isErr(pragmaResult)) {
     sqlite.close();
@@ -126,18 +176,14 @@ export const openDb = <TSchema extends DbSchema = typeof coreSchema>(
 
     const migrateDefault = (
       migrationsFolder = customMigrateOption?.folder ?? defaultMigrationsFolder,
-    ): Result<void> => {
-      const migrationResult = tryCatch(
+    ): Result<void> =>
+      tryCatch(
         () => migrate(db, { migrationsFolder }),
         (error) =>
           createError("db-migration-failed", "Failed to run migrations", {
             error: serializeErrorData(error),
           }),
       );
-
-      if (isErr(migrationResult)) return migrationResult;
-      return ok(undefined);
-    };
 
     const customMigrationRunner = customMigrateOption?.run;
 

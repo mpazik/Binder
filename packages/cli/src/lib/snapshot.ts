@@ -1,4 +1,5 @@
 import { dirname, isAbsolute, relative, resolve } from "path";
+import { createHash } from "node:crypto";
 import { eq, like } from "drizzle-orm";
 import type {
   EntityUid,
@@ -33,7 +34,7 @@ export const calculateSnapshotHash = async (
   fs: FileSystem,
   filePath: string,
 ): Promise<string> => {
-  const hasher = new Bun.CryptoHasher("sha256");
+  const hasher = createHash("sha256");
   for await (const chunk of fs.readFileStream(filePath)) {
     hasher.update(chunk);
   }
@@ -41,9 +42,7 @@ export const calculateSnapshotHash = async (
 };
 
 export const calculateContentHash = (content: string): string => {
-  const hasher = new Bun.CryptoHasher("sha256");
-  hasher.update(content);
-  return hasher.digest("hex");
+  return createHash("sha256").update(content).digest("hex");
 };
 
 const upsertSnapshotMetadata = (

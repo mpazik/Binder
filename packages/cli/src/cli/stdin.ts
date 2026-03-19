@@ -18,23 +18,32 @@ import {
  * We use fstatSync(0) directly instead of `process.stdin.isTTY` because the Bun bundler transforms the latter into `fstatSync(0).isFIFO()`,
  * That work only for Pipe but misses sockets used in `execSync({ input })`.
  */
-export const isStdinPiped = (): boolean => {
-  return resultFallback(
+export const isStdinPiped = (): boolean =>
+  resultFallback(
     tryCatch(() => {
       const stat = fstatSync(0);
       return stat.isFIFO() || stat.isSocket();
     }),
     false,
   );
-};
 
 /** True when running in an interactive terminal (stdin is a TTY and not piped). */
-export const isInteractive = (): boolean => {
-  return !isStdinPiped() && process.stdout.isTTY === true;
+export const isInteractive = (): boolean =>
+  !isStdinPiped() && process.stdout.isTTY === true;
+
+const collectStdin = (): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    process.stdin.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+    process.stdin.on("end", () =>
+      resolve(Buffer.concat(chunks).toString("utf-8")),
+    );
+    process.stdin.on("error", reject);
+  });
 };
 
 export const readStdin = async (): Promise<Result<string>> => {
-  const result = await tryCatch(Bun.stdin.text());
+  const result = await tryCatch(collectStdin());
   if (isErr(result))
     return wrapError(result, "stdin-read-error", "Failed to read from stdin");
   return ok(result.data);
