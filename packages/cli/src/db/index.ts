@@ -2,24 +2,15 @@ import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { mkdtempSync } from "fs";
 import { tmpdir } from "os";
-import { drizzle } from "drizzle-orm/bun-sqlite";
-import { Database as BunDatabase } from "bun:sqlite";
-import { migrate } from "drizzle-orm/bun-sqlite/migrator";
-import {
-  createError,
-  isErr,
-  ok,
-  type Result,
-  serializeErrorData,
-  tryCatch,
-} from "@binder/utils";
+import { openDb } from "@binder/db";
+import { isErr, ok, type Result } from "@binder/utils";
 import { isBundled } from "../build-time.ts";
 import { schema } from "./schema.ts";
 import { mergeMigrationFolders } from "./merge-migrations.ts";
 
-type DrizzleDb = ReturnType<typeof drizzle<typeof schema>>;
-
-export type DatabaseCli = DrizzleDb;
+export type DatabaseCli = ReturnType<typeof openDb<typeof schema>> extends Result<infer T>
+  ? T
+  : never;
 
 type FileDbOptions = {
   path: string;
@@ -42,49 +33,38 @@ export const openCliDb = (
   const dbPath = isMemory ? ":memory:" : (options as FileDbOptions).path;
   const shouldMigrate = isMemory ? true : (options as FileDbOptions).migrate;
 
-  const sqliteResult = tryCatch(
-    () => new BunDatabase(dbPath),
-    (error) =>
-      createError("db-open-failed", `Failed to open database at ${dbPath}`, {
-        error,
-      }),
-  );
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
 
-  if (isErr(sqliteResult)) return sqliteResult;
+  const dbResult = openDb({
+    ...(isMemory ? { memory: true as const } : { path: dbPath }),
+    schema,
+    migrate: shouldMigrate
+      ? {
+          run: ({ defaultMigrationsFolder, migrateDefault }) => {
+            let migrationsPath: string;
 
-  const sqlite = sqliteResult.data;
-  const db = drizzle(sqlite, { schema });
+            if (isBundled()) {
+              // Build step already merged both folders into dist/migrations
+              migrationsPath = join(__dirname, "migrations");
+            } else {
+              // Dev/test: merge core + CLI migrations on the fly into a temp folder
+              const cliMigrationsPath = join(__dirname, "migrations");
+              migrationsPath = mkdtempSync(join(tmpdir(), "binder-migrations-"));
+              mergeMigrationFolders(
+                [defaultMigrationsFolder, cliMigrationsPath],
+                migrationsPath,
+              );
+            }
 
-  if (shouldMigrate) {
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = dirname(__filename);
+            return migrateDefault(migrationsPath);
+          },
+        }
+      : false,
+  });
 
-    let migrationsPath: string;
+  if (isErr(dbResult)) return dbResult;
 
-    if (isBundled()) {
-      // Build step already merged both folders into dist/migrations
-      migrationsPath = join(__dirname, "migrations");
-    } else {
-      // Dev/test: merge on the fly into a temp folder
-      const dbMigrationsPath = join(__dirname, "../../../db/src/migrations");
-      const cliMigrationsPath = join(__dirname, "migrations");
-      migrationsPath = mkdtempSync(join(tmpdir(), "binder-migrations-"));
-      mergeMigrationFolders(
-        [dbMigrationsPath, cliMigrationsPath],
-        migrationsPath,
-      );
-    }
-
-    const migrationResult = tryCatch(
-      () => migrate(db, { migrationsFolder: migrationsPath }),
-      (error) =>
-        createError("db-migration-failed", "Failed to run migrations", {
-          error: serializeErrorData(error),
-        }),
-    );
-
-    if (isErr(migrationResult)) return migrationResult;
-  }
-
-  return ok({ db, close: () => sqlite.close() });
+  const db = dbResult.data;
+  return ok({ db, close: () => db.$client.close() });
 };
