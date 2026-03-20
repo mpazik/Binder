@@ -8,7 +8,6 @@ import {
   TextDocumentSyncKind,
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
-import { isErr } from "@binder/utils";
 import { type RuntimeContextInit } from "../runtime.ts";
 import { BINDER_VERSION } from "../build-time.ts";
 import { handleDocumentSave } from "./handlers/save-handler.ts";
@@ -22,8 +21,20 @@ import { handleSemanticTokens } from "./handlers/semantic-tokens.ts";
 import { withDocumentContext } from "./document-context.ts";
 import {
   createWorkspaceManager,
+  type WorkspaceManager,
   withWorkspaceContext,
 } from "./workspace-manager.ts";
+
+const initializeBinderWorkspaces = async (
+  workspaceManager: WorkspaceManager,
+  folderUris: string[],
+): Promise<void> => {
+  for (const uri of folderUris) {
+    if (await workspaceManager.isBinderWorkspace(uri)) {
+      await workspaceManager.initializeWorkspace(uri);
+    }
+  }
+};
 
 export const createLspServer = (
   minimalContext: RuntimeContextInit,
@@ -34,23 +45,16 @@ export const createLspServer = (
     process.stdout,
   );
   const lspDocuments = new TextDocuments(TextDocument);
-  const log = minimalContext.log;
+  const { log } = minimalContext;
 
   const workspaceManager = createWorkspaceManager(
     minimalContext,
     log,
-    async () => {
-      // Rendered files are already written to disk by saveSnapshot.
-      // We do NOT send applyEdit — let the editor's file watcher detect
-      // the disk change and reload silently. Sending both a disk write
-      // and applyEdit races and causes intermittent conflict dialogs.
-    },
+    // Let the editor's file watcher detect disk changes and reload silently.
+    // Sending both a disk write and applyEdit races and causes conflict dialogs.
+    async () => {},
   );
-  const deps = {
-    lspDocuments,
-    workspaceManager,
-    log,
-  };
+  const deps = { lspDocuments, workspaceManager, log };
 
   let hasWorkspaceFolderCapability = false;
 
@@ -73,13 +77,10 @@ export const createLspServer = (
     hasWorkspaceFolderCapability =
       params.capabilities.workspace?.workspaceFolders === true;
 
-    const workspaceFolders = params.workspaceFolders ?? [];
-    for (const folder of workspaceFolders) {
-      const isBinder = await workspaceManager.isBinderWorkspace(folder.uri);
-      if (isBinder) {
-        await workspaceManager.initializeWorkspace(folder.uri);
-      }
-    }
+    await initializeBinderWorkspaces(
+      workspaceManager,
+      (params.workspaceFolders ?? []).map((f) => f.uri),
+    );
 
     log.info("Workspaces loaded", {
       version: BINDER_VERSION,
@@ -91,9 +92,7 @@ export const createLspServer = (
         textDocumentSync: {
           openClose: true,
           change: TextDocumentSyncKind.Incremental,
-          save: {
-            includeText: false,
-          },
+          save: { includeText: false },
         },
         diagnosticProvider: {
           interFileDependencies: false,
@@ -132,12 +131,10 @@ export const createLspServer = (
           await workspaceManager.disposeWorkspace(removed.uri);
         }
 
-        for (const added of event.added) {
-          const isBinder = await workspaceManager.isBinderWorkspace(added.uri);
-          if (isBinder) {
-            await workspaceManager.initializeWorkspace(added.uri);
-          }
-        }
+        await initializeBinderWorkspaces(
+          workspaceManager,
+          event.added.map((f) => f.uri),
+        );
       });
     }
   });
@@ -153,8 +150,7 @@ export const createLspServer = (
 
   connection.onExit(() => {
     log.info("LSP server exit", { shutdownReceived });
-    const exitCode = shutdownReceived ? 0 : 1;
-    process.exit(exitCode);
+    process.exit(shutdownReceived ? 0 : 1);
   });
 
   lspDocuments.onDidOpen(
@@ -178,35 +174,19 @@ export const createLspServer = (
   );
 
   lspDocuments.onDidSave(
-    withWorkspaceContext("didSave", deps, async (event, { runtime }) => {
-      const uri = event.document.uri;
-      const wsLog = runtime.log;
-
-      // Don't pass sourceContent — let extractFileChanges read from disk.
-      // WebStorm sends didSave before didChange on external file reload,
-      // so the in-memory buffer has stale content. Disk is always current.
-      const result = await handleDocumentSave(runtime, uri);
-
-      if (isErr(result)) {
-        wsLog.error("Sync failed", { error: result.error, uri });
-      }
-    }),
+    withWorkspaceContext("didSave", deps, handleDocumentSave),
   );
 
   connection.onCompletion(
     withDocumentContext("Completion", deps, handleCompletion),
   );
-
   connection.onHover(withDocumentContext("Hover", deps, handleHover));
-
   connection.onDefinition(
     withDocumentContext("Definition", deps, handleDefinition),
   );
-
   connection.onCodeAction(
     withDocumentContext("Code action", deps, handleCodeAction),
   );
-
   connection.languages.inlayHint.on(
     withDocumentContext("Inlay hints", deps, handleInlayHints),
   );

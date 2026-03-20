@@ -14,6 +14,7 @@ import type {
   InitializeResult,
 } from "vscode-languageserver-protocol";
 import { tryCatch } from "@binder/utils";
+import { waitFor } from "@binder/utils/tests";
 
 import {
   run,
@@ -305,16 +306,41 @@ describe("LSP", () => {
     client.openDocument(uri, edited);
     client.saveDocument(uri);
 
-    // Wait for sync
-    await new Promise((r) => setTimeout(r, 1000));
-
-    const result = await run(
-      ["read", "task-implement-auth", "--format", "json"],
-      { cwd: dir },
-    );
-    expect(result.exitCode).toBe(0);
-    expect(JSON.parse(result.stdout)).toMatchObject({
-      title: "LSP-edited title",
+    await waitFor(async () => {
+      const result = await run(
+        ["read", "task-implement-auth", "--format", "json"],
+        { cwd: dir },
+      );
+      expect(result.exitCode).toBe(0);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        title: "LSP-edited title",
+      });
     });
   });
+
+  it("rapid saves converge to the last written content", async () => {
+    const relPath = "tasks-yaml/task-implement-auth.yaml";
+    const absPath = join(dir, "docs", relPath);
+    const uri = fileUri(relPath);
+    const original = await readDoc(relPath);
+
+    client.openDocument(uri, original);
+
+    const lastTitle = "Rapid-Save-Final";
+    for (const title of ["Rapid-A", "Rapid-B", "Rapid-C", lastTitle]) {
+      const edited = original.replace(/title: .+/, `title: ${title}`);
+      await writeFile(absPath, edited);
+      client.openDocument(uri, edited);
+      client.saveDocument(uri);
+    }
+
+    await waitFor(async () => {
+      const result = await run(
+        ["read", "task-implement-auth", "-f", "title", "--format", "json"],
+        { cwd: dir },
+      );
+      expect(result.exitCode).toBe(0);
+      expect(JSON.parse(result.stdout)).toMatchObject({ title: lastTitle });
+    });
+  }, 10_000);
 });

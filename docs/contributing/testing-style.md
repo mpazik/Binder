@@ -156,3 +156,35 @@ expect(result).toEqual({
   status: "success",
 });
 ```
+
+## End-to-End Tests
+
+E2E tests live in `packages/cli/tests/`. They spawn real CLI or LSP processes against temporary workspaces. Use `setupWorkspace` and `teardownWorkspace` from `tests/setup.ts` for lifecycle management.
+
+### Polling with `waitFor`
+
+E2E tests often trigger async side-effects (background sync, event handlers) where the result is not immediately observable. Poll for the expected outcome instead of sleeping with a fixed `setTimeout`. Use `waitFor` from `@binder/utils/tests`. It retries the function until it stops throwing or the timeout expires.
+
+```typescript
+import { waitFor } from "@binder/utils/tests";
+
+client.saveDocument(uri);
+
+await waitFor(async () => {
+  const result = await run(["read", "my-record", "--format", "json"], { cwd: dir });
+  expect(result.exitCode).toBe(0);
+  expect(JSON.parse(result.stdout)).toMatchObject({ title: "Updated Title" });
+});
+```
+
+Pass `timeout` and `interval` to tune polling (defaults: 5000ms timeout, 100ms interval):
+
+```typescript
+await waitFor(
+  async () => {
+    const status = await getJobStatus(jobId);
+    expect(status).toBe("complete");
+  },
+  { timeout: 10_000, interval: 250 },
+);
+```

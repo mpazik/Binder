@@ -1,21 +1,21 @@
-import { isErr, ok, type ResultAsync } from "@binder/utils";
+import { isErr, ok, tryCatch, type ResultAsync } from "@binder/utils";
 import { extractFileChanges } from "../../document/change-extractor.ts";
 import { loadNavigation } from "../../document/navigation.ts";
 import type { RuntimeContextWithDb } from "../../runtime.ts";
+import type { WorkspaceEntry } from "../workspace-manager.ts";
 import {
   getRelativeSnapshotPath,
   getSnapshotEntityUid,
   namespaceFromSnapshotPath,
 } from "../../lib/snapshot.ts";
 
-// Note: this handler doesn't use the withDocumentContext/LspHandler pattern
-// because it runs its own extraction pipeline via extractFileChanges. The
-// DocumentContext built by withDocumentContext (parsed AST, field mappings,
-// entity mappings) would be redundant work discarded by the sync path.
-export const handleDocumentSave = async (
+// ---------------------------------------------------------------------------
+// Document sync
+// ---------------------------------------------------------------------------
+
+const syncDocument = async (
   context: RuntimeContextWithDb,
   uri: string,
-  sourceContent?: string,
 ): ResultAsync<void> => {
   const { log, config, fs, kg } = context;
 
@@ -46,8 +46,6 @@ export const handleDocumentSave = async (
   const templatesResult = await context.templates();
   if (isErr(templatesResult)) return templatesResult;
 
-  const entityUid = getSnapshotEntityUid(context.db, relativePath);
-
   const syncResult = await extractFileChanges(
     fs,
     kg,
@@ -57,8 +55,8 @@ export const handleDocumentSave = async (
     relativePath,
     namespace,
     templatesResult.data,
-    sourceContent,
-    entityUid,
+    undefined,
+    getSnapshotEntityUid(context.db, relativePath),
   );
   if (isErr(syncResult)) return syncResult;
 
@@ -69,12 +67,11 @@ export const handleDocumentSave = async (
 
   log.debug("Changesets to apply", { changesets: syncResult.data });
 
-  const transactionInput =
-    namespace === "config"
-      ? { author: config.author, configs: syncResult.data }
-      : { author: config.author, records: syncResult.data };
-
-  const applyResult = await kg.update(transactionInput);
+  const changesetKey = namespace === "config" ? "configs" : "records";
+  const applyResult = await kg.update({
+    author: config.author,
+    [changesetKey]: syncResult.data,
+  });
   if (isErr(applyResult)) return applyResult;
 
   log.info("File synced successfully", {
@@ -83,4 +80,73 @@ export const handleDocumentSave = async (
   });
 
   return ok(undefined);
+};
+
+// ---------------------------------------------------------------------------
+// Per-URI save coalescing
+//
+// At most one sync runs per URI at a time. Saves arriving while a sync is
+// in-flight set a pending flag; when the current sync finishes, a single
+// re-sync runs with the latest disk content, preventing duplicate transactions.
+// ---------------------------------------------------------------------------
+
+type UriState = { running: boolean; pending: boolean };
+
+const uriStates = new Map<string, UriState>();
+
+const executeSave = async (
+  context: RuntimeContextWithDb,
+  uri: string,
+  state: UriState,
+): Promise<void> => {
+  state.running = true;
+  state.pending = false;
+
+  const result = await tryCatch(() => syncDocument(context, uri));
+  if (isErr(result)) {
+    context.log.error("Save sync failed", { uri, error: result.error });
+  } else if (isErr(result.data)) {
+    context.log.error("Sync failed", { uri, error: result.data.error });
+  }
+
+  state.running = false;
+
+  if (state.pending) {
+    context.log.info("Re-syncing after queued save", { uri });
+    void executeSave(context, uri, state);
+    return;
+  }
+
+  uriStates.delete(uri);
+};
+
+// ---------------------------------------------------------------------------
+// Public handler
+//
+// Doesn't use withDocumentContext/LspHandler because it runs its own
+// extraction pipeline via extractFileChanges. The DocumentContext built by
+// withDocumentContext would be redundant work discarded by the sync path.
+// ---------------------------------------------------------------------------
+
+export const handleDocumentSave = async (
+  event: { document: { uri: string } },
+  workspace: WorkspaceEntry,
+): Promise<void> => {
+  const uri = event.document.uri;
+  let state = uriStates.get(uri);
+
+  if (!state) {
+    state = { running: false, pending: false };
+    uriStates.set(uri, state);
+  }
+
+  if (state.running) {
+    workspace.runtime.log.info("Save queued, sync already in progress", {
+      uri,
+    });
+    state.pending = true;
+    return;
+  }
+
+  void executeSave(workspace.runtime, uri, state);
 };
