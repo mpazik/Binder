@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
+import type { Connection } from "vscode-languageserver/node";
 import { isErr } from "@binder/utils";
 import {
   initializeFullRuntime,
@@ -152,6 +153,7 @@ export const createWorkspaceManager = (
 };
 
 export type WorkspaceContextDeps = {
+  connection: Connection;
   workspaceManager: WorkspaceManager;
   log: Logger;
 };
@@ -177,10 +179,14 @@ export const withWorkspaceContext =
   <T extends HasDocumentUri>(
     eventName: string,
     deps: WorkspaceContextDeps,
-    handler: (event: T, workspace: WorkspaceEntry) => Promise<void>,
+    handler: (
+      event: T,
+      workspace: WorkspaceEntry,
+      deps: WorkspaceContextDeps,
+    ) => Promise<void>,
   ) =>
   async (event: T): Promise<void> => {
     const workspace = resolveWorkspace(event.document.uri, eventName, deps);
     if (!workspace) return;
-    await handler(event, workspace);
+    await handler(event, workspace, deps);
   };

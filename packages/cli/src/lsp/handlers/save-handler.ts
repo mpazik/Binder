@@ -1,8 +1,15 @@
+import {
+  MessageType,
+  ShowMessageNotification,
+} from "vscode-languageserver/node";
 import { isErr, ok, tryCatch, type ResultAsync } from "@binder/utils";
 import { extractFileChanges } from "../../document/change-extractor.ts";
 import { loadNavigation } from "../../document/navigation.ts";
 import type { RuntimeContextWithDb } from "../../runtime.ts";
-import type { WorkspaceEntry } from "../workspace-manager.ts";
+import type {
+  WorkspaceContextDeps,
+  WorkspaceEntry,
+} from "../workspace-manager.ts";
 import {
   getRelativeSnapshotPath,
   getSnapshotEntityUid,
@@ -10,19 +17,36 @@ import {
 } from "../../lib/snapshot.ts";
 
 // ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+const notify = (
+  deps: WorkspaceContextDeps,
+  type: MessageType,
+  message: string,
+): void => {
+  deps.connection.sendNotification(ShowMessageNotification.type, {
+    type,
+    message,
+  });
+};
+
+// ---------------------------------------------------------------------------
 // Document sync
 // ---------------------------------------------------------------------------
+
+type SyncResult = { changeCount: number };
 
 const syncDocument = async (
   context: RuntimeContextWithDb,
   uri: string,
-): ResultAsync<void> => {
+): ResultAsync<SyncResult> => {
   const { log, config, fs, kg } = context;
 
   const uriObj = new URL(uri);
   if (uriObj.protocol !== "file:") {
     log.warn("Ignoring non-file URI", { uri });
-    return ok(undefined);
+    return ok({ changeCount: 0 });
   }
   const absolutePath = uriObj.pathname;
 
@@ -32,7 +56,7 @@ const syncDocument = async (
       path: absolutePath,
       config: config.paths,
     });
-    return ok(undefined);
+    return ok({ changeCount: 0 });
   }
   const relativePath = getRelativeSnapshotPath(absolutePath, config.paths);
   log.info("Syncing file", { relativePath });
@@ -62,7 +86,7 @@ const syncDocument = async (
 
   if (syncResult.data.length === 0) {
     log.info("No changes detected", { relativePath });
-    return ok(undefined);
+    return ok({ changeCount: 0 });
   }
 
   log.debug("Changesets to apply", { changesets: syncResult.data });
@@ -74,12 +98,10 @@ const syncDocument = async (
   });
   if (isErr(applyResult)) return applyResult;
 
-  log.info("File synced successfully", {
-    relativePath,
-    changeCount: syncResult.data.length,
-  });
+  const changeCount = syncResult.data.length;
+  log.info("File synced successfully", { relativePath, changeCount });
 
-  return ok(undefined);
+  return ok({ changeCount });
 };
 
 // ---------------------------------------------------------------------------
@@ -98,6 +120,7 @@ const executeSave = async (
   context: RuntimeContextWithDb,
   uri: string,
   state: UriState,
+  deps: WorkspaceContextDeps,
 ): Promise<void> => {
   state.running = true;
   state.pending = false;
@@ -105,15 +128,25 @@ const executeSave = async (
   const result = await tryCatch(() => syncDocument(context, uri));
   if (isErr(result)) {
     context.log.error("Save sync failed", { uri, error: result.error });
+    notify(deps, MessageType.Error, `Sync failed: ${result.error}`);
   } else if (isErr(result.data)) {
     context.log.error("Sync failed", { uri, error: result.data.error });
+    notify(
+      deps,
+      MessageType.Error,
+      `Sync failed: ${result.data.error.message}`,
+    );
+  } else if (result.data.data.changeCount > 0) {
+    const { changeCount } = result.data.data;
+    const s = changeCount === 1 ? "" : "s";
+    notify(deps, MessageType.Info, `Synced ${changeCount} change${s}`);
   }
 
   state.running = false;
 
   if (state.pending) {
     context.log.info("Re-syncing after queued save", { uri });
-    void executeSave(context, uri, state);
+    void executeSave(context, uri, state, deps);
     return;
   }
 
@@ -131,6 +164,7 @@ const executeSave = async (
 export const handleDocumentSave = async (
   event: { document: { uri: string } },
   workspace: WorkspaceEntry,
+  deps: WorkspaceContextDeps,
 ): Promise<void> => {
   const uri = event.document.uri;
   let state = uriStates.get(uri);
@@ -148,5 +182,5 @@ export const handleDocumentSave = async (
     return;
   }
 
-  void executeSave(workspace.runtime, uri, state);
+  void executeSave(workspace.runtime, uri, state, deps);
 };

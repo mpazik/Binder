@@ -151,6 +151,12 @@ describe("LSP", () => {
   beforeAll(async () => {
     dir = await setupWorkspace({ docs: true });
     client = createLspClient();
+    client.connection.onNotification(
+      "window/showMessage",
+      (params: ShowMessageParams) => {
+        notifications.push(params);
+      },
+    );
     initResult = await client.initialize(dir);
   }, 15_000);
 
@@ -164,6 +170,9 @@ describe("LSP", () => {
 
   const readDoc = (relPath: string) =>
     readFile(join(dir, "docs", relPath), "utf-8");
+
+  type ShowMessageParams = { type: number; message: string };
+  const notifications: ShowMessageParams[] = [];
 
   const getHoverContent = (result: Hover): string => {
     if (typeof result.contents === "string") return result.contents;
@@ -317,6 +326,39 @@ describe("LSP", () => {
       });
     });
   });
+
+  it("save with changes sends info notification", async () => {
+    const relPath = "tasks-yaml/task-create-api.yaml";
+    const uri = fileUri(relPath);
+    const text = await readDoc(relPath);
+    const edited = text.replace(/title: .+/, "title: Notification-test");
+
+    notifications.length = 0;
+    await writeFile(join(dir, "docs", relPath), edited);
+    client.openDocument(uri, edited);
+    client.saveDocument(uri);
+
+    await waitFor(() => {
+      const info = notifications.filter((n) => n.type === 3);
+      expect(info.length).toBeGreaterThan(0);
+      expect(info[0]!.message).toMatch(/synced/i);
+    });
+  });
+
+  it("save without changes sends no notification", async () => {
+    const relPath = "tasks-yaml/task-create-api.yaml";
+    const uri = fileUri(relPath);
+    const text = await readDoc(relPath);
+
+    notifications.length = 0;
+    client.openDocument(uri, text);
+    client.saveDocument(uri);
+
+    // Wait long enough for a sync cycle to complete, then assert no notification
+    await new Promise((r) => setTimeout(r, 1500));
+    const info = notifications.filter((n) => n.type === 3);
+    expect(info).toEqual([]);
+  }, 10_000);
 
   it("rapid saves converge to the last written content", async () => {
     const relPath = "tasks-yaml/task-implement-auth.yaml";

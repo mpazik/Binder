@@ -54,7 +54,7 @@ export const createLspServer = (
     // Sending both a disk write and applyEdit races and causes conflict dialogs.
     async () => {},
   );
-  const deps = { lspDocuments, workspaceManager, log };
+  const deps = { connection, lspDocuments, workspaceManager, log };
 
   let hasWorkspaceFolderCapability = false;
 
