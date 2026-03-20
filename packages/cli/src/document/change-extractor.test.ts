@@ -31,16 +31,16 @@ import {
 import { renderYamlEntity, renderYamlList } from "./yaml.ts";
 import { type NavigationItem } from "./navigation.ts";
 import {
-  mockPreambleStatusInBodyTemplate,
-  mockPreambleTemplate,
-  mockTemplates,
-} from "./template.mock.ts";
-import { createTemplateEntity } from "./template-entity.ts";
+  mockPreambleStatusInBodyView,
+  mockPreambleView,
+  mockViews,
+} from "./view.mock.ts";
+import { createViewEntity } from "./view-entity.ts";
 
 const navigationItems: NavigationItem[] = [
   {
     path: "tasks/{key}",
-    template: "task-template",
+    view: "task-view",
   },
   {
     path: "tasks/{key}",
@@ -101,7 +101,7 @@ describe("change-extractor", () => {
         mockRecordSchema,
         filePath,
         "record",
-        mockTemplates,
+        mockViews,
       ),
     );
     expect(result).toEqual(expectedNodes);
@@ -138,13 +138,13 @@ describe("change-extractor", () => {
 
   describe("markdown with preamble", () => {
     it("propagates field-conflict when frontmatter and body diverge", async () => {
-      const preambleTemplates = [
-        mockPreambleTemplate,
-        mockPreambleStatusInBodyTemplate,
-        ...mockTemplates,
+      const preambleViews = [
+        mockPreambleView,
+        mockPreambleStatusInBodyView,
+        ...mockViews,
       ];
       const preambleNavItems: NavigationItem[] = [
-        { path: "tasks/{key}", template: "task-status-body" },
+        { path: "tasks/{key}", view: "task-status-body" },
       ];
       const markdown = `---
 status: active
@@ -166,24 +166,24 @@ status: active
         mockRecordSchema,
         filePath,
         "record",
-        preambleTemplates,
+        preambleViews,
       );
       expect(result).toBeErrWithKey("field-conflict");
     });
 
     it("does not produce changeset for preamble relation field absent from frontmatter", async () => {
       // Reproduction for fix-sync-oscillates-inverse-relations:
-      // task2 has project: mockProjectUid in DB. The template includes
+      // task2 has project: mockProjectUid in DB. The view includes
       // "project" in its preamble. But the markdown frontmatter omits
       // "project". The sync should NOT produce a changeset nulling it out.
-      const preambleProjectTemplate = createTemplateEntity(
+      const preambleProjectView = createViewEntity(
         "task-preamble-project",
         `# {title}\n\n**Status:** {status}\n\n## Description\n\n{description}\n`,
         { preamble: ["status", "project"] },
       );
-      const preambleTemplates = [preambleProjectTemplate, ...mockTemplates];
+      const preambleViews = [preambleProjectView, ...mockViews];
       const preambleNavItems: NavigationItem[] = [
-        { path: "tasks/{key}", template: "task-preamble-project" },
+        { path: "tasks/{key}", view: "task-preamble-project" },
       ];
       // Frontmatter has status but NOT project
       const markdown = `---
@@ -211,7 +211,7 @@ ${mockTask2Record.description}
           mockRecordSchema,
           filePath,
           "record",
-          preambleTemplates,
+          preambleViews,
         ),
       );
       expect(result).toEqual([]);
@@ -554,7 +554,7 @@ ${mockTask1Record.description}
         mockRecordSchema,
         filePath,
         "record",
-        mockTemplates,
+        mockViews,
         undefined,
         taskUid,
       );
@@ -623,7 +623,7 @@ ${mockTask1Record.description}
           {
             path: "tasks/{title}",
             where: { type: "Task", title: "Design: Phase 1" },
-            template: "task-template",
+            view: "task-view",
           },
         ],
         "tasks/Design- Phase 1.md",

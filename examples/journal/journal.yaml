@@ -237,42 +237,42 @@
 # ====================
 
 - configs:
-    # Templates
+    # Views
     - key: journal-day-summary
-      type: Template
+      type: View
       name: Journal Day Summary
-      templateFormat: section
-      templateContent: |
+      viewFormat: section
+      viewContent: |
         ### {dayPeriod}
         {summary}
 
     - key: journal-week-summary
-      type: Template
+      type: View
       name: Journal Week Summary
-      templateFormat: section
-      templateContent: |
+      viewFormat: section
+      viewContent: |
         ### {weekPeriod}
         {summary}
 
     - key: journal-month-summary
-      type: Template
+      type: View
       name: Journal Month Summary
-      templateFormat: section
-      templateContent: |
+      viewFormat: section
+      viewContent: |
         ### {monthPeriod}
         {summary}
 
     - key: journal-quarter-summary
-      type: Template
+      type: View
       name: Journal Quarter Summary
-      templateFormat: section
-      templateContent: |
+      viewFormat: section
+      viewContent: |
         ### {quarterPeriod}
         {summary}
 
-    - key: journal-day-template
-      type: Template
-      name: Journal Day Template
+    - key: journal-day-view
+      type: View
+      name: Journal Day View
       preamble:
         [
           dayPeriod,
@@ -284,7 +284,7 @@
           fitnessScore,
           totalScore,
         ]
-      templateContent: |
+      viewContent: |
         # {dayPeriod}
 
         ## Context ({parent.weekPeriod})
@@ -310,11 +310,11 @@
         ## Summary
         {summary}
 
-    - key: journal-week-template
-      type: Template
-      name: Journal Week Template
+    - key: journal-week-view
+      type: View
+      name: Journal Week View
       preamble: [weekPeriod, parent, totalScore, goal]
-      templateContent: |
+      viewContent: |
         # Week {weekPeriod}
 
         ## Context ({parent.monthPeriod})
@@ -338,16 +338,16 @@
         {events}
 
         ## Days Summary
-        {children|template:journal-day-summary}
+        {children|view:journal-day-summary}
 
         ## Summary
         {summary}
 
-    - key: journal-month-template
-      type: Template
-      name: Journal Month Template
+    - key: journal-month-view
+      type: View
+      name: Journal Month View
       preamble: [monthPeriod, parent, goal]
-      templateContent: |
+      viewContent: |
         # {monthPeriod}
 
         ## Context ({parent.quarterPeriod})
@@ -371,16 +371,16 @@
         {events}
 
         ## Weeks Summary
-        {children|template:journal-week-summary}
+        {children|view:journal-week-summary}
 
         ## Summary
         {summary}
 
-    - key: journal-quarter-template
-      type: Template
-      name: Journal Quarter Template
+    - key: journal-quarter-view
+      type: View
+      name: Journal Quarter View
       preamble: [quarterPeriod, parent, goal]
-      templateContent: |
+      viewContent: |
         # {quarterPeriod}
 
         ## Context ({parent.yearPeriod})
@@ -404,16 +404,16 @@
         {events}
 
         ## Months Summary
-        {children|template:journal-month-summary}
+        {children|view:journal-month-summary}
 
         ## Summary
         {summary}
 
-    - key: journal-year-template
-      type: Template
-      name: Journal Year Template
+    - key: journal-year-view
+      type: View
+      name: Journal Year View
       preamble: [yearPeriod, goal]
-      templateContent: |
+      viewContent: |
         # {yearPeriod}
 
         ## Goal
@@ -429,41 +429,41 @@
         {events}
 
         ## Quarters Summary
-        {children|template:journal-quarter-summary}
+        {children|view:journal-quarter-summary}
 
         ## Summary
         {summary}
 
-    # Navigation with markdown templates
+    # Navigation with markdown views
     - key: nav-journal-day-doc
       type: Navigation
       path: journal/days/{dayPeriod}
       where: { type: JournalDay }
-      template: journal-day-template
+      view: journal-day-view
 
     - key: nav-journal-week-doc
       type: Navigation
       path: journal/weeks/{weekPeriod}
       where: { type: JournalWeek }
-      template: journal-week-template
+      view: journal-week-view
 
     - key: nav-journal-month-doc
       type: Navigation
       path: journal/months/{monthPeriod}
       where: { type: JournalMonth }
-      template: journal-month-template
+      view: journal-month-view
 
     - key: nav-journal-quarter-doc
       type: Navigation
       path: journal/quarters/{quarterPeriod}
       where: { type: JournalQuarter }
-      template: journal-quarter-template
+      view: journal-quarter-view
 
     - key: nav-journal-year-doc
       type: Navigation
       path: journal/years/{yearPeriod}
       where: { type: JournalYear }
-      template: journal-year-template
+      view: journal-year-view
 
 # ====================
 # SAMPLE DATA

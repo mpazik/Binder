@@ -12,7 +12,7 @@ import { tagsFieldKey } from "@binder/db";
 import { LineCounter } from "yaml";
 import { parseYamlDocument } from "../document/yaml-cst.ts";
 import { parseMarkdownDocument } from "../document/markdown.ts";
-import type { FieldSlotMapping } from "../document/template.ts";
+import type { FieldSlotMapping } from "../document/view.ts";
 import type { NavigationItem } from "../document/navigation.ts";
 import type { EntityMapping, EntityMappings } from "./entity-mapping.ts";
 import type {
@@ -92,6 +92,16 @@ const createYamlContext = (
     line,
     character,
   };
+};
+
+const createLineCounter = (text: string): LineCounter => {
+  const lc = new LineCounter();
+  let offset = 0;
+  for (const line of text.split("\n")) {
+    lc.addNewLine(offset);
+    offset += line.length + 1;
+  }
+  return lc;
 };
 
 describe("cursor-context", () => {
@@ -383,13 +393,13 @@ tags:
   });
 
   describe("getCursorContext for markdown", () => {
-    const mockNavigationItemWithTemplate: NavigationItem = {
+    const mockNavigationItemWithView: NavigationItem = {
       path: "test.md",
       query: { filters: { type: mockTaskTypeKey } },
-      template: "task-template",
+      view: "task-view",
     };
 
-    const mockNavigationItemNoTemplate: NavigationItem = {
+    const mockNavigationItemNoView: NavigationItem = {
       path: "test.md",
       query: { filters: { type: mockTaskTypeKey } },
     };
@@ -434,8 +444,7 @@ tags:
           uri: "file:///test.md",
           namespace: "record",
           schema: mockRecordSchema,
-          navigationItem:
-            opts?.navigationItem ?? mockNavigationItemWithTemplate,
+          navigationItem: opts?.navigationItem ?? mockNavigationItemWithView,
           typeDef: mockRecordSchema.types[mockTaskTypeKey],
           entityMappings: singleMapping,
           parsed,
@@ -513,15 +522,15 @@ pend█ing`,
       );
     });
 
-    it("returns template when cursor is outside field mappings but template exists", () => {
+    it("returns view when cursor is outside field mappings but view exists", () => {
       check(`Some random █text`, [], {
         documentType: "markdown",
-        type: "template",
-        templateKey: "task-template",
+        type: "view",
+        viewKey: "task-view",
       });
     });
 
-    it("returns none when cursor is outside field mappings and no template", () => {
+    it("returns none when cursor is outside field mappings and no view", () => {
       check(
         `Some random █text`,
         [],
@@ -529,7 +538,7 @@ pend█ing`,
           documentType: "markdown",
           type: "none",
         },
-        { navigationItem: mockNavigationItemNoTemplate },
+        { navigationItem: mockNavigationItemNoView },
       );
     });
 
@@ -610,8 +619,8 @@ pend█ing`,
         [],
         {
           documentType: "markdown",
-          type: "template",
-          templateKey: "task-template",
+          type: "view",
+          viewKey: "task-view",
         },
         { preambleKeys: [mockStatusFieldKey] },
       );
@@ -637,16 +646,6 @@ pend█ing`,
   });
 
   describe("offsetToPosition", () => {
-    const createLineCounter = (text: string): LineCounter => {
-      const lc = new LineCounter();
-      let offset = 0;
-      for (const line of text.split("\n")) {
-        lc.addNewLine(offset);
-        offset += line.length + 1;
-      }
-      return lc;
-    };
-
     it("converts offset at start of document", () => {
       const lc = createLineCounter("hello\nworld");
       expect(offsetToPosition(0, lc)).toEqual({ line: 0, character: 0 });
@@ -669,16 +668,6 @@ pend█ing`,
   });
 
   describe("positionToOffset", () => {
-    const createLineCounter = (text: string): LineCounter => {
-      const lc = new LineCounter();
-      let offset = 0;
-      for (const line of text.split("\n")) {
-        lc.addNewLine(offset);
-        offset += line.length + 1;
-      }
-      return lc;
-    };
-
     it("converts position at start of document", () => {
       const lc = createLineCounter("hello\nworld");
       expect(positionToOffset({ line: 0, character: 0 }, lc)).toBe(0);
@@ -701,16 +690,6 @@ pend█ing`,
   });
 
   describe("yamlRangeToLspRange", () => {
-    const createLineCounter = (text: string): LineCounter => {
-      const lc = new LineCounter();
-      let offset = 0;
-      for (const line of text.split("\n")) {
-        lc.addNewLine(offset);
-        offset += line.length + 1;
-      }
-      return lc;
-    };
-
     it("converts yaml range to lsp range", () => {
       const lc = createLineCounter("hello\nworld");
       const result = yamlRangeToLspRange([0, 5, 5], lc);

@@ -20,13 +20,13 @@ import type { ParsedYaml } from "../document/yaml-cst.ts";
 import { parseYamlDocument } from "../document/yaml-cst.ts";
 import {
   findNavigationItemByPath,
-  findTemplate,
+  findView,
   type NavigationItem,
 } from "../document/navigation.ts";
 import {
   extractFieldMappings,
   type FieldSlotMapping,
-} from "../document/template.ts";
+} from "../document/view.ts";
 import {
   getRelativeSnapshotPath,
   namespaceFromSnapshotPath,
@@ -299,8 +299,8 @@ export const getDocumentContext = async (
   );
   if (isErr(entityContextResult)) return entityContextResult;
 
-  const templatesResult = await runtime.templates();
-  if (isErr(templatesResult)) return templatesResult;
+  const viewsResult = await runtime.views();
+  if (isErr(viewsResult)) return viewsResult;
 
   const baseEntity =
     entityContextResult.data.entities.length > 0
@@ -311,7 +311,7 @@ export const getDocumentContext = async (
     navigationItem,
     document.getText(),
     relativePath,
-    templatesResult.data,
+    viewsResult.data,
     baseEntity,
   );
   if (isErr(extractResult))
@@ -320,13 +320,11 @@ export const getDocumentContext = async (
       error: extractResult.error,
     });
 
-  const entityMappings = entityContextResult
-    ? computeEntityMappings(
-        schema,
-        extractResult.data,
-        entityContextResult.data,
-      )
-    : { kind: "single" as const, mapping: { status: "new" as const } };
+  const entityMappings = computeEntityMappings(
+    schema,
+    extractResult.data,
+    entityContextResult.data,
+  );
 
   const documentType = getDocumentFileType(filePath);
   if (!documentType)
@@ -343,20 +341,20 @@ export const getDocumentContext = async (
   };
 
   if (documentType === "markdown") {
-    const template = navigationItem.template
-      ? findTemplate(templatesResult.data, navigationItem.template)
+    const viewEntity = navigationItem.view
+      ? findView(viewsResult.data, navigationItem.view)
       : undefined;
 
-    const fieldMappings = template
+    const fieldMappings = viewEntity
       ? extractFieldMappings(
-          template.templateAst,
+          viewEntity.viewAst,
           (parsed as ParsedMarkdown).root,
         )
       : [];
 
     const frontmatter = buildFrontmatterContext(
       (parsed as ParsedMarkdown).root,
-      template?.preamble,
+      viewEntity?.preamble,
     );
 
     return ok({

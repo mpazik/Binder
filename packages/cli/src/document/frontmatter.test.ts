@@ -30,9 +30,9 @@ describe("frontmatter", () => {
 
     it("renders multiple fields", () => {
       check(
-        { name: "Task Card", templateFormat: "block" },
-        ["name", "templateFormat"],
-        "name: Task Card\ntemplateFormat: block",
+        { name: "Task Card", viewFormat: "block" },
+        ["name", "viewFormat"],
+        "name: Task Card\nviewFormat: block",
       );
     });
 
@@ -96,8 +96,8 @@ describe("frontmatter", () => {
 
     it("extracts front matter fields", () => {
       check(
-        "---\nname: Task Card\ntemplateFormat: block\n---\n\n# Title\n",
-        { name: "Task Card", templateFormat: "block" },
+        "---\nname: Task Card\nviewFormat: block\n---\n\n# Title\n",
+        { name: "Task Card", viewFormat: "block" },
         false,
       );
     });
@@ -127,10 +127,10 @@ describe("frontmatter", () => {
     it("renders and extracts front matter fields", () => {
       const entity = {
         name: "Task Card",
-        templateFormat: "block",
+        viewFormat: "block",
         preamble: ["status", "dueDate"],
       };
-      const preambleKeys = ["name", "templateFormat", "preamble"];
+      const preambleKeys = ["name", "viewFormat", "preamble"];
       const frontmatter = renderFrontmatterString(entity, preambleKeys)!;
       const markdown = prependFrontmatter("# {title}\n", frontmatter);
 

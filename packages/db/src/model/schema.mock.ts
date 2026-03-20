@@ -22,7 +22,7 @@ import {
   mockTasksField,
   mockTaskType,
   mockTeamType,
-  mockTemplatesField,
+  mockViewsField,
   mockUserType,
 } from "./config.mock.ts";
 
@@ -47,7 +47,7 @@ const mockFields = {
   [mockNotesField.key]: mockNotesField,
   [mockStepsField.key]: mockStepsField,
   [mockChaptersField.key]: mockChaptersField,
-  [mockTemplatesField.key]: mockTemplatesField,
+  [mockViewsField.key]: mockViewsField,
   [mockPriceField.key]: mockPriceField,
   [mockPartnerField.key]: mockPartnerField,
   [mockRelatedToField.key]: mockRelatedToField,

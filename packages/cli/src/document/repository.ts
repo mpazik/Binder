@@ -10,7 +10,7 @@ import {
   loadNavigation,
   renderNavigation,
 } from "./navigation.ts";
-import { type TemplateLoader } from "./template-entity.ts";
+import { type ViewLoader } from "./view-entity.ts";
 
 export const renderDocs = async (services: {
   db: DatabaseCli;
@@ -18,23 +18,23 @@ export const renderDocs = async (services: {
   fs: FileSystem;
   log: Logger;
   config: AppConfig;
-  templates: TemplateLoader;
+  views: ViewLoader;
 }): ResultAsync<string[]> => {
   const {
     db,
     kg,
     fs,
     log,
-    templates: loadTemplates,
+    views: loadViews,
     config: { paths },
   } = services;
 
   const navigationResult = await loadNavigation(kg);
   if (isErr(navigationResult)) return navigationResult;
-  const templatesResult = await loadTemplates();
-  if (isErr(templatesResult)) return templatesResult;
+  const viewsResult = await loadViews();
+  if (isErr(viewsResult)) return viewsResult;
 
-  const baseCtx = { db, kg, fs, paths, log, templates: templatesResult.data };
+  const baseCtx = { db, kg, fs, paths, log, views: viewsResult.data };
 
   const renderRecordResult = await renderNavigation(
     { ...baseCtx, namespace: "record" },

@@ -17,7 +17,7 @@ import { createMockRuntimeContextWithDb } from "../runtime.mock.ts";
 import type { RuntimeContextWithDb } from "../runtime.ts";
 import { mockDocumentTransactionInput } from "../document/document.mock.ts";
 import { type NavigationItem } from "../document/navigation.ts";
-import { mockTemplates } from "../document/template.mock.ts";
+import { mockViews } from "../document/view.mock.ts";
 import { renderYamlEntity, renderYamlList } from "../document/yaml.ts";
 import { extract } from "../document/extraction.ts";
 import {
@@ -49,7 +49,7 @@ describe("entity-context", () => {
     );
 
     const extracted = throwIfError(
-      extract(schema, navItem, content, filePath, mockTemplates, {}),
+      extract(schema, navItem, content, filePath, mockViews, {}),
     );
 
     const mappings = computeEntityMappings(schema, extracted, entityContext);
@@ -181,7 +181,7 @@ describe("entity-context", () => {
   describe("document (markdown)", () => {
     const navItem: NavigationItem = {
       path: "tasks/{key}.md",
-      template: "task-template",
+      view: "task-view",
     };
 
     const renderTaskMarkdown = (task: {

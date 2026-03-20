@@ -5,7 +5,7 @@ import {
   type Fieldset,
   newUserConfigId,
 } from "@binder/db";
-import { typeNavigationKey, typeTemplateKey } from "../cli-config-schema.ts";
+import { typeNavigationKey, typeViewKey } from "../cli-config-schema.ts";
 
 export const mockNav1Key = "nav-projects" as ConfigKey;
 
@@ -57,12 +57,12 @@ export const mockNav6Entity = {
   limit: 10,
 } as const satisfies Fieldset;
 
-export const mockMdTaskTemplateEntity = {
+export const mockMdTaskViewEntity = {
   id: newUserConfigId(4),
   uid: "_tmplMdTask" as ConfigUid,
-  key: "md-task-template" as ConfigKey,
-  type: typeTemplateKey,
-  templateContent: `# {title}\n\n## Description\n\n{description}\n`,
+  key: "md-task-view" as ConfigKey,
+  type: typeViewKey,
+  viewContent: `# {title}\n\n## Description\n\n{description}\n`,
   preamble: ["status", "project"],
 } as const satisfies Fieldset;
 
@@ -73,7 +73,7 @@ export const mockNav5Entity = {
   type: typeNavigationKey,
   path: "md-tasks/{key}",
   where: { type: "Task" },
-  template: "md-task-template" as ConfigKey,
+  view: "md-task-view" as ConfigKey,
 } as const satisfies Fieldset;
 
 export const mockNavigationConfigInput = [
@@ -81,7 +81,7 @@ export const mockNavigationConfigInput = [
   changesetInputForNewEntity<"config">(mockNav2Entity),
   changesetInputForNewEntity<"config">(mockNav3Entity),
   changesetInputForNewEntity<"config">(mockNav4Entity),
-  changesetInputForNewEntity<"config">(mockMdTaskTemplateEntity),
+  changesetInputForNewEntity<"config">(mockMdTaskViewEntity),
   changesetInputForNewEntity<"config">(mockNav5Entity),
   changesetInputForNewEntity<"config">(mockNav6Entity),
 ];

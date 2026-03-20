@@ -11,7 +11,7 @@ import {
   mockTasksField,
 } from "@binder/db/mocks";
 import type { Position as UnistPosition } from "unist";
-import type { FieldSlotMapping } from "../../document/template.ts";
+import type { FieldSlotMapping } from "../../document/view.ts";
 import {
   collectRelationRefs,
   extractRelationRefs,

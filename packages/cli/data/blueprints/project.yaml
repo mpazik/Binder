@@ -59,17 +59,17 @@
         - dueDate
         - milestoneTasks
 
-# Navigation & Templates
+# Navigation & Views
 - author: system
   configs:
     # --- Case 1: Frontmatter + body overlap ---
-    # Template has {status} in body AND status in preamble (frontmatter).
+    # View has {status} in body AND status in preamble (frontmatter).
     # If user edits body status but not frontmatter, the body edit should win.
-    - key: task-detail-template
-      type: Template
+    - key: task-detail-view
+      type: View
       name: Task Detail
       preamble: [status, priority]
-      templateContent: |
+      viewContent: |
         # {title}
 
         **Status:** {status}
@@ -78,13 +78,13 @@
 
         {description}
 
-    # --- Case 2: Duplicate field slot in one template ---
-    # Template has {title} in two places. If user edits them to different
+    # --- Case 2: Duplicate field slot in one view ---
+    # View has {title} in two places. If user edits them to different
     # values, extraction should detect a conflict.
-    - key: task-summary-template
-      type: Template
+    - key: task-summary-view
+      type: View
       name: Task Summary
-      templateContent: |
+      viewContent: |
         # {title}
 
         > **Summary:** {title}
@@ -96,14 +96,14 @@
       type: Navigation
       path: tasks/{key}
       where: { type: Task }
-      template: task-detail-template
+      view: task-detail-view
 
     # Navigation: markdown tasks with duplicate slot (Case 2)
     - key: nav-tasks-summary
       type: Navigation
       path: summaries/{key}
       where: { type: Task }
-      template: task-summary-template
+      view: task-summary-view
 
     # --- Case 3: Same field across files ---
     # YAML route at a different path for the same entity. If both files

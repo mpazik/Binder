@@ -13,16 +13,16 @@ import type {
   RecordUid,
   QueryParams,
 } from "@binder/db";
-import { coreIdentityFieldKeys, createUid, isFieldsetNested } from "@binder/db";
+import {
+  coreIdentityFieldKeys,
+  createUid,
+  extractUid,
+  isFieldsetNested,
+} from "@binder/db";
 import { assert, assertDefined, includes, isEqual } from "@binder/utils";
 import { extractFieldsetFromQuery } from "../utils/query.ts";
 import { matchEntities, type MatcherConfig } from "./entity-matcher.ts";
 import { classifyFields } from "./field-classifier.ts";
-
-const getUid = (node: Fieldset): EntityUid | undefined => {
-  const uid = node.uid;
-  return typeof uid === "string" ? (uid as EntityUid) : undefined;
-};
 
 const getType = (node: Fieldset): EntityType | undefined => {
   const type = node.type;
@@ -95,7 +95,7 @@ const diffOwnedChildren = (
 
   for (const oldIdx of matchResult.toRemove) {
     const oldNode = oldChildren[oldIdx]!;
-    const oldUid = getUid(oldNode);
+    const oldUid = extractUid(oldNode);
     assertDefined(oldUid, "oldUid in diffOwnedChildren toRemove");
     mutations.push(["remove", oldUid]);
   }
@@ -118,8 +118,8 @@ const diffSingleRelation = (
 ): ChangesetsInput => {
   if (!isFieldsetNested(newValue) || !isFieldsetNested(oldValue)) return [];
 
-  const oldUid = getUid(oldValue);
-  const newUid = getUid(newValue);
+  const oldUid = extractUid(oldValue);
+  const newUid = extractUid(newValue);
 
   // When newUid is undefined but oldUid exists, we're editing the same related
   // entity (extracted from markdown doesn't include uid). Set uid from old.
@@ -206,7 +206,7 @@ const diffField = (
         isFieldsetNested(oldValue),
         `relation field '${fieldKey}'`,
         `oldValue must be a nested fieldset when newValue is nested (got ${typeof oldValue}). ` +
-          `Ensure the navigation item or template includes the relation field.`,
+          `Ensure the navigation item or view includes the relation field.`,
       );
       return { changesets: diffSingleRelation(schema, newValue, oldValue) };
     }
@@ -234,7 +234,7 @@ export const diffEntities = (
   newEntity: FieldsetNested,
   oldEntity: FieldsetNested,
 ): ChangesetsInput => {
-  const uid = getUid(oldEntity);
+  const uid = extractUid(oldEntity);
   assertDefined(uid, "uid in diffEntities oldEntity");
 
   const changesets: ChangesetsInput = [];
@@ -319,7 +319,7 @@ export const diffQueryResults = (
   const toRemove: EntityUid[] = [];
   for (const oldIdx of matchResult.toRemove) {
     const oldEntity = oldEntities[oldIdx]!;
-    const uid = getUid(oldEntity);
+    const uid = extractUid(oldEntity);
     assertDefined(uid, "uid in diffQueryResults toRemove");
     toRemove.push(uid as EntityUid);
   }

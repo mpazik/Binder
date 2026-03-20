@@ -33,14 +33,14 @@ import {
   mockLog,
 } from "../runtime.mock.ts";
 import { BINDER_DIR } from "../config.ts";
-import { cliConfigSchema, typeTemplateKey } from "../cli-config-schema.ts";
-import { parseTemplate, renderTemplateAst } from "./template.ts";
+import { cliConfigSchema, typeViewKey } from "../cli-config-schema.ts";
+import { parseView, renderViewAst } from "./view.ts";
 import { renderYamlEntity, renderYamlList } from "./yaml.ts";
 import {
   CONFIG_NAVIGATION_ITEMS,
   findEntityLocation,
   findNavigationItemByPath,
-  findTemplate,
+  findView,
   getNavigationFilePatterns,
   loadNavigation,
   type NavigationItem,
@@ -48,12 +48,8 @@ import {
   renderNavigationItem,
 } from "./navigation.ts";
 import { mockNavigationConfigInput } from "./navigation.mock.ts";
-import {
-  DOCUMENT_TEMPLATE_KEY,
-  loadTemplates,
-  type Templates,
-} from "./template-entity.ts";
-import { mockTemplates } from "./template.mock.ts";
+import { DOCUMENT_VIEW_KEY, loadViews, type Views } from "./view-entity.ts";
+import { mockViews } from "./view.mock.ts";
 
 /** Reorder fieldset so tags comes after key (matching dbModelToEntity order) */
 const reorderTagsField = (fieldset: Fieldset): Fieldset => {
@@ -74,15 +70,15 @@ describe("navigation", () => {
       expect(result).toEqual(expected);
     };
 
-    it("matches markdown file by path template", () => {
+    it("matches markdown file by path pattern", () => {
       const item: NavigationItem = {
         path: "tasks/{title}",
-        template: DOCUMENT_TEMPLATE_KEY,
+        view: DOCUMENT_VIEW_KEY,
       };
       check([item], "tasks/my-task.md", item);
     });
 
-    it("matches yaml file by path template", () => {
+    it("matches yaml file by path pattern", () => {
       const item: NavigationItem = {
         path: "all-tasks",
         query: { filters: { type: "Task" } },
@@ -93,7 +89,7 @@ describe("navigation", () => {
     it("returns undefined when no match found", () => {
       const item: NavigationItem = {
         path: "tasks/{title}",
-        template: DOCUMENT_TEMPLATE_KEY,
+        view: DOCUMENT_VIEW_KEY,
       };
       check([item], "projects/my-project.md", undefined);
     });
@@ -101,10 +97,10 @@ describe("navigation", () => {
     it("returns first matching item", () => {
       const first: NavigationItem = {
         path: "tasks/{title}",
-        template: DOCUMENT_TEMPLATE_KEY,
+        view: DOCUMENT_VIEW_KEY,
       };
       check(
-        [first, { path: "tasks/{key}", template: DOCUMENT_TEMPLATE_KEY }],
+        [first, { path: "tasks/{key}", view: DOCUMENT_VIEW_KEY }],
         "tasks/my-task.md",
         first,
       );
@@ -113,7 +109,7 @@ describe("navigation", () => {
     it("matches nested child item", () => {
       const childItem: NavigationItem = {
         path: "info",
-        template: DOCUMENT_TEMPLATE_KEY,
+        view: DOCUMENT_VIEW_KEY,
       };
       check(
         [{ path: "tasks/{title}/", children: [childItem] }],
@@ -152,7 +148,7 @@ describe("navigation", () => {
     let db: DatabaseCli;
     let kg: KnowledgeGraph;
     let fs: MockFileSystem;
-    let defaultTemplateContent: string;
+    let defaultViewContent: string;
     const paths = mockConfig.paths;
     const docsPath = mockConfig.paths.docs;
 
@@ -165,25 +161,22 @@ describe("navigation", () => {
       fs = createInMemoryFileSystem();
       throwIfError(await kg.apply(mockTransactionInit));
 
-      const templates = throwIfError(await loadTemplates(kg));
-      defaultTemplateContent = findTemplate(
-        templates,
-        DOCUMENT_TEMPLATE_KEY,
-      ).templateContent;
+      const views = throwIfError(await loadViews(kg));
+      defaultViewContent = findView(views, DOCUMENT_VIEW_KEY).viewContent;
 
       throwIfError(
         await kg.update({
           author: "test",
           configs: [
             {
-              type: typeTemplateKey,
-              key: "static-template" as ConfigKey,
-              templateContent: staticViewContent,
+              type: typeViewKey,
+              key: "static-view" as ConfigKey,
+              viewContent: staticViewContent,
             },
             {
-              type: typeTemplateKey,
-              key: "info-template" as ConfigKey,
-              templateContent: infoViewContent,
+              type: typeViewKey,
+              key: "info-view" as ConfigKey,
+              viewContent: infoViewContent,
             },
           ],
         }),
@@ -200,10 +193,10 @@ describe("navigation", () => {
       navigationItems: NavigationItem[],
       files: FileSpec[],
     ) => {
-      const templates = throwIfError(await loadTemplates(kg));
+      const views = throwIfError(await loadViews(kg));
       throwIfError(
         await renderNavigation(
-          { db, kg, fs, paths, namespace: "record", templates, log: mockLog },
+          { db, kg, fs, paths, namespace: "record", views, log: mockLog },
           navigationItems,
         ),
       );
@@ -220,14 +213,9 @@ describe("navigation", () => {
         } else if ("content" in file) {
           expect(fileContent).toEqual(file.content);
         } else {
-          const viewAst = parseTemplate(file.view ?? defaultTemplateContent);
+          const viewAst = parseView(file.view ?? defaultViewContent);
           const snapshot = throwIfError(
-            renderTemplateAst(
-              mockRecordSchema,
-              mockTemplates,
-              viewAst,
-              file.data,
-            ),
+            renderViewAst(mockRecordSchema, mockViews, viewAst, file.data),
           );
           expect(fileContent).toEqual(snapshot);
         }
@@ -241,7 +229,7 @@ describe("navigation", () => {
 
     it("renders simple markdown without iteration", async () => {
       await check(
-        [{ path: "README", template: "static-template" }],
+        [{ path: "README", view: "static-view" }],
         [{ path: "README.md", content: staticViewContent }],
       );
     });
@@ -255,7 +243,7 @@ describe("navigation", () => {
             children: [
               {
                 path: "info",
-                template: "info-template",
+                view: "info-view",
               },
             ],
           },
@@ -313,7 +301,7 @@ describe("navigation", () => {
             children: [
               {
                 path: "{parent.uid}",
-                template: DOCUMENT_TEMPLATE_KEY,
+                view: DOCUMENT_VIEW_KEY,
               },
             ],
           },
@@ -328,20 +316,18 @@ describe("navigation", () => {
     });
 
     it("returns rendered and modified paths on first render", async () => {
-      const templates = throwIfError(await loadTemplates(kg));
+      const views = throwIfError(await loadViews(kg));
       const ctx = {
         db,
         kg,
         fs,
         paths,
         namespace: "record" as const,
-        templates,
+        views,
         log: mockLog,
       };
       const result = throwIfError(
-        await renderNavigation(ctx, [
-          { path: "README", template: "static-template" },
-        ]),
+        await renderNavigation(ctx, [{ path: "README", view: "static-view" }]),
       );
 
       expect(result).toEqual({
@@ -351,18 +337,18 @@ describe("navigation", () => {
     });
 
     it("returns empty modifiedPaths when content unchanged", async () => {
-      const templates = throwIfError(await loadTemplates(kg));
+      const views = throwIfError(await loadViews(kg));
       const ctx = {
         db,
         kg,
         fs,
         paths,
         namespace: "record" as const,
-        templates,
+        views,
         log: mockLog,
       };
       const navigationItems: NavigationItem[] = [
-        { path: "README", template: "static-template" },
+        { path: "README", view: "static-view" },
       ];
 
       throwIfError(await renderNavigation(ctx, navigationItems));
@@ -382,7 +368,7 @@ describe("navigation", () => {
     let fs: MockFileSystem;
     let schema: EntitySchema;
     let version: GraphVersion;
-    let templates: Templates;
+    let views: Views;
     const paths = mockConfig.paths;
     const docsPath = mockConfig.paths.docs;
 
@@ -394,12 +380,12 @@ describe("navigation", () => {
 
       schema = throwIfError(await kg.getSchema("record"));
       version = throwIfError(await kg.version());
-      templates = throwIfError(await loadTemplates(kg));
+      views = throwIfError(await loadViews(kg));
     });
 
-    const addTemplate = async (
+    const addView = async (
       key: string,
-      templateContent: string,
+      viewContent: string,
       options?: Record<string, unknown>,
     ) => {
       throwIfError(
@@ -407,15 +393,15 @@ describe("navigation", () => {
           author: "test",
           configs: [
             {
-              type: typeTemplateKey,
+              type: typeViewKey,
               key: key as ConfigKey,
-              templateContent,
+              viewContent,
               ...options,
             },
           ],
         }),
       );
-      templates = throwIfError(await loadTemplates(kg));
+      views = throwIfError(await loadViews(kg));
     };
 
     type CheckOptions = {
@@ -438,7 +424,7 @@ describe("navigation", () => {
             schema,
             version,
             namespace: "record",
-            templates,
+            views,
             log: mockLog,
           },
           item,
@@ -462,12 +448,12 @@ describe("navigation", () => {
     };
 
     it("renders markdown with local fields only", async () => {
-      await addTemplate("local-template", "# {title}\n\n{description}\n");
+      await addView("local-view", "# {title}\n\n{description}\n");
       await check(
         {
           path: "tasks/{title}",
           where: { type: "Task" },
-          template: "local-template",
+          view: "local-view",
         },
         `tasks/${mockTask1Record.title}.md`,
         `# ${mockTask1Record.title}\n\n${mockTask1Record.description}\n`,
@@ -475,15 +461,12 @@ describe("navigation", () => {
     });
 
     it("renders markdown with nested relationship field", async () => {
-      await addTemplate(
-        "nested-template",
-        "# {title}\n\nProject: {project.title}\n",
-      );
+      await addView("nested-view", "# {title}\n\nProject: {project.title}\n");
       await check(
         {
           path: "tasks/{title}",
           where: { type: "Task" },
-          template: "nested-template",
+          view: "nested-view",
         },
         `tasks/${mockTask2Record.title}.md`,
         `# ${mockTask2Record.title}\n\nProject: ${mockProjectRecord.title}\n`,
@@ -535,8 +518,8 @@ describe("navigation", () => {
       );
     });
 
-    it("renders markdown with includes in navigation item and nested field in template", async () => {
-      await addTemplate(
+    it("renders markdown with includes in navigation item and nested field in view", async () => {
+      await addView(
         "task-with-project",
         "# {title}\n\nProject: {project.title}\n",
       );
@@ -545,15 +528,15 @@ describe("navigation", () => {
           path: "tasks/{title}",
           where: { type: "Task" },
           includes: { project: true },
-          template: "task-with-project",
+          view: "task-with-project",
         },
         `tasks/${mockTask2Record.title}.md`,
         `# ${mockTask2Record.title}\n\nProject: ${mockProjectRecord.title}\n`,
       );
     });
 
-    it("renders markdown with frontmatter when template has preamble", async () => {
-      await addTemplate("task-preamble", "# {title}\n\n{description}\n", {
+    it("renders markdown with frontmatter when view has preamble", async () => {
+      await addView("task-preamble", "# {title}\n\n{description}\n", {
         preamble: ["status"],
       });
 
@@ -561,7 +544,7 @@ describe("navigation", () => {
         {
           path: "tasks/{title}",
           where: { type: "Task" },
-          template: "task-preamble",
+          view: "task-preamble",
         },
         `tasks/${mockTask1Record.title}.md`,
         `---\nstatus: ${mockTask1Record.status}\n---\n\n# ${mockTask1Record.title}\n\n${mockTask1Record.description}\n`,
@@ -569,7 +552,7 @@ describe("navigation", () => {
     });
 
     it("renders markdown without frontmatter when preamble fields are all null", async () => {
-      await addTemplate("task-no-fm", "# {title}\n", {
+      await addView("task-no-fm", "# {title}\n", {
         preamble: ["nonExistentField"],
       });
 
@@ -577,7 +560,7 @@ describe("navigation", () => {
         {
           path: "tasks/{title}",
           where: { type: "Task" },
-          template: "task-no-fm",
+          view: "task-no-fm",
         },
         `tasks/${mockTask1Record.title}.md`,
         `# ${mockTask1Record.title}\n`,
@@ -585,7 +568,7 @@ describe("navigation", () => {
     });
 
     it("renders markdown frontmatter with key instead of UID for relation fields", async () => {
-      await addTemplate("task-ref-preamble", "# {title}\n", {
+      await addView("task-ref-preamble", "# {title}\n", {
         preamble: ["project"],
       });
 
@@ -593,21 +576,21 @@ describe("navigation", () => {
         {
           path: "tasks/{title}",
           where: { type: "Task", project: mockProjectUid },
-          template: "task-ref-preamble",
+          view: "task-ref-preamble",
         },
         `tasks/${mockTask2Record.title}.md`,
         `---\nproject: ${mockProjectKey}\n---\n\n# ${mockTask2Record.title}\n`,
       );
     });
 
-    it("renders markdown template body with key instead of UID for relation fields", async () => {
-      await addTemplate("task-ref-body", "# {title}\n\nProject: {project}\n");
+    it("renders markdown view body with key instead of UID for relation fields", async () => {
+      await addView("task-ref-body", "# {title}\n\nProject: {project}\n");
 
       await check(
         {
           path: "tasks/{title}",
           where: { type: "Task", project: mockProjectUid },
-          template: "task-ref-body",
+          view: "task-ref-body",
         },
         `tasks/${mockTask2Record.title}.md`,
         `# ${mockTask2Record.title}\n\nProject: ${mockProjectKey}\n`,
@@ -674,7 +657,7 @@ describe("navigation", () => {
             schema,
             version,
             namespace: "record",
-            templates,
+            views,
             log,
           },
           { path: "tasks/{title}", where: { type: "Task" } },
@@ -686,12 +669,12 @@ describe("navigation", () => {
     });
 
     it("renders markdown with ancestral field in path", async () => {
-      await addTemplate("task-detail", "# {title}\n");
+      await addView("task-detail", "# {title}\n");
       await check(
         {
           path: "tasks/{title}",
           where: { type: "Task", project: "{parent.uid}" },
-          template: "task-detail",
+          view: "task-detail",
         },
         `projects/${mockProjectRecord.title}/tasks/${mockTask2Record.title}.md`,
         `# ${mockTask2Record.title}\n`,
@@ -742,7 +725,7 @@ describe("navigation", () => {
         {
           path: "md-tasks/{key}",
           where: { type: "Task" },
-          template: "md-task-template",
+          view: "md-task-view",
         },
         {
           path: "limited-tasks/{key}",
@@ -777,7 +760,7 @@ describe("navigation", () => {
         {
           path: "tasks/{title}",
           where: { type: "Task" },
-          template: DOCUMENT_TEMPLATE_KEY,
+          view: DOCUMENT_VIEW_KEY,
         },
       ];
 
@@ -841,7 +824,7 @@ describe("navigation", () => {
         {
           path: "tasks/{title}",
           where: { type: "Task" },
-          template: DOCUMENT_TEMPLATE_KEY,
+          view: DOCUMENT_VIEW_KEY,
         },
       ];
 
@@ -862,14 +845,14 @@ describe("navigation", () => {
   });
 
   describe("getNavigationFilePatterns", () => {
-    it("converts path templates to glob patterns", () => {
+    it("converts path views to glob patterns", () => {
       const items: NavigationItem[] = [
-        { path: "tasks/{title}", template: DOCUMENT_TEMPLATE_KEY },
+        { path: "tasks/{title}", view: DOCUMENT_VIEW_KEY },
         {
           path: "projects/{parent.title}/{uid}",
-          template: DOCUMENT_TEMPLATE_KEY,
+          view: DOCUMENT_VIEW_KEY,
         },
-        { path: "static/file", template: DOCUMENT_TEMPLATE_KEY },
+        { path: "static/file", view: DOCUMENT_VIEW_KEY },
         { path: "dirs/{name}/" },
       ];
       const patterns = getNavigationFilePatterns(items);

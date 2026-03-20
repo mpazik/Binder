@@ -34,7 +34,7 @@ import { visit } from "unist-util-visit";
 import type { Data, Node, Position as UnistPosition } from "unist";
 import { unified } from "unified";
 import remarkParse from "remark-parse";
-import { type TemplateFormat } from "../cli-config-schema.ts";
+import { type ViewFormat } from "../cli-config-schema.ts";
 import {
   extractFieldsetFromQuery,
   parseFiltersFromString,
@@ -58,42 +58,39 @@ import {
 } from "./markdown.ts";
 import { isBlockLevelField, renderFieldValue } from "./field-render.ts";
 import {
-  BLOCK_TEMPLATE_KEY,
-  DOCUMENT_TEMPLATE_KEY,
-  PHRASE_TEMPLATE_KEY,
-  SECTION_TEMPLATE_KEY,
-  type TemplateKey,
-} from "./template.const.ts";
-import { type TemplateEntity, type Templates } from "./template-entity.ts";
+  BLOCK_VIEW_KEY,
+  DOCUMENT_VIEW_KEY,
+  PHRASE_VIEW_KEY,
+  SECTION_VIEW_KEY,
+  type ViewKey,
+} from "./view.const.ts";
+import { type ViewEntity, type Views } from "./view-entity.ts";
 import { createFieldAccumulator } from "./field-accumulator.ts";
 
 type SimplifiedViewChild = SimplifiedViewBlockChild | SimplifiedViewInlineChild;
 
-export interface TemplateRoot extends Node {
+export interface ViewRoot extends Node {
   type: "root";
   children: (FieldSlot | Text)[];
   data?: Data;
 }
 
-export type TemplateAST = Brand<TemplateRoot, "TemplateAST">;
+export type ViewAST = Brand<ViewRoot, "ViewAST">;
 
-export type TemplateFieldSlotProps = {
-  template?: string;
+export type ViewFieldSlotProps = {
+  view?: string;
   where?: string;
 };
 
-export type TemplateFieldSlot = FieldSlot<TemplateFieldSlotProps>;
+export type ViewFieldSlot = FieldSlot<ViewFieldSlotProps>;
 
-const parseWhereFilters = (slot: TemplateFieldSlot): Filters | undefined => {
+const parseWhereFilters = (slot: ViewFieldSlot): Filters | undefined => {
   const whereStr = slot.props?.where;
   if (typeof whereStr !== "string") return undefined;
   return parseFiltersFromString(whereStr);
 };
 
-const injectWhereFields = (
-  entities: FieldValue,
-  slot: TemplateFieldSlot,
-): void => {
+const injectWhereFields = (entities: FieldValue, slot: ViewFieldSlot): void => {
   const filters = parseWhereFilters(slot);
   if (!filters) return;
   const whereFieldset = extractFieldsetFromQuery({ filters });
@@ -106,20 +103,16 @@ const injectWhereFields = (
   }
 };
 
-export const parseTemplate = (content: string): TemplateAST => {
+export const parseView = (content: string): ViewAST => {
   const processor = unified().use(remarkParse).use(fieldSlot);
   const ast = processor.parse(content);
-  return processor.runSync(ast) as TemplateAST;
+  return processor.runSync(ast) as ViewAST;
 };
 
-const findTemplateByKey = (
-  templates: Templates,
-  key: TemplateKey,
-): Result<TemplateEntity> => {
-  const template = templates.find((t) => t.key === key);
-  if (!template)
-    return fail("template-not-found", `Template '${key}' not found`);
-  return ok(template);
+const findViewByKey = (views: Views, key: ViewKey): Result<ViewEntity> => {
+  const entry = views.find((t) => t.key === key);
+  if (!entry) return fail("view-not-found", `View '${key}' not found`);
+  return ok(entry);
 };
 
 const isSoleChildOfParagraph = (
@@ -144,7 +137,7 @@ const validateNestedPath = (
   if (path.length > 2)
     return fail(
       "nested-path-too-deep",
-      `Nested path '${path.join(".")}' has more than 2 levels. Use '{${path[0]}|template:...}' with a template that includes the nested fields.`,
+      `Nested path '${path.join(".")}' has more than 2 levels. Use '{${path[0]}|view:...}' with a view that includes the nested fields.`,
     );
 
   if (path.length === 2) {
@@ -159,37 +152,34 @@ const validateNestedPath = (
     )
       return fail(
         "nested-multi-value-not-supported",
-        `Cannot use '{${path.join(".")}' because both '${path[0]}' and '${path[1]}' are multi-value fields. Use '{${path[0]}|template:...}' with a template that includes '{${path[1]}}'.`,
+        `Cannot use '{${path.join(".")}' because both '${path[0]}' and '${path[1]}' are multi-value fields. Use '{${path[0]}|view:...}' with a view that includes '{${path[1]}}'.`,
       );
   }
 
   return ok(undefined);
 };
 
-const DEFAULT_TEMPLATE_BY_POSITION: Record<SlotPosition, string> = {
-  phrase: PHRASE_TEMPLATE_KEY,
-  line: PHRASE_TEMPLATE_KEY,
-  block: BLOCK_TEMPLATE_KEY,
-  section: SECTION_TEMPLATE_KEY,
-  document: DOCUMENT_TEMPLATE_KEY,
+const DEFAULT_VIEW_BY_POSITION: Record<SlotPosition, string> = {
+  phrase: PHRASE_VIEW_KEY,
+  line: PHRASE_VIEW_KEY,
+  block: BLOCK_VIEW_KEY,
+  section: SECTION_VIEW_KEY,
+  document: DOCUMENT_VIEW_KEY,
 };
 
-const getItemTemplate = (
-  slot: TemplateFieldSlot,
-  templates: Templates,
-): TemplateEntity => {
-  const templateKey = slot.props?.template;
-  if (templateKey) {
-    const found = templates?.find((t) => t.key === templateKey);
+const getItemView = (slot: ViewFieldSlot, views: Views): ViewEntity => {
+  const viewKey = slot.props?.view;
+  if (viewKey) {
+    const found = views?.find((t) => t.key === viewKey);
     if (found) return found;
   }
-  const defaultKey = DEFAULT_TEMPLATE_BY_POSITION[getSlotPosition(slot)];
-  return assertDefinedPass(templates.find((t) => t.key === defaultKey));
+  const defaultKey = DEFAULT_VIEW_BY_POSITION[getSlotPosition(slot)];
+  return assertDefinedPass(views.find((t) => t.key === defaultKey));
 };
 
 const DEFAULT_SLOT_POSITION: SlotPosition = "phrase";
 
-const getSlotPosition = (slot: TemplateFieldSlot): SlotPosition =>
+const getSlotPosition = (slot: ViewFieldSlot): SlotPosition =>
   slot.slotPosition ?? DEFAULT_SLOT_POSITION;
 
 const isInlinePosition = (slotPosition: SlotPosition): boolean =>
@@ -197,24 +187,23 @@ const isInlinePosition = (slotPosition: SlotPosition): boolean =>
 
 const getDelimiterForSlotPosition = (
   slotPosition: SlotPosition,
-  templateFormat: TemplateFormat | undefined,
+  viewFormat: ViewFormat | undefined,
 ): MultiValueDelimiter => {
-  if (templateFormat) return richtextFormats[templateFormat].delimiter;
+  if (viewFormat) return richtextFormats[viewFormat].delimiter;
   return richtextFormats[slotPosition].delimiter;
 };
 
 const FRONTMATTER_TYPES = ["yaml", "toml"];
 
-const getTemplateBlockCount = (templateAst: TemplateAST): number =>
-  templateAst.children.filter((n) => !FRONTMATTER_TYPES.includes(n.type))
-    .length;
+const getViewBlockCount = (viewAst: ViewAST): number =>
+  viewAst.children.filter((n) => !FRONTMATTER_TYPES.includes(n.type)).length;
 
 type BlockSignature = { type: string; depth?: number };
 
 const getFirstBlockSignature = (
-  templateAst: TemplateAST,
+  viewAst: ViewAST,
 ): BlockSignature | undefined => {
-  const first = templateAst.children.find(
+  const first = viewAst.children.find(
     (n) => !FRONTMATTER_TYPES.includes(n.type),
   );
   if (!first) return undefined;
@@ -232,7 +221,7 @@ const matchesSignature = (node: Nodes, sig: BlockSignature): boolean =>
  * Split a flat array of block nodes into groups, where each group starts at
  * a node matching the given signature (e.g. a heading at a specific depth).
  * This handles entities with variable block counts (e.g. empty fields that
- * produce fewer blocks than the template defines).
+ * produce fewer blocks than the view defines).
  */
 const splitBlocksBySignature = (
   blocks: Nodes[],
@@ -254,27 +243,27 @@ const splitBlocksBySignature = (
 
 const renderRelationField = (
   schema: EntitySchema,
-  templates: Templates,
+  views: Views,
   value: FieldsetNested[],
-  itemTemplate: TemplateEntity,
+  itemView: ViewEntity,
   slotPosition: SlotPosition,
-  renderingTemplates: Set<string>,
+  renderingViews: Set<string>,
 ): Result<Nodes[]> => {
-  if (renderingTemplates.has(itemTemplate.key)) {
+  if (renderingViews.has(itemView.key)) {
     return fail(
-      "template-cycle-detected",
-      `Circular template reference detected: '${itemTemplate.key}'`,
+      "view-cycle-detected",
+      `Circular view reference detected: '${itemView.key}'`,
     );
   }
 
   const renderedItems: string[] = [];
-  const nestedRendering = new Set(renderingTemplates).add(itemTemplate.key);
+  const nestedRendering = new Set(renderingViews).add(itemView.key);
 
   for (const entity of value) {
-    const result = renderTemplateAstInternal(
+    const result = renderViewAstInternal(
       schema,
-      templates,
-      itemTemplate.templateAst,
+      views,
+      itemView.viewAst,
       entity,
       nestedRendering,
     );
@@ -284,7 +273,7 @@ const renderRelationField = (
 
   const delimiter = getDelimiterForSlotPosition(
     slotPosition,
-    itemTemplate.templateFormat,
+    itemView.viewFormat,
   );
   const delimiterStr = getDelimiterString(delimiter);
   const combinedMarkdown = renderedItems.join(delimiterStr);
@@ -338,7 +327,7 @@ const renderNestedFieldValues = (
 };
 
 const validateFormatPositionCompatibility = (
-  format: RichtextFormat | TemplateFormat | undefined,
+  format: RichtextFormat | ViewFormat | undefined,
   slotPosition: SlotPosition,
 ): Result<void> => {
   if (!format) return ok(undefined);
@@ -353,10 +342,10 @@ const validateFormatPositionCompatibility = (
 
 const renderFieldSlot = (
   schema: EntitySchema,
-  templates: Templates,
-  slot: TemplateFieldSlot,
+  views: Views,
+  slot: ViewFieldSlot,
   fieldset: FieldsetNested,
-  renderingTemplates: Set<string>,
+  renderingViews: Set<string>,
 ): Result<Nodes[]> => {
   const pathValidation = validateNestedPath(schema, slot.path);
   if (isErr(pathValidation)) return pathValidation;
@@ -407,19 +396,19 @@ const renderFieldSlot = (
       ? allEntities.filter((e) => matchesFilters(whereFilters, e as Fieldset))
       : allEntities;
     if (entities.length > 0) {
-      const itemTemplate = getItemTemplate(slot, templates);
-      const templateFormatCheck = validateFormatPositionCompatibility(
-        itemTemplate.templateFormat,
+      const itemView = getItemView(slot, views);
+      const viewFormatCheck = validateFormatPositionCompatibility(
+        itemView.viewFormat,
         slotPosition,
       );
-      if (isErr(templateFormatCheck)) return templateFormatCheck;
+      if (isErr(viewFormatCheck)) return viewFormatCheck;
       return renderRelationField(
         schema,
-        templates,
+        views,
         entities,
-        itemTemplate,
+        itemView,
         slotPosition,
-        renderingTemplates,
+        renderingViews,
       );
     }
     if (whereFilters) return ok([]);
@@ -430,31 +419,31 @@ const renderFieldSlot = (
   if (isRelation(fieldDef) && value && isFieldsetNested(value)) {
     if (whereFilters && !matchesFilters(whereFilters, value as Fieldset))
       return ok(renderFieldValue(null, fieldDef));
-    const itemTemplate = getItemTemplate(slot, templates);
-    const templateFormatCheck = validateFormatPositionCompatibility(
-      itemTemplate.templateFormat,
+    const itemView = getItemView(slot, views);
+    const viewFormatCheck = validateFormatPositionCompatibility(
+      itemView.viewFormat,
       slotPosition,
     );
-    if (isErr(templateFormatCheck)) return templateFormatCheck;
+    if (isErr(viewFormatCheck)) return viewFormatCheck;
     return renderRelationField(
       schema,
-      templates,
+      views,
       [value],
-      itemTemplate,
+      itemView,
       slotPosition,
-      renderingTemplates,
+      renderingViews,
     );
   }
 
   return ok(renderFieldValue(value, fieldDef));
 };
 
-function renderTemplateAstInternal(
+function renderViewAstInternal(
   schema: EntitySchema,
-  templates: Templates,
-  view: TemplateAST,
+  views: Views,
+  view: ViewAST,
   fieldset: FieldsetNested,
-  renderingTemplates: Set<string>,
+  renderingViews: Set<string>,
 ): Result<string> {
   const ast = structuredClone(view) as Root;
   let renderError: ErrorObject | undefined;
@@ -465,7 +454,7 @@ function renderTemplateAstInternal(
     ast,
     "fieldSlot",
     (
-      node: TemplateFieldSlot,
+      node: ViewFieldSlot,
       index: number | undefined,
       parent: Parent | undefined,
     ) => {
@@ -473,10 +462,10 @@ function renderTemplateAstInternal(
 
       const result = renderFieldSlot(
         schema,
-        templates,
+        views,
         node,
         fieldset,
-        renderingTemplates,
+        renderingViews,
       );
       if (isErr(result)) {
         renderError = result.error;
@@ -538,29 +527,24 @@ function renderTemplateAstInternal(
   return ok(renderAstToMarkdown(ast));
 }
 
-export const renderTemplateAst = (
+export const renderViewAst = (
   schema: EntitySchema,
-  templates: Templates,
-  view: TemplateAST,
+  views: Views,
+  view: ViewAST,
   fieldset: FieldsetNested,
 ): Result<string> =>
-  renderTemplateAstInternal(schema, templates, view, fieldset, new Set());
+  renderViewAstInternal(schema, views, view, fieldset, new Set());
 
-export const renderTemplate = (
+export const renderView = (
   schema: EntitySchema,
-  templates: Templates,
-  templateKey: TemplateKey,
+  views: Views,
+  viewKey: ViewKey,
   fieldset: FieldsetNested,
 ): Result<string> => {
-  const templateResult = findTemplateByKey(templates, templateKey);
-  if (isErr(templateResult)) return templateResult;
+  const viewResult = findViewByKey(views, viewKey);
+  if (isErr(viewResult)) return viewResult;
 
-  return renderTemplateAst(
-    schema,
-    templates,
-    templateResult.data.templateAst,
-    fieldset,
-  );
+  return renderViewAst(schema, views, viewResult.data.viewAst, fieldset);
 };
 
 type MatchState = {
@@ -569,7 +553,7 @@ type MatchState = {
   snapTextOffset: number;
 };
 
-export const extractFieldSlotsFromAst = (ast: TemplateAST): string[] => {
+export const extractFieldSlotsFromAst = (ast: ViewAST): string[] => {
   const fieldSlots: string[] = [];
   visit(ast, "fieldSlot", (node: FieldSlot) => {
     fieldSlots.push(node.value);
@@ -577,7 +561,7 @@ export const extractFieldSlotsFromAst = (ast: TemplateAST): string[] => {
   return fieldSlots;
 };
 
-export const extractFieldPathsFromAst = (ast: TemplateAST): FieldPath[] => {
+export const extractFieldPathsFromAst = (ast: ViewAST): FieldPath[] => {
   const fieldPaths: FieldPath[] = [];
   visit(ast, "fieldSlot", (node: FieldSlot) => {
     fieldPaths.push(node.path);
@@ -605,9 +589,9 @@ const resolveBaseChild = (
 
 const extractRelationSegments = (
   schema: EntitySchema,
-  templates: Templates,
+  views: Views,
   segments: string[],
-  itemTemplate: TemplateEntity,
+  itemView: ViewEntity,
   baseChildren: FieldsetNested[],
 ): Result<FieldValue> => {
   if (segments.length === 0) return ok([]);
@@ -617,8 +601,8 @@ const extractRelationSegments = (
     const segmentAst = parseMarkdown(segments[i]!);
     const result = extractFieldsAst(
       schema,
-      templates,
-      itemTemplate.templateAst,
+      views,
+      itemView.viewAst,
       segmentAst,
       baseChildren[i] ?? {},
     );
@@ -631,15 +615,15 @@ const extractRelationSegments = (
 
 const extractRelationFromText = (
   schema: EntitySchema,
-  templates: Templates,
+  views: Views,
   snapText: string,
-  itemTemplate: TemplateEntity,
+  itemView: ViewEntity,
   slotPosition: SlotPosition,
   baseChildren: FieldsetNested[],
 ): Result<FieldValue> => {
   const delimiter = getDelimiterForSlotPosition(
     slotPosition,
-    itemTemplate.templateFormat,
+    itemView.viewFormat,
   );
   const segments = splitByDelimiter(snapText, delimiter).filter(
     (s) => s.length > 0,
@@ -647,51 +631,48 @@ const extractRelationFromText = (
 
   return extractRelationSegments(
     schema,
-    templates,
+    views,
     segments,
-    itemTemplate,
+    itemView,
     baseChildren,
   );
 };
 
 const extractRelationFromBlocks = (
   schema: EntitySchema,
-  templates: Templates,
+  views: Views,
   blocks: Nodes[],
-  itemTemplate: TemplateEntity,
+  itemView: ViewEntity,
   slotPosition: SlotPosition,
   baseChildren: FieldsetNested[],
 ): Result<FieldValue> => {
   if (blocks.length === 0) return ok([]);
 
-  // For non-inline positions with block-level templates, we need to group
+  // For non-inline positions with block-level views, we need to group
   // blocks by entity boundaries rather than using text-based delimiters
-  // Skip for line/phrase format templates where multiple items pack into a single block
-  const templateFormat = itemTemplate.templateFormat;
+  // Skip for line/phrase format views where multiple items pack into a single block
+  const format = itemView.viewFormat;
   const isBlockGroupable =
     !isInlinePosition(slotPosition) &&
     slotPosition !== "document" &&
-    templateFormat !== "line" &&
-    templateFormat !== "phrase";
+    format !== "line" &&
+    format !== "phrase";
 
   if (isBlockGroupable) {
-    const sig = getFirstBlockSignature(itemTemplate.templateAst);
-    const templateBlockCount = getTemplateBlockCount(itemTemplate.templateAst);
+    const sig = getFirstBlockSignature(itemView.viewAst);
+    const viewBlockCount = getViewBlockCount(itemView.viewAst);
 
-    // Use signature-based splitting for templates starting with a heading
+    // Use signature-based splitting for views starting with a heading
     // (structural marker with depth). Fall back to fixed block count for
-    // paragraph-based templates where signature splitting would over-split.
+    // paragraph-based views where signature splitting would over-split.
     const blockGroups =
       sig?.type === "heading" && sig.depth !== undefined
         ? splitBlocksBySignature(blocks, sig)
-        : templateBlockCount > 0
+        : viewBlockCount > 0
           ? Array.from(
-              { length: Math.ceil(blocks.length / templateBlockCount) },
+              { length: Math.ceil(blocks.length / viewBlockCount) },
               (_, i) =>
-                blocks.slice(
-                  i * templateBlockCount,
-                  (i + 1) * templateBlockCount,
-                ),
+                blocks.slice(i * viewBlockCount, (i + 1) * viewBlockCount),
             )
           : null;
 
@@ -704,9 +685,9 @@ const extractRelationFromBlocks = (
       );
       return extractRelationSegments(
         schema,
-        templates,
+        views,
         segments,
-        itemTemplate,
+        itemView,
         baseChildren,
       );
     }
@@ -719,9 +700,9 @@ const extractRelationFromBlocks = (
 
   return extractRelationFromText(
     schema,
-    templates,
+    views,
     markdown,
-    itemTemplate,
+    itemView,
     slotPosition,
     baseChildren,
   );
@@ -729,8 +710,8 @@ const extractRelationFromBlocks = (
 
 export const extractFieldsAst = (
   schema: EntitySchema,
-  templates: Templates,
-  view: TemplateAST,
+  views: Views,
+  view: ViewAST,
   snapshot: BlockAST,
   base: FieldsetNested,
 ): Result<FieldsetNested> => {
@@ -742,7 +723,7 @@ export const extractFieldsAst = (
   const accumulateRelationValue = (
     fieldPath: FieldPath,
     value: FieldValue,
-    slot: TemplateFieldSlot,
+    slot: ViewFieldSlot,
     isMultiValue: boolean,
   ): void => {
     injectWhereFields(value, slot);
@@ -759,7 +740,7 @@ export const extractFieldsAst = (
     });
 
   const matchFieldSlot = (
-    viewChild: TemplateFieldSlot,
+    viewChild: ViewFieldSlot,
     snapChildren: Nodes[],
     state: MatchState,
     viewChildren: SimplifiedViewInlineChild[],
@@ -819,12 +800,12 @@ export const extractFieldsAst = (
     }
 
     if (isMultiValueRelation(fieldDef)) {
-      const itemTemplate = getItemTemplate(viewChild, templates);
+      const itemView = getItemView(viewChild, views);
       const valueResult = extractRelationFromText(
         schema,
-        templates,
+        views,
         snapText,
-        itemTemplate,
+        itemView,
         slotPosition,
         resolveBaseChildren(base, fieldPath),
       );
@@ -843,12 +824,12 @@ export const extractFieldsAst = (
         state.viewIndex++;
         return true;
       }
-      const itemTemplate = getItemTemplate(viewChild, templates);
+      const itemView = getItemView(viewChild, views);
       const segmentAst = parseMarkdown(snapText);
       const extractResult = extractFieldsAst(
         schema,
-        templates,
-        itemTemplate.templateAst,
+        views,
+        itemView.viewAst,
         segmentAst,
         resolveBaseChild(base, fieldPath),
       );
@@ -929,7 +910,7 @@ export const extractFieldsAst = (
 
   const getSoleFieldSlotFromParagraph = (
     node: SimplifiedViewChild | Nodes,
-  ): TemplateFieldSlot | undefined => {
+  ): ViewFieldSlot | undefined => {
     if (node.type !== "paragraph") return undefined;
     if (!("children" in node)) return undefined;
     const children = node.children as (SimplifiedViewInlineChild | Nodes)[];
@@ -937,11 +918,11 @@ export const extractFieldsAst = (
     const child = children[0];
     if (!child || !("type" in child) || child.type !== "fieldSlot")
       return undefined;
-    return child as TemplateFieldSlot;
+    return child as ViewFieldSlot;
   };
 
   const matchBlockFieldSlot = (
-    slot: TemplateFieldSlot,
+    slot: ViewFieldSlot,
     snapChildren: Nodes[],
     state: MatchState,
     viewChildren: Nodes[],
@@ -965,41 +946,37 @@ export const extractFieldsAst = (
       return false;
     }
 
-    // Collect block records until next view element or end
     const blockNodes: Nodes[] = [];
     const startIndex = state.snapIndex;
 
-    // Find where the block content ends
     const nextViewIndex = state.viewIndex + 1;
     const hasMoreViewContent = nextViewIndex < viewChildren.length;
 
     // For relations in block/section positions, we need to determine how many
-    // blocks to consume based on the template
+    // blocks to consume based on the view
     const isBlockPositionRelation =
       isRelation(fieldDef) &&
       !isInlinePosition(slotPosition) &&
       slotPosition !== "document";
 
     if (isBlockPositionRelation && hasMoreViewContent) {
-      const itemTemplate = getItemTemplate(slot, templates);
-      const templateBlockCount = getTemplateBlockCount(
-        itemTemplate.templateAst,
-      );
+      const itemView = getItemView(slot, views);
+      const viewBlockCount = getViewBlockCount(itemView.viewAst);
 
-      if (templateBlockCount > 0) {
+      if (viewBlockCount > 0) {
         if (isMultiValueRelation(fieldDef)) {
-          // For section-format templates starting with a heading, we can
+          // For section-format views starting with a heading, we can
           // detect entity boundaries by heading depth and collect all blocks
           // until the next view element at the same or shallower depth.
-          const sig = getFirstBlockSignature(itemTemplate.templateAst);
+          const sig = getFirstBlockSignature(itemView.viewAst);
           const canDetectBoundary =
             sig?.type === "heading" && sig.depth !== undefined;
 
           if (canDetectBoundary) {
             while (state.snapIndex < snapChildren.length) {
               const snapNode = snapChildren[state.snapIndex]!;
-              // Stop at a heading with depth <= the template's first heading
-              // that is NOT the template's entity heading depth (i.e. a
+              // Stop at a heading with depth <= the view.s first heading
+              // that is NOT the view.s entity heading depth (i.e. a
               // sibling/parent section boundary like ## Summary)
               if (
                 snapNode.type === "heading" &&
@@ -1016,9 +993,9 @@ export const extractFieldsAst = (
             const remainingSnapBlocks =
               snapChildren.length - state.snapIndex - 1;
             const maxEntities = Math.floor(
-              remainingSnapBlocks / templateBlockCount,
+              remainingSnapBlocks / viewBlockCount,
             );
-            const maxBlocks = maxEntities * templateBlockCount;
+            const maxBlocks = maxEntities * viewBlockCount;
 
             const matchesNextViewNode = (snapNode: Nodes): boolean => {
               if (!hasMoreViewContent) return false;
@@ -1047,10 +1024,10 @@ export const extractFieldsAst = (
             }
           }
         } else {
-          // For single relation, collect exactly as many blocks as the template expects
+          // For single relation, collect exactly as many blocks as the view expects
           while (
             state.snapIndex < snapChildren.length &&
-            blockNodes.length < templateBlockCount
+            blockNodes.length < viewBlockCount
           ) {
             blockNodes.push(snapChildren[state.snapIndex]!);
             state.snapIndex++;
@@ -1077,7 +1054,6 @@ export const extractFieldsAst = (
       }
     }
 
-    // Handle empty content
     if (blockNodes.length === 0 && startIndex === state.snapIndex) {
       if (isMultiValueRelation(fieldDef)) {
         accumulateRelationValue(fieldPath, [], slot, true);
@@ -1090,12 +1066,12 @@ export const extractFieldsAst = (
     }
 
     if (isMultiValueRelation(fieldDef)) {
-      const itemTemplate = getItemTemplate(slot, templates);
+      const itemView = getItemView(slot, views);
       const valueResult = extractRelationFromBlocks(
         schema,
-        templates,
+        views,
         blockNodes,
-        itemTemplate,
+        itemView,
         slotPosition,
         resolveBaseChildren(base, fieldPath),
       );
@@ -1109,7 +1085,7 @@ export const extractFieldsAst = (
     }
 
     if (isRelation(fieldDef)) {
-      const itemTemplate = getItemTemplate(slot, templates);
+      const itemView = getItemView(slot, views);
       const markdown = renderSimplifiedAstToMarkdown({
         type: "root",
         children: blockNodes as Root["children"],
@@ -1117,8 +1093,8 @@ export const extractFieldsAst = (
       const segmentAst = parseMarkdown(markdown);
       const extractResult = extractFieldsAst(
         schema,
-        templates,
-        itemTemplate.templateAst,
+        views,
+        itemView.viewAst,
         segmentAst,
         resolveBaseChild(base, fieldPath),
       );
@@ -1131,7 +1107,6 @@ export const extractFieldsAst = (
       return true;
     }
 
-    // For other block-level fields, convert to markdown and parse
     const markdown = renderSimplifiedAstToMarkdown({
       type: "root",
       children: blockNodes as Root["children"],
@@ -1228,7 +1203,7 @@ export const extractFieldsAst = (
       if (viewChild.type === "fieldSlot") {
         if (
           !matchFieldSlot(
-            viewChild as TemplateFieldSlot,
+            viewChild as ViewFieldSlot,
             snapChildren,
             state,
             viewChildren as SimplifiedViewInlineChild[],
@@ -1280,18 +1255,18 @@ export const extractFieldsAst = (
 
 export const extractFields = (
   schema: EntitySchema,
-  templates: Templates,
-  templateKey: TemplateKey,
+  views: Views,
+  viewKey: ViewKey,
   snapshot: BlockAST,
   base: FieldsetNested,
 ): Result<FieldsetNested> => {
-  const templateResult = findTemplateByKey(templates, templateKey);
-  if (isErr(templateResult)) return templateResult;
+  const viewResult = findViewByKey(views, viewKey);
+  if (isErr(viewResult)) return viewResult;
 
   return extractFieldsAst(
     schema,
-    templates,
-    templateResult.data.templateAst,
+    views,
+    viewResult.data.viewAst,
     snapshot,
     base,
   );
@@ -1375,7 +1350,7 @@ const findInlineFieldPosition = (
 };
 
 export const extractFieldMappings = (
-  view: TemplateAST,
+  view: ViewAST,
   snapshot: FullAST,
 ): FieldSlotMapping[] => {
   const mappings: FieldSlotMapping[] = [];

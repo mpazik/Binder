@@ -17,19 +17,19 @@ import {
   typeSystemType,
 } from "@binder/db";
 
-export type TemplateFormat = Exclude<RichtextFormat, "word">;
+export type ViewFormat = Exclude<RichtextFormat, "word">;
 
-const templateFormats = Object.fromEntries(
+const viewFormats = Object.fromEntries(
   Object.entries(richtextFormats).filter(([key]) => key !== "word"),
 );
 
-const templateFormatOptions = dataTypeDefsToOptions(templateFormats);
+const viewFormatOptions = dataTypeDefsToOptions(viewFormats);
 
 export const typeNavigationKey = "Navigation" as ConfigKey;
 export const typeNavigationUid = "_1Vz4yDeDgH" as ConfigUid;
 
-export const typeTemplateKey = "Template" as ConfigKey;
-export const typeTemplateUid = "_3Xb6zFgGjK" as ConfigUid;
+export const typeViewKey = "View" as ConfigKey;
+export const typeViewUid = "_3Xb6zFgGjK" as ConfigUid;
 
 export const fieldPathKey = "path" as ConfigKey;
 export const fieldPathUid = "_2Wa5zEfEhI" as ConfigUid;
@@ -37,17 +37,17 @@ export const fieldPathUid = "_2Wa5zEfEhI" as ConfigUid;
 export const fieldPreambleKey = "preamble" as ConfigKey;
 export const fieldPreambleUid = "_4Yc7aHhIkL" as ConfigUid;
 
-export const fieldTemplateContentKey = "templateContent" as ConfigKey;
-export const fieldTemplateContentUid = "_5Zd8bIiJlM" as ConfigUid;
+export const fieldViewContentKey = "viewContent" as ConfigKey;
+export const fieldViewContentUid = "_5Zd8bIiJlM" as ConfigUid;
 
-export const fieldTemplateKey = "template" as ConfigKey;
-export const fieldTemplateUid = "_6Ae9cJjKmN" as ConfigUid;
+export const fieldViewKey = "view" as ConfigKey;
+export const fieldViewUid = "_6Ae9cJjKmN" as ConfigUid;
 
 export const fieldLimitKey = "limit" as ConfigKey;
 export const fieldLimitUid = "_8Cg1eLlMoP" as ConfigUid;
 
-export const fieldTemplateFormatKey = "templateFormat" as ConfigKey;
-export const fieldTemplateFormatUid = "_7Bf0dKkLnO" as ConfigUid;
+export const fieldViewFormatKey = "viewFormat" as ConfigKey;
+export const fieldViewFormatUid = "_7Bf0dKkLnO" as ConfigUid;
 
 type CliConfigFieldDef = FieldDef<ConfigDataType>;
 
@@ -73,27 +73,27 @@ const fieldPreamble: CliConfigFieldDef = {
   allowMultiple: true,
 };
 
-const fieldTemplateContent: CliConfigFieldDef = {
+const fieldViewContent: CliConfigFieldDef = {
   id: newAppSystemId(3),
-  uid: fieldTemplateContentUid,
-  key: fieldTemplateContentKey,
+  uid: fieldViewContentUid,
+  key: fieldViewContentKey,
   type: fieldSystemType,
-  name: "Template Content",
-  description: "Template for rendering documents",
+  name: "View Content",
+  description: "View content for rendering documents",
   dataType: "richtext",
   richtextFormat: "document",
   allowMultiple: true,
 };
 
-const fieldTemplate: CliConfigFieldDef = {
+const fieldView: CliConfigFieldDef = {
   id: newAppSystemId(4),
-  uid: fieldTemplateUid,
-  key: fieldTemplateKey,
+  uid: fieldViewUid,
+  key: fieldViewKey,
   type: fieldSystemType,
-  name: "Template",
-  description: "Reference to rendering template",
+  name: "View",
+  description: "Reference to rendering view",
   dataType: "relation",
-  range: [typeTemplateKey],
+  range: [typeViewKey],
 };
 
 const fieldLimit: CliConfigFieldDef = {
@@ -106,15 +106,15 @@ const fieldLimit: CliConfigFieldDef = {
   dataType: "integer",
 };
 
-const fieldTemplateFormat: CliConfigFieldDef = {
+const fieldViewFormat: CliConfigFieldDef = {
   id: newAppSystemId(6),
-  uid: fieldTemplateFormatUid,
-  key: fieldTemplateFormatKey,
+  uid: fieldViewFormatUid,
+  key: fieldViewFormatKey,
   type: fieldSystemType,
-  name: "Template Format",
-  description: "Output format of the template (affects multi-value separators)",
+  name: "View Format",
+  description: "Output format of the view (affects multi-value separators)",
   dataType: "option",
-  options: templateFormatOptions,
+  options: viewFormatOptions,
   default: "block",
 };
 
@@ -132,37 +132,37 @@ const typeNavigation: TypeDef = {
     "includes",
     "children",
     "parent",
-    fieldTemplateKey,
+    fieldViewKey,
     fieldLimitKey,
   ],
 };
 
-const typeTemplate: TypeDef = {
+const typeView: TypeDef = {
   id: newAppSystemId(5),
-  uid: typeTemplateUid,
-  key: typeTemplateKey,
+  uid: typeViewUid,
+  key: typeViewKey,
   type: typeSystemType,
-  name: "Template",
-  description: "View template for rendering documents",
+  name: "View",
+  description: "View for rendering documents",
   fields: [
     "name",
     "description",
     fieldPreambleKey,
-    [fieldTemplateContentKey, { required: true }],
-    fieldTemplateFormatKey,
+    [fieldViewContentKey, { required: true }],
+    fieldViewFormatKey,
   ],
 };
 
 export const cliConfigSchema: EntitySchema<ConfigDataType> = createSchema(
   [
     fieldPath,
-    fieldTemplate,
-    fieldTemplateContent,
+    fieldView,
+    fieldViewContent,
     fieldPreamble,
-    fieldTemplateFormat,
+    fieldViewFormat,
     fieldLimit,
   ],
-  [typeNavigation, typeTemplate],
+  [typeNavigation, typeView],
 );
 
 export const cliFullConfigSchema = mergeSchema(

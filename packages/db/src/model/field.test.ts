@@ -11,7 +11,7 @@ import {
   mockNotesField,
   mockPriorityField,
   mockStepsField,
-  mockTemplatesField,
+  mockViewsField,
 } from "./config.mock.ts";
 import { coreFields } from "./schema.ts";
 
@@ -329,13 +329,13 @@ describe("field", () => {
       it("splits by horizontal rule", () => {
         check(
           "# First Doc\nContent here\n---\n# Second Doc\nMore content",
-          mockTemplatesField,
+          mockViewsField,
           ["# First Doc\nContent here", "# Second Doc\nMore content"],
         );
       });
 
       it("handles multiple horizontal rules", () => {
-        check("doc1\n---\ndoc2\n---\ndoc3", mockTemplatesField, [
+        check("doc1\n---\ndoc2\n---\ndoc3", mockViewsField, [
           "doc1",
           "doc2",
           "doc3",
@@ -345,21 +345,21 @@ describe("field", () => {
       it("handles content with headers", () => {
         check(
           "# Title\n## Section\nContent\n---\n# Another\n### Sub",
-          mockTemplatesField,
+          mockViewsField,
           ["# Title\n## Section\nContent", "# Another\n### Sub"],
         );
       });
 
       it("handles empty content", () => {
-        check("", mockTemplatesField, []);
+        check("", mockViewsField, []);
       });
 
       it("trims whitespace from items", () => {
-        check("  doc1  \n---\n  doc2  ", mockTemplatesField, ["doc1", "doc2"]);
+        check("  doc1  \n---\n  doc2  ", mockViewsField, ["doc1", "doc2"]);
       });
 
       it("handles single document without separator", () => {
-        check("# Single Doc\nWith content", mockTemplatesField, [
+        check("# Single Doc\nWith content", mockViewsField, [
           "# Single Doc\nWith content",
         ]);
       });

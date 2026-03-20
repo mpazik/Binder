@@ -8,9 +8,9 @@ import { isErr } from "@binder/utils";
 import type { FieldAttrDef, FieldDef } from "@binder/db";
 import { type LspHandler } from "../document-context.ts";
 import { getCursorContext } from "../cursor-context.ts";
-import { findTemplate } from "../../document/navigation.ts";
+import { findView } from "../../document/navigation.ts";
 import { formatWhenCondition } from "../../utils/query.ts";
-import type { TemplateFormat } from "../../cli-config-schema.ts";
+import type { ViewFormat } from "../../cli-config-schema.ts";
 
 const buildHover = (content: string, range?: LspRange): Hover => ({
   contents: { kind: MarkupKind.Markdown, value: content },
@@ -23,14 +23,14 @@ export type FieldHoverInput = {
   fieldAttrs?: FieldAttrDef;
   relationFieldDef?: FieldDef;
 };
-export type TemplateHoverInput = {
-  kind: "template";
-  templateKey: string;
-  templateName?: string;
-  templateDescription?: string;
-  templateFormat?: TemplateFormat;
+export type ViewHoverInput = {
+  kind: "view";
+  viewKey: string;
+  viewName?: string;
+  viewDescription?: string;
+  viewFormat?: ViewFormat;
 };
-export type HoverInput = FieldHoverInput | TemplateHoverInput;
+export type HoverInput = FieldHoverInput | ViewHoverInput;
 
 const renderConstraints = (
   fieldDef: FieldDef,
@@ -88,11 +88,11 @@ const renderFieldHover = (input: FieldHoverInput): string => {
   return `${title}${description}${relationSource}${constraints}${range}${options}`;
 };
 
-const renderTemplateHover = (input: TemplateHoverInput): string => {
-  const name = input.templateName ?? input.templateKey;
-  const title = `**${name}** (template)`;
-  const description = input.templateDescription
-    ? `\n\n${input.templateDescription}`
+const renderViewHover = (input: ViewHoverInput): string => {
+  const name = input.viewName ?? input.viewKey;
+  const title = `**${name}** (view)`;
+  const description = input.viewDescription
+    ? `\n\n${input.viewDescription}`
     : "";
 
   return `${title}${description}`;
@@ -100,7 +100,7 @@ const renderTemplateHover = (input: TemplateHoverInput): string => {
 
 export const renderHoverContent = (input: HoverInput): string => {
   if (input.kind === "field") return renderFieldHover(input);
-  return renderTemplateHover(input);
+  return renderViewHover(input);
 };
 
 export const handleHover: LspHandler<HoverParams, Hover | null> = async (
@@ -130,20 +130,17 @@ export const handleHover: LspHandler<HoverParams, Hover | null> = async (
     return buildHover(content, cursorContext.range);
   }
 
-  if (cursorContext.type === "template") {
-    const templatesResult = await runtime.templates();
-    if (isErr(templatesResult)) return null;
+  if (cursorContext.type === "view") {
+    const viewsResult = await runtime.views();
+    if (isErr(viewsResult)) return null;
 
-    const template = findTemplate(
-      templatesResult.data,
-      cursorContext.templateKey,
-    );
+    const viewEntity = findView(viewsResult.data, cursorContext.viewKey);
     const content = renderHoverContent({
-      kind: "template",
-      templateKey: cursorContext.templateKey,
-      templateName: template.name,
-      templateDescription: template.description,
-      templateFormat: template.templateFormat,
+      kind: "view",
+      viewKey: cursorContext.viewKey,
+      viewName: viewEntity.name,
+      viewDescription: viewEntity.description,
+      viewFormat: viewEntity.viewFormat,
     });
     return buildHover(content);
   }

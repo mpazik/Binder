@@ -6,10 +6,9 @@ status: active
 description: Defines how entities are rendered as markdown files and how content is extracted back into structured data. Views use field slot interpolation with pipe-delimited props for filtering and sub-view references. Rendered files support bidirectional sync so editing a file updates the underlying entity.
 alternativeNames: [ template, rendered document, snapshot ]
 sourceFiles:
-  - packages/cli/src/document/template.ts
-  - packages/cli/src/document/template-entity.ts
+  - packages/cli/src/document/view.ts
+  - packages/cli/src/document/view-entity.ts
   - packages/cli/src/document/extraction.ts
-  - packages/cli/src/document/synchronizer.ts
 relatesTo:
   - entity
   - type

@@ -40,7 +40,7 @@ import {
   CONFIG_NAVIGATION_ITEMS,
   findNavigationItemByPath,
   getNavigationFilePatterns,
-  getPathTemplate,
+  getPathPattern,
   type NavigationItem,
 } from "./navigation.ts";
 import { parseYamlList } from "./yaml.ts";
@@ -50,7 +50,7 @@ import {
   type ExtractedProjection,
 } from "./extraction.ts";
 import { normalizeReferences, normalizeReferencesList } from "./reference.ts";
-import { type Templates } from "./template-entity.ts";
+import { type Views } from "./view-entity.ts";
 
 const diffSingle = async (
   kg: KnowledgeGraph,
@@ -213,7 +213,7 @@ export const extractFileChanges = async <N extends NamespaceEditable>(
   schema: EntitySchema,
   relativePath: string,
   namespace: N,
-  templates: Templates,
+  views: Views,
   sourceContent?: string,
   entityUid?: EntityUid,
 ): ResultAsync<ChangesetsInput<N>> => {
@@ -231,7 +231,7 @@ export const extractFileChanges = async <N extends NamespaceEditable>(
     pathFields = { uid: entityUid };
   } else {
     const pathFieldsResult = extractFieldValues(
-      getPathTemplate(navItem),
+      getPathPattern(navItem),
       relativePath,
     );
     if (isErr(pathFieldsResult)) return pathFieldsResult;
@@ -245,10 +245,8 @@ export const extractFileChanges = async <N extends NamespaceEditable>(
     : await fs.readFile(absolutePath);
   if (isErr(contentResult)) return contentResult;
 
-  const templateIncludes = navItem.template
-    ? templates.find((t) => t.key === navItem.template)?.templateIncludes
-    : undefined;
-  const includes = navItem.includes ?? templateIncludes;
+  const includes =
+    navItem.includes ?? views.find((t) => t.key === navItem.view)?.viewIncludes;
 
   const baseResult = await kg.search(
     {
@@ -267,7 +265,7 @@ export const extractFileChanges = async <N extends NamespaceEditable>(
     navItem,
     contentResult.data,
     absolutePath,
-    templates,
+    views,
     base,
   );
   if (isErr(extractResult)) {
@@ -295,7 +293,7 @@ const extractNamespaceChanges = async <N extends NamespaceEditable>(
   { fs, config, kg, nav }: RuntimeContextWithDb,
   modifiedFiles: SnapshotChangeMetadata[],
   namespace: N,
-  templates: Templates,
+  views: Views,
 ): ResultAsync<ChangesetsInput<N>> => {
   const changesets: ChangesetsInput<N> = [];
   const navigationItemsResult = await nav(namespace);
@@ -314,7 +312,7 @@ const extractNamespaceChanges = async <N extends NamespaceEditable>(
       schemaResult.data,
       file.path,
       namespace,
-      templates,
+      views,
       undefined,
       entityUid,
     );
@@ -354,7 +352,6 @@ const detectCrossFileConflicts = <N extends NamespaceEditable>(
       );
     }
 
-    // Check all field keys across the group for conflicting values
     const fieldValues = new Map<string, unknown>();
     for (const cs of group) {
       for (const [key, value] of Object.entries(cs)) {
@@ -447,9 +444,9 @@ export const extractModifiedFileChanges = async (
 
   if (configFiles.length === 0 && nodeFiles.length === 0) return ok(null);
 
-  const templatesResult = await runtime.templates();
-  if (isErr(templatesResult)) return templatesResult;
-  const templates = templatesResult.data;
+  const viewsResult = await runtime.views();
+  if (isErr(viewsResult)) return viewsResult;
+  const views = viewsResult.data;
 
   const recordRuntime = hasNavChange
     ? {
@@ -462,8 +459,8 @@ export const extractModifiedFileChanges = async (
     : runtime;
 
   const [configsResult, recordsResult] = await Promise.all([
-    extractNamespaceChanges(runtime, configFiles, "config", templates),
-    extractNamespaceChanges(recordRuntime, nodeFiles, "record", templates),
+    extractNamespaceChanges(runtime, configFiles, "config", views),
+    extractNamespaceChanges(recordRuntime, nodeFiles, "record", views),
   ]);
 
   if (isErr(configsResult)) return configsResult;

@@ -20,7 +20,7 @@ export JOURNAL_DIR="$HOME/journal"
 # Initialize binder workspace and apply the schema
 mkdir -p $JOURNAL_DIR && cd $JOURNAL_DIR
 binder init
-binder blueprint apply /path/to/journal.yaml
+binder tx import /path/to/journal.yaml
 
 # Add to your shell profile
 echo 'export JOURNAL_DIR="$HOME/journal"' >> ~/.zshrc

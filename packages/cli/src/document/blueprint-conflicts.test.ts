@@ -10,11 +10,6 @@ import { createRealFileSystem } from "../lib/filesystem.ts";
 import { renderDocs } from "./repository.ts";
 import { extractModifiedFileChanges } from "./change-extractor.ts";
 
-/**
- * Integration tests that bootstrap from the project blueprint,
- * render documents, then modify them to trigger the three conflict
- * cases covered by the three-way field extraction spec.
- */
 describe("blueprint conflict detection", () => {
   let ctx: RuntimeContextWithDb;
   let kg: KnowledgeGraph;
@@ -42,7 +37,7 @@ describe("blueprint conflict detection", () => {
         fs: ctx.fs,
         log: ctx.log,
         config: ctx.config,
-        templates: ctx.templates,
+        views: ctx.views,
       }),
     );
   });
@@ -81,7 +76,7 @@ describe("blueprint conflict detection", () => {
     });
   });
 
-  describe("Case 2: duplicate field slot in template", () => {
+  describe("Case 2: duplicate field slot in view", () => {
     it("syncs when duplicate slots have same value", async () => {
       const filePath = join(ctx.config.paths.docs, "summaries/build-auth.md");
       const original = throwIfError(await ctx.fs.readFile(filePath));

@@ -10,7 +10,7 @@ import type {
   MarkdownDocumentContext,
 } from "../document-context.ts";
 import { unistPositionToLspRange } from "../cursor-context.ts";
-import type { FieldSlotMapping } from "../../document/template.ts";
+import type { FieldSlotMapping } from "../../document/view.ts";
 
 // Token types must match client's supported types (from initialization)
 export const TOKEN_TYPES = [

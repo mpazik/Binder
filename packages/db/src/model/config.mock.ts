@@ -315,11 +315,11 @@ export const mockChaptersField = {
   allowMultiple: true,
 } as const satisfies RecordFieldDef;
 
-export const mockTemplatesFieldKey = "templates" as ConfigKey;
-export const mockTemplatesField = {
+export const mockViewsFieldKey = "templates" as ConfigKey;
+export const mockViewsField = {
   id: newUserConfigId(17),
   uid: "_fldTmpls02" as ConfigUid,
-  key: mockTemplatesFieldKey,
+  key: mockViewsFieldKey,
   type: fieldSystemType,
   name: "Templates",
   description: "Document templates",

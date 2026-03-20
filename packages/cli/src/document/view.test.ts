@@ -22,29 +22,29 @@ import {
   extractFieldsAst,
   extractFieldSlotsFromAst,
   type FieldSlotMapping,
-  parseTemplate,
-  renderTemplateAst,
-} from "./template.ts";
+  parseView,
+  renderViewAst,
+} from "./view.ts";
 import { parseAst, parseMarkdown } from "./markdown.ts";
-import { createTemplateEntity, type Templates } from "./template-entity.ts";
-import { mockDefaultTemplates, mockTaskTemplate } from "./template.mock.ts";
+import { createViewEntity, type Views } from "./view-entity.ts";
+import { mockDefaultViews, mockTaskView } from "./view.mock.ts";
 
-describe("template", () => {
-  const taskItemTemplate = createTemplateEntity("task-item", "- {title}", {
-    templateFormat: "line",
+describe("view", () => {
+  const taskItemView = createViewEntity("task-item", "- {title}", {
+    viewFormat: "line",
   });
-  const whereTemplates: Templates = [...mockDefaultTemplates, taskItemTemplate];
+  const whereViews: Views = [...mockDefaultViews, taskItemView];
 
-  describe("renderTemplateAst", () => {
+  describe("renderViewAst", () => {
     const check = (
       view: string,
       data: FieldsetNested,
       expected: string,
-      templates: Templates = mockDefaultTemplates,
+      views: Views = mockDefaultViews,
     ) => {
-      const ast = parseTemplate(view);
+      const ast = parseView(view);
       const result = throwIfError(
-        renderTemplateAst(mockRecordSchema, templates, ast, data),
+        renderViewAst(mockRecordSchema, views, ast, data),
       );
       expect(result).toBe(expected);
     };
@@ -53,10 +53,10 @@ describe("template", () => {
       view: string,
       data: FieldsetNested,
       expectedKey: string,
-      templates: Templates = mockDefaultTemplates,
+      views: Views = mockDefaultViews,
     ) => {
-      const ast = parseTemplate(view);
-      const result = renderTemplateAst(mockRecordSchema, templates, ast, data);
+      const ast = parseView(view);
+      const result = renderViewAst(mockRecordSchema, views, ast, data);
       expect(result).toBeErrWithKey(expectedKey);
     };
 
@@ -394,17 +394,17 @@ describe("template", () => {
         );
       });
 
-      it("custom template", () => {
-        const template = createTemplateEntity(
+      it("custom view", () => {
+        const viewEntry = createViewEntity(
           "project-item",
           "**{title}** ({status})",
-          { templateFormat: "phrase" },
+          { viewFormat: "phrase" },
         );
         check(
-          "**Project:** {project|template:project-item}\n",
+          "**Project:** {project|view:project-item}\n",
           { project: mockProjectRecord },
           `**Project:** **${mockProjectRecord.title}** (${mockProjectRecord.status})\n`,
-          [template],
+          [viewEntry],
         );
       });
 
@@ -414,7 +414,7 @@ describe("template", () => {
     });
 
     describe("multi-value relation", () => {
-      it("default template", () => {
+      it("default view", () => {
         check(
           "## Tasks\n\n{tasks}\n",
           {
@@ -424,32 +424,32 @@ describe("template", () => {
         );
       });
 
-      it("template key lookup for status", () => {
-        const template = createTemplateEntity(
+      it("view key lookup for status", () => {
+        const viewEntry = createViewEntity(
           "task-status",
           "- {title}: {status}",
           {
-            templateFormat: "line",
+            viewFormat: "line",
           },
         );
         check(
-          "## Tasks\n\n{tasks|template:task-status}\n",
+          "## Tasks\n\n{tasks|view:task-status}\n",
           { tasks: [mockTask2Record, mockTask3Record] },
           `## Tasks\n\n- ${mockTask2Record.title}: ${mockTask2Record.status}\n- ${mockTask3Record.title}: ${mockTask3Record.status}\n`,
-          [template],
+          [viewEntry],
         );
       });
 
-      it("template key lookup", () => {
-        const template = createTemplateEntity("task-item", "- **{title}**", {
-          templateFormat: "line",
+      it("view key lookup", () => {
+        const viewEntry = createViewEntity("task-item", "- **{title}**", {
+          viewFormat: "line",
         });
 
         check(
-          "{tasks|template:task-item}\n",
+          "{tasks|view:task-item}\n",
           { tasks: [mockTask2Record, mockTask3Record] },
           `- **${mockTask2Record.title}**\n- **${mockTask3Record.title}**\n`,
-          [template],
+          [viewEntry],
         );
       });
 
@@ -492,7 +492,7 @@ describe("template", () => {
 
     describe("where: filter", () => {
       it("filters multi-value relation in section position", () => {
-        const view = `## Pending\n\n{tasks|where:status=pending|template:task-item}\n\n## Active\n\n{tasks|where:status=active|template:task-item}\n`;
+        const view = `## Pending\n\n{tasks|where:status=pending|view:task-item}\n\n## Active\n\n{tasks|where:status=active|view:task-item}\n`;
         const data = {
           tasks: [mockTask1Record, mockTask2Record, mockTask3Record],
         };
@@ -500,46 +500,46 @@ describe("template", () => {
           view,
           data,
           `## Pending\n\n- ${mockTask1Record.title}\n- ${mockTask2Record.title}\n\n## Active\n\n- ${mockTask3Record.title}\n`,
-          whereTemplates,
+          whereViews,
         );
       });
 
       it("where: with no matches produces empty section", () => {
-        const view = `## Cancelled\n\n{tasks|where:status=cancelled|template:task-item}\n\n## Active\n\n{tasks|where:status=active|template:task-item}\n`;
+        const view = `## Cancelled\n\n{tasks|where:status=cancelled|view:task-item}\n\n## Active\n\n{tasks|where:status=active|view:task-item}\n`;
         const data = { tasks: [mockTask3Record] };
         check(
           view,
           data,
           `## Cancelled\n\n## Active\n\n- ${mockTask3Record.title}\n`,
-          whereTemplates,
+          whereViews,
         );
       });
 
       it("where: with multiple conditions (AND)", () => {
-        const view = `{tasks|where:status=pending AND priority=medium|template:task-item}\n`;
+        const view = `{tasks|where:status=pending AND priority=medium|view:task-item}\n`;
         const data = {
           tasks: [
             mockTask1Record, // pending, medium
             mockTask3Record, // active, medium
           ],
         };
-        check(view, data, `- ${mockTask1Record.title}\n`, whereTemplates);
+        check(view, data, `- ${mockTask1Record.title}\n`, whereViews);
       });
 
-      it("where: combined with template:", () => {
-        const sectionTemplate = createTemplateEntity(
+      it("where: combined with view:", () => {
+        const sectionView = createViewEntity(
           "task-section",
           `### {title}\n\n{description}\n`,
-          { templateFormat: "section" },
+          { viewFormat: "section" },
         );
-        const templates: Templates = [...mockDefaultTemplates, sectionTemplate];
-        const view = `## Active Tasks\n\n{tasks|where:status=active|template:task-section}\n\n## End\n`;
+        const views: Views = [...mockDefaultViews, sectionView];
+        const view = `## Active Tasks\n\n{tasks|where:status=active|view:task-section}\n\n## End\n`;
         const data = { tasks: [mockTask1Record, mockTask3Record] };
         check(
           view,
           data,
           `## Active Tasks\n\n### ${mockTask3Record.title}\n\n${mockTask3Record.description}\n\n## End\n`,
-          templates,
+          views,
         );
       });
     });
@@ -583,7 +583,7 @@ describe("template", () => {
 
       it("document-format richtext in inline position", () => {
         checkError(
-          "**Templates:** {templates}\n",
+          "**Views:** {templates}\n",
           { templates: ["Doc content"] },
           "format-position-incompatible",
         );
@@ -597,42 +597,42 @@ describe("template", () => {
         );
       });
 
-      it("section template in inline slot position", () => {
-        const template = createTemplateEntity(
+      it("section view in inline slot position", () => {
+        const viewEntry = createViewEntity(
           "section-tpl",
           "### {title}\n\n{description}",
-          { templateFormat: "section" },
+          { viewFormat: "section" },
         );
         checkError(
-          "**Project:** {project|template:section-tpl}\n",
+          "**Project:** {project|view:section-tpl}\n",
           { project: mockProjectRecord },
           "format-position-incompatible",
-          [template],
+          [viewEntry],
         );
       });
 
-      it("document template in block slot position", () => {
-        const template = createTemplateEntity(
+      it("document view in block slot position", () => {
+        const viewEntry = createViewEntity(
           "doc-tpl",
           "# {title}\n\n{description}",
-          { templateFormat: "document" },
+          { viewFormat: "document" },
         );
         checkError(
-          "{project|template:doc-tpl}\n\nMore content.\n",
+          "{project|view:doc-tpl}\n\nMore content.\n",
           { project: mockProjectRecord },
           "format-position-incompatible",
-          [template],
+          [viewEntry],
         );
       });
 
-      it("circular template reference", () => {
-        const selfRefTemplate = createTemplateEntity(
+      it("circular view reference", () => {
+        const selfRefView = createViewEntity(
           "self-ref",
-          "{title}\n\n{project|template:self-ref}",
-          { templateFormat: "block" },
+          "{title}\n\n{project|view:self-ref}",
+          { viewFormat: "block" },
         );
         checkError(
-          "{project|template:self-ref}\n",
+          "{project|view:self-ref}\n",
           {
             project: {
               title: "Outer Project",
@@ -641,8 +641,8 @@ describe("template", () => {
               },
             },
           },
-          "template-cycle-detected",
-          [selfRefTemplate],
+          "view-cycle-detected",
+          [selfRefView],
         );
       });
     });
@@ -653,13 +653,13 @@ describe("template", () => {
       view: string,
       output: string,
       expected: FieldsetNested,
-      templates: Templates = mockDefaultTemplates,
+      views: Views = mockDefaultViews,
       base: FieldsetNested = {},
     ) => {
-      const viewAst = parseTemplate(view);
+      const viewAst = parseView(view);
       const snapAst = parseMarkdown(output);
       const result = throwIfError(
-        extractFieldsAst(mockRecordSchema, templates, viewAst, snapAst, base),
+        extractFieldsAst(mockRecordSchema, views, viewAst, snapAst, base),
       );
       expect(result).toEqual(expected);
     };
@@ -670,11 +670,11 @@ describe("template", () => {
       expectedKey: string,
       base: FieldsetNested = {},
     ) => {
-      const ast = parseTemplate(view);
+      const ast = parseView(view);
       const snapAst = parseMarkdown(output);
       const result = extractFieldsAst(
         mockRecordSchema,
-        mockDefaultTemplates,
+        mockDefaultViews,
         ast,
         snapAst,
         base,
@@ -973,7 +973,7 @@ describe("template", () => {
     });
 
     describe("multi-value relation", () => {
-      it("default template", () => {
+      it("default view", () => {
         check(
           "## Tasks\n\n{tasks}\n",
           "## Tasks\n\n### Task 1\n\nDescription 1\n\n### Task 2\n\nDescription 2\n",
@@ -1080,14 +1080,14 @@ describe("template", () => {
         );
       });
 
-      it("section template with trailing empty field", () => {
-        const weekSummaryTemplate = createTemplateEntity(
+      it("section view with trailing empty field", () => {
+        const weekSummaryView = createViewEntity(
           "week-summary",
           "### {title}\n\n{description}\n",
-          { templateFormat: "section" },
+          { viewFormat: "section" },
         );
         check(
-          "# {title}\n\n## Plan\n\n{notes}\n\n## Weeks Summary\n\n{tasks|template:week-summary}\n\n## Summary\n\n{description}\n",
+          "# {title}\n\n## Plan\n\n{notes}\n\n## Weeks Summary\n\n{tasks|view:week-summary}\n\n## Summary\n\n{description}\n",
           `# 2025-01
 
 ## Plan
@@ -1116,11 +1116,11 @@ Excellent first week. Schema is minimal and consistent.
             ],
             description: null,
           },
-          [...mockDefaultTemplates, weekSummaryTemplate],
+          [...mockDefaultViews, weekSummaryView],
         );
       });
 
-      describe("section template with custom schema", () => {
+      describe("section view with custom schema", () => {
         const journalSchema = mergeSchema(coreSchema(), {
           fields: {
             dayPeriod: {
@@ -1141,20 +1141,17 @@ Excellent first week. Schema is minimal and consistent.
           types: {},
         }) as EntitySchema;
 
-        const daySummaryTemplate = createTemplateEntity(
+        const daySummaryView = createViewEntity(
           "day-summary",
           "### {dayPeriod}\n\n{summary}\n",
-          { templateFormat: "section" },
+          { viewFormat: "section" },
         );
 
-        const daySummaryTemplates: Templates = [
-          ...mockDefaultTemplates,
-          daySummaryTemplate,
-        ];
+        const daySummaryViews: Views = [...mockDefaultViews, daySummaryView];
 
         it("empty block fields in some entities", () => {
-          const viewAst = parseTemplate(
-            "## Days Summary\n\n{children|template:day-summary}\n\n## Summary\n\n{description}\n",
+          const viewAst = parseView(
+            "## Days Summary\n\n{children|view:day-summary}\n\n## Summary\n\n{description}\n",
           );
           const snapAst = parseMarkdown(
             "## Days Summary\n\n### 2026-02-09\n\n### 2026-02-10\n\nGood day.\n\n## Summary\n\n",
@@ -1162,7 +1159,7 @@ Excellent first week. Schema is minimal and consistent.
           const result = throwIfError(
             extractFieldsAst(
               journalSchema,
-              daySummaryTemplates,
+              daySummaryViews,
               viewAst,
               snapAst,
               {},
@@ -1178,8 +1175,8 @@ Excellent first week. Schema is minimal and consistent.
         });
 
         it("realistic base with unchanged null fields produces sparse diff", () => {
-          const viewAst = parseTemplate(
-            "## Days Summary\n\n{children|template:day-summary}\n\n## Summary\n\n{description}\n",
+          const viewAst = parseView(
+            "## Days Summary\n\n{children|view:day-summary}\n\n## Summary\n\n{description}\n",
           );
           const snapAst = parseMarkdown(
             "## Days Summary\n\n### 2026-02-24\n\n### 2026-02-25\n\nGood day.\n\n## Summary\n\n",
@@ -1203,7 +1200,7 @@ Excellent first week. Schema is minimal and consistent.
           const result = throwIfError(
             extractFieldsAst(
               journalSchema,
-              daySummaryTemplates,
+              daySummaryViews,
               viewAst,
               snapAst,
               base,
@@ -1219,7 +1216,7 @@ Excellent first week. Schema is minimal and consistent.
     describe("where: filter extraction", () => {
       it("extracts from two where: sections and concatenates entities", () => {
         check(
-          `## Pending\n\n{tasks|where:status=pending|template:task-item}\n\n## Active\n\n{tasks|where:status=active|template:task-item}\n`,
+          `## Pending\n\n{tasks|where:status=pending|view:task-item}\n\n## Active\n\n{tasks|where:status=active|view:task-item}\n`,
           `## Pending\n\n- Write docs\n- Create logo\n\n## Active\n\n- Markdown support\n`,
           {
             tasks: [
@@ -1228,29 +1225,29 @@ Excellent first week. Schema is minimal and consistent.
               { title: "Markdown support", status: "active" },
             ],
           },
-          whereTemplates,
+          whereViews,
         );
       });
 
       it("empty where: section contributes no entities", () => {
         check(
-          `## Pending\n\n{tasks|where:status=pending|template:task-item}\n\n## Active\n\n{tasks|where:status=active|template:task-item}\n`,
+          `## Pending\n\n{tasks|where:status=pending|view:task-item}\n\n## Active\n\n{tasks|where:status=active|view:task-item}\n`,
           `## Pending\n\n## Active\n\n- Markdown support\n`,
           {
             tasks: [{ title: "Markdown support", status: "active" }],
           },
-          whereTemplates,
+          whereViews,
         );
       });
 
       it("single where: section extracts with injected fields", () => {
         check(
-          `## Active\n\n{tasks|where:status=active|template:task-item}\n`,
+          `## Active\n\n{tasks|where:status=active|view:task-item}\n`,
           `## Active\n\n- Task one\n`,
           {
             tasks: [{ title: "Task one", status: "active" }],
           },
-          whereTemplates,
+          whereViews,
         );
       });
     });
@@ -1335,7 +1332,7 @@ Excellent first week. Schema is minimal and consistent.
           "# {title}\n\n**Title again:** {title}\n",
           "# New Title\n\n**Title again:** Original Title\n",
           { title: "New Title" },
-          mockDefaultTemplates,
+          mockDefaultViews,
           { title: "Original Title" },
         );
       });
@@ -1345,7 +1342,7 @@ Excellent first week. Schema is minimal and consistent.
           "# {title}\n\n**Title again:** {title}\n",
           "# Original Title\n\n**Title again:** Original Title\n",
           {},
-          mockDefaultTemplates,
+          mockDefaultViews,
           { title: "Original Title" },
         );
       });
@@ -1357,23 +1354,23 @@ Excellent first week. Schema is minimal and consistent.
       view: string,
       snapshot: string,
       expected: FieldsetNested,
-      templates: Templates = mockDefaultTemplates,
+      views: Views = mockDefaultViews,
     ) => {
-      const viewAst = parseTemplate(view);
+      const viewAst = parseView(view);
       const snapAst = parseMarkdown(snapshot);
       const extracted = throwIfError(
-        extractFieldsAst(mockRecordSchema, templates, viewAst, snapAst, {}),
+        extractFieldsAst(mockRecordSchema, views, viewAst, snapAst, {}),
       );
       expect(extracted).toEqual(expected);
       const rendered = throwIfError(
-        renderTemplateAst(mockRecordSchema, templates, viewAst, extracted),
+        renderViewAst(mockRecordSchema, views, viewAst, extracted),
       );
       expect(rendered).toBe(snapshot);
     };
 
     it("where-filtered relation sections", () => {
       checkRoundTrip(
-        `# {title}\n\n{description}\n\n## Pending\n\n{tasks|where:status=pending|template:task-item}\n\n## Active\n\n{tasks|where:status=active|template:task-item}\n`,
+        `# {title}\n\n{description}\n\n## Pending\n\n{tasks|where:status=pending|view:task-item}\n\n## Active\n\n{tasks|where:status=active|view:task-item}\n`,
         `# Pre-Launch\n\nPrepare for release.\n\n## Pending\n\n- Write docs\n- Create logo\n\n## Active\n\n- Markdown support\n`,
         {
           title: "Pre-Launch",
@@ -1384,13 +1381,13 @@ Excellent first week. Schema is minimal and consistent.
             { title: "Markdown support", status: "active" },
           ],
         },
-        whereTemplates,
+        whereViews,
       );
     });
 
     it("extracted fields", () => {
       checkRoundTrip(
-        mockTaskTemplate.templateContent,
+        mockTaskView.viewContent,
         `# Implement user authentication\n\n**Status:** todo\n\n## Description\n\nAdd login and registration functionality with JWT tokens\n`,
         {
           title: "Implement user authentication",
@@ -1404,8 +1401,8 @@ Excellent first week. Schema is minimal and consistent.
   });
 
   describe("extractFieldSlotsFromAst", () => {
-    const check = (template: string, expected: string[]) => {
-      const ast = parseTemplate(template);
+    const check = (content: string, expected: string[]) => {
+      const ast = parseView(content);
       expect(extractFieldSlotsFromAst(ast)).toEqual(expected);
     };
 
@@ -1421,7 +1418,7 @@ Excellent first week. Schema is minimal and consistent.
       check("{project.title}\n", ["project.title"]);
     });
 
-    it("returns empty array for template without slots", () => {
+    it("returns empty array for view without slots", () => {
       check("# Static Title\n\nNo fields here\n", []);
     });
 
@@ -1431,8 +1428,8 @@ Excellent first week. Schema is minimal and consistent.
   });
 
   describe("extractFieldPathsFromAst", () => {
-    const check = (template: string, expected: string[][]) => {
-      const ast = parseTemplate(template);
+    const check = (content: string, expected: string[][]) => {
+      const ast = parseView(content);
       expect(extractFieldPathsFromAst(ast)).toEqual(expected);
     };
 
@@ -1448,27 +1445,27 @@ Excellent first week. Schema is minimal and consistent.
       check("{project.title}\n", [["project", "title"]]);
     });
 
-    it("extracts path without modifier when slot has template modifier", () => {
-      check("{children|template:task-item}\n", [["children"]]);
+    it("extracts path without modifier when slot has view modifier", () => {
+      check("{children|view:task-item}\n", [["children"]]);
     });
 
     it("extracts path without modifier for nested path with modifier", () => {
-      check("{parent.tasks|template:task-item}\n", [["parent", "tasks"]]);
+      check("{parent.tasks|view:task-item}\n", [["parent", "tasks"]]);
     });
 
-    it("returns empty array for template without slots", () => {
+    it("returns empty array for view without slots", () => {
       check("# Static Title\n\nNo fields here\n", []);
     });
   });
 
   describe("extractFieldMappings", () => {
     const check = (
-      template: string,
+      viewContent: string,
       document: string,
       expected: FieldSlotMapping[],
     ) => {
       const mappings = extractFieldMappings(
-        parseTemplate(template),
+        parseView(viewContent),
         parseAst(document),
       );
       expect(mappings).toEqual(expected);
@@ -1521,7 +1518,7 @@ Excellent first week. Schema is minimal and consistent.
       ]);
     });
 
-    it("returns empty array for template without slots", () => {
+    it("returns empty array for view without slots", () => {
       check("# Static Title\n", "# Static Title\n", []);
     });
 

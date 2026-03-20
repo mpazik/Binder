@@ -39,7 +39,7 @@ import { interpolateQueryParams } from "../utils/query.ts";
 import { saveSnapshot } from "../lib/snapshot.ts";
 import type { FileSystem } from "../lib/filesystem.ts";
 import { BINDER_DIR, type ConfigPaths } from "../config.ts";
-import { renderTemplate } from "./template.ts";
+import { renderView } from "./view.ts";
 import {
   findEntityInYamlList,
   renderYamlEntity,
@@ -48,12 +48,12 @@ import {
 import { formatReferences, formatReferencesList } from "./reference.ts";
 import type { FileType } from "./document.ts";
 import {
-  DOCUMENT_TEMPLATE_KEY,
-  TEMPLATE_TEMPLATE_KEY,
-  type TemplateEntity,
-  type TemplateKey,
-  type Templates,
-} from "./template-entity.ts";
+  DOCUMENT_VIEW_KEY,
+  VIEW_VIEW_KEY,
+  type ViewEntity,
+  type ViewKey,
+  type Views,
+} from "./view-entity.ts";
 import { prependFrontmatter, renderFrontmatterString } from "./frontmatter.ts";
 
 export type RenderResult = {
@@ -73,7 +73,7 @@ const mergeRenderResults = (results: RenderResult[]): RenderResult => ({
 
 const inferFileType = (item: NavigationItem): FileType => {
   if (item.path.endsWith("/")) return "directory";
-  if (item.template !== undefined) return "markdown";
+  if (item.view !== undefined) return "markdown";
   return "yaml";
 };
 
@@ -83,13 +83,13 @@ const getExtension = (fileType: FileType): string => {
   return "";
 };
 
-export const getPathTemplate = (item: NavigationItem): string =>
+export const getPathPattern = (item: NavigationItem): string =>
   item.path + getExtension(inferFileType(item));
 
 export type NavigationItem = {
   path: string;
   where?: Filters;
-  template?: string;
+  view?: string;
   includes?: Includes;
   query?: QueryParams;
   limit?: number;
@@ -106,7 +106,7 @@ export type RenderContext = {
   schema: EntitySchema;
   version: GraphVersion;
   namespace: NamespaceEditable;
-  templates: Templates;
+  views: Views;
   log: Logger;
 };
 
@@ -130,17 +130,17 @@ export const CONFIG_NAVIGATION_ITEMS: NavigationItem[] = [
     },
   },
   {
-    path: `${BINDER_DIR}/templates/{key}`,
-    where: { type: "Template" },
-    template: TEMPLATE_TEMPLATE_KEY,
+    path: `${BINDER_DIR}/views/{key}`,
+    where: { type: "View" },
+    view: VIEW_VIEW_KEY,
   },
 ];
 
 export const getNavigationFilePatterns = (items: NavigationItem[]): string[] =>
   items.map((item) => {
-    const template = getPathTemplate(item);
-    const result = interpolatePlain(template, () => ok("*"));
-    return isErr(result) ? template : result.data;
+    const pattern = getPathPattern(item);
+    const result = interpolatePlain(pattern, () => ok("*"));
+    return isErr(result) ? pattern : result.data;
   });
 
 export const buildNavigationTree = (
@@ -164,7 +164,7 @@ export const buildNavigationTree = (
     return {
       path: item.path as string,
       where: item.where as Filters | undefined,
-      template: item.template as string | undefined,
+      view: item.view as string | undefined,
       includes: item.includes as Includes | undefined,
       query: item.query as QueryParams | undefined,
       limit: item.limit as number | undefined,
@@ -219,8 +219,8 @@ export const findNavigationItemByPath = (
       const found = findNavigationItemByPath(item.children, remainingPath);
       if (found) return found;
     } else {
-      const pathTemplate = item.path + getExtension(fileType);
-      const pathFieldsResult = extractFieldValues(pathTemplate, path);
+      const pathPattern = item.path + getExtension(fileType);
+      const pathFieldsResult = extractFieldValues(pathPattern, path);
       if (isErr(pathFieldsResult)) continue;
       return item;
     }
@@ -235,10 +235,10 @@ export const resolvePath = (
 ): Result<string> => {
   const fileType = inferFileType(navItem);
   const extension = getExtension(fileType);
-  const pathTemplate = navItem.path + extension;
+  const pathPattern = navItem.path + extension;
   const context = [entity, ...parentEntities];
 
-  return interpolateAncestralFields(schema, pathTemplate, (fieldName, depth) =>
+  return interpolateAncestralFields(schema, pathPattern, (fieldName, depth) =>
     sanitizeFilename(
       stringifyFieldValue(
         context[depth]?.[fieldName],
@@ -270,18 +270,13 @@ const getExcludedFields = (
   return excluded;
 };
 
-export const findTemplate = (
-  templates: Templates,
-  key: string | undefined,
-): TemplateEntity => {
-  const found = templates.find((t) => t.key === key);
+export const findView = (views: Views, key: string | undefined): ViewEntity => {
+  const found = views.find((t) => t.key === key);
   if (found) return found;
-  const defaultTemplate = templates.find(
-    (t) => t.key === DOCUMENT_TEMPLATE_KEY,
-  );
+  const defaultView = views.find((t) => t.key === DOCUMENT_VIEW_KEY);
   return assertDefinedPass(
-    defaultTemplate,
-    `DOCUMENT_TEMPLATE_KEY "${DOCUMENT_TEMPLATE_KEY}" in templates`,
+    defaultView,
+    `DOCUMENT_VIEW_KEY "${DOCUMENT_VIEW_KEY}" in views`,
   );
 };
 
@@ -293,32 +288,32 @@ const renderContent = async (
   parentEntities: AncestralFieldsetChain,
   fileType: FileType,
   namespace: NamespaceEditable,
-  templates: Templates,
+  views: Views,
 ): ResultAsync<string | null> => {
   if (fileType === "markdown") {
     const formattedEntity = await formatReferences(entity, schema, kg);
     if (isErr(formattedEntity)) return formattedEntity;
 
-    const template = findTemplate(templates, item.template);
-    const templateResult = renderTemplate(
+    const viewEntity = findView(views, item.view);
+    const viewResult = renderView(
       schema,
-      templates,
-      template.key as TemplateKey,
+      views,
+      viewEntity.key as ViewKey,
       formattedEntity.data,
     );
-    if (isErr(templateResult)) return templateResult;
+    if (isErr(viewResult)) return viewResult;
 
-    const preamble = template.preamble;
-    if (!preamble || preamble.length === 0) return ok(templateResult.data);
+    const preamble = viewEntity.preamble;
+    if (!preamble || preamble.length === 0) return ok(viewResult.data);
 
     const preambleIncludes = buildIncludes(preamble.map((key) => [key]));
-    if (!preambleIncludes) return ok(templateResult.data);
+    if (!preambleIncludes) return ok(viewResult.data);
 
     const pickedEntity = pickByIncludes(formattedEntity.data, preambleIncludes);
     const frontmatter = renderFrontmatterString(pickedEntity, preamble, schema);
-    if (!frontmatter) return ok(templateResult.data);
+    if (!frontmatter) return ok(viewResult.data);
 
-    return ok(prependFrontmatter(templateResult.data, frontmatter));
+    return ok(prependFrontmatter(viewResult.data, frontmatter));
   }
   if (fileType === "yaml") {
     if (item.query) {
@@ -367,7 +362,7 @@ export const renderNavigationItem = async (
   parentPath: string,
   parentEntities: Fieldset[],
 ): ResultAsync<RenderResult> => {
-  const { db, kg, fs, paths, schema, version, namespace, templates, log } = ctx;
+  const { db, kg, fs, paths, schema, version, namespace, views, log } = ctx;
   const fileType = inferFileType(item);
   const result = emptyRenderResult();
 
@@ -385,13 +380,10 @@ export const renderNavigationItem = async (
     );
     if (isErr(interpolatedQuery)) return interpolatedQuery;
 
-    if (item.template) {
-      const template = findTemplate(templates, item.template);
+    if (item.view) {
+      const viewEntity = findView(views, item.view);
       interpolatedQuery.data.includes = mergeIncludes(
-        mergeIncludes(
-          interpolatedQuery.data.includes,
-          template.templateIncludes,
-        ),
+        mergeIncludes(interpolatedQuery.data.includes, viewEntity.viewIncludes),
         { key: true, uid: true },
       );
     } else if (interpolatedQuery.data.includes) {
@@ -405,9 +397,9 @@ export const renderNavigationItem = async (
     if (isErr(searchResult)) return searchResult;
 
     if (searchResult.data.pagination.hasNext && !item.limit) {
-      const pathTemplate = getPathTemplate(item);
+      const pathPattern = getPathPattern(item);
       log.warn(
-        `Navigation '${pathTemplate}' has more results than the default render limit. Some files were not rendered. Set 'limit' on the navigation item to increase.`,
+        `Navigation '${pathPattern}' has more results than the default render limit. Some files were not rendered. Set 'limit' on the navigation item to increase.`,
       );
     }
 
@@ -417,9 +409,9 @@ export const renderNavigationItem = async (
   }
 
   // Strip uid from rendered output when the user specified includes but
-  // didn't list uid. Templates control their own output so no stripping needed.
+  // didn't list uid. Views control their own output so no stripping needed.
   // When includes is undefined (all fields), uid stays.
-  const stripUid = !item.template && !!item.includes && !item.includes.uid;
+  const stripUid = !item.view && !!item.includes && !item.includes.uid;
 
   for (const entity of entities) {
     const entityUid = (entity.uid as EntityUid) ?? null;
@@ -446,7 +438,7 @@ export const renderNavigationItem = async (
       parentEntities,
       fileType,
       namespace,
-      templates,
+      views,
     );
     if (isErr(renderContentResult)) return renderContentResult;
 

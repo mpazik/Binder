@@ -182,7 +182,7 @@ const NAVIGATION_CONFIGS = [
     type: "Navigation",
     path: "tasks/{key}",
     where: { type: "Task" },
-    template: "document",
+    view: "document",
   },
   {
     key: "nav-tasks-yaml",
@@ -202,7 +202,7 @@ const NAVIGATION_CONFIGS = [
     type: "Navigation",
     path: "projects/{key}",
     where: { type: "Project" },
-    template: "document",
+    view: "document",
   },
 ];
 

@@ -7,12 +7,12 @@ import {
   type QueryParams,
 } from "@binder/db";
 import { createError, err, isErr, ok, type Result } from "@binder/utils";
-import { findTemplate, type NavigationItem } from "./navigation.ts";
+import { findView, type NavigationItem } from "./navigation.ts";
 import { parseMarkdown } from "./markdown.ts";
-import { extractFields } from "./template.ts";
+import { extractFields } from "./view.ts";
 import { parseYamlEntity, parseYamlList } from "./yaml.ts";
 import { getDocumentFileType } from "./document.ts";
-import type { TemplateKey, Templates } from "./template-entity.ts";
+import type { ViewKey, Views } from "./view-entity.ts";
 import { extractFrontmatterFromAst } from "./frontmatter.ts";
 import { createFieldAccumulator } from "./field-accumulator.ts";
 
@@ -108,14 +108,14 @@ const extractFromMarkdown = (
   schema: EntitySchema,
   navItem: NavigationItem,
   markdown: string,
-  templates: Templates,
+  views: Views,
   base: FieldsetNested,
 ): Result<ExtractedFileData> => {
-  const template = findTemplate(templates, navItem.template);
+  const viewEntity = findView(views, navItem.view);
   const markdownAst = parseMarkdown(markdown);
 
   const hasPreamble =
-    template.preamble !== undefined && template.preamble.length > 0;
+    viewEntity.preamble !== undefined && viewEntity.preamble.length > 0;
   const fmResult = hasPreamble
     ? extractFrontmatterFromAst(markdownAst)
     : ok({ frontmatterFields: {}, bodyAst: markdownAst });
@@ -125,15 +125,15 @@ const extractFromMarkdown = (
 
   const fileFieldsResult = extractFields(
     schema,
-    templates,
-    template.key as TemplateKey,
+    views,
+    viewEntity.key as ViewKey,
     bodyAst,
     base,
   );
   if (isErr(fileFieldsResult)) return fileFieldsResult;
 
   const accumulator = createFieldAccumulator(base);
-  const preambleKeys = new Set(template.preamble ?? []);
+  const preambleKeys = new Set(viewEntity.preamble ?? []);
 
   for (const [key, value] of Object.entries(fileFieldsResult.data)) {
     // Preamble relation fields appear in the body as projected/included data
@@ -158,7 +158,7 @@ const extractFromMarkdown = (
     kind: "document",
     entity,
     projections,
-    includes: template.templateIncludes,
+    includes: viewEntity.viewIncludes,
   });
 };
 
@@ -167,7 +167,7 @@ export const extractRaw = (
   navItem: NavigationItem,
   content: string,
   filePath: string,
-  templates: Templates,
+  views: Views,
   base: FieldsetNested,
 ): Result<ExtractedFileData> => {
   const fileType = getDocumentFileType(filePath);
@@ -188,7 +188,7 @@ export const extractRaw = (
   }
 
   if (fileType === "markdown") {
-    return extractFromMarkdown(schema, navItem, content, templates, base);
+    return extractFromMarkdown(schema, navItem, content, views, base);
   }
 
   return err(
@@ -203,17 +203,10 @@ export const extract = (
   navItem: NavigationItem,
   content: string,
   filePath: string,
-  templates: Templates,
+  views: Views,
   base: FieldsetNested,
 ): Result<ExtractedFileData> => {
-  const rawResult = extractRaw(
-    schema,
-    navItem,
-    content,
-    filePath,
-    templates,
-    base,
-  );
+  const rawResult = extractRaw(schema, navItem, content, filePath, views, base);
   if (isErr(rawResult)) return rawResult;
 
   const data = rawResult.data;

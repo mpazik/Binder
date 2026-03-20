@@ -109,6 +109,36 @@ export const verifySync = async (
   });
 };
 
+type Services = Pick<
+  RuntimeContextWithDb,
+  "db" | "fs" | "log" | "config" | "views"
+>;
+
+const withLockedKg = async <T>(
+  services: Services,
+  operation: (kg: KnowledgeGraph) => ResultAsync<T>,
+): ResultAsync<T> => {
+  const { db, fs, log, config } = services;
+  const { paths } = config;
+
+  const lockResult = await acquireLock(fs, paths.binder);
+  if (isErr(lockResult)) return lockResult;
+
+  const kg = openKnowledgeGraph(db);
+  const result = await operation(kg);
+
+  await releaseLock(fs, paths.binder);
+
+  if (!isErr(result)) {
+    const renderResult = await renderDocs({ ...services, kg });
+    if (isErr(renderResult)) {
+      log.error("Failed to re-render docs", { error: renderResult.error });
+    }
+  }
+
+  return result;
+};
+
 export const repairDbFromLog = async (
   services: Services,
 ): ResultAsync<{ dbTransactionsPath?: string }> => {
@@ -283,36 +313,6 @@ export const redoTransactions = async (
   });
 };
 
-type Services = Pick<
-  RuntimeContextWithDb,
-  "db" | "fs" | "log" | "config" | "templates"
->;
-
-const withLockedKg = async <T>(
-  services: Services,
-  operation: (kg: KnowledgeGraph) => ResultAsync<T>,
-): ResultAsync<T> => {
-  const { db, fs, log, config } = services;
-  const { paths } = config;
-
-  const lockResult = await acquireLock(fs, paths.binder);
-  if (isErr(lockResult)) return lockResult;
-
-  const kg = openKnowledgeGraph(db);
-  const result = await operation(kg);
-
-  await releaseLock(fs, paths.binder);
-
-  if (!isErr(result)) {
-    const renderResult = await renderDocs({ ...services, kg });
-    if (isErr(renderResult)) {
-      log.error("Failed to re-render docs", { error: renderResult.error });
-    }
-  }
-
-  return result;
-};
-
 export type OrchestratorCallbacks = KnowledgeGraphCallbacks & {
   onFilesUpdated?: (paths: string[]) => void;
 };
@@ -364,7 +364,7 @@ export const setupKnowledgeGraph = (
         await releaseLock(fs, paths.binder);
         log.debug("Lock released after commit");
 
-        // Invalidate caches before rendering (e.g., template cache)
+        // Invalidate caches before rendering (e.g., view cache)
         await callbacks.afterCommit?.(transaction);
 
         const renderResult = await renderDocs({
@@ -445,13 +445,13 @@ export const squashTransactions = async (
     const logResult = await readLastTransactions(fs, transactionLogPath, count);
     if (isErr(logResult)) return logResult;
 
-    const logTransactions = logResult.data;
+    const logEntries = logResult.data;
 
-    if (logTransactions.length !== count)
+    if (logEntries.length !== count)
       return err(
         createError(
           "log-inconsistency",
-          `Log contains ${logTransactions.length} transactions but expected ${count}`,
+          `Log contains ${logEntries.length} transactions but expected ${count}`,
         ),
       );
 
@@ -464,7 +464,7 @@ export const squashTransactions = async (
     }
 
     for (let i = 0; i < count; i++) {
-      if (logTransactions[i]!.hash !== dbTransactions[i]!.hash)
+      if (logEntries[i]!.hash !== dbTransactions[i]!.hash)
         return err(
           createError(
             "log-db-mismatch",

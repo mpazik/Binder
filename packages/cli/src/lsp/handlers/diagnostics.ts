@@ -30,7 +30,7 @@ import {
   zeroRange,
 } from "../../validation";
 import { extract } from "../../document/extraction.ts";
-import type { FieldSlotMapping } from "../../document/template.ts";
+import type { FieldSlotMapping } from "../../document/view.ts";
 import type {
   FrontmatterContext,
   LspHandler,
@@ -283,11 +283,12 @@ export const handleDiagnostics: LspHandler<
 
   const errorCount = validationResult.errors.length;
   const warningCount = validationResult.warnings.length;
-  if (errorCount > 0 || warningCount > 0) {
-    log.info("Returning diagnostics", { filePath, errorCount, warningCount });
-  } else {
-    log.debug("Returning diagnostics", { filePath, errorCount, warningCount });
-  }
+  const logLevel = errorCount > 0 || warningCount > 0 ? "info" : "debug";
+  log[logLevel]("Returning diagnostics", {
+    filePath,
+    errorCount,
+    warningCount,
+  });
 
   return {
     kind: "full",
@@ -353,8 +354,8 @@ const getMarkdownDiagnostics = async (
   const { kg, log } = runtime;
   const diagnostics: Diagnostic[] = [];
 
-  const templatesResult = await runtime.templates();
-  if (isErr(templatesResult)) return diagnostics;
+  const viewsResult = await runtime.views();
+  if (isErr(viewsResult)) return diagnostics;
 
   const content = context.document.getText();
   const relativePath = filePath.replace(runtime.config.paths.docs + "/", "");
@@ -363,7 +364,7 @@ const getMarkdownDiagnostics = async (
     context.navigationItem,
     content,
     relativePath,
-    templatesResult.data,
+    viewsResult.data,
     {},
   );
 

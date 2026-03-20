@@ -43,8 +43,8 @@ const syncDocument = async (
   const schemaResult = await kg.getSchema(namespace);
   if (isErr(schemaResult)) return schemaResult;
 
-  const templatesResult = await context.templates();
-  if (isErr(templatesResult)) return templatesResult;
+  const viewsResult = await context.views();
+  if (isErr(viewsResult)) return viewsResult;
 
   const syncResult = await extractFileChanges(
     fs,
@@ -54,7 +54,7 @@ const syncDocument = async (
     schemaResult.data,
     relativePath,
     namespace,
-    templatesResult.data,
+    viewsResult.data,
     undefined,
     getSnapshotEntityUid(context.db, relativePath),
   );

@@ -9,34 +9,34 @@ import {
 } from "@binder/db/mocks";
 import { type NavigationItem } from "./navigation.ts";
 import {
-  mockTemplates,
-  mockPreambleTemplate,
-  mockPreambleStatusInBodyTemplate,
-} from "./template.mock.ts";
+  mockViews,
+  mockPreambleView,
+  mockPreambleStatusInBodyView,
+} from "./view.mock.ts";
 import { extract, type ExtractedFileData } from "./extraction.ts";
 import { renderYamlEntity, renderYamlList } from "./yaml.ts";
-import { createTemplateEntity, type Templates } from "./template-entity.ts";
+import { createViewEntity, type Views } from "./view-entity.ts";
 
 describe("extract", () => {
-  const emptyTemplates: Templates = [];
+  const emptyViews: Views = [];
 
   const check = (
     navItem: NavigationItem,
     content: string,
     path: string,
     expected: ExtractedFileData,
-    templateList: Templates = emptyTemplates,
+    viewList: Views = emptyViews,
     base: FieldsetNested = {},
   ) => {
     const result = throwIfError(
-      extract(mockRecordSchema, navItem, content, path, templateList, base),
+      extract(mockRecordSchema, navItem, content, path, viewList, base),
     );
     expect(result).toEqual(expected);
   };
 
   const markdownNavItem: NavigationItem = {
     path: "tasks/{key}",
-    template: "task-template",
+    view: "task-view",
   };
 
   const yamlSingleNavItem: NavigationItem = {
@@ -73,7 +73,7 @@ ${mockTask1Record.description}
           projections: [],
           includes: { title: true, status: true, description: true },
         },
-        mockTemplates,
+        mockViews,
       );
     });
   });
@@ -160,15 +160,15 @@ ${mockTask1Record.description}
   });
 
   describe("markdown with frontmatter", () => {
-    const preambleTemplates: Templates = [
-      mockPreambleTemplate,
-      mockPreambleStatusInBodyTemplate,
-      ...mockTemplates,
+    const preambleViews: Views = [
+      mockPreambleView,
+      mockPreambleStatusInBodyView,
+      ...mockViews,
     ];
 
     const preambleNavItem: NavigationItem = {
       path: "tasks/{key}",
-      template: "task-preamble",
+      view: "task-preamble",
     };
 
     it("extracts frontmatter fields, merges with body, and includes preamble keys", () => {
@@ -194,16 +194,14 @@ ${mockTask1Record.description}
             description: mockTask1Record.description,
           },
           projections: [],
-          // status is in includes via preamble, not the template body
+          // status is in includes via preamble, not the view body
           includes: { title: true, status: true, description: true },
         },
-        preambleTemplates,
+        preambleViews,
       );
     });
 
     it("detects conflict when frontmatter and body have different values with no base", () => {
-      // No base entity (empty base). Body has status: "pending", frontmatter has status: "active".
-      // Both differ from base (undefined) and differ from each other → conflict.
       const markdown = `---
 status: active
 ---
@@ -214,20 +212,16 @@ status: active
 `;
       const result = extract(
         mockRecordSchema,
-        { path: "tasks/{key}", template: "task-status-body" },
+        { path: "tasks/{key}", view: "task-status-body" },
         markdown,
         "task.md",
-        preambleTemplates,
+        preambleViews,
         {},
       );
       expect(result).toBeErrWithKey("field-conflict");
     });
 
-    it("should preserve body edit when frontmatter matches base", () => {
-      // Base entity in DB has status: "active"
-      // User edited body to status: "done", frontmatter still says "active"
-      // Expected: sparse result with only changed field status: "done"
-      // (title: "My Task" matches base → omitted; fm status: "active" matches base → omitted)
+    it("preserves body edit when frontmatter matches base", () => {
       const base = { title: "My Task", status: "active" };
       const markdown = `---
 status: active
@@ -238,7 +232,7 @@ status: active
 **Status:** done
 `;
       check(
-        { path: "tasks/{key}", template: "task-status-body" },
+        { path: "tasks/{key}", view: "task-status-body" },
         markdown,
         "task.md",
         {
@@ -249,15 +243,12 @@ status: active
           projections: [],
           includes: { title: true, status: true },
         },
-        preambleTemplates,
+        preambleViews,
         base,
       );
     });
 
-    it("should detect conflict when body and frontmatter both changed to different values", () => {
-      // Base entity in DB has status: "active"
-      // User edited frontmatter to "pending" AND body to "done"
-      // Both differ from base, and differ from each other → conflict
+    it("detects conflict when body and frontmatter both changed to different values", () => {
       const base = { title: "My Task", status: "active" };
       const markdown = `---
 status: pending
@@ -269,16 +260,16 @@ status: pending
 `;
       const result = extract(
         mockRecordSchema,
-        { path: "tasks/{key}", template: "task-status-body" },
+        { path: "tasks/{key}", view: "task-status-body" },
         markdown,
         "task.md",
-        preambleTemplates,
+        preambleViews,
         base,
       );
       expect(result).toBeErrWithKey("field-conflict");
     });
 
-    it("handles missing frontmatter when template has preamble", () => {
+    it("handles missing frontmatter when view has preamble", () => {
       const markdown = `# ${mockTask1Record.title}
 
 ## Description
@@ -298,16 +289,16 @@ ${mockTask1Record.description}
           projections: [],
           includes: { title: true, status: true, description: true },
         },
-        preambleTemplates,
+        preambleViews,
       );
     });
 
     it("does not conflict when frontmatter has relation ref and body has relation projection", () => {
-      // Reproduces the journal-day bug: template has `parent` in preamble
+      // Reproduces the journal-day bug: view has `parent` in preamble
       // and uses {parent.title} in body. Frontmatter holds the ref string
       // ("some-parent-key") while body extraction produces a nested object
       // ({ title: "Parent Title" }). These are complementary, not conflicting.
-      const template = createTemplateEntity(
+      const viewEntry = createViewEntity(
         "task-with-parent-body",
         `# {title}
 
@@ -317,7 +308,7 @@ ${mockTask1Record.description}
 `,
         { preamble: ["parent"] },
       );
-      const templates: Templates = [template, ...mockTemplates];
+      const allViews: Views = [viewEntry, ...mockViews];
 
       const markdown = `---
 parent: some-parent-key
@@ -331,10 +322,10 @@ Parent Title
 `;
       const result = extract(
         mockRecordSchema,
-        { path: "tasks/{key}", template: "task-with-parent-body" },
+        { path: "tasks/{key}", view: "task-with-parent-body" },
         markdown,
         "task.md",
-        templates,
+        allViews,
         {},
       );
       expect(result).toBeOk();
@@ -356,7 +347,7 @@ Content
         preambleNavItem,
         markdown,
         "task.md",
-        preambleTemplates,
+        preambleViews,
         {},
       );
       expect(result).toBeErr();
@@ -373,7 +364,7 @@ Content
         navItemWithoutQuery,
         yaml,
         "all-tasks.yaml",
-        emptyTemplates,
+        emptyViews,
         {},
       );
 
@@ -386,7 +377,7 @@ Content
         markdownNavItem,
         "content",
         "file.txt",
-        mockTemplates,
+        mockViews,
         {},
       );
 

@@ -4,28 +4,28 @@ items:
       type: Task
       status: draft
     path: backlog/{priority} {key}
-    template: task-template
+    view: task-view
 
   - key: nav-tasks
     where:
       type: Task
       status: { op: in, value: [ pending, active, paused ] }
     path: tasks/{priority} {key}
-    template: task-template
+    view: task-view
 
   - key: nav-archive-tasks
     where:
       type: Task
       status: complete
     path: archive/tasks/{key}
-    template: task-template
+    view: task-view
 
   - key: nav-archive-tasks-cancelled
     where:
       type: Task
       status: cancelled
     path: archive/tasks/cancelled/{key}
-    template: task-template
+    view: task-view
 
   - key: nav-milestones-index
     query:
@@ -39,7 +39,7 @@ items:
     where:
       type: Milestone
     path: milestones/{key}
-    template: milestone-template
+    view: milestone-view
 
   - key: nav-problems-index
     query:
@@ -54,14 +54,14 @@ items:
       type: Problem
       status: { op: notIn, value: [ cancelled ] }
     path: problems/{key}
-    template: problem-template
+    view: problem-view
 
   - key: nav-archive-problems
     where:
       type: Problem
       status: { op: in, value: [ complete, cancelled ] }
     path: archive/problems/{key}
-    template: problem-template
+    view: problem-view
 
   - key: nav-decisions-index
     query:
@@ -76,14 +76,14 @@ items:
       type: Decision
       status: { op: notIn, value: [ cancelled ] }
     path: decisions/{key}
-    template: decision-template
+    view: decision-view
 
   - key: nav-archive-decisions
     where:
       type: Decision
       status: cancelled
     path: archive/decisions/{key}
-    template: decision-template
+    view: decision-view
 
   - key: nav-use-cases-index
     query:
@@ -95,7 +95,7 @@ items:
     where:
       type: UseCase
     path: use-cases/{key}
-    template: use-case-template
+    view: use-case-view
 
   - key: nav-features-index
     query:
@@ -111,7 +111,7 @@ items:
       status: { op: notIn, value: [ draft, cancelled ] }
       tags: { op: notIn, value: [ data-model, cli, lsp, rendering, data-access, sync ] }
     path: features/{key}
-    template: feature-template
+    view: feature-view
 
   - key: nav-features-data-model
     where:
@@ -119,7 +119,7 @@ items:
       status: { op: notIn, value: [ draft, cancelled ] }
       tags: data-model
     path: features/data-model/{key}
-    template: feature-template
+    view: feature-view
 
   - key: nav-features-cli
     where:
@@ -127,7 +127,7 @@ items:
       status: { op: notIn, value: [ draft, cancelled ] }
       tags: cli
     path: features/cli/{key}
-    template: feature-template
+    view: feature-view
 
   - key: nav-features-lsp
     where:
@@ -135,7 +135,7 @@ items:
       status: { op: notIn, value: [ draft, cancelled ] }
       tags: lsp
     path: features/lsp/{key}
-    template: feature-template
+    view: feature-view
 
   - key: nav-features-rendering
     where:
@@ -143,7 +143,7 @@ items:
       status: { op: notIn, value: [ draft, cancelled ] }
       tags: rendering
     path: features/rendering/{key}
-    template: feature-template
+    view: feature-view
 
   - key: nav-features-data-access
     where:
@@ -151,7 +151,7 @@ items:
       status: { op: notIn, value: [ draft, cancelled ] }
       tags: data-access
     path: features/data-access/{key}
-    template: feature-template
+    view: feature-view
 
   - key: nav-features-sync
     where:
@@ -159,21 +159,21 @@ items:
       status: { op: notIn, value: [ draft, cancelled ] }
       tags: sync
     path: features/sync/{key}
-    template: feature-template
+    view: feature-view
 
   - key: nav-features-draft
     where:
       type: Feature
       status: draft
     path: drafts/features/{key}
-    template: feature-template
+    view: feature-view
 
   - key: nav-archive-features
     where:
       type: Feature
       status: cancelled
     path: archive/features/{key}
-    template: feature-template
+    view: feature-view
 
   - key: nav-concepts-index
     query:
@@ -188,39 +188,39 @@ items:
       type: Concept
       status: { op: notIn, value: [ draft, cancelled ] }
     path: concepts/{key}
-    template: concept-template
+    view: concept-view
 
   - key: nav-concepts-draft
     where:
       type: Concept
       status: draft
     path: drafts/concepts/{key}
-    template: concept-template
+    view: concept-view
 
   - key: nav-archive-concepts
     where:
       type: Concept
       status: cancelled
     path: archive/concepts/{key}
-    template: concept-template
+    view: concept-view
 
   - key: nav-contributing
     where:
       type: Note
       tags: contributing
     path: contributing/{key}
-    template: note-template
+    view: note-view
 
   - key: nav-guides
     where:
       type: Note
       tags: guide
     path: guides/{key}
-    template: note-template
+    view: note-view
 
   - key: nav-notes
     where:
       type: Note
       tags: { op: notIn, value: [ guide, contributing ] }
     path: notes/{key}
-    template: note-template
+    view: note-view

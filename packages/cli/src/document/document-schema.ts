@@ -88,15 +88,15 @@ const fieldQuery = {
   dataType: "query",
 } as const satisfies RecordFieldDef;
 
-export const fieldTemplateUid = "_6Su9tYzYbC" as ConfigUid;
-export const fieldTemplateKey = "template" as ConfigKey;
-const fieldTemplate = {
+export const fieldViewUid = "_6Su9tYzYbC" as ConfigUid;
+export const fieldViewKey = "view" as ConfigKey;
+const fieldView = {
   id: newAppSystemId(7),
-  uid: fieldTemplateUid,
-  key: fieldTemplateKey,
+  uid: fieldViewUid,
+  key: fieldViewKey,
   type: fieldSystemType,
-  name: "Template",
-  description: "Template string.",
+  name: "View",
+  description: "View string.",
   dataType: "plaintext",
 } as const satisfies RecordFieldDef;
 
@@ -201,7 +201,7 @@ const typeDataview = {
   type: typeSystemType,
   name: "Dataview",
   description: "A query-driven view block.",
-  fields: [[fieldQueryKey, { required: true }], fieldTemplateKey],
+  fields: [[fieldQueryKey, { required: true }], fieldViewKey],
 } as const satisfies TypeDef;
 
 export const typeListUid = "_4Ab7cGhGjK" as ConfigUid;
@@ -236,7 +236,7 @@ export const documentProviderSchema: RecordSchema = createSchema(
     fieldCitationSource,
     fieldCodeLanguage,
     fieldQuery,
-    fieldTemplate,
+    fieldView,
     fieldPath,
   ],
   [

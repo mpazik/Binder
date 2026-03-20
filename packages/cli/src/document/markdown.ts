@@ -17,7 +17,7 @@ import { type Brand } from "@binder/utils";
 import type { Nodes, PhrasingContent, Root, RootContent, Text } from "mdast";
 import type { Data, Literal, Node } from "unist";
 import { type FieldSlot } from "./field-slot.ts";
-import type { TemplateAST } from "./template.ts";
+import type { ViewAST } from "./view.ts";
 
 type ExtendedNode = Nodes | FieldSlot;
 
@@ -242,7 +242,7 @@ const flattenInlinePreservingSlots = (value: ExtendedNode): ExtendedNode => {
   return value;
 };
 
-export const simplifyViewAst = (ast: TemplateAST): SimplifiedViewRoot => {
+export const simplifyViewAst = (ast: ViewAST): SimplifiedViewRoot => {
   const cleaned = removePosition(ast);
   return {
     ...cleaned,

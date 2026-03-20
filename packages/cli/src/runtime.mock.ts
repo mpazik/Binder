@@ -8,7 +8,7 @@ import { BINDER_DIR } from "./config.ts";
 import type { AppConfig } from "./config.ts";
 import type { RuntimeContextWithDb, RuntimeContext } from "./runtime.ts";
 import { createNavigationCache } from "./document/navigation.ts";
-import { createTemplateCache } from "./document/template-entity.ts";
+import { createViewCache } from "./document/view-entity.ts";
 
 export const mockConfig: AppConfig = {
   author: "test-user",
@@ -71,22 +71,22 @@ export const createMockRuntimeContextWithDb =
     const context = await createMockCommandContext();
     const db = getTestDatabaseCli();
     const kg = setupKnowledgeGraph(
-      { ...context, db, templates: () => templateCache.load() },
+      { ...context, db, views: () => viewCache.load() },
       {
         afterCommit: async (transaction) => {
           if (isEmptyObject(transaction.configs)) return;
           navigationCache.invalidate();
-          templateCache.invalidate();
+          viewCache.invalidate();
         },
       },
     );
     const navigationCache = createNavigationCache(kg);
-    const templateCache = createTemplateCache(kg);
+    const viewCache = createViewCache(kg);
     return {
       ...context,
       db,
       kg,
       nav: navigationCache.load,
-      templates: templateCache.load,
+      views: viewCache.load,
     };
   };

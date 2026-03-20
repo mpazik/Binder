@@ -39,10 +39,7 @@ import {
   type NavigationLoader,
 } from "./document/navigation.ts";
 import { serializeFormats } from "./utils/serialize.ts";
-import {
-  createTemplateCache,
-  type TemplateLoader,
-} from "./document/template-entity.ts";
+import { createViewCache, type ViewLoader } from "./document/view-entity.ts";
 
 type RuntimeOptions = {
   logLevel?: LogLevel;
@@ -73,7 +70,7 @@ export type RuntimeContextWithDb = RuntimeContext & {
   db: DatabaseCli;
   kg: KnowledgeGraph;
   nav: NavigationLoader;
-  templates: TemplateLoader;
+  views: ViewLoader;
 };
 
 export type RuntimeDbCallbacks = {
@@ -215,17 +212,17 @@ export const initializeDbRuntime = async (
     afterCommit: async (transaction) => {
       if (isEmptyObject(transaction.configs)) return;
       navigationCache.invalidate();
-      templateCache.invalidate();
+      viewCache.invalidate();
     },
     onFilesUpdated: callbacks?.onFilesUpdated,
   };
 
   const kg = setupKnowledgeGraph(
-    { fs, log, config, db, templates: () => templateCache.load() },
+    { fs, log, config, db, views: () => viewCache.load() },
     orchestratorCallbacks,
   );
   const navigationCache = createNavigationCache(kg);
-  const templateCache = createTemplateCache(kg);
+  const viewCache = createViewCache(kg);
 
   return ok({
     runtime: {
@@ -233,7 +230,7 @@ export const initializeDbRuntime = async (
       kg,
       db,
       nav: navigationCache.load,
-      templates: templateCache.load,
+      views: viewCache.load,
     },
     close: closeDb,
   });

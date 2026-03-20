@@ -12,7 +12,7 @@ import {
 import {
   type FieldHoverInput,
   renderHoverContent,
-  type TemplateHoverInput,
+  type ViewHoverInput,
 } from "./hover.ts";
 
 describe("renderHoverContent", () => {
@@ -189,51 +189,51 @@ describe("renderHoverContent", () => {
     });
   });
 
-  describe("template hover", () => {
-    const check = (input: TemplateHoverInput, expected: string) => {
+  describe("view hover", () => {
+    const check = (input: ViewHoverInput, expected: string) => {
       expect(renderHoverContent(input)).toBe(expected);
     };
 
-    it("renders template with name", () => {
+    it("renders view with name", () => {
       check(
         {
-          kind: "template",
-          templateKey: "my-template",
-          templateName: "My Template",
+          kind: "view",
+          viewKey: "my-view",
+          viewName: "My View",
         },
-        "**My Template** (template)",
+        "**My View** (view)",
       );
     });
 
-    it("renders template with key only when no name", () => {
+    it("renders view with key only when no name", () => {
       check(
-        { kind: "template", templateKey: "__document__" },
-        "**__document__** (template)",
+        { kind: "view", viewKey: "__document__" },
+        "**__document__** (view)",
       );
     });
 
-    it("renders template with description", () => {
+    it("renders view with description", () => {
       check(
         {
-          kind: "template",
-          templateKey: "task-detail",
-          templateName: "Task Detail",
-          templateDescription: "Displays task information in detail view",
+          kind: "view",
+          viewKey: "task-detail",
+          viewName: "Task Detail",
+          viewDescription: "Displays task information in detail view",
         },
-        "**Task Detail** (template)\n\nDisplays task information in detail view",
+        "**Task Detail** (view)\n\nDisplays task information in detail view",
       );
     });
 
-    it("renders template with name and description", () => {
+    it("renders view with name and description", () => {
       check(
         {
-          kind: "template",
-          templateKey: "project-summary",
-          templateName: "Project Summary",
-          templateDescription: "Overview of project status",
-          templateFormat: "section",
+          kind: "view",
+          viewKey: "project-summary",
+          viewName: "Project Summary",
+          viewDescription: "Overview of project status",
+          viewFormat: "section",
         },
-        "**Project Summary** (template)\n\nOverview of project status",
+        "**Project Summary** (view)\n\nOverview of project status",
       );
     });
   });

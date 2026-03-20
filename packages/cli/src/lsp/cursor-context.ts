@@ -26,7 +26,7 @@ import {
 } from "@binder/db";
 import type { Position as UnistPosition } from "unist";
 import { findYamlContext, type YamlPath } from "../document/yaml-cst.ts";
-import type { FieldSlotMapping } from "../document/template.ts";
+import type { FieldSlotMapping } from "../document/view.ts";
 import type { EntityMapping } from "./entity-mapping.ts";
 import {
   type DocumentContext,
@@ -94,10 +94,10 @@ export type MarkdownFieldValueContext = CursorContextBase & {
   inlineElement?: InlineElementContext;
 };
 
-export type MarkdownTemplateContext = CursorContextBase & {
+export type MarkdownViewContext = CursorContextBase & {
   documentType: "markdown";
-  type: "template";
-  templateKey: string;
+  type: "view";
+  viewKey: string;
 };
 
 export type MarkdownNoneContext = CursorContextBase & {
@@ -131,7 +131,7 @@ export type MarkdownCursorContext =
   | MarkdownFieldValueContext
   | MarkdownFrontmatterFieldKeyContext
   | MarkdownFrontmatterFieldValueContext
-  | MarkdownTemplateContext
+  | MarkdownViewContext
   | MarkdownNoneContext;
 
 export type CursorContext = YamlCursorContext | MarkdownCursorContext;
@@ -261,6 +261,8 @@ const getCursorEntityContext = (
     mapping.status === "matched" ? schema.types[mapping.type] : undefined;
   return { mapping, entityIndex: 0, typeDef };
 };
+
+const ITEMS_WRAPPER_KEY = "items";
 
 const buildFieldPathFromYaml = (
   path: YamlPath,
@@ -626,13 +628,13 @@ const getMarkdownCursorContext = (
     }
   }
 
-  if (navigationItem.template) {
+  if (navigationItem.view) {
     return {
       documentType: "markdown",
-      type: "template",
+      type: "view",
       position,
       entity,
-      templateKey: navigationItem.template,
+      viewKey: navigationItem.view,
     };
   }
 
@@ -648,8 +650,6 @@ export const getCursorContext = (
   }
   return getMarkdownCursorContext(context, position);
 };
-
-const ITEMS_WRAPPER_KEY = "items";
 
 export const getSchemaFieldPath = (fieldPath: FieldPath): FieldPath =>
   fieldPath.filter((p) => !/^\d+$/.test(p));

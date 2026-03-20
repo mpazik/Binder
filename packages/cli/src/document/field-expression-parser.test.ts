@@ -100,9 +100,9 @@ describe("parseFieldExpression", () => {
       }));
 
     it("parses complex chain with multiple propertys", () =>
-      check('children | sort: "date" | template: "summary-card"', {
+      check('children | sort: "date" | view: "summary-card"', {
         path: ["children"],
-        props: { sort: "date", template: "summary-card" },
+        props: { sort: "date", view: "summary-card" },
       }));
   });
 

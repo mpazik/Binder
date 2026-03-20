@@ -290,7 +290,7 @@ describe("entity-diff", () => {
 
       it("throws on null in allowMultiple field during anonymous child matching", () => {
         // Documents the unguarded crash path in similarity-scorer. The
-        // extraction fix in template.ts prevents null tombstones from reaching
+        // extraction fix in view.ts prevents null tombstones from reaching
         // here; this test confirms the crash path exists to justify that fix.
         expect(() =>
           diffEntities(

@@ -163,6 +163,7 @@ export const resolveSnapshotPath = (
   const isRootRelativeDocsPath =
     docsDir !== "" &&
     (userPath === docsDir || userPath.startsWith(`${docsDir}/`));
+
   return resolve(
     isBinderPath || isRootRelativeDocsPath ? paths.root : paths.docs,
     userPath,
