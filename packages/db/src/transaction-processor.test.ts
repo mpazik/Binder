@@ -1,11 +1,7 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { throwIfError } from "@binder/utils";
 import "@binder/utils/tests";
-import {
-  mockTask1Record,
-  mockTask1Uid,
-  mockTaskRecord1Updated,
-} from "./model/record.mock.ts";
+import { mockTask1Record } from "./model/record.mock.ts";
 import {
   mockTransactionInit,
   mockTransactionUpdate,
@@ -17,23 +13,13 @@ import {
   emptySchema,
   fieldSystemType,
   type RecordType,
-  type TransactionId,
-  type TransactionInput,
   typeSystemType,
 } from "./model";
 import { getTestDatabase, insertConfig } from "./db.mock.ts";
 import { type Database } from "./db.ts";
-import {
-  applyAndSaveTransaction,
-  processTransactionInput,
-  rollbackTransaction,
-} from "./transaction-processor";
-import { createEntity, fetchEntity } from "./entity-store.ts";
-import {
-  fetchTransaction,
-  getVersion,
-  saveTransaction,
-} from "./transaction-store.ts";
+import { processTransactionInput } from "./transaction-processor";
+import { createEntity } from "./entity-store.ts";
+import { saveTransaction } from "./transaction-store.ts";
 import { mockRecordSchema } from "./model/schema.mock.ts";
 import { mockTaskType, mockTaskTypeKey } from "./model/config.mock.ts";
 import {
@@ -84,25 +70,6 @@ describe("transaction processor", () => {
       expect(result).toEqual(mockTransactionInit);
     });
 
-    it("applies transaction and saves to database", async () => {
-      await db.transaction(async (tx) => {
-        await createEntity(tx, "record", mockTask1Record);
-        await saveTransaction(tx, mockTransactionInit);
-      });
-
-      await db.transaction(async (tx) =>
-        throwIfError(await applyAndSaveTransaction(tx, mockTransactionUpdate)),
-      );
-
-      const [updatedrecord, transaction] = await db.transaction(async (tx) => [
-        throwIfError(await fetchEntity(tx, "record", mockTask1Uid)),
-        throwIfError(await fetchTransaction(tx, mockTransactionUpdate.id)),
-      ]);
-
-      expect(updatedrecord).toEqual(mockTaskRecord1Updated);
-      expect(transaction).toEqual(mockTransactionUpdate);
-    });
-
     it("returns errors where there is configuration issue", async () => {
       const result = await db.transaction(async (tx) =>
         processTransactionInput(
@@ -118,22 +85,22 @@ describe("transaction processor", () => {
 
       expect(result).toBeErrWithKey("changeset-input-process-failed");
     });
-  });
 
-  it("returns errors where there is record issue", async () => {
-    const result = await db.transaction(async (tx) =>
-      processTransactionInput(
-        tx,
-        {
-          records: [{ type: mockTaskTypeKey }],
-          author: "test",
-        },
-        mockRecordSchema,
-        coreConfigSchema,
-      ),
-    );
+    it("returns errors where there is record issue", async () => {
+      const result = await db.transaction(async (tx) =>
+        processTransactionInput(
+          tx,
+          {
+            records: [{ type: mockTaskTypeKey }],
+            author: "test",
+          },
+          mockRecordSchema,
+          coreConfigSchema,
+        ),
+      );
 
-    expect(result).toBeErrWithKey("changeset-input-process-failed");
+      expect(result).toBeErrWithKey("changeset-input-process-failed");
+    });
   });
 
   describe("config and record changes in same transaction", () => {
@@ -233,95 +200,6 @@ describe("transaction processor", () => {
         [newFieldKey, { required: true }],
         "description",
       ]);
-    });
-  });
-
-  describe("rollbackTransaction", () => {
-    const getrecord = async () =>
-      await db.transaction(async (tx) =>
-        throwIfError(await fetchEntity(tx, "record", mockTask1Uid)),
-      );
-    const getCurrentVersion = async () =>
-      await db.transaction(async (tx) => throwIfError(await getVersion(tx)));
-    const applyTransactionInput = async (input: TransactionInput) =>
-      await db.transaction(async (tx) => {
-        const transaction = throwIfError(
-          await processTransactionInput(
-            tx,
-            input,
-            mockRecordSchema,
-            coreConfigSchema,
-          ),
-        );
-        throwIfError(await applyAndSaveTransaction(tx, transaction));
-      });
-
-    it("rolls back ;", async () => {
-      await applyTransactionInput(mockTransactionInitInput);
-      await applyTransactionInput(mockTransactionInputUpdate);
-      expect(await getrecord()).toEqual(mockTaskRecord1Updated);
-
-      await db.transaction(async (tx) => {
-        const version = throwIfError(await getVersion(tx));
-        return throwIfError(await rollbackTransaction(tx, 1, version.id));
-      });
-
-      expect(await getrecord()).toEqual(mockTask1Record);
-      expect((await getCurrentVersion()).id).toBe(1 as TransactionId);
-    });
-
-    it("rolls back 3 transactions", async () => {
-      await applyTransactionInput(mockTransactionInitInput);
-      await applyTransactionInput(mockTransactionInputUpdate);
-      await applyTransactionInput({
-        author: "test",
-        records: [{ $ref: mockTask1Uid, description: "Updated description" }],
-      });
-      await applyTransactionInput({
-        author: "test",
-        records: [{ $ref: mockTask1Uid, status: "complete" }],
-      });
-
-      await db.transaction(async (tx) => {
-        const version = throwIfError(await getVersion(tx));
-        return throwIfError(await rollbackTransaction(tx, 3, version.id));
-      });
-
-      expect(await getrecord()).toEqual(mockTask1Record);
-      expect((await getCurrentVersion()).id).toBe(1 as TransactionId);
-    });
-
-    it("returns error when count is too large", async () => {
-      const result = await db.transaction(async (tx) => {
-        const version = throwIfError(await getVersion(tx));
-        return rollbackTransaction(tx, 5, version.id);
-      });
-
-      expect(result).toBeErr();
-    });
-
-    it("returns error when version mismatches", async () => {
-      await applyTransactionInput(mockTransactionInitInput);
-      await applyTransactionInput(mockTransactionInputUpdate);
-
-      const result = await db.transaction(async (tx) =>
-        rollbackTransaction(tx, 1, 1 as TransactionId),
-      );
-
-      expect(result).toBeErrWithKey("version-mismatch");
-    });
-
-    it("can rollback transaction 1 to genesis state", async () => {
-      await applyTransactionInput(mockTransactionInitInput);
-      expect((await getCurrentVersion()).id).toBe(1 as TransactionId);
-
-      await db.transaction(async (tx) => {
-        const version = throwIfError(await getVersion(tx));
-        return throwIfError(await rollbackTransaction(tx, 1, version.id));
-      });
-
-      const version = await getCurrentVersion();
-      expect(version.id).toBe(0 as TransactionId);
     });
   });
 });

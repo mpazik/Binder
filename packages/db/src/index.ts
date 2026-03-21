@@ -32,4 +32,4 @@ export {
   matchesFilters,
 } from "./filter-entities.ts";
 export { createUid } from "./utils/uid.ts";
-export { applyConfigChangesetToSchema } from "./changeset-processor.ts";
+export { applyConfigChangesetToSchema } from "./changeset-applier.ts";

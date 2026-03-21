@@ -9,6 +9,7 @@ sourceFiles:
   - packages/db/src/model/transaction.ts
   - packages/db/src/model/transaction-input.ts
   - packages/db/src/transaction-processor.ts
+  - packages/db/src/transaction-applier.ts
   - packages/db/src/transaction-store.ts
 relatesTo:
   - changeset

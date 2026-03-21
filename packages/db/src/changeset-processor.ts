@@ -1,8 +1,5 @@
 import {
-  assert,
-  assertDefined,
   assertDefinedPass,
-  assertFailed,
   assertNotEmpty,
   err,
   type ErrorObject,
@@ -23,12 +20,10 @@ import {
 import { and, eq, ne, sql } from "drizzle-orm";
 import { createUid, isValidUid } from "./utils/uid.ts";
 import {
-  applyChangeset as applyChangesetModel,
   type ChangesetsInput,
   type ConfigKey,
   coreIdentityFieldKeys,
   type DataTypeNs,
-  emptyFieldset,
   type EntitiesChangeset,
   type EntityChangesetInput,
   type EntityChangesetRef,
@@ -67,14 +62,11 @@ import {
   type NamespaceSchema,
   type RecordFieldDef,
   type RecordKey,
-  type RecordSchema,
   normalizeInput,
   normalizeOptionSet,
   normalizeValueChange,
   type OptionDef,
   type OptionDefInput,
-  resolveEntityRefType,
-  type TypeDef,
   type TypeFieldRef,
   typeSystemType,
   CONFIG_APP_ID_OFFSET,
@@ -82,12 +74,9 @@ import {
 } from "./model";
 import type { DbTransaction } from "./db.ts";
 import {
-  createEntity,
-  deleteEntity,
   fetchEntity,
   fetchEntityFieldset,
   resolveEntityRefs,
-  updateEntity,
 } from "./entity-store.ts";
 import { validateDataType } from "./data-type-validators.ts";
 import { editableEntityTables } from "./schema.ts";
@@ -429,7 +418,7 @@ const validateChangesetInput = <N extends NamespaceEditable>(
   }
 
   for (const fieldKey of objKeys(input)) {
-    if (fieldsToExcludeFromValidation.includes(fieldKey as any)) {
+    if (includes(fieldsToExcludeFromValidation, fieldKey)) {
       continue;
     }
     const fieldDef = schema.fields[fieldKey] as
@@ -602,96 +591,10 @@ const validateUniquenessConstraints = async <N extends NamespaceEditable>(
   return ok(errors);
 };
 
-export const applyChangeset = async <N extends NamespaceEditable>(
-  tx: DbTransaction,
-  namespace: N,
-  entityRef: EntityNsRef[N],
-  changeset: FieldChangeset,
-): ResultAsync<void> => {
-  if (isEmptyObject(changeset)) return okVoid;
-
-  if ("id" in changeset) {
-    const idChange = normalizeValueChange(changeset.id);
-    assert(
-      isSetChange(idChange) || isClearChange(idChange),
-      "changeset.id must be set or clear",
-    );
-
-    if (isSetChange(idChange) && idChange.length === 2) {
-      assertDefined(changeset.type, "changeset.type");
-      const patch = applyChangesetModel(emptyFieldset, changeset);
-      return await createEntity(tx, namespace, {
-        ...patch,
-        [resolveEntityRefType(entityRef)]: entityRef,
-      });
-    }
-    if (isClearChange(idChange)) {
-      return await deleteEntity(tx, namespace, entityRef);
-    }
-    assertFailed("id can only be set or cleared");
-  } else {
-    const keys = objKeys(changeset);
-    const selectResult = await fetchEntityFieldset(
-      tx,
-      namespace,
-      entityRef,
-      keys,
-    );
-    if (isErr(selectResult)) return selectResult;
-
-    const currentValues = selectResult.data;
-    const patch = applyChangesetModel(currentValues, changeset);
-    return await updateEntity(tx, namespace, entityRef, patch);
-  }
-};
-
 const validationError = <R>(
   message: string,
   field?: string,
 ): Result<R, ValidationError[]> => err([{ field, message }]);
-
-export const applyConfigChangesetToSchema = (
-  baseSchema: RecordSchema,
-  configsChangeset: EntitiesChangeset<"config">,
-): RecordSchema => {
-  const newFields: RecordSchema["fields"] = { ...baseSchema.fields };
-  const newTypes: RecordSchema["types"] = { ...baseSchema.types };
-
-  for (const [configKey, changeset] of objEntries(configsChangeset)) {
-    const idChange = changeset.id ? normalizeValueChange(changeset.id) : null;
-
-    if (idChange && isClearChange(idChange)) {
-      delete newFields[configKey as FieldKey];
-      delete newTypes[configKey as EntityType];
-    } else if (idChange && isSetChange(idChange) && idChange.length === 2) {
-      const entity = applyChangesetModel(emptyFieldset, changeset);
-
-      if (includes(fieldTypes, entity.type)) {
-        const field = entity as RecordFieldDef;
-        newFields[field.key] = field;
-      } else if (entity.type === typeSystemType) {
-        const type = entity as TypeDef;
-        newTypes[type.key as EntityType] = type;
-      }
-    } else if (!idChange) {
-      const existingField = newFields[configKey as FieldKey];
-      const existingType = newTypes[configKey as EntityType];
-
-      if (existingField) {
-        const updated = applyChangesetModel(existingField, changeset);
-        newFields[configKey as FieldKey] = updated as RecordFieldDef;
-      } else if (existingType) {
-        const updated = applyChangesetModel(existingType, changeset);
-        newTypes[configKey as EntityType] = updated as TypeDef;
-      }
-    }
-  }
-
-  return {
-    fields: newFields,
-    types: newTypes,
-  };
-};
 
 type RefToUidMap = Map<string, EntityUid>;
 

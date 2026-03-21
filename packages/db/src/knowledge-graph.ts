@@ -6,7 +6,7 @@ import {
   type ResultAsync,
   tryCatch,
 } from "@binder/utils";
-import { and, asc, desc, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, inArray, sql } from "drizzle-orm";
 import {
   type ConfigDataType,
   type ConfigSchemaExtended,
@@ -39,11 +39,11 @@ import type { Database, DbTransaction } from "./db.ts";
 import { configTable, recordTable } from "./schema.ts";
 import { dbModelToEntity, fetchEntity } from "./entity-store.ts";
 import { fetchTransaction, getVersion } from "./transaction-store.ts";
+import { processTransactionInput } from "./transaction-processor";
 import {
   applyAndSaveTransaction,
-  processTransactionInput,
   rollbackTransaction,
-} from "./transaction-processor";
+} from "./transaction-applier";
 import { buildOrderByClause, buildWhereClause } from "./filter-entities.ts";
 import { resolveIncludes } from "./relationship-resolver.ts";
 
@@ -100,7 +100,7 @@ const internalSearch = async (
       .from(table)
       .where(buildWhereClause(table, filters, schema))
       .orderBy(asc(table.id))
-      .then((rows) => rows.map((row) => dbModelToEntity(row))),
+      .then((rows) => rows.map(dbModelToEntity)),
   );
 };
 
@@ -133,8 +133,8 @@ export const openKnowledgeGraph = <C extends EntitySchema<ConfigDataType>>(
         tx
           .select()
           .from(configTable)
-          .where(or(inArray(configTable.type, [...fieldTypes, typeSystemType])))
-          .then((rows) => rows.map((row) => dbModelToEntity(row))),
+          .where(inArray(configTable.type, [...fieldTypes, typeSystemType]))
+          .then((rows) => rows.map(dbModelToEntity)),
       );
 
       if (isErr(configsResult)) return configsResult;
@@ -281,9 +281,7 @@ export const openKnowledgeGraph = <C extends EntitySchema<ConfigDataType>>(
 
         const orderedResults = before ? results.data.reverse() : results.data;
         const hasMore = orderedResults.length > limit;
-        const dbItems = orderedResults
-          .slice(0, limit)
-          .map((row) => dbModelToEntity(row));
+        const dbItems = orderedResults.slice(0, limit).map(dbModelToEntity);
 
         const resolvedResult = await resolveIncludes(
           tx,

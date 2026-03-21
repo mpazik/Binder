@@ -39,7 +39,7 @@ import {
   type Transaction,
   versionFromTransaction,
 } from "./model";
-import { applyAndSaveTransaction } from "./transaction-processor.ts";
+import { applyAndSaveTransaction } from "./transaction-applier.ts";
 import { mockRecordSchemaRaw } from "./model/schema.mock.ts";
 import {
   mockTransactionInitInput,

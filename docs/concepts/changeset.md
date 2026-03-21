@@ -9,6 +9,7 @@ sourceFiles:
   - packages/db/src/model/changeset.ts
   - packages/db/src/model/changeset-input.ts
   - packages/db/src/changeset-processor.ts
+  - packages/db/src/changeset-applier.ts
 relatesTo:
   - transaction
   - entity
