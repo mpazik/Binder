@@ -10,6 +10,8 @@ import { serializeFormats, serializeItemFormats } from "../utils/serialize.ts";
 import { isInteractive } from "./stdin.ts";
 import type { Ui } from "./ui.ts";
 
+// --- Namespace option ---
+
 export const namespaceOption = {
   namespace: {
     alias: "n",
@@ -19,11 +21,17 @@ export const namespaceOption = {
   },
 } as const;
 
+// --- Format options ---
+
+/** Default to JSON when piped (non-TTY), otherwise let the UI decide. */
+const nonTtyDefault = process.stdout.isTTY ? undefined : "json";
+
 export const itemFormatOption = {
   format: {
     describe: "output format",
     type: "string",
     choices: serializeItemFormats,
+    default: nonTtyDefault,
   },
 } as const;
 
@@ -32,6 +40,7 @@ export const listFormatOption = {
     describe: "output format",
     type: "string",
     choices: serializeFormats,
+    default: nonTtyDefault,
   },
 } as const;
 
@@ -111,9 +120,9 @@ export const skipOption = {
 } as const;
 
 export const selectionOptions = {
-  ...limitOption,
-  ...lastOption,
   ...skipOption,
+  ...lastOption,
+  ...limitOption,
 } as const;
 
 export type SelectionArgs = {
@@ -122,6 +131,8 @@ export type SelectionArgs = {
   skip?: number;
 };
 
+// --- Parsing helpers ---
+
 /**
  * Parse CLI values that may be passed either as repeated args
  * (`--x a --x b`) or as comma-delimited strings (`--x a,b`).
@@ -129,8 +140,7 @@ export type SelectionArgs = {
 export const parseCommaSeparatedList = <T extends string = string>(
   value: string | string[],
 ): T[] => {
-  const values = Array.isArray(value) ? value : [value];
-  const items = values
+  const items = (Array.isArray(value) ? value : [value])
     .flatMap((item) => item.split(","))
     .map((item) => item.trim())
     .filter((item): item is T => item.length > 0);

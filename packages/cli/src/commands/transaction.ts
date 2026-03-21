@@ -48,11 +48,12 @@ import { withPager } from "../cli/pager.ts";
 const transactionInputSummary = (input: TransactionInput): string => {
   const recordCount = input.records?.length ?? 0;
   const configCount = input.configs?.length ?? 0;
-  const parts = [
+  return [
     recordCount > 0 && `${recordCount} record(s)`,
     configCount > 0 && `${configCount} config(s)`,
-  ].filter(Boolean);
-  return parts.length > 0 ? parts.join(", ") : "";
+  ]
+    .filter(Boolean)
+    .join(", ");
 };
 
 export const transactionImportHandler: CommandHandlerWithDb<
@@ -532,10 +533,8 @@ export const transactionLogHandler: CommandHandlerWithDb<{
   );
   if (isErr(logResult)) return logResult;
 
-  const transactions = logResult.data;
-
   if (includes(serializeFormats, args.format)) {
-    ui.printData(transactions, args.format);
+    ui.printData(logResult.data, args.format);
     return ok(undefined);
   }
 
@@ -546,7 +545,7 @@ export const transactionLogHandler: CommandHandlerWithDb<{
       : "concise";
 
   await withPager(() => {
-    for (const tx of transactions) {
+    for (const tx of logResult.data) {
       ui.printTransaction(tx, format);
       if (format !== "oneline") {
         ui.divider();
@@ -589,7 +588,7 @@ export const transactionExportHandler: CommandHandlerWithDb<{
 export const TransactionCommand = types({
   command: "transaction <command>",
   aliases: ["tx"],
-  describe: "create transactions",
+  describe: "manage transactions",
   builder: (yargs: Argv) => {
     return yargs
       .command(

@@ -24,7 +24,7 @@ import { applySelection } from "../utils/selection.ts";
 import { isStdinPiped, readStdinAs } from "../cli/stdin.ts";
 import { formatReferencesList } from "../document/reference.ts";
 
-const formatItems = async (
+const resolveFormattedItems = async (
   kg: KnowledgeGraph,
   items: Fieldset[],
   namespace: NamespaceEditable,
@@ -53,17 +53,17 @@ const searchHandler: CommandHandlerWithDb<{
     if (hasArgs)
       return fail(
         "conflicting-input",
-        "Cannot combine stdin with positional arguments or query options",
+        "Cannot combine stdin with positional arguments or query options. Put filters, includes, and orderBy in the JSON payload instead.",
       );
 
-    const queryResult = await readStdinAs(QueryParamsSchema);
-    if (isErr(queryResult)) return queryResult;
+    const stdinResult = await readStdinAs(QueryParamsSchema);
+    if (isErr(stdinResult)) return stdinResult;
 
     query = {
-      ...queryResult.data,
+      ...stdinResult.data,
       pagination: {
-        ...queryResult.data.pagination,
-        limit: args.limit ?? queryResult.data.pagination?.limit,
+        ...stdinResult.data.pagination,
+        limit: args.limit ?? stdinResult.data.pagination?.limit,
       },
     };
   } else {
@@ -78,7 +78,7 @@ const searchHandler: CommandHandlerWithDb<{
   if (isErr(result)) return result;
 
   const items = applySelection(result.data.items, { limit: args.limit });
-  const formatted = await formatItems(kg, items, args.namespace);
+  const formatted = await resolveFormattedItems(kg, items, args.namespace);
   if (isErr(formatted)) return formatted;
 
   const data = flatListFormats.includes(args.format!)

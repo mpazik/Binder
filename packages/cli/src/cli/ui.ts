@@ -125,9 +125,44 @@ const keyValuesInline = (...pairs: [string, string][]) => {
   println(`  ${formatted}`);
 };
 
+const formatValue = (value: unknown, indent: string): string => {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean")
+    return String(value);
+  if (value === null || value === undefined) return String(value);
+  if (Array.isArray(value)) {
+    if (value.length === 0) return "[]";
+    return (
+      "\n" +
+      value
+        .map((item, i) => {
+          const itemStr = formatValue(item, indent + "  ");
+          return `${indent}  [${i}] ${itemStr}`;
+        })
+        .join("\n")
+    );
+  }
+  if (typeof value === "object") {
+    const entries = Object.entries(value);
+    if (entries.length === 0) return "{}";
+    return (
+      "\n" +
+      entries
+        .map(([k, v]) => {
+          const valStr = formatValue(v, indent + "  ");
+          return `${indent}  ${Style.TEXT_INFO}${k}${Style.TEXT_NORMAL}: ${valStr}`;
+        })
+        .join("\n")
+    );
+  }
+  return String(value);
+};
+
 const error = (message: string) => {
   eprintln(Style.TEXT_DANGER_BOLD + "Error: " + Style.TEXT_NORMAL + message);
 };
+
+type ValidationError = { field?: string; fieldKey?: string; message?: string };
 
 const printError = (err: ErrorObject) => {
   eprintln(
@@ -137,53 +172,19 @@ const printError = (err: ErrorObject) => {
       (err.message || err.key),
   );
 
-  const formatValue = (value: unknown, indent: string): string => {
-    if (typeof value === "string") return value;
-    if (typeof value === "number" || typeof value === "boolean")
-      return String(value);
-    if (value === null || value === undefined) return String(value);
-    if (Array.isArray(value)) {
-      if (value.length === 0) return "[]";
-      return (
-        "\n" +
-        value
-          .map((item, i) => {
-            const itemStr = formatValue(item, indent + "  ");
-            return `${indent}  [${i}] ${itemStr}`;
-          })
-          .join("\n")
-      );
-    }
-    if (typeof value === "object") {
-      const entries = Object.entries(value);
-      if (entries.length === 0) return "{}";
-      return (
-        "\n" +
-        entries
-          .map(([k, v]) => {
-            const valStr = formatValue(v, indent + "  ");
-            return `${indent}  ${Style.TEXT_INFO}${k}${Style.TEXT_NORMAL}: ${valStr}`;
-          })
-          .join("\n")
-      );
-    }
-    return String(value);
-  };
-
   if (
     err.key === "changeset-input-process-failed" &&
     err.data &&
     "errors" in err.data
   ) {
-    const errors = (err.data as any).errors as any[];
+    const errors = err.data.errors as ValidationError[] | undefined;
     if (Array.isArray(errors) && errors.length > 0) {
       eprintln(Style.TEXT_DANGER + "Validation errors:" + Style.TEXT_NORMAL);
       for (const validationError of errors) {
         const fieldName = validationError.field ?? validationError.fieldKey;
-        const message =
-          fieldName && validationError.message
-            ? `Field '${Style.TEXT_INFO}${fieldName}${Style.TEXT_NORMAL}': ${validationError.message}`
-            : formatValue(validationError, "    ");
+        const message = fieldName
+          ? `Field '${Style.TEXT_INFO}${fieldName}${Style.TEXT_NORMAL}': ${validationError.message ?? formatValue(validationError, "    ")}`
+          : (validationError.message ?? formatValue(validationError, "    "));
         eprintln(`  - ${message}`);
       }
       return;
@@ -191,8 +192,7 @@ const printError = (err: ErrorObject) => {
   }
 
   eprintln(Style.TEXT_DIM + "Error details:" + Style.TEXT_NORMAL);
-  const formatted = formatValue(err.data, "");
-  eprintln(formatted);
+  eprintln(formatValue(err.data, ""));
 };
 
 const printData = (data: unknown, format?: SerializeFormat) => {
@@ -222,6 +222,67 @@ const printData = (data: unknown, format?: SerializeFormat) => {
     .join(EOL);
 
   println(highlighted);
+};
+
+// --- Transaction formatting ---
+
+export type TransactionFormat =
+  | "oneline"
+  | "concise"
+  | "full"
+  | SerializeItemFormat;
+
+const formatFieldValue = (value: FieldValue | undefined): string => {
+  if (value === null || value === undefined) return String(value);
+  if (typeof value === "string") {
+    if (value.length > 50) return `"${value.slice(0, 47)}..."`;
+    return `"${value}"`;
+  }
+  if (typeof value === "number" || typeof value === "boolean")
+    return String(value);
+  if (Array.isArray(value)) return `[${value.length} items]`;
+  if (typeof value === "object") return `{${Object.keys(value).length} fields}`;
+  return String(value);
+};
+
+const printFieldChange = (
+  fieldKey: string,
+  change: ValueChange,
+  indent: string,
+) => {
+  if (isSetChange(change)) {
+    const value = change[1];
+    const previous = change.length === 3 ? change[2] : undefined;
+    if (previous === undefined && value !== undefined) {
+      println(
+        `${indent}${Style.TEXT_DIM}${fieldKey}:${Style.TEXT_NORMAL} ${formatFieldValue(value)}`,
+      );
+    } else {
+      println(
+        `${indent}${Style.TEXT_DIM}${fieldKey}:${Style.TEXT_NORMAL} ` +
+          `${formatFieldValue(previous)} → ${formatFieldValue(value)}`,
+      );
+    }
+  } else if (isClearChange(change)) {
+    println(
+      `${indent}${Style.TEXT_DIM}${fieldKey}: ` +
+        `${Style.TEXT_DANGER}${formatFieldValue(change[1])} → (deleted)${Style.TEXT_NORMAL}`,
+    );
+  } else if (isSeqChange(change)) {
+    println(
+      `${indent}${Style.TEXT_DIM}${fieldKey}:${Style.TEXT_NORMAL} list mutations:`,
+    );
+    for (const mutation of change[1]) {
+      const [kind, mutValue, position] = mutation;
+      const posText =
+        position !== undefined ? ` at position ${position}` : " at end";
+      const kindStyle =
+        kind === "insert" ? Style.TEXT_SUCCESS : Style.TEXT_DANGER;
+      println(
+        `${indent}  ${kindStyle}[${kind}]${Style.TEXT_NORMAL} ${formatFieldValue(mutValue)}${Style.TEXT_DIM}${posText}${Style.TEXT_NORMAL}`,
+      );
+    }
+  }
 };
 
 const getEntityOperation = (changeset: FieldChangeset): string => {
@@ -260,9 +321,6 @@ const printEntityChanges = (
   for (const [uid, changeset] of entries) {
     const operation = getEntityOperation(changeset);
     const entityLabel = getEntityLabel(changeset);
-    const fields = Object.entries(changeset).filter(
-      ([key]) => key !== "createdAt" && key !== "updatedAt",
-    ) as [string, FieldValue | ValueChange][];
 
     if (format === "concise") {
       println(`    - ${uid}${entityLabel} ${operation}`);
@@ -271,6 +329,9 @@ const printEntityChanges = (
         `    ${Style.TEXT_INFO}${uid}${entityLabel}${Style.TEXT_NORMAL} ${operation}`,
       );
 
+      const fields = Object.entries(changeset).filter(
+        ([key]) => key !== "createdAt" && key !== "updatedAt",
+      ) as [string, FieldValue | ValueChange][];
       for (const [fieldKey, change] of fields) {
         printFieldChange(fieldKey, normalizeValueChange(change), "      ");
       }
@@ -278,11 +339,6 @@ const printEntityChanges = (
   }
 };
 
-export type TransactionFormat =
-  | "oneline"
-  | "concise"
-  | "full"
-  | SerializeItemFormat;
 const printTransaction = (
   transaction: Transaction,
   format: TransactionFormat = "concise",
@@ -298,7 +354,6 @@ const printTransaction = (
   if (format === "oneline") {
     const recordCount = Object.keys(transaction.records).length;
     const configCount = Object.keys(transaction.configs).length;
-
     const recordText = recordCount === 1 ? "record" : "records";
     const configText = configCount === 1 ? "config" : "configs";
 
@@ -321,61 +376,6 @@ const printTransaction = (
 
   printEntityChanges("Record changes", transaction.records, format);
   printEntityChanges("Config changes", transaction.configs, format);
-};
-
-const formatFieldValue = (value: FieldValue | undefined): string => {
-  if (value === null || value === undefined) return String(value);
-  if (typeof value === "string") {
-    if (value.length > 50) return `"${value.slice(0, 47)}..."`;
-    return `"${value}"`;
-  }
-  if (typeof value === "number" || typeof value === "boolean")
-    return String(value);
-  if (Array.isArray(value)) return `[${value.length} items]`;
-  if (typeof value === "object") return `{${Object.keys(value).length} fields}`;
-  return String(value);
-};
-
-const printFieldChange = (
-  fieldKey: string,
-  change: ValueChange,
-  indent: string,
-) => {
-  if (isSetChange(change)) {
-    const value = change[1];
-    const previous = change.length === 3 ? change[2] : undefined;
-    if (previous === undefined && value !== undefined) {
-      println(
-        `${indent}${Style.TEXT_DIM}${fieldKey}:${Style.TEXT_NORMAL} ${formatFieldValue(value)}`,
-      );
-    } else {
-      println(
-        `${indent}${Style.TEXT_DIM}${fieldKey}:${Style.TEXT_NORMAL} ` +
-          `${formatFieldValue(previous)} → ${formatFieldValue(value)}`,
-      );
-    }
-  } else if (isClearChange(change)) {
-    const previous = change[1];
-    println(
-      `${indent}${Style.TEXT_DIM}${fieldKey}: ` +
-        `${Style.TEXT_DANGER}${formatFieldValue(previous)} → (deleted)${Style.TEXT_NORMAL}`,
-    );
-  } else if (isSeqChange(change)) {
-    const mutations = change[1];
-    println(
-      `${indent}${Style.TEXT_DIM}${fieldKey}:${Style.TEXT_NORMAL} list mutations:`,
-    );
-    for (const mutation of mutations) {
-      const [kind, mutValue, position] = mutation;
-      const posText =
-        position !== undefined ? ` at position ${position}` : " at end";
-      const kindStyle =
-        kind === "insert" ? Style.TEXT_SUCCESS : Style.TEXT_DANGER;
-      println(
-        `${indent}  ${kindStyle}[${kind}]${Style.TEXT_NORMAL} ${formatFieldValue(mutValue)}${Style.TEXT_DIM}${posText}${Style.TEXT_NORMAL}`,
-      );
-    }
-  }
 };
 
 export type Ui = {
@@ -453,8 +453,8 @@ export const createUi = (options: { quiet?: boolean } = {}): Ui => {
       }
     },
     confirm: async (prompt: string): Promise<boolean> => {
-      const answer = await input(prompt);
-      return answer.toLowerCase() === "yes" || answer.toLowerCase() === "y";
+      const answer = (await input(prompt)).toLowerCase();
+      return answer === "yes" || answer === "y";
     },
     printTransactions: (
       transactions: Transaction[],
