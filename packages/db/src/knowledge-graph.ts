@@ -11,7 +11,7 @@ import {
   type ConfigDataType,
   type ConfigSchemaExtended,
   coreConfigSchema,
-  coreSchema,
+  coreRecordSchema,
   type EntityRef,
   type EntitySchema,
   type Fieldset,
@@ -148,7 +148,7 @@ export const openKnowledgeGraph = <C extends EntitySchema<ConfigDataType>>(
       ) as unknown as TypeDef[];
 
       const schema: RecordSchema = mergeSchema(
-        mergeSchema(coreSchema(), options?.providerSchema),
+        mergeSchema(coreRecordSchema(), options?.providerSchema),
         {
           fields: groupByToObject(fields, (f) => f.key),
           types: groupByToObject(types, (t) => t.key),

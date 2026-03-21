@@ -11,12 +11,12 @@ import type {
   ConfigRef,
   ConfigType,
   ConfigUid,
-  RecordDataType,
 } from "./config.ts";
+import type { RecordDataType } from "./record-schema.ts";
 import type { TransactionId, TransactionRef } from "./transaction.ts";
 import type { CoreDataType } from "./data-type.ts";
 import type { EntitySchema } from "./schema.ts";
-import type { ConfigDataType } from "./system.ts";
+import type { ConfigDataType } from "./config-schema.ts";
 
 export const entityNamespaces = ["record", "config", "transaction"] as const;
 export const namespacesEditable = ["record", "config"] as const;

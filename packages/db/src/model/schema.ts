@@ -62,40 +62,45 @@ export const validateIdInRange = <T extends EntityId>(
     `Expected id to be in range (${offset}-${limit}) but was ${id}`,
   );
 
+/**
+ * Core fields (IDs 1-15) are shared across all namespaces.
+ * Each namespace extends beyond core with its own ranges:
+ *   Record: see record-schema.ts
+ *   Config: see config-schema.ts
+ */
 export const ID_RANGE_CORE_LIMIT = 16;
 
 export const coreIds = {
-  id: newId(1, 0),
-  uid: newId(2, 0),
-  key: newId(3, 0),
-  type: newId(4, 0),
-  name: newId(5, 0),
-  title: newId(6, 0),
-  description: newId(7, 0),
-  parent: newId(8, 0),
-  children: newId(9, 0),
-  tags: newId(10, 0),
+  id: newId<EntityId>(1, 0),
+  uid: newId<EntityId>(2, 0),
+  key: newId<EntityId>(3, 0),
+  type: newId<EntityId>(4, 0),
+  name: newId<EntityId>(5, 0),
+  description: newId<EntityId>(6, 0),
+  tags: newId<EntityId>(7, 0),
 } as const;
 
-export const titleFieldKey = "title" as EntityKey;
-export const descriptionFieldKey = "description" as EntityKey;
 export const nameFieldKey = "name" as EntityKey;
-export const parentFieldKey = "parent" as EntityKey;
-export const childrenFieldKey = "children" as EntityKey;
+export const descriptionFieldKey = "description" as EntityKey;
 export const tagsFieldKey = "tags" as EntityKey;
+
 export const coreFields = {
+  // Identity
   id: {
     id: coreIds.id,
     key: "id" as EntityKey,
-    name: "id",
+    name: "ID",
     dataType: "seqId",
+    description: "Internal sequential identifier. Not stable across rebases.",
     immutable: true,
   },
   uid: {
     id: coreIds.uid,
     key: "uid" as EntityKey,
-    name: "uid",
+    name: "UID",
     dataType: "uid",
+    description:
+      "Immutable globally unique identifier. Source of truth for identity.",
     immutable: true,
   },
   key: {
@@ -104,53 +109,35 @@ export const coreFields = {
     name: "Key",
     dataType: "plaintext",
     plaintextFormat: "identifier",
-    description: "Unique key to identify the configuration record",
+    description:
+      "Human-readable identifier. Unique within the workspace but may change.",
     unique: true,
   },
   type: {
     id: coreIds.type,
     key: "type" as EntityKey,
-    name: "type",
+    name: "Type",
     dataType: "plaintext",
     plaintextFormat: "identifier",
+    description: "Determines which fields and constraints apply.",
     immutable: true,
   },
+  // Labeling
   name: {
     id: coreIds.name,
     key: nameFieldKey,
-    name: "name",
+    name: "Name",
     dataType: "plaintext",
     plaintextFormat: "line",
-  },
-  title: {
-    id: coreIds.title,
-    key: titleFieldKey,
-    name: "title",
-    dataType: "plaintext",
-    plaintextFormat: "line",
+    description: "Short label for display and identification.",
   },
   description: {
     id: coreIds.description,
     key: descriptionFieldKey,
-    name: "description",
+    name: "Description",
     dataType: "richtext",
     richtextFormat: "block",
-  },
-  parent: {
-    id: coreIds.parent,
-    key: parentFieldKey,
-    name: "Parent",
-    dataType: "relation",
-    description: "Parent entity in hierarchical structure",
-  },
-  children: {
-    id: coreIds.children,
-    key: childrenFieldKey,
-    name: "Children",
-    dataType: "relation",
-    description: "Child entities in hierarchical structure",
-    allowMultiple: true,
-    inverseOf: parentFieldKey,
+    description: "Brief explanation of what this is or does.",
   },
   tags: {
     id: coreIds.tags,
@@ -159,8 +146,13 @@ export const coreFields = {
     dataType: "plaintext",
     plaintextFormat: "identifier",
     allowMultiple: true,
+    description: "Freeform labels for filtering and grouping.",
   },
 } as const satisfies Record<string, FieldDef>;
+
+export type CoreFieldKey = keyof typeof coreFields;
+
+export const coreFieldKeys = Object.keys(coreFields) as CoreFieldKey[];
 
 export type FieldAttrDef = {
   required?: boolean;
@@ -199,9 +191,7 @@ export type EntitySchema<D extends string = string> = {
 
 export const coreIdentityFieldKeys = ["id", "uid", "key", "type"] as const;
 export type CoreIdentityFieldKey = (typeof coreIdentityFieldKeys)[number];
-export type CoreFieldKey = keyof typeof coreFields;
 
-export const coreFieldKeys = Object.keys(coreFields) as CoreFieldKey[];
 export const fieldSystemType = "Field" as EntityType;
 export const typeSystemType = "Type" as EntityType;
 
@@ -245,20 +235,13 @@ export const emptySchema = <D extends string>(): EntitySchema<D> => ({
   types: {},
 });
 
-export const coreSchema = (): EntitySchema<CoreDataType> => ({
-  fields: coreFields,
-  types: {},
-});
-
 export const mergeSchema = <D extends string>(
   a: EntitySchema<D> = emptySchema(),
   b: EntitySchema<D> = emptySchema(),
-): EntitySchema<D> => {
-  return {
-    fields: { ...a.fields, ...b.fields },
-    types: { ...a.types, ...b.types },
-  };
-};
+): EntitySchema<D> => ({
+  fields: { ...a.fields, ...b.fields },
+  types: { ...a.types, ...b.types },
+});
 
 export const createSchema = <D extends string>(
   fields: FieldDef<D>[],

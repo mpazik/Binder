@@ -3,14 +3,14 @@ import {
   type ConfigKey,
   type ConfigUid,
   type Fieldset,
-  newUserConfigId,
+  newConfigAppId,
 } from "@binder/db";
 import { typeNavigationKey, typeViewKey } from "../cli-config-schema.ts";
 
 export const mockNav1Key = "nav-projects" as ConfigKey;
 
 export const mockNav1Entity = {
-  id: newUserConfigId(0),
+  id: newConfigAppId(0),
   uid: "_navRoot000" as ConfigUid,
   key: mockNav1Key,
   type: typeNavigationKey,
@@ -19,7 +19,7 @@ export const mockNav1Entity = {
 } as const satisfies Fieldset;
 
 export const mockNav2Entity = {
-  id: newUserConfigId(1),
+  id: newConfigAppId(1),
   uid: "_navChild00" as ConfigUid,
   key: "nav-project-tasks" as ConfigKey,
   type: typeNavigationKey,
@@ -29,7 +29,7 @@ export const mockNav2Entity = {
 } as const satisfies Fieldset;
 
 export const mockNav3Entity = {
-  id: newUserConfigId(2),
+  id: newConfigAppId(2),
   uid: "_navRoot002" as ConfigUid,
   key: "nav-all-tasks" as ConfigKey,
   type: typeNavigationKey,
@@ -38,7 +38,7 @@ export const mockNav3Entity = {
 } as const satisfies Fieldset;
 
 export const mockNav4Entity = {
-  id: newUserConfigId(3),
+  id: newConfigAppId(3),
   uid: "_navRoot003" as ConfigUid,
   key: "nav-tasks" as ConfigKey,
   type: typeNavigationKey,
@@ -48,7 +48,7 @@ export const mockNav4Entity = {
 } as const satisfies Fieldset;
 
 export const mockNav6Entity = {
-  id: newUserConfigId(6),
+  id: newConfigAppId(6),
   uid: "_navRoot005" as ConfigUid,
   key: "nav-limited-tasks" as ConfigKey,
   type: typeNavigationKey,
@@ -58,7 +58,7 @@ export const mockNav6Entity = {
 } as const satisfies Fieldset;
 
 export const mockMdTaskViewEntity = {
-  id: newUserConfigId(4),
+  id: newConfigAppId(4),
   uid: "_tmplMdTask" as ConfigUid,
   key: "md-task-view" as ConfigKey,
   type: typeViewKey,
@@ -67,7 +67,7 @@ export const mockMdTaskViewEntity = {
 } as const satisfies Fieldset;
 
 export const mockNav5Entity = {
-  id: newUserConfigId(5),
+  id: newConfigAppId(5),
   uid: "_navRoot004" as ConfigUid,
   key: "nav-md-tasks" as ConfigKey,
   type: typeNavigationKey,

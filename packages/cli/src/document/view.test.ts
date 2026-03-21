@@ -5,7 +5,7 @@ import {
   type FieldsetNested,
   type EntityKey,
   type EntitySchema,
-  coreSchema,
+  coreRecordSchema,
   mergeSchema,
   newId,
 } from "@binder/db";
@@ -1121,7 +1121,7 @@ Excellent first week. Schema is minimal and consistent.
       });
 
       describe("section view with custom schema", () => {
-        const journalSchema = mergeSchema(coreSchema(), {
+        const journalSchema = mergeSchema(coreRecordSchema(), {
           fields: {
             dayPeriod: {
               id: newId(100, 0),

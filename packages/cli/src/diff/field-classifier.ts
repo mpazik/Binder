@@ -61,6 +61,8 @@ const BASE_U_VALUES: Record<CoreDataType, number> = {
   relation: 0.05,
   uid: 0.0001,
   seqId: 0.0001,
+  option: 0.05,
+  uri: 0.0001,
 };
 
 const getBaseUnrelatedMatchChance = (

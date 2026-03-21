@@ -152,31 +152,37 @@ export const coreValidators: { [K in CoreDataType]: DataTypeValidator<K> } = {
     if (error) return fail("validation-error", error);
     return okVoid;
   },
-};
 
-export const optionValidator: DataTypeValidator<"option"> = (
-  value,
-  fieldDef,
-) => {
-  if (typeof value !== "string" || value.length === 0)
-    return fail(
-      "validation-error",
-      `Expected non-empty string for option`,
-      undefined,
-    );
-
-  if (fieldDef.options && fieldDef.options.length > 0) {
-    const validKeys = fieldDef.options.map((opt) => opt.key);
-    if (!validKeys.includes(value)) {
+  option: (value, fieldDef) => {
+    if (typeof value !== "string" || value.length === 0)
       return fail(
         "validation-error",
-        `Invalid option value: ${value}. Expected one of: ${validKeys.join(", ")}`,
+        `Expected non-empty string for option`,
         undefined,
       );
-    }
-  }
 
-  return okVoid;
+    if (fieldDef.options && fieldDef.options.length > 0) {
+      const validKeys = fieldDef.options.map((opt) => opt.key);
+      if (!validKeys.includes(value)) {
+        return fail(
+          "validation-error",
+          `Invalid option value: ${value}. Expected one of: ${validKeys.join(", ")}`,
+          undefined,
+        );
+      }
+    }
+
+    return okVoid;
+  },
+
+  uri: (value) => {
+    if (typeof value === "string") return okVoid;
+    return fail(
+      "validation-error",
+      `Expected string, got: ${typeof value}`,
+      undefined,
+    );
+  },
 };
 
 const queryValidator: DataTypeValidator<"query"> = (value) => {
@@ -211,11 +217,9 @@ export const recordDataTypeValidators: {
   [K in RecordDataType]: DataTypeValidator<K>;
 } = {
   ...coreValidators,
-  option: optionValidator,
   fileHash: stringValidator,
   interval: stringValidator,
   duration: stringValidator,
-  uri: stringValidator,
   query: queryValidator,
   image: stringValidator,
 };
@@ -234,7 +238,6 @@ export const configDataTypeValidators: {
     );
   },
   json: () => okVoid,
-  option: optionValidator,
   optionSet: (value) => {
     if (!Array.isArray(value))
       return fail(

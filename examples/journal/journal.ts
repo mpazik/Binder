@@ -234,6 +234,7 @@ type EntitySpec = {
   period: string;
   key: string;
   parentKey?: string;
+  previousKey?: string;
 };
 
 const binder = async (
@@ -255,6 +256,15 @@ const binder = async (
 const entityExists = async (key: string): Promise<boolean> => {
   const result = await binder(["locate", key]);
   return result.success;
+};
+
+const previousPeriodKey = (date: Date, granularity: Granularity): string => {
+  const prevDate = applyOffset(
+    normalizeDate(date, granularity),
+    granularity,
+    -1,
+  );
+  return buildKey(granularity, formatPeriod(prevDate, granularity));
 };
 
 const buildEntitySpecs = (
@@ -281,6 +291,7 @@ const buildEntitySpecs = (
 };
 
 const findMissingEntities = async (
+  targetDate: Date,
   specs: EntitySpec[],
 ): Promise<EntitySpec[]> => {
   const missing: EntitySpec[] = [];
@@ -288,6 +299,14 @@ const findMissingEntities = async (
   for (const spec of specs) {
     if (await entityExists(spec.key)) break;
     missing.push(spec);
+  }
+
+  // Resolve previous links for missing entities
+  for (const spec of missing) {
+    const prevKey = previousPeriodKey(targetDate, spec.granularity);
+    if (await entityExists(prevKey)) {
+      spec.previousKey = prevKey;
+    }
   }
 
   return missing.reverse();
@@ -301,6 +320,7 @@ const createEntities = async (specs: EntitySpec[]): Promise<boolean> => {
     key: spec.key,
     [periodFieldName(spec.granularity)]: spec.period,
     ...(spec.parentKey ? { parent: spec.parentKey } : {}),
+    ...(spec.previousKey ? { previous: spec.previousKey } : {}),
   }));
 
   const result = await binder(["create"], JSON.stringify(inputs));
@@ -318,7 +338,7 @@ const { granularity, offset, keyOnly } = parsed;
 const targetDate = applyOffset(new Date(), granularity, offset);
 
 const specs = buildEntitySpecs(targetDate, granularity);
-const missing = await findMissingEntities(specs);
+const missing = await findMissingEntities(targetDate, specs);
 
 if (!(await createEntities(missing))) process.exit(1);
 

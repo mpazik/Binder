@@ -4,56 +4,11 @@
 - author: system
   configs:
     # Fields
-    - key: status
-      type: Field
-      name: Status
-      dataType: option
-      options: [pending, active, complete, cancelled, archived]
-      default: pending
-
-    - key: priority
-      type: Field
-      dataType: option
-      options: [low, medium, high]
-      default: medium
-
-    - key: dueDate
-      type: Field
-      name: Due Date
-      dataType: date
-
-    - key: completedAt
-      type: Field
-      name: Completed At
-      dataType: datetime
-      when: { status: complete }
-
     - key: resourceType
       type: Field
       name: Resource Type
       dataType: option
       options: [book, article, video, podcast, course, paper]
-
-    - key: url
-      type: Field
-      name: URL
-      dataType: plaintext
-
-    - key: linksTo
-      type: Field
-      name: Links To
-      dataType: relation
-      range: [Area, Task, Project, Note, Resource]
-      allowMultiple: true
-      inverseOf: linkedFrom
-
-    - key: linkedFrom
-      type: Field
-      name: Linked From
-      dataType: relation
-      range: [Area, Task, Project, Note, Resource]
-      allowMultiple: true
-      inverseOf: linksTo
 
     # Types
     - key: Area
@@ -70,15 +25,14 @@
       fields:
         - title: { required: true }
         - description
-        - status: { default: pending, exclude: [archived] }
+        - status: { default: pending }
         - priority: { default: medium }
         - dueDate
         - completedAt
         - parent: { only: [Task, Project] }
         - children: { only: [Task] }
         - tags
-        - linksTo
-        - linkedFrom
+        - relatesTo
 
     - key: Project
       type: Type
@@ -91,19 +45,17 @@
         - parent: { only: [Area] }
         - children: { only: [Task] }
         - tags
-        - linksTo
-        - linkedFrom
+        - relatesTo
 
     - key: Note
       type: Type
       description: Captured thought or information
       fields:
         - title: { required: true }
-        - textContent
+        - content
         - parent: { only: [Area] }
         - tags
-        - linksTo
-        - linkedFrom
+        - relatesTo
 
     - key: Resource
       type: Type
@@ -113,10 +65,9 @@
         - description
         - resourceType: { required: true }
         - url
-        - status: { exclude: [active] }
+        - status
         - tags
-        - linksTo
-        - linkedFrom
+        - relatesTo
 
 # Navigation Structure (PARA-based workspace)
 - author: system
@@ -168,7 +119,7 @@
       path: resources
       parent: nav-areas-dir
       query:
-        filters: { type: Resource, linksTo: "{parent.key}" }
+        filters: { type: Resource, relatesTo: "{parent.key}" }
 
     # Projects
     - key: nav-projects-pending
@@ -281,7 +232,7 @@
           resourceType: [video, podcast, course, paper]
           status: complete
 
-# Sample data for personal knowledge management blueprint
+# Sample data
 - author: system
   records:
     # Areas
@@ -349,7 +300,7 @@
     # Notes
     - type: Note
       title: Sleep Tips
-      textContent: |
+      content: |
         - Avoid screens 1 hour before bed
         - Keep bedroom cool (65-68°F)
         - Consistent sleep schedule
@@ -357,7 +308,7 @@
 
     - type: Note
       title: Running Form Cues
-      textContent: |
+      content: |
         - Land midfoot, not heel
         - Keep cadence around 180 steps/min
         - Relax shoulders, arms at 90°
@@ -365,7 +316,7 @@
 
     - type: Note
       title: Career Goals 2025
-      textContent: |
+      content: |
         - Get promoted to senior developer
         - Learn TypeScript deeply
         - Contribute to open source
@@ -376,14 +327,14 @@
       title: TypeScript Handbook
       resourceType: article
       url: https://www.typescriptlang.org/docs/handbook/
-      linksTo: [career]
+      relatesTo: [career]
 
     - type: Resource
       title: Atomic Habits
       description: Book by James Clear on building good habits
       resourceType: book
       status: active
-      linksTo: [health]
+      relatesTo: [health]
 
     - type: Resource
       title: Couch to 5K
@@ -391,33 +342,33 @@
       resourceType: article
       url: https://www.nhs.uk/live-well/exercise/running-and-aerobic-exercises/get-running-with-couch-to-5k/
       status: complete
-      linksTo: [health]
+      relatesTo: [health]
 
     - type: Resource
       title: The Pragmatic Programmer
       description: Classic book on software craftsmanship
       resourceType: book
-      linksTo: [career]
+      relatesTo: [career]
 
     - type: Resource
       title: Why We Sleep
       description: Book by Matthew Walker on sleep science
       resourceType: book
-      linksTo: [health]
+      relatesTo: [health]
 
     - type: Resource
       title: TypeScript Deep Dive
       resourceType: article
       url: https://basarat.gitbook.io/typescript/
       status: active
-      linksTo: [career]
+      relatesTo: [career]
 
     - type: Resource
       title: Huberman Lab - Sleep Toolkit
       description: Podcast episode on optimizing sleep
       resourceType: podcast
       url: https://www.hubermanlab.com/episode/toolkit-for-sleep
-      linksTo: [health]
+      relatesTo: [health]
 
     # Archived
     - type: Project
@@ -432,11 +383,11 @@
       description: Comprehensive Git guide by Scott Chacon
       resourceType: book
       status: complete
-      linksTo: [career]
+      relatesTo: [career]
 
     - type: Resource
       title: Git Branching Tutorial
       resourceType: video
       url: https://www.youtube.com/watch?v=example
       status: complete
-      linksTo: [career]
+      relatesTo: [career]

@@ -1,6 +1,6 @@
 import {
   applyConfigChangesetToSchema,
-  coreSchema,
+  coreRecordSchema,
   GENESIS_VERSION,
   hashTransaction,
   type RecordSchema,
@@ -276,7 +276,7 @@ export const verifyLog = async (
   let count = 0;
   let lineNumber = 0;
   let previousHash: TransactionHash = GENESIS_VERSION.hash;
-  let recordSchema: RecordSchema = coreSchema();
+  let schema: RecordSchema = coreRecordSchema();
 
   for await (const result of readTransactionsFromBeginning(fs, path)) {
     lineNumber++;
@@ -304,16 +304,13 @@ export const verifyLog = async (
       );
 
     if (Object.keys(transaction.configs).length > 0) {
-      recordSchema = applyConfigChangesetToSchema(
-        recordSchema,
-        transaction.configs,
-      );
+      schema = applyConfigChangesetToSchema(schema, transaction.configs);
     }
 
     if (options?.verifyIntegrity) {
       const canonical = transactionToCanonical(
         cliFullConfigSchema,
-        recordSchema,
+        schema,
         transaction,
       );
       const expectedHash = await hashTransaction(canonical);
@@ -356,7 +353,7 @@ export const rehashLog = async (
   if (isErr(clearResult)) return clearResult;
 
   let previousHash: TransactionHash = GENESIS_VERSION.hash;
-  let recordSchema: RecordSchema = coreSchema();
+  let schema: RecordSchema = coreRecordSchema();
   let transactionsRehashed = 0;
 
   for await (const result of readTransactionsFromBeginning(fs, backupPath)) {
@@ -364,11 +361,11 @@ export const rehashLog = async (
 
     const tx = { ...result.data, previous: previousHash };
     if (Object.keys(tx.configs).length > 0) {
-      recordSchema = applyConfigChangesetToSchema(recordSchema, tx.configs);
+      schema = applyConfigChangesetToSchema(schema, tx.configs);
     }
     const rehashedTx = await withHashTransaction(
       cliFullConfigSchema,
-      recordSchema,
+      schema,
       tx,
       tx.id,
     );

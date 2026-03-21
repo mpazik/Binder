@@ -77,7 +77,7 @@ import {
   type TypeDef,
   type TypeFieldRef,
   typeSystemType,
-  USER_CONFIG_ID_OFFSET,
+  CONFIG_APP_ID_OFFSET,
   type ValueChangeSet,
 } from "./model";
 import type { DbTransaction } from "./db.ts";
@@ -1365,7 +1365,7 @@ export const processChangesetInput = async <N extends NamespaceEditable>(
 
   let lastId =
     namespace === "config"
-      ? (Math.max(lastEntityId, USER_CONFIG_ID_OFFSET - 1) as EntityId)
+      ? (Math.max(lastEntityId, CONFIG_APP_ID_OFFSET - 1) as EntityId)
       : lastEntityId;
   const generateEntityId = () => {
     const newEntityId = incrementEntityId(lastId);

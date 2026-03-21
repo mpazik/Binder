@@ -1,7 +1,6 @@
 # Personal Journaling System
 # Minimal schema for daily, weekly, monthly, quarterly, and yearly journals
-# Provides: JournalDay, JournalWeek, JournalMonth, JournalQuarter, JournalYear types with plan, achievements, events, log, and reflection
-# Updated: Separate period fields with specific periodFormat, using system parent/children fields
+# Provides: JournalDay, JournalWeek, JournalMonth, JournalQuarter, JournalYear types
 
 # ====================
 # JOURNALING SCHEMA FIELDS
@@ -90,14 +89,6 @@
       allowMultiple: true
       description: Timestamped activity log (one entry per line)
 
-    - key: summary
-      type: Field
-      name: Summary
-      dataType: richtext
-      richtextFormat: block
-      allowMultiple: true
-      description: Summary and insights
-
     # Score fields (1-10 scale)
     - key: moodScore
       type: Field
@@ -162,6 +153,8 @@
         - dayPeriod: { required: true }
         - intention
         - parent: { only: [JournalWeek] }
+        - previous: { only: [JournalDay] }
+        - next: { only: [JournalDay] }
         - moodScore
         - sleepScore
         - foodScore
@@ -183,6 +176,8 @@
         - weekPeriod: { required: true }
         - intention
         - parent: { only: [JournalMonth] }
+        - previous: { only: [JournalWeek] }
+        - next: { only: [JournalWeek] }
         - totalScore
         - goal
         - plan
@@ -198,6 +193,8 @@
       fields:
         - monthPeriod: { required: true }
         - parent: { only: [JournalQuarter] }
+        - previous: { only: [JournalMonth] }
+        - next: { only: [JournalMonth] }
         - goal
         - plan
         - achievements
@@ -212,6 +209,8 @@
       fields:
         - quarterPeriod: { required: true }
         - parent: { only: [JournalYear] }
+        - previous: { only: [JournalQuarter] }
+        - next: { only: [JournalQuarter] }
         - goal
         - plan
         - achievements
@@ -225,6 +224,8 @@
       description: Yearly journal entry
       fields:
         - yearPeriod: { required: true }
+        - previous: { only: [JournalYear] }
+        - next: { only: [JournalYear] }
         - goal
         - plan
         - achievements

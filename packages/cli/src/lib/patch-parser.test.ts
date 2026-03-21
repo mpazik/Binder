@@ -1,6 +1,10 @@
 import { expect, it, describe } from "bun:test";
 import "@binder/utils/tests";
-import { coreFields, type FieldChangeInput, type FieldDef } from "@binder/db";
+import {
+  predefinedFields,
+  type FieldChangeInput,
+  type FieldDef,
+} from "@binder/db";
 import {
   mockAliasesField,
   mockFavoriteField,
@@ -16,7 +20,7 @@ describe("patch-parser", () => {
   const check = (
     patch: string,
     expected: FieldChangeInput,
-    fieldDef: FieldDef = coreFields.title,
+    fieldDef: FieldDef = predefinedFields.title,
   ) => {
     const result = parseFieldChange(patch, fieldDef);
     expect(result).toBeOkWith(expected);
@@ -36,8 +40,8 @@ describe("patch-parser", () => {
   });
 
   it("parses integer", () => {
-    check("field=42", 42, coreFields.id);
-    check("field=-10", -10, coreFields.id);
+    check("field=42", 42, predefinedFields.id);
+    check("field=-10", -10, predefinedFields.id);
   });
 
   it("parses decimal", () => {
@@ -101,9 +105,9 @@ describe("patch-parser", () => {
       check(
         "tags=urgent,important,low-priority",
         ["urgent", "important", "low-priority"],
-        coreFields.tags,
+        predefinedFields.tags,
       );
-      check("tags=urgent", ["urgent"], coreFields.tags);
+      check("tags=urgent", ["urgent"], predefinedFields.tags);
     });
 
     it("sets array with newline-separated values for line format", () => {
@@ -123,7 +127,7 @@ describe("patch-parser", () => {
     });
 
     it("appends single value", () => {
-      check("tags+=urgent", ["insert", "urgent"], coreFields.tags);
+      check("tags+=urgent", ["insert", "urgent"], predefinedFields.tags);
     });
 
     it("appends multiple comma-separated values for identifier format", () => {
@@ -134,7 +138,7 @@ describe("patch-parser", () => {
           ["insert", "b"],
           ["insert", "c"],
         ],
-        coreFields.tags,
+        predefinedFields.tags,
       );
     });
 
@@ -186,16 +190,36 @@ describe("patch-parser", () => {
     });
 
     it("inserts at position with :accessor", () => {
-      check("tags:0+=critical", ["insert", "critical", 0], coreFields.tags);
-      check("tags:2+=important", ["insert", "important", 2], coreFields.tags);
-      check("tags:first+=critical", ["insert", "critical", 0], coreFields.tags);
-      check("tags:last+=urgent", ["insert", "urgent", "last"], coreFields.tags);
+      check(
+        "tags:0+=critical",
+        ["insert", "critical", 0],
+        predefinedFields.tags,
+      );
+      check(
+        "tags:2+=important",
+        ["insert", "important", 2],
+        predefinedFields.tags,
+      );
+      check(
+        "tags:first+=critical",
+        ["insert", "critical", 0],
+        predefinedFields.tags,
+      );
+      check(
+        "tags:last+=urgent",
+        ["insert", "urgent", "last"],
+        predefinedFields.tags,
+      );
     });
 
     it("removes by value", () => {
-      check("tags-=urgent", ["remove", "urgent"], coreFields.tags);
-      check("tags:last-=urgent", ["remove", "urgent", "last"], coreFields.tags);
-      check("tags:1-=urgent", ["remove", "urgent", 1], coreFields.tags);
+      check("tags-=urgent", ["remove", "urgent"], predefinedFields.tags);
+      check(
+        "tags:last-=urgent",
+        ["remove", "urgent", "last"],
+        predefinedFields.tags,
+      );
+      check("tags:1-=urgent", ["remove", "urgent", 1], predefinedFields.tags);
     });
 
     it("removes multiple comma-separated values for identifier format", () => {
@@ -206,7 +230,7 @@ describe("patch-parser", () => {
           ["remove", "b"],
           ["remove", "c"],
         ],
-        coreFields.tags,
+        predefinedFields.tags,
       );
     });
 
@@ -227,30 +251,42 @@ describe("patch-parser", () => {
     });
 
     it("removes by position with :accessor", () => {
-      check("tags:0--", ["remove", null, 0], coreFields.tags);
-      check("tags:2--", ["remove", null, 2], coreFields.tags);
-      check("tags:first--", ["remove", null, 0], coreFields.tags);
-      check("tags:last--", ["remove", null, "last"], coreFields.tags);
+      check("tags:0--", ["remove", null, 0], predefinedFields.tags);
+      check("tags:2--", ["remove", null, 2], predefinedFields.tags);
+      check("tags:first--", ["remove", null, 0], predefinedFields.tags);
+      check("tags:last--", ["remove", null, "last"], predefinedFields.tags);
     });
 
     it("handles quoted values", () => {
       check('title="has space"', "has space");
       check('title="a,b,c"', "a,b,c");
-      check('tags+="has space"', ["insert", "has space"], coreFields.tags);
+      check(
+        'tags+="has space"',
+        ["insert", "has space"],
+        predefinedFields.tags,
+      );
     });
 
     it("handles string values that look like primitives", () => {
-      check("tags+=123", ["insert", "123"], coreFields.tags);
-      check("tags+=true", ["insert", "true"], coreFields.tags);
+      check("tags+=123", ["insert", "123"], predefinedFields.tags);
+      check("tags+=true", ["insert", "true"], predefinedFields.tags);
     });
 
     it("handles ref values", () => {
-      check("tags+=person/jan", ["insert", "person/jan"], coreFields.tags);
-      check("tags:0+=note/beta", ["insert", "note/beta", 0], coreFields.tags);
+      check(
+        "tags+=person/jan",
+        ["insert", "person/jan"],
+        predefinedFields.tags,
+      );
+      check(
+        "tags:0+=note/beta",
+        ["insert", "note/beta", 0],
+        predefinedFields.tags,
+      );
       check(
         "tags:last-=note/stale",
         ["remove", "note/stale", "last"],
-        coreFields.tags,
+        predefinedFields.tags,
       );
     });
   });
@@ -378,20 +414,20 @@ describe("patch-parser", () => {
 
   describe("error handling", () => {
     it("returns error for invalid patch format", () => {
-      expect(parseFieldChange("invalid", coreFields.title)).toBeErrWithKey(
-        "invalid-patch-format",
-      );
+      expect(
+        parseFieldChange("invalid", predefinedFields.title),
+      ).toBeErrWithKey("invalid-patch-format");
     });
 
     it("returns error for remove by position without accessor", () => {
-      expect(parseFieldChange("tags--", coreFields.tags)).toBeErrWithKey(
+      expect(parseFieldChange("tags--", predefinedFields.tags)).toBeErrWithKey(
         "missing-accessor",
       );
     });
 
     it("returns error for invalid YAML/JSON", () => {
       expect(
-        parseFieldChange("field={invalid: json: here}", coreFields.title),
+        parseFieldChange("field={invalid: json: here}", predefinedFields.title),
       ).toBeErrWithKey("invalid-yaml-format");
     });
 
@@ -411,9 +447,9 @@ describe("patch-parser", () => {
 
   it("handles patches with surrounding single quotes", () => {
     check(`'title=value'`, "value");
-    check(`'field=123'`, 123, coreFields.id);
+    check(`'field=123'`, 123, predefinedFields.id);
     check(`'favorite=true'`, true, mockFavoriteField);
-    check(`'tags=a,b,c'`, ["a", "b", "c"], coreFields.tags);
+    check(`'tags=a,b,c'`, ["a", "b", "c"], predefinedFields.tags);
     check(`'options=[{"key":"draft","name":"Draft"}]'`, [
       { key: "draft", name: "Draft" },
     ]);

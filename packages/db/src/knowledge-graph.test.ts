@@ -33,7 +33,7 @@ import {
 } from "./model/config.mock.ts";
 import {
   type ConfigUid,
-  coreFieldKeys,
+  predefinedFieldKeys,
   type Fieldset,
   GENESIS_VERSION,
   type Transaction,
@@ -76,7 +76,7 @@ describe("knowledge graph", () => {
     it("includes core fields in record schema", async () => {
       const schema = throwIfError(await kg.getRecordSchema());
 
-      expect(Object.keys(schema.fields)).toEqual(coreFieldKeys);
+      expect(Object.keys(schema.fields)).toEqual(predefinedFieldKeys);
     });
   });
 

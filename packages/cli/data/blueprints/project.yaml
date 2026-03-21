@@ -3,38 +3,6 @@
 
 - author: system
   configs:
-    # Fields
-    - key: status
-      type: Field
-      name: Status
-      dataType: option
-      options: [pending, active, complete, cancelled, archived]
-      default: pending
-
-    - key: priority
-      type: Field
-      dataType: option
-      options: [low, medium, high]
-      default: medium
-
-    - key: dueDate
-      type: Field
-      name: Due Date
-      dataType: date
-
-    - key: milestone
-      type: Field
-      name: Milestone
-      dataType: relation
-      range: [Milestone]
-
-    - key: milestoneTasks
-      type: Field
-      name: Milestone Tasks
-      dataType: relation
-      range: [Task]
-      allowMultiple: true
-
     # Types
     - key: Task
       type: Type
@@ -47,7 +15,7 @@
         - dueDate
         - parent: { only: [Task] }
         - children: { only: [Task] }
-        - milestone
+        - partOf: { only: [Milestone] }
 
     - key: Milestone
       type: Type
@@ -57,7 +25,7 @@
         - description
         - status
         - dueDate
-        - milestoneTasks
+        - contains: { only: [Task] }
 
 # Navigation & Views
 - author: system
@@ -130,7 +98,7 @@
         description: true
         status: true
         dueDate: true
-        milestoneTasks:
+        contains:
           title: true
           status: true
 
@@ -141,7 +109,7 @@
       query:
         filters:
           type: Task
-          milestone: { op: empty, value: true }
+          partOf: { op: empty, value: true }
           status: [pending, active]
 
 # Sample data
@@ -166,20 +134,20 @@
       description: Login, signup, password reset
       status: active
       priority: high
-      milestone: mvp-release
+      partOf: mvp-release
 
     - type: Task
       key: design-onboarding
       title: Design onboarding screens
       status: pending
       priority: medium
-      milestone: mvp-release
+      partOf: mvp-release
 
     - type: Task
       key: app-store-copy
       title: App store listing copy
       priority: low
-      milestone: v1-launch
+      partOf: v1-launch
 
     - type: Task
       key: fix-landscape-bug

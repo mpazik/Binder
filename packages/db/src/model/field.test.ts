@@ -14,8 +14,9 @@ import {
   mockViewsField,
 } from "./config.mock.ts";
 import { coreFields } from "./schema.ts";
+import { predefinedFields } from "./record-schema.ts";
 
-const mockTagsField = coreFields.tags;
+const mockTagsField = predefinedFields.tags;
 
 // Test-only field definition for section format parsing tests
 const mockSectionField = {
@@ -117,17 +118,17 @@ describe("field", () => {
     };
 
     it("parses string values", () => {
-      check("hello", coreFields.name, "hello");
-      check("  hello  ", coreFields.name, "hello");
+      check("hello", predefinedFields.name, "hello");
+      check("  hello  ", predefinedFields.name, "hello");
     });
 
     it("parses text values", () => {
-      check("some text", coreFields.description, "some text");
+      check("some text", predefinedFields.description, "some text");
     });
 
     it("parses empty string as null", () => {
-      check("", coreFields.name, null);
-      check("   ", coreFields.name, null);
+      check("", predefinedFields.name, null);
+      check("   ", predefinedFields.name, null);
     });
 
     it("parses integer values", () => {

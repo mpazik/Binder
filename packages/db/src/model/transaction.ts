@@ -17,8 +17,8 @@ import {
   squashChangesets,
 } from "./changeset.ts";
 
-import type { ConfigSchema } from "./system.ts";
-import type { RecordSchema } from "./config.ts";
+import type { ConfigSchema } from "./config-schema.ts";
+import type { RecordSchema } from "./record-schema.ts";
 
 export type TransactionId = BrandDerived<EntityId, "TransactionId">;
 export type TransactionHash = BrandDerived<EntityKey, "TransactionHash">;

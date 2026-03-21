@@ -23,6 +23,11 @@ export const coreDataTypes = {
   date: { name: "Date" },
   datetime: { name: "Date Time" },
   period: { name: "Period" },
+  option: { name: "Option", description: "Option value" },
+  uri: {
+    name: "URI",
+    description: "URI reference to an external resource",
+  },
 } as const satisfies DataTypeDefs;
 
 export const dataTypeDefsToOptions = (

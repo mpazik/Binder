@@ -1,6 +1,5 @@
 import type { EntityId, EntityKey } from "./entity.ts";
 import {
-  coreFields,
   type CoreIdentityFieldKey,
   type EntitySchema,
   type EntityTypeBuilder,
@@ -8,10 +7,12 @@ import {
   fieldSystemType,
   ID_RANGE_CORE_LIMIT,
   newId,
+  coreFields,
   type TypeFieldRef,
   typeSystemType,
   validateIdInRange,
 } from "./schema.ts";
+import { recordDataTypes, standardFields } from "./record-schema.ts";
 import {
   coreDataTypes,
   type DataTypeDefs,
@@ -25,43 +26,37 @@ import {
   richtextFormatOptions,
 } from "./text-format.ts";
 import type { FieldKey } from "./field.ts";
-import {
-  type ConfigId,
-  type ConfigKey,
-  type ConfigType,
-  recordDataTypes,
-} from "./config.ts";
+import { type ConfigId, type ConfigKey, type ConfigType } from "./config.ts";
 
 /**
- * System Namespace IDs (Hardcoded Meta-Schema)
+ * Config namespace field ID ranges.
  *
- * 0      16        100
- * ├──────┼──────────┼───────────►
- * │ CORE │   META   │   APP
- * └──────┴──────────┴───────────
+ * 0       16                      100
+ * ├───────┼───────────────────────┼──────────►
+ * │ CORE  │        META           │   APP
+ * └───────┴───────────────────────┴──────────
  *
- * CORE (0-15):  Identity fields (id, key)
- * META (16-99): Base schema (Field, Type, dataType...)
- * APP (100+):   App-defined meta-schema
+ * CORE [1-15]:  Shared across all namespaces (see schema.ts).
+ * META [16-99]: Config meta-fields (Field and Type properties).
+ * APP  [100+]:  Application-defined config extensions.
  */
 
-export type SystemId = EntityId;
-export type SystemKey = EntityKey;
+export type ConfigSchemaId = EntityId;
+export type ConfigSchemaKey = EntityKey;
 
-export const META_SYSTEM_ID_OFFSET = ID_RANGE_CORE_LIMIT;
-export const APP_SYSTEM_ID_OFFSET = 100;
+export const CONFIG_META_ID_OFFSET = ID_RANGE_CORE_LIMIT;
+export const CONFIG_APP_ID_OFFSET = 100;
 
-export const newMetaSystemId = (seq: number): SystemId =>
-  newId(seq, META_SYSTEM_ID_OFFSET);
+export const newConfigMetaId = (seq: number): ConfigSchemaId =>
+  newId(seq, CONFIG_META_ID_OFFSET);
 
-export const newAppSystemId = (seq: number): SystemId =>
-  newId(seq, APP_SYSTEM_ID_OFFSET);
+export const newConfigAppId = (seq: number): ConfigSchemaId =>
+  newId(seq, CONFIG_APP_ID_OFFSET);
 
 export const configDataTypes = {
   ...coreDataTypes,
   object: { name: "Object" },
   json: { name: "JSON", description: "Any JSON value" },
-  option: { name: "Option", description: "Option value" },
   optionSet: {
     name: "Option Set",
     description: "Set of options to choose from",
@@ -71,40 +66,43 @@ export const configDataTypes = {
 export type ConfigDataType = keyof typeof configDataTypes;
 
 export const configSchemaIds = {
-  dataType: newMetaSystemId(1),
-  options: newMetaSystemId(2),
-  domain: newMetaSystemId(3),
-  range: newMetaSystemId(4),
-  allowMultiple: newMetaSystemId(5),
-  inverseOf: newMetaSystemId(6),
-  fields: newMetaSystemId(7),
-  immutable: newMetaSystemId(8),
-  disabled: newMetaSystemId(9),
-  unique: newMetaSystemId(11),
-  attributes: newMetaSystemId(12),
-  Field: newMetaSystemId(13),
-  Type: newMetaSystemId(14),
-  required: newMetaSystemId(18),
-  default: newMetaSystemId(19),
-  value: newMetaSystemId(20),
-  exclude: newMetaSystemId(21),
-  only: newMetaSystemId(22),
-  when: newMetaSystemId(23),
-  query: newMetaSystemId(24),
-  where: newMetaSystemId(27),
-  includes: newMetaSystemId(28),
-  plaintextFormat: newMetaSystemId(29),
-  richtextFormat: newMetaSystemId(30),
-  sectionDepth: newMetaSystemId(32),
-  periodFormat: newMetaSystemId(31),
+  dataType: newConfigMetaId(1),
+  options: newConfigMetaId(2),
+  domain: newConfigMetaId(3),
+  range: newConfigMetaId(4),
+  allowMultiple: newConfigMetaId(5),
+  inverseOf: newConfigMetaId(6),
+  fields: newConfigMetaId(7),
+  immutable: newConfigMetaId(8),
+  disabled: newConfigMetaId(9),
+  unique: newConfigMetaId(11),
+  attributes: newConfigMetaId(12),
+  Field: newConfigMetaId(13),
+  Type: newConfigMetaId(14),
+  required: newConfigMetaId(18),
+  default: newConfigMetaId(19),
+  value: newConfigMetaId(20),
+  exclude: newConfigMetaId(21),
+  only: newConfigMetaId(22),
+  when: newConfigMetaId(23),
+  query: newConfigMetaId(24),
+  where: newConfigMetaId(27),
+  includes: newConfigMetaId(28),
+  plaintextFormat: newConfigMetaId(29),
+  richtextFormat: newConfigMetaId(30),
+  sectionDepth: newConfigMetaId(32),
+  periodFormat: newConfigMetaId(31),
 } as const;
 export const fieldTypes = [fieldSystemType] as const;
 export type ConfigFieldDef = FieldDef<ConfigDataType>;
 export const configFieldsDefs = {
   ...coreFields,
+  // Structural fields shared with record namespace (used by Navigation hierarchy)
+  parent: standardFields.parent,
+  children: standardFields.children,
   dataType: {
     id: configSchemaIds.dataType,
-    key: "dataType" as SystemKey,
+    key: "dataType" as ConfigSchemaKey,
     name: "Data Type",
     dataType: "option",
     options: dataTypeDefsToOptions(recordDataTypes),
@@ -112,14 +110,14 @@ export const configFieldsDefs = {
   },
   options: {
     id: configSchemaIds.options,
-    key: "options" as SystemKey,
+    key: "options" as ConfigSchemaKey,
     name: "options",
     dataType: "optionSet",
     when: { dataType: "option" },
   },
   domain: {
     id: configSchemaIds.domain,
-    key: "record" as SystemKey,
+    key: "record" as ConfigSchemaKey,
     name: "Domain",
     dataType: "relation",
     allowMultiple: true,
@@ -127,7 +125,7 @@ export const configFieldsDefs = {
   },
   range: {
     id: configSchemaIds.range,
-    key: "range" as SystemKey,
+    key: "range" as ConfigSchemaKey,
     name: "range",
     dataType: "relation",
     allowMultiple: true,
@@ -135,7 +133,7 @@ export const configFieldsDefs = {
   },
   allowMultiple: {
     id: configSchemaIds.allowMultiple,
-    key: "allowMultiple" as SystemKey,
+    key: "allowMultiple" as ConfigSchemaKey,
     name: "Allow Multiple",
     dataType: "boolean",
     description: "Whether multiple values are allowed for this property",
@@ -143,18 +141,16 @@ export const configFieldsDefs = {
   },
   inverseOf: {
     id: configSchemaIds.inverseOf,
-    key: "inverseOf" as SystemKey,
+    key: "inverseOf" as ConfigSchemaKey,
     name: "Inverse relation of",
     dataType: "relation",
     description: "Attribute of which this attribute is an inverse relation of",
     immutable: true,
     when: { dataType: "relation" },
   },
-  // rangeQuery: { key: "rangeQuery", name: "Range Query", dataType: "query" },
-  // formula: { key: "formula", name: "formula", dataType: "formula" },
   fields: {
     id: configSchemaIds.fields,
-    key: "fields" as SystemKey,
+    key: "fields" as ConfigSchemaKey,
     name: "Fields",
     dataType: "relation",
     allowMultiple: true,
@@ -170,21 +166,21 @@ export const configFieldsDefs = {
   },
   immutable: {
     id: configSchemaIds.immutable,
-    key: "immutable" as SystemKey,
+    key: "immutable" as ConfigSchemaKey,
     name: "Immutable",
     dataType: "boolean",
     description: "If true, this field cannot be modified after entity creation",
   },
   disabled: {
     id: configSchemaIds.disabled,
-    key: "disabled" as SystemKey,
+    key: "disabled" as ConfigSchemaKey,
     name: "Disabled",
     dataType: "boolean",
     description: "Indicates if this entity is disabled",
   },
   unique: {
     id: configSchemaIds.unique,
-    key: "unique" as SystemKey,
+    key: "unique" as ConfigSchemaKey,
     name: "Unique",
     dataType: "boolean",
     description: "Whether the field value must be unique",
@@ -193,7 +189,7 @@ export const configFieldsDefs = {
   },
   attributes: {
     id: configSchemaIds.attributes,
-    key: "attributes" as SystemKey,
+    key: "attributes" as ConfigSchemaKey,
     name: "Attributes",
     dataType: "relation",
     description: "Allowed attribute fields for this field when used in types",
@@ -202,21 +198,21 @@ export const configFieldsDefs = {
   },
   required: {
     id: configSchemaIds.required,
-    key: "required" as SystemKey,
+    key: "required" as ConfigSchemaKey,
     name: "Required",
     dataType: "boolean",
     description: "Whether the field is required",
   },
   default: {
     id: configSchemaIds.default,
-    key: "default" as SystemKey,
+    key: "default" as ConfigSchemaKey,
     name: "Default",
     dataType: "json",
     description: "Default value for the field",
   },
   value: {
     id: configSchemaIds.value,
-    key: "value" as SystemKey,
+    key: "value" as ConfigSchemaKey,
     name: "Value",
     dataType: "plaintext",
     plaintextFormat: "line",
@@ -224,7 +220,7 @@ export const configFieldsDefs = {
   },
   exclude: {
     id: configSchemaIds.exclude,
-    key: "exclude" as SystemKey,
+    key: "exclude" as ConfigSchemaKey,
     name: "Exclude",
     dataType: "plaintext",
     plaintextFormat: "identifier",
@@ -233,7 +229,7 @@ export const configFieldsDefs = {
   },
   only: {
     id: configSchemaIds.only,
-    key: "only" as SystemKey,
+    key: "only" as ConfigSchemaKey,
     name: "Only",
     dataType: "plaintext",
     plaintextFormat: "identifier",
@@ -242,36 +238,35 @@ export const configFieldsDefs = {
   },
   when: {
     id: configSchemaIds.when,
-    key: "when" as SystemKey,
+    key: "when" as ConfigSchemaKey,
     name: "When",
     dataType: "object",
     description: "Condition filters for when this field is applicable",
   },
   query: {
     id: configSchemaIds.query,
-    key: "query" as SystemKey,
+    key: "query" as ConfigSchemaKey,
     name: "Query",
     dataType: "query",
     description: "Query parameters for data retrieval",
   },
-
   where: {
     id: configSchemaIds.where,
-    key: "where" as SystemKey,
+    key: "where" as ConfigSchemaKey,
     name: "Where",
     dataType: "object",
     description: "Filter conditions for entity selection",
   },
   includes: {
     id: configSchemaIds.includes,
-    key: "includes" as SystemKey,
+    key: "includes" as ConfigSchemaKey,
     name: "Includes",
     dataType: "object",
     description: "Fields to include in entity output",
   },
   plaintextFormat: {
     id: configSchemaIds.plaintextFormat,
-    key: "plaintextFormat" as SystemKey,
+    key: "plaintextFormat" as ConfigSchemaKey,
     name: "Plaintext Format",
     dataType: "option",
     description: "Character constraints for plaintext fields",
@@ -281,7 +276,7 @@ export const configFieldsDefs = {
   },
   richtextFormat: {
     id: configSchemaIds.richtextFormat,
-    key: "richtextFormat" as SystemKey,
+    key: "richtextFormat" as ConfigSchemaKey,
     name: "Richtext Format",
     dataType: "option",
     description: "Formatting constraints for richtext fields",
@@ -291,7 +286,7 @@ export const configFieldsDefs = {
   },
   sectionDepth: {
     id: configSchemaIds.sectionDepth,
-    key: "sectionDepth" as SystemKey,
+    key: "sectionDepth" as ConfigSchemaKey,
     name: "Section Depth",
     dataType: "integer",
     description:
@@ -300,7 +295,7 @@ export const configFieldsDefs = {
   },
   periodFormat: {
     id: configSchemaIds.periodFormat,
-    key: "periodFormat" as SystemKey,
+    key: "periodFormat" as ConfigSchemaKey,
     name: "Period Format",
     dataType: "option",
     description: "Time period granularity for period fields",
@@ -320,9 +315,6 @@ export type ConfigTypeDefinition = {
 };
 export type ConfigTypeDefinitions = Record<ConfigType, ConfigTypeDefinition>;
 
-/**
- * Require to define database configuration including records schema®
- */
 export const configTypeDefs: ConfigTypeDefinitions = {
   [fieldSystemType]: {
     id: configSchemaIds.Field,
@@ -361,7 +353,7 @@ export const configTypeDefs: ConfigTypeDefinitions = {
 export type ConfigTypeBuilder<
   M extends ConfigFieldKey,
   O extends ConfigFieldKey,
-> = EntityTypeBuilder<ConfigFieldDefinitions, M | CoreIdentityFieldKey, O> & {};
+> = EntityTypeBuilder<ConfigFieldDefinitions, M | CoreIdentityFieldKey, O>;
 export type ConfigSchema = EntitySchema<ConfigDataType> & {
   fields: ConfigFieldDefinitions;
   types: ConfigTypeDefinitions;
@@ -379,9 +371,9 @@ export const validateAppConfigSchema = <D extends string>(
   schema: EntitySchema<D>,
 ): void => {
   for (const field of Object.values(schema.fields)) {
-    validateIdInRange(field.id, APP_SYSTEM_ID_OFFSET);
+    validateIdInRange(field.id, CONFIG_APP_ID_OFFSET);
   }
   for (const type of Object.values(schema.types)) {
-    validateIdInRange(type.id, APP_SYSTEM_ID_OFFSET);
+    validateIdInRange(type.id, CONFIG_APP_ID_OFFSET);
   }
 };

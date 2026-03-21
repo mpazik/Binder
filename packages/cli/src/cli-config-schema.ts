@@ -10,7 +10,7 @@ import {
   type FieldDef,
   fieldSystemType,
   mergeSchema,
-  newAppSystemId,
+  newConfigAppId,
   richtextFormats,
   type RichtextFormat,
   type TypeDef,
@@ -52,7 +52,7 @@ export const fieldViewFormatUid = "_7Bf0dKkLnO" as ConfigUid;
 type CliConfigFieldDef = FieldDef<ConfigDataType>;
 
 const fieldPath: CliConfigFieldDef = {
-  id: newAppSystemId(1),
+  id: newConfigAppId(1),
   uid: fieldPathUid,
   key: fieldPathKey,
   type: fieldSystemType,
@@ -62,7 +62,7 @@ const fieldPath: CliConfigFieldDef = {
 };
 
 const fieldPreamble: CliConfigFieldDef = {
-  id: newAppSystemId(2),
+  id: newConfigAppId(2),
   uid: fieldPreambleUid,
   key: fieldPreambleKey,
   type: fieldSystemType,
@@ -74,7 +74,7 @@ const fieldPreamble: CliConfigFieldDef = {
 };
 
 const fieldViewContent: CliConfigFieldDef = {
-  id: newAppSystemId(3),
+  id: newConfigAppId(3),
   uid: fieldViewContentUid,
   key: fieldViewContentKey,
   type: fieldSystemType,
@@ -86,7 +86,7 @@ const fieldViewContent: CliConfigFieldDef = {
 };
 
 const fieldView: CliConfigFieldDef = {
-  id: newAppSystemId(4),
+  id: newConfigAppId(4),
   uid: fieldViewUid,
   key: fieldViewKey,
   type: fieldSystemType,
@@ -97,7 +97,7 @@ const fieldView: CliConfigFieldDef = {
 };
 
 const fieldLimit: CliConfigFieldDef = {
-  id: newAppSystemId(7),
+  id: newConfigAppId(7),
   uid: fieldLimitUid,
   key: fieldLimitKey,
   type: fieldSystemType,
@@ -107,7 +107,7 @@ const fieldLimit: CliConfigFieldDef = {
 };
 
 const fieldViewFormat: CliConfigFieldDef = {
-  id: newAppSystemId(6),
+  id: newConfigAppId(6),
   uid: fieldViewFormatUid,
   key: fieldViewFormatKey,
   type: fieldSystemType,
@@ -119,7 +119,7 @@ const fieldViewFormat: CliConfigFieldDef = {
 };
 
 const typeNavigation: TypeDef = {
-  id: newAppSystemId(0),
+  id: newConfigAppId(0),
   uid: typeNavigationUid,
   key: typeNavigationKey,
   type: typeSystemType,
@@ -138,7 +138,7 @@ const typeNavigation: TypeDef = {
 };
 
 const typeView: TypeDef = {
-  id: newAppSystemId(5),
+  id: newConfigAppId(5),
   uid: typeViewUid,
   key: typeViewKey,
   type: typeSystemType,

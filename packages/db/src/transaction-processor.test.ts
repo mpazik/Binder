@@ -13,7 +13,7 @@ import {
 import {
   type ConfigKey,
   coreConfigSchema,
-  coreSchema,
+  coreRecordSchema,
   emptySchema,
   fieldSystemType,
   type RecordType,
@@ -75,7 +75,7 @@ describe("transaction processor", () => {
           await processTransactionInput(
             tx,
             mockTransactionInitInput,
-            coreSchema(),
+            coreRecordSchema(),
             coreConfigSchema,
           ),
         ),

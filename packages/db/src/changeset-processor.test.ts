@@ -480,14 +480,14 @@ describe("changeset processor", () => {
               type: typeSystemType,
               key: "TestTypeBadDefault" as ConfigKey,
               name: "Test Type",
-              fields: [["title", { default: 123 }]],
+              fields: [["name", { default: 123 }]],
             },
           ],
           [
             {
               index: 0,
               namespace: "config",
-              field: "fields.title.default",
+              field: "fields.name.default",
               message: expect.stringContaining(
                 "default value does not match dataType 'plaintext'",
               ),
@@ -1035,9 +1035,14 @@ describe("changeset processor", () => {
             [
               {
                 type: fieldSystemType,
+                key: "myParent" as ConfigKey,
+                dataType: "relation",
+              },
+              {
+                type: fieldSystemType,
                 key: "oneToOneField" as ConfigKey,
                 dataType: "relation",
-                inverseOf: "parent",
+                inverseOf: "myParent",
               },
             ],
             "config",
@@ -1074,7 +1079,7 @@ describe("changeset processor", () => {
                 key: "badField" as ConfigKey,
                 dataType: "relation",
                 allowMultiple: true,
-                inverseOf: "title",
+                inverseOf: "name",
               },
             ],
             [
@@ -1083,7 +1088,7 @@ describe("changeset processor", () => {
                 namespace: "config",
                 field: "inverseOf",
                 message:
-                  'inverseOf must reference a relation field, but "title" has dataType "plaintext"',
+                  'inverseOf must reference a relation field, but "name" has dataType "plaintext"',
               },
             ],
             "config",
@@ -1094,18 +1099,30 @@ describe("changeset processor", () => {
             [
               {
                 type: fieldSystemType,
+                key: "myChildren" as ConfigKey,
+                dataType: "relation",
+                allowMultiple: true,
+                inverseOf: "myParent",
+              },
+              {
+                type: fieldSystemType,
+                key: "myParent" as ConfigKey,
+                dataType: "relation",
+              },
+              {
+                type: fieldSystemType,
                 key: "badField" as ConfigKey,
                 dataType: "relation",
-                inverseOf: "children",
+                inverseOf: "myChildren",
               },
             ],
             [
               {
-                index: 0,
+                index: 2,
                 namespace: "config",
                 field: "inverseOf",
                 message:
-                  'inverseOf on a single-value field cannot reference an allowMultiple field "children". Place inverseOf on the allowMultiple side instead.',
+                  'inverseOf on a single-value field cannot reference an allowMultiple field "myChildren". Place inverseOf on the allowMultiple side instead.',
               },
             ],
             "config",
@@ -1116,19 +1133,31 @@ describe("changeset processor", () => {
             [
               {
                 type: fieldSystemType,
+                key: "myParent" as ConfigKey,
+                dataType: "relation",
+              },
+              {
+                type: fieldSystemType,
+                key: "myChildren" as ConfigKey,
+                dataType: "relation",
+                allowMultiple: true,
+                inverseOf: "myParent",
+              },
+              {
+                type: fieldSystemType,
                 key: "sideA" as ConfigKey,
                 dataType: "relation",
                 allowMultiple: true,
-                inverseOf: "children",
+                inverseOf: "myChildren",
               },
             ],
             [
               {
-                index: 0,
+                index: 2,
                 namespace: "config",
                 field: "inverseOf",
                 message:
-                  'inverseOf target "children" has inverseOf="parent" which does not point back to "sideA"',
+                  'inverseOf target "myChildren" has inverseOf="myParent" which does not point back to "sideA"',
               },
             ],
             "config",
@@ -1187,10 +1216,15 @@ describe("changeset processor", () => {
             [
               {
                 type: fieldSystemType,
+                key: "myParent" as ConfigKey,
+                dataType: "relation",
+              },
+              {
+                type: fieldSystemType,
                 key: "validInverseField" as ConfigKey,
                 dataType: "relation",
                 allowMultiple: true,
-                inverseOf: "parent",
+                inverseOf: "myParent",
               },
             ],
             "config",

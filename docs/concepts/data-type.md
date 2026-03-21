@@ -53,6 +53,6 @@ A data type defines the format and behaviour of a field's values. While a Field 
 - **formula**: computed expression evaluated from other fields, read-only
 - **condition**: filter conditions
 
-Core data types are available in all namespaces. Record entities additionally support fileHash, interval, duration, uri, and image.
+Core data types are available in all namespaces. Record entities additionally support fileHash, interval, duration, and image.
 
 The `relation` data type turns entities into a graph. See the Reference concept for identifier strategies, inverse relations, and filtered relations. Fields can carry structured metadata via the Field Attribute concept.
