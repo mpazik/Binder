@@ -1,5 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { matchesFilter, matchesFilters } from "./filter-entities.ts";
+import {
+  matchesFilter,
+  matchesFilters,
+  getSearchableFields,
+} from "./filter-entities.ts";
+import { mockRecordSchema } from "./model/schema.mock.ts";
 
 describe("filter-entities", () => {
   describe("matchesFilter", () => {
@@ -155,5 +160,117 @@ describe("filter-entities", () => {
         { dataType: "relation" },
         true,
       ));
+
+    describe("$text filter", () => {
+      const checkText = (
+        filters: Parameters<typeof matchesFilters>[0],
+        record: Parameters<typeof matchesFilters>[1],
+        expected: boolean,
+      ) => {
+        expect(matchesFilters(filters, record, mockRecordSchema)).toBe(
+          expected,
+        );
+      };
+
+      it("matches when text appears in a field value", () =>
+        checkText(
+          { $text: "hello" },
+          { key: "my-record", title: "say hello world" },
+          true,
+        ));
+
+      it("does not match when text is absent from all fields", () =>
+        checkText(
+          { $text: "goodbye" },
+          { key: "my-record", title: "hello world" },
+          false,
+        ));
+
+      it("is case-insensitive", () =>
+        checkText(
+          { $text: "HELLO" },
+          { key: "my-record", title: "hello world" },
+          true,
+        ));
+
+      it("matches against key field", () =>
+        checkText(
+          { $text: "my-record" },
+          { key: "my-record", title: "some title" },
+          true,
+        ));
+
+      it("matches against description field", () =>
+        checkText(
+          { $text: "details" },
+          { key: "rec", title: "Title", description: "some details here" },
+          true,
+        ));
+
+      it("matches against name field", () =>
+        checkText(
+          { $text: "Rick" },
+          { key: "user-1", name: "Rick Sanchez" },
+          true,
+        ));
+
+      it("combines with regular filters using AND", () =>
+        checkText(
+          { $text: "hello", status: "active" },
+          { key: "rec", title: "hello world", status: "active" },
+          true,
+        ));
+
+      it("fails when text matches but regular filter does not", () =>
+        checkText(
+          { $text: "hello", status: "active" },
+          { key: "rec", title: "hello world", status: "inactive" },
+          false,
+        ));
+
+      it("is skipped when no schema is provided", () =>
+        check(
+          { $text: "nonexistent" },
+          { key: "my-record", title: "hello world" },
+          true,
+        ));
+    });
+  });
+
+  describe("getSearchableFields", () => {
+    it("includes plaintext and richtext fields", () => {
+      const fields = getSearchableFields(mockRecordSchema);
+      const keys = fields.map((f) => f.key);
+      expect(keys).toContain("key" as any);
+      expect(keys).toContain("title" as any);
+      expect(keys).toContain("description" as any);
+    });
+
+    it("excludes tags", () => {
+      const fields = getSearchableFields(mockRecordSchema);
+      const keys = fields.map((f) => f.key);
+      expect(keys).not.toContain("tags");
+    });
+
+    it("includes multi-value text fields that are not excluded", () => {
+      const fields = getSearchableFields(mockRecordSchema);
+      const keys = fields.map((f) => f.key);
+      // mockRecordSchema includes aliases (plaintext, allowMultiple)
+      expect(keys).toContain("aliases" as any);
+    });
+
+    it("excludes identity fields", () => {
+      const fields = getSearchableFields(mockRecordSchema);
+      const keys = fields.map((f) => f.key);
+      expect(keys).not.toContain("id");
+      expect(keys).not.toContain("uid");
+      expect(keys).not.toContain("type");
+    });
+
+    it("excludes non-text fields", () => {
+      const fields = getSearchableFields(mockRecordSchema);
+      const keys = fields.map((f) => f.key);
+      expect(keys).not.toContain("priority");
+    });
   });
 });

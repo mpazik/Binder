@@ -104,7 +104,7 @@ const internalSearch = async (
   );
 };
 
-const openKnowledgeGraph = <C extends EntitySchema<ConfigDataType>>(
+export const openKnowledgeGraph = <C extends EntitySchema<ConfigDataType>>(
   db: Database,
   options?: {
     providerSchema?: RecordSchema;
@@ -228,11 +228,8 @@ const openKnowledgeGraph = <C extends EntitySchema<ConfigDataType>>(
         return ok(resolvedResult.data[0]!);
       });
     },
-    fetchTransaction: async (ref: TransactionRef) => {
-      return db.transaction(async (tx) => {
-        return fetchTransaction(tx, ref);
-      });
-    },
+    fetchTransaction: (ref: TransactionRef) =>
+      db.transaction((tx) => fetchTransaction(tx, ref)),
     search: async (
       query: QueryParams,
       namespace: "record" | "config" = "record",
@@ -248,6 +245,7 @@ const openKnowledgeGraph = <C extends EntitySchema<ConfigDataType>>(
         const schema = schemaResult.data;
 
         for (const fieldKey of Object.keys(filters)) {
+          if (fieldKey === "$text") continue;
           if (fieldKey in schema.fields) continue;
           return fail(
             "invalid_filter_field",
@@ -312,11 +310,7 @@ const openKnowledgeGraph = <C extends EntitySchema<ConfigDataType>>(
         });
       });
     },
-    version: async () => {
-      return db.transaction(async (tx) => {
-        return getVersion(tx);
-      });
-    },
+    version: () => db.transaction((tx) => getVersion(tx)),
     update: async (input: TransactionInput) => {
       return db.transaction(async (tx) => {
         const recordSchemaResult = await getRecordSchema();
@@ -333,9 +327,7 @@ const openKnowledgeGraph = <C extends EntitySchema<ConfigDataType>>(
         return applyAndNotify(processedResult.data);
       });
     },
-    apply: async (transaction: Transaction) => {
-      return applyAndNotify(transaction);
-    },
+    apply: (transaction: Transaction) => applyAndNotify(transaction),
     rollback: async (count, version) => {
       const dbResult = await db.transaction(async (dbTx) => {
         const versionResult = await getVersion(dbTx);
@@ -359,4 +351,3 @@ const openKnowledgeGraph = <C extends EntitySchema<ConfigDataType>>(
       getSchema(namespace) as ResultAsync<NamespaceSchema<N>>,
   };
 };
-export default openKnowledgeGraph;

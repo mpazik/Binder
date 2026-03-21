@@ -42,11 +42,18 @@ Query multiple entities with filters, includes, ordering, and pagination:
 Filters constrain which entities are returned. Simple equality uses direct values; complex conditions use operator objects:
 
 **Common operators**: `eq`, `not`, `in`, `notIn`, `empty`
-**String operators**: `contains`, `notContains`, `match` for full-text search
+**String operators**: `contains`, `notContains`, `match`
 **Number/date operators**: `lt`, `lte`, `gt`, `gte`
+**Full-text**: `$text` — case-insensitive substring search across all plaintext and richtext fields (excluding identity fields and tags)
 
 ```json
 { "status": "active", "priority": { "op": "gte", "value": 3 }, "tags": { "op": "in", "value": ["urgent", "important"] } }
+```
+
+Full-text search combines with other filters using AND:
+
+```json
+{ "$text": "authentication", "type": "Task", "status": "active" }
 ```
 
 ### Includes
@@ -87,7 +94,7 @@ Computed fields are only included in the response when explicitly listed in `inc
 ### Serial Format
 
 A compact text representation for CLI, URLs, and views — a lossy subset of the full JSON format. Each query parameter has its own independent serial grammar:
-- **Filters**: `type=Task status=done priority>=3` or `deployment issues type=Task`. Plain text triggers full-text search
+- **Filters**: `type=Task status=done priority>=3` or `deployment issues type=Task`. Plain text tokens (without an operator) are collected into a `$text` filter for full-text search across plaintext and richtext fields
 - **Includes**: `title,status,project(title,owner(name,email))`. Parentheses for nesting
 - **OrderBy**: `!priority,createdAt`
 

@@ -1,5 +1,5 @@
 import { includes } from "@binder/utils";
-import { and, asc, desc, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, or, sql, type SQL } from "drizzle-orm";
 import {
   type configTable,
   type recordTable,
@@ -8,6 +8,7 @@ import {
 import type {
   ComplexFilter,
   EntitySchema,
+  FieldDef,
   Fieldset,
   FieldValue,
   Filter,
@@ -64,6 +65,7 @@ const matchesNormalizedFilter = (
         (typeof value === "string" || typeof value === "number") &&
         !filterValue.includes(value)
       );
+    case "match":
     case "contains":
       return (
         typeof value === "string" &&
@@ -75,12 +77,6 @@ const matchesNormalizedFilter = (
         typeof value === "string" &&
         typeof filterValue === "string" &&
         !value.includes(filterValue)
-      );
-    case "match":
-      return (
-        typeof value === "string" &&
-        typeof filterValue === "string" &&
-        value.includes(filterValue)
       );
     case "lt":
       return (
@@ -114,8 +110,58 @@ const matchesNormalizedFilter = (
 export const matchesFilter = (filter: Filter, value: FieldValue): boolean =>
   matchesNormalizedFilter(normalizeFilter(filter), value);
 
-export const matchesFilters = (filters: Filters, entity: Fieldset): boolean => {
+const textSearchDataTypes = new Set(["plaintext", "richtext"]);
+const textSearchExcludedFields = new Set(["id", "uid", "type", "tags"]);
+
+/** Return fields eligible for `$text` full-text search: plaintext and richtext fields, excluding identity fields (`id`, `uid`, `type`) and `tags`. */
+export const getSearchableFields = (schema: EntitySchema): FieldDef[] =>
+  Object.values(schema.fields).filter(
+    (f) =>
+      textSearchDataTypes.has(f.dataType) &&
+      !textSearchExcludedFields.has(f.key),
+  );
+
+const matchesTextSearch = (
+  text: string,
+  entity: Fieldset,
+  schema: EntitySchema,
+): boolean => {
+  const lowerText = text.toLowerCase();
+  const fields = getSearchableFields(schema);
+  for (const field of fields) {
+    const value = entity[field.key];
+    if (typeof value === "string" && value.toLowerCase().includes(lowerText)) {
+      return true;
+    }
+    if (field.allowMultiple && Array.isArray(value)) {
+      for (const item of value) {
+        if (
+          typeof item === "string" &&
+          item.toLowerCase().includes(lowerText)
+        ) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+};
+
+export const matchesFilters = (
+  filters: Filters,
+  entity: Fieldset,
+  schema?: EntitySchema,
+): boolean => {
   for (const [fieldKey, filter] of Object.entries(filters)) {
+    if (fieldKey === "$text") {
+      if (
+        typeof filter === "string" &&
+        schema &&
+        !matchesTextSearch(filter, entity, schema)
+      )
+        return false;
+      continue;
+    }
     if (!matchesFilter(filter, entity[fieldKey])) return false;
   }
   return true;
@@ -133,11 +179,11 @@ const buildFilterCondition = (
   table: EntityTable,
   fieldKey: string,
   filter: Filter,
-  schema?: EntitySchema,
+  schema: EntitySchema,
 ): SQL | undefined => {
   const fieldSql = getFieldSql(table, fieldKey);
   const normalized = normalizeFilter(filter);
-  const fieldDef = schema ? schema.fields[fieldKey] : undefined;
+  const fieldDef = schema.fields[fieldKey];
   const isMultiValue = fieldDef?.allowMultiple === true;
 
   if (!isComplexNormalized(normalized)) {
@@ -188,6 +234,7 @@ const buildFilterCondition = (
         sql`, `,
       )})`;
 
+    case "match":
     case "contains":
       if (typeof value !== "string") return undefined;
       return sql`${fieldSql} LIKE ${"%" + value + "%"}`;
@@ -195,10 +242,6 @@ const buildFilterCondition = (
     case "notContains":
       if (typeof value !== "string") return undefined;
       return sql`${fieldSql} NOT LIKE ${"%" + value + "%"}`;
-
-    case "match":
-      if (typeof value !== "string") return undefined;
-      return sql`${fieldSql} LIKE ${"%" + value + "%"}`;
 
     case "lt":
       return sql`${fieldSql} < ${value}`;
@@ -224,14 +267,43 @@ const buildFilterCondition = (
   }
 };
 
+const buildTextSearchCondition = (
+  table: EntityTable,
+  text: string,
+  schema: EntitySchema,
+): SQL | undefined => {
+  const searchableFields = getSearchableFields(schema);
+
+  if (searchableFields.length === 0) return undefined;
+
+  const pattern = `%${text}%`;
+  const likeClauses = searchableFields.map((field) => {
+    const fieldSql = getFieldSql(table, field.key);
+    if (field.allowMultiple) {
+      return sql`EXISTS (SELECT 1 FROM json_each(${fieldSql}) WHERE value LIKE ${pattern})`;
+    }
+    return sql`${fieldSql} LIKE ${pattern}`;
+  });
+
+  if (likeClauses.length === 1) return likeClauses[0];
+  return or(...likeClauses);
+};
+
 export const buildWhereClause = (
   table: EntityTable,
   filters: Filters,
-  schema?: EntitySchema,
+  schema: EntitySchema,
 ): SQL | undefined => {
   const conditions: SQL[] = [];
 
   for (const [fieldKey, filter] of Object.entries(filters)) {
+    if (fieldKey === "$text") {
+      if (typeof filter === "string") {
+        const textCondition = buildTextSearchCondition(table, filter, schema);
+        if (textCondition) conditions.push(textCondition);
+      }
+      continue;
+    }
     const condition = buildFilterCondition(table, fieldKey, filter, schema);
     if (condition) conditions.push(condition);
   }

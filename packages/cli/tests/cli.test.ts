@@ -30,7 +30,7 @@ describe("CLI", () => {
     await check(["schema", "--types", "Task"], ["Task", "title", "status"]);
   });
 
-  it("search with filters returns matching records", async () => {
+  it("search with filters and plain text", async () => {
     await check(
       ["search", "type=Task", "status=active", "--format", "tsv"],
       (stdout) => {
@@ -39,6 +39,21 @@ describe("CLI", () => {
           expect.stringContaining("key"),
           expect.stringContaining("task-create-api"),
         ]);
+      },
+    );
+
+    await check(["search", "authentication", "--format", "json"], (stdout) => {
+      const { items } = JSON.parse(stdout);
+      expect(items.length).toBeGreaterThan(0);
+      expect(items[0].key).toBe("task-implement-user-auth");
+    });
+
+    await check(
+      ["search", "schema", "type=Task", "--format", "json"],
+      (stdout) => {
+        const { items } = JSON.parse(stdout);
+        expect(items.length).toBe(1);
+        expect(items[0].key).toBe("task-implement-auth");
       },
     );
   });

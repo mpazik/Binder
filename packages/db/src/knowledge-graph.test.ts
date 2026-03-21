@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import { okVoid, throwIfError } from "@binder/utils";
 import "@binder/utils/tests";
 import { getTestDatabase } from "./db.mock";
-import openKnowledgeGraph from "./knowledge-graph.ts";
+import { openKnowledgeGraph } from "./knowledge-graph.ts";
 import type { Database } from "./db.ts";
 import { createEntity, fetchEntity, updateEntity } from "./entity-store.ts";
 import {
@@ -248,8 +248,6 @@ describe("knowledge graph", () => {
     describe("search", () => {
       beforeEach(async () => {
         await db.transaction(async (tx) => {
-          const { mockTask2Record, mockTask3Record, mockProjectRecord } =
-            await import("./model/record.mock.ts");
           await createEntity(tx, "record", mockProjectRecord);
           await createEntity(tx, "record", mockTask2Record);
           await createEntity(tx, "record", mockTask3Record);
@@ -299,6 +297,24 @@ describe("knowledge graph", () => {
           filters: { InvalidField: "value" },
         });
         expect(result).toBeErrWithKey("invalid_filter_field");
+      });
+
+      it("filters by $text across text fields", async () => {
+        // "authentication" appears in mockTask1Record title/description
+        const result = throwIfError(
+          await kg.search({ filters: { $text: "authentication" } }),
+        );
+        expect(result.items).toEqual([mockTask1Record]);
+      });
+
+      it("combines $text with regular filters", async () => {
+        // "schema" appears in mockTask2Record description, filter to Tasks
+        const result = throwIfError(
+          await kg.search({
+            filters: { $text: "schema", type: "Task" },
+          }),
+        );
+        expect(result.items).toEqual([mockTask2Record]);
       });
 
       it("searches config namespace when specified", async () => {
