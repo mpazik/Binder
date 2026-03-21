@@ -290,10 +290,15 @@ const applyRemoveMutation = (
 ): FieldValue[] => {
   const [, value, position] = mutation;
   const result = [...arr];
-  const pos = position ?? result.length - 1;
-  assertInArrayRange(pos, result, "remove mutation position");
-  assertEqual(result[pos], value, "remove mutation value");
-  result.splice(pos, 1);
+  if (position !== undefined) {
+    assertInArrayRange(position, result, "remove mutation position");
+    assertEqual(result[position], value, "remove mutation value");
+    result.splice(position, 1);
+  } else {
+    const idx = result.findLastIndex((item) => isEqual(item, value));
+    assert(idx !== -1, "remove mutation value", `value not found in array`);
+    result.splice(idx, 1);
+  }
   return result;
 };
 

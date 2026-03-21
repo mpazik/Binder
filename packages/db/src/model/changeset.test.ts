@@ -208,6 +208,25 @@ describe("changeset", () => {
       ).toThrowError();
     });
 
+    // When a list item changes (e.g. trailing whitespace trimmed during doc
+    // sync), the diff emits [remove, insert] with no explicit positions.
+    // Transaction canonicalization reorders these to [insert, remove].
+    // The insert appends to the array, shifting the last index away from
+    // the original item. The remove must search by value rather than
+    // blindly targeting the last element.
+    it("removes correct item when insert-before-remove shifts the last index after canonicalization", () =>
+      check(
+        ["old value\n"],
+        [
+          "seq",
+          [
+            ["insert", "new value"],
+            ["remove", "old value\n"],
+          ],
+        ],
+        ["new value"],
+      ));
+
     it("removes field by applying inverted field creation", () =>
       check(mockTask1Record.title, ["clear", mockTask1Record.title], null));
 
