@@ -74,6 +74,10 @@ Resolves conflicts when two changesets are based on the same entity state. If D�
 
 Before hashing, changesets are put into a consistent order: field changes are sorted by field ID, seq mutations sorted by position. This ensures identical logical changes always produce the same hash regardless of input ordering.
 
+### Deletion as Full Field Retraction
+
+Deleting an entity generates a changeset that clears every populated field. Scalar fields produce `["clear", previousValue]`, multi-value fields produce `["seq", [["remove", item], ...]]`. This captures the complete prior state, so inverse produces a changeset that recreates the entity with all its data — making undo work without special-casing deletion.
+
 ### Compact Notation
 
 For ergonomic input (YAML, CLI), simple set changes can be written as plain values rather than explicit tuples — `title: "New Title"` instead of `title: ["set", "New Title"]`. The system normalizes these during processing.

@@ -64,6 +64,7 @@ import { saveTransaction } from "./transaction-store.ts";
 import { mockTransactionInit } from "./model/transaction.mock.ts";
 import { mockRecordSchema } from "./model/schema.mock.ts";
 import {
+  mockAssignedToFieldKey,
   mockFieldKeyEmail,
   mockNotExistingRecordTypeKey,
   mockPartnerFieldKey,
@@ -187,7 +188,7 @@ describe("changeset processor", () => {
       });
     };
 
-    describe("create", () => {
+    describe("changeset creation", () => {
       it("creates changeset for updated entity", async () => {
         await insertRecord(db, mockTask1Record);
 
@@ -246,7 +247,23 @@ describe("changeset processor", () => {
         );
 
         expect(result).toEqual({
-          [mockTask1Uid]: { id: ["clear", mockTask1Record.id] },
+          [mockTask1Uid]: {
+            id: ["clear", mockTask1Record.id],
+            uid: ["clear", mockTask1Record.uid],
+            key: ["clear", mockTask1Record.key],
+            type: ["clear", mockTask1Record.type],
+            title: ["clear", mockTask1Record.title],
+            description: ["clear", mockTask1Record.description],
+            status: ["clear", mockTask1Record.status],
+            priority: ["clear", mockTask1Record.priority],
+            tags: [
+              "seq",
+              [
+                ["remove", "urgent"],
+                ["remove", "important"],
+              ],
+            ],
+          },
         });
       });
 
@@ -258,7 +275,15 @@ describe("changeset processor", () => {
         );
 
         expect(result).toEqual({
-          [mockTaskTypeKey]: { id: ["clear", mockTaskType.id] },
+          [mockTaskTypeKey]: {
+            id: ["clear", mockTaskType.id],
+            uid: ["clear", mockTaskType.uid],
+            key: ["clear", mockTaskType.key],
+            type: ["clear", mockTaskType.type],
+            name: ["clear", mockTaskType.name],
+            description: ["clear", mockTaskType.description],
+            fields: ["seq", mockTaskType.fields.map((f) => ["remove", f])],
+          },
         });
       });
 
@@ -267,6 +292,72 @@ describe("changeset processor", () => {
           { $ref: "_nonexistent" as RecordUid, $delete: true },
         ]);
         expect(result).toBeErr();
+      });
+
+      it("clears relation fields on deleted entity", async () => {
+        await setup(mockProjectRecord, mockTask3Record);
+
+        const result = throwIfError(
+          await process([{ $ref: mockTask3Uid, $delete: true }]),
+        );
+
+        expect(result[mockTask3Uid]).toMatchObject({
+          [mockProjectFieldKey]: ["clear", mockProjectUid],
+        });
+      });
+
+      it("cleans up non-inverse incoming single-value references", async () => {
+        const taskWithAssignee = {
+          ...omit(mockTask1Record, ["tags"]),
+          [mockAssignedToFieldKey]: mockUserUid,
+        };
+        await setup(mockUserRecord, taskWithAssignee);
+
+        const result = throwIfError(
+          await process([{ $ref: mockUserUid, $delete: true }]),
+        );
+
+        expect(result[mockTask1Uid]).toEqual({
+          [mockAssignedToFieldKey]: ["clear", mockUserUid],
+        });
+      });
+
+      it("cleans up non-inverse incoming multi-value references", async () => {
+        const teamRecord = {
+          id: 100 as EntityId,
+          uid: mockTaskWithOwnersUid,
+          type: mockTeamTypeKey,
+          members: [mockUserUid],
+        };
+        await setup(mockUserRecord, teamRecord);
+
+        const result = throwIfError(
+          await process([{ $ref: mockUserUid, $delete: true }]),
+        );
+
+        expect(result[mockTaskWithOwnersUid]).toEqual({
+          members: ["seq", [["remove", mockUserUid]]],
+        });
+      });
+
+      it("does not double-clean inverse relation fields", async () => {
+        const task1WithRelated = {
+          ...omit(mockTask1Record, ["tags"]),
+          [mockRelatedToFieldKey]: [mockTask2Uid],
+        } as Fieldset;
+        const task2WithRelated = {
+          ...omit(mockTask2Record, ["project"]),
+          [mockRelatedToFieldKey]: [mockTask1Uid],
+        } as Fieldset;
+        await setup(task1WithRelated, task2WithRelated);
+
+        const result = throwIfError(
+          await process([{ $ref: mockTask1Uid, $delete: true }]),
+        );
+
+        expect(result[mockTask2Uid]).toEqual({
+          [mockRelatedToFieldKey]: ["seq", [["remove", mockTask1Uid]]],
+        });
       });
     });
 

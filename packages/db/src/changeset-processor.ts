@@ -14,6 +14,7 @@ import {
   objEntries,
   objKeys,
   ok,
+  okVoid,
   type Result,
   type ResultAsync,
   throwIfError,
@@ -83,6 +84,7 @@ import type { DbTransaction } from "./db.ts";
 import {
   createEntity,
   deleteEntity,
+  fetchEntity,
   fetchEntityFieldset,
   resolveEntityRefs,
   updateEntity,
@@ -558,7 +560,7 @@ const validateUniquenessConstraints = async <N extends NamespaceEditable>(
   const errors: ValidationError[] = [];
   const table = editableEntityTables[namespace];
 
-  for (const [fieldKey, value] of Object.entries(input)) {
+  for (const [fieldKey, value] of objEntries(input)) {
     if (value == null) continue;
     const fieldDef = (schema.fields as any)[fieldKey];
     if (!fieldDef || !fieldDef.unique) continue;
@@ -606,7 +608,7 @@ export const applyChangeset = async <N extends NamespaceEditable>(
   entityRef: EntityNsRef[N],
   changeset: FieldChangeset,
 ): ResultAsync<void> => {
-  if (isEmptyObject(changeset)) return ok(undefined);
+  if (isEmptyObject(changeset)) return okVoid;
 
   if ("id" in changeset) {
     const idChange = normalizeValueChange(changeset.id);
@@ -628,7 +630,7 @@ export const applyChangeset = async <N extends NamespaceEditable>(
     }
     assertFailed("id can only be set or cleared");
   } else {
-    const keys: FieldKey[] = Object.keys(changeset);
+    const keys = objKeys(changeset);
     const selectResult = await fetchEntityFieldset(
       tx,
       namespace,
@@ -655,7 +657,7 @@ export const applyConfigChangesetToSchema = (
   const newFields: RecordSchema["fields"] = { ...baseSchema.fields };
   const newTypes: RecordSchema["types"] = { ...baseSchema.types };
 
-  for (const [configKey, changeset] of Object.entries(configsChangeset)) {
+  for (const [configKey, changeset] of objEntries(configsChangeset)) {
     const idChange = changeset.id ? normalizeValueChange(changeset.id) : null;
 
     if (idChange && isClearChange(idChange)) {
@@ -915,7 +917,7 @@ const expandOneToManyInverse = async <N extends NamespaceEditable>(
       result[childRef] = { ...existing, [directFieldKey]: childChange };
     }
   }
-  return ok(undefined);
+  return okVoid;
 };
 
 const expandOneToOneInverse = async <N extends NamespaceEditable>(
@@ -927,7 +929,7 @@ const expandOneToOneInverse = async <N extends NamespaceEditable>(
   result: EntitiesChangeset<N>,
 ): ResultAsync<void> => {
   const normalized = normalizeValueChange(change);
-  if (!isSetChange(normalized)) return ok(undefined);
+  if (!isSetChange(normalized)) return okVoid;
 
   const newTargetRef = normalized[1] as EntityChangesetRef<N> | null;
   const oldTargetRef = (normalized.length > 2 ? normalized[2] : undefined) as
@@ -964,7 +966,7 @@ const expandOneToOneInverse = async <N extends NamespaceEditable>(
     result[oldTargetRef] = { ...existing, [inverseFieldKey]: targetChange };
   }
 
-  return ok(undefined);
+  return okVoid;
 };
 
 const expandManyToManyInverse = <N extends NamespaceEditable>(
@@ -1064,6 +1066,82 @@ const expandInverseRelations = async <N extends NamespaceEditable>(
   return ok(result);
 };
 
+/**
+ * For each deleted entity, scan for other entities that reference its UID
+ * in their fields JSON and add cleanup changesets (clear or remove mutations).
+ * Skips relation fields with inverseOf since expandInverseRelations handles those.
+ */
+const expandDeleteCleanup = async <N extends NamespaceEditable>(
+  tx: DbTransaction,
+  namespace: N,
+  changesets: EntitiesChangeset<N>,
+  schema: NamespaceSchema<N>,
+): ResultAsync<void> => {
+  const table = editableEntityTables[namespace];
+
+  // Collect UIDs of all entities being deleted
+  const deletedUids: string[] = [];
+  for (const [, cs] of objEntries(changesets)) {
+    if (!cs || !("uid" in cs)) continue;
+    const uidChange = normalizeValueChange(cs.uid);
+    if (isClearChange(uidChange)) deletedUids.push(uidChange[1] as string);
+  }
+  if (deletedUids.length === 0) return okVoid;
+
+  for (const deletedUid of deletedUids) {
+    // Find entities whose fields JSON contains the deleted UID
+    const rows = await tx
+      .select({ uid: table.uid, fields: table.fields })
+      .from(table)
+      .where(
+        and(
+          sql`${table.fields} LIKE ${"%" + deletedUid + "%"}`,
+          ne(table.uid, deletedUid as any),
+        ),
+      );
+
+    for (const row of rows) {
+      const entityRef = row.uid as EntityChangesetRef<N>;
+      const fields = row.fields as Record<string, FieldValue>;
+
+      for (const [fieldKey, value] of objEntries(fields)) {
+        const fieldDef = schema.fields[fieldKey as FieldKey];
+        if (!fieldDef || fieldDef.dataType !== "relation") continue;
+        // Skip fields with inverseOf — expandInverseRelations handles those
+        if (fieldDef.inverseOf) continue;
+
+        const matchingItems = Array.isArray(value)
+          ? (value as FieldValue[]).filter(
+              (item) =>
+                item === deletedUid ||
+                (Array.isArray(item) && item[0] === deletedUid),
+            )
+          : [];
+        if (matchingItems.length > 0) {
+          // Multi-value relation: remove matching references
+          const existing = changesets[entityRef] ?? {};
+          const removeMutations: ListMutation[] = matchingItems.map(
+            (item) => ["remove", item] as ListMutation,
+          );
+          changesets[entityRef] = {
+            ...existing,
+            [fieldKey]: ["seq", removeMutations],
+          };
+        } else if (value === deletedUid) {
+          // Single-value relation: clear it
+          const existing = changesets[entityRef] ?? {};
+          changesets[entityRef] = {
+            ...existing,
+            [fieldKey]: ["clear", deletedUid],
+          };
+        }
+      }
+    }
+  }
+
+  return okVoid;
+};
+
 const buildChangeset = async <N extends NamespaceEditable>(
   namespace: N,
   schema: NamespaceSchema<N>,
@@ -1074,20 +1152,40 @@ const buildChangeset = async <N extends NamespaceEditable>(
 ): ResultAsync<[EntityChangesetRef<N>, FieldChangeset], ValidationError[]> => {
   if (isEntityDelete(input)) {
     const ref = input.$ref as EntityNsRef[N];
-    const selectResult = await fetchEntityFieldset(tx, namespace, ref, [
-      "id",
-      "key",
-      "uid",
-    ]);
-    if (isErr(selectResult))
+    const entityResult = await fetchEntity(tx, namespace, ref);
+    if (isErr(entityResult))
       return validationError(
-        selectResult.error.message ?? selectResult.error.key,
+        entityResult.error.message ?? entityResult.error.key,
       );
-    const current = selectResult.data;
+    const current = entityResult.data;
     const changesetRef = (
       namespace === "record" ? current.uid : assertDefinedPass(current.key)
     ) as EntityChangesetRef<N>;
-    return ok([changesetRef, { id: ["clear", current.id as FieldValue] }]);
+
+    const changeset: FieldChangeset = {};
+    for (const [key, value] of objEntries(current)) {
+      if (key === "txIds") continue;
+      if (value == null) continue;
+      if (Array.isArray(value) && value.length > 0) {
+        const fieldDef = schema.fields[key];
+        const isMultiValue =
+          key === "tags" ||
+          !!(fieldDef && "allowMultiple" in fieldDef && fieldDef.allowMultiple);
+        if (isMultiValue) {
+          changeset[key] = [
+            "seq",
+            (value as FieldValue[]).map(
+              (item) => ["remove", item] as ListMutation,
+            ),
+          ];
+        } else {
+          changeset[key] = ["clear", value];
+        }
+      } else if (!Array.isArray(value)) {
+        changeset[key] = ["clear", value];
+      }
+    }
+    return ok([changesetRef, changeset]);
   }
 
   const updatedSystemField = systemGeneratedFields.find(
@@ -1107,7 +1205,7 @@ const buildChangeset = async <N extends NamespaceEditable>(
 
   if (isEntityUpdate(input)) {
     const ref = input.$ref as EntityNsRef[N];
-    const keys = Object.keys(input).filter((k) => k !== "$ref") as FieldKey[];
+    const keys = objKeys(input).filter((k) => k !== "$ref");
     assertNotEmpty(keys);
     const selectResult = await fetchEntityFieldset(tx, namespace, ref, [
       ...keys,
@@ -1302,6 +1400,17 @@ export const processChangesetInput = async <N extends NamespaceEditable>(
   const rawChangesets = Object.fromEntries(
     changesetResults.map(throwIfError),
   ) as EntitiesChangeset<N>;
+
+  // For deletes, find and clean up incoming references from other entities
+  if (normalizedInputs.some(isEntityDelete)) {
+    const cleanupResult = await expandDeleteCleanup(
+      tx,
+      namespace,
+      rawChangesets,
+      schema,
+    );
+    if (isErr(cleanupResult)) return cleanupResult;
+  }
 
   return expandInverseRelations(tx, namespace, rawChangesets, schema);
 };

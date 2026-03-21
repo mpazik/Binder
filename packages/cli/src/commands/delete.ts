@@ -1,19 +1,28 @@
 import type { Argv } from "yargs";
-import { ok } from "@binder/utils";
+import { isErr, okVoid } from "@binder/utils";
 import {
+  createTransactionInput,
   type EntityRef,
   type NamespaceEditable,
   normalizeEntityRef,
 } from "@binder/db";
-import { runtimeWithDb, type CommandHandlerWithDb } from "../runtime.ts";
-import { types } from "../cli/types.ts";
+import { type CommandHandlerWithDb, runtimeWithDb } from "../runtime.ts";
 import { namespaceOption } from "../cli/options.ts";
+import { types } from "../cli/types.ts";
 
 const deleteHandler: CommandHandlerWithDb<{
   ref: EntityRef;
   namespace: NamespaceEditable;
-}> = async ({ args }) => {
-  return ok(`Delete not yet implemented for ${args.namespace}: ${args.ref}`);
+}> = async ({ kg, config, ui, args }) => {
+  const result = await kg.update(
+    createTransactionInput(config.author, args.namespace, [
+      { $ref: args.ref, $delete: true as const },
+    ]),
+  );
+  if (isErr(result)) return result;
+
+  ui.printTransaction(result.data);
+  return okVoid;
 };
 
 export const DeleteCommand = types({

@@ -164,6 +164,59 @@ describe("CLI", () => {
     });
   });
 
+  describe("delete and undo", () => {
+    it("deletes entity and cleans up inverse relations", async () => {
+      await check(["delete", "task-create-api"], "deleted");
+      await checkError(["read", "task-create-api", "--format", "yaml"]);
+      await check(["search", "type=Task", "--format", "json"], (stdout) => {
+        const keys = JSON.parse(stdout).items.map((i: any) => i.key);
+        expect(keys).not.toContain("task-create-api");
+      });
+      await check(
+        [
+          "read",
+          "project-binder-system",
+          "-f",
+          "key,tasks(key)",
+          "--format",
+          "json",
+        ],
+        (stdout) => {
+          const taskKeys =
+            JSON.parse(stdout).tasks?.map((t: any) => t.key) ?? [];
+          expect(taskKeys).not.toContain("task-create-api");
+        },
+      );
+    });
+
+    it("undo restores entity and inverse relations", async () => {
+      await check(["undo"], "Undone successfully");
+      await check(["read", "task-create-api", "--format", "json"], (stdout) => {
+        expect(JSON.parse(stdout)).toMatchObject({
+          key: "task-create-api",
+          title: "Add relationship fields",
+          status: "active",
+          priority: "medium",
+        });
+      });
+      await check(
+        [
+          "read",
+          "project-binder-system",
+          "-f",
+          "key,tasks(key)",
+          "--format",
+          "json",
+        ],
+        (stdout) => {
+          const taskKeys =
+            JSON.parse(stdout).tasks?.map((t: any) => t.key) ?? [];
+          expect(taskKeys).toContain("task-create-api");
+        },
+      );
+    });
+  });
+
   describe("transactions", () => {
     it("import from file", async () => {
       const txFile = join(dir, "extra-tx.yaml");
