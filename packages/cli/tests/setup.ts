@@ -204,6 +204,23 @@ const NAVIGATION_CONFIGS = [
     where: { type: "Project" },
     view: "document",
   },
+  {
+    key: "nav-teams-yaml",
+    type: "Navigation",
+    path: "teams/{key}",
+    where: { type: "Team" },
+    includes: {
+      key: true,
+      members: true,
+    },
+  },
+  {
+    key: "nav-teams-md",
+    type: "Navigation",
+    path: "teams-md/{key}",
+    where: { type: "Team" },
+    view: "document",
+  },
 ];
 
 const buildSchemaTransaction = (opts?: { docs?: boolean }) => [

@@ -2,7 +2,11 @@ import { dirname, join } from "path";
 import { beforeEach, describe, expect, it } from "bun:test";
 import { pick, throwIfError } from "@binder/utils";
 import "@binder/utils/tests";
-import { type EntityChangesetInput, type KnowledgeGraph } from "@binder/db";
+import {
+  type EntityChangesetInput,
+  type EntityKey,
+  type KnowledgeGraph,
+} from "@binder/db";
 import {
   mockRecordSchema,
   mockProjectRecord,
@@ -17,6 +21,7 @@ import {
   mockTaskType,
   mockTaskTypeKey,
   mockTeamType,
+  mockTeamTypeKey,
   mockTransactionInitInput,
   mockUserType,
 } from "@binder/db/mocks";
@@ -172,10 +177,6 @@ status: active
     });
 
     it("does not produce changeset for preamble relation field absent from frontmatter", async () => {
-      // Reproduction for fix-sync-oscillates-inverse-relations:
-      // task2 has project: mockProjectUid in DB. The view includes
-      // "project" in its preamble. But the markdown frontmatter omits
-      // "project". The sync should NOT produce a changeset nulling it out.
       const preambleProjectView = createViewEntity(
         "task-preamble-project",
         `# {title}\n\n**Status:** {status}\n\n## Description\n\n{description}\n`,
@@ -185,7 +186,6 @@ status: active
       const preambleNavItems: NavigationItem[] = [
         { path: "tasks/{key}", view: "task-preamble-project" },
       ];
-      // Frontmatter has status but NOT project
       const markdown = `---
 status: ${mockTask2Record.status}
 ---
@@ -311,6 +311,124 @@ ${mockTask2Record.description}
       await check("all-tasks.yaml", renderYamlList([mockTask1Record]), [
         { $ref: mockTask2Uid, $delete: true },
       ]);
+    });
+  });
+
+  describe("create by file", () => {
+    const navItemsWithWhere: NavigationItem[] = [
+      {
+        path: "tasks/{key}",
+        where: { type: mockTaskTypeKey },
+        includes: { title: true, status: true, description: true },
+      },
+      {
+        path: "teams/{key}",
+        where: { type: mockTeamTypeKey },
+        includes: { key: true, members: true },
+      },
+    ];
+
+    const checkCreate = async (
+      filePath: string,
+      content: string,
+      expected: EntityChangesetInput<"record">[],
+    ) => {
+      const fullPath = join(ctx.config.paths.docs, filePath);
+      throwIfError(await ctx.fs.mkdir(dirname(fullPath), { recursive: true }));
+      throwIfError(await ctx.fs.writeFile(fullPath, content));
+      const result = throwIfError(
+        await extractFileChanges(
+          ctx.fs,
+          kg,
+          ctx.config,
+          navItemsWithWhere,
+          mockRecordSchema,
+          filePath,
+          "record",
+          mockViews,
+        ),
+      );
+      expect(result).toEqual(expected);
+    };
+
+    it("creates entity from where + path when entity does not exist", async () => {
+      await checkCreate(
+        "tasks/task-brand-new.yaml",
+        renderYamlEntity({ title: "Brand New", status: "todo" }),
+        [
+          {
+            type: mockTaskTypeKey,
+            key: "task-brand-new" as EntityKey,
+            title: "Brand New",
+            status: "todo",
+          },
+        ],
+      );
+    });
+
+    it("creates entity from empty file using where + path only", async () => {
+      await checkCreate("teams/team-empty.yaml", "", [
+        { type: mockTeamTypeKey, key: "team-empty" as EntityKey },
+      ]);
+    });
+
+    it("where and path fields override content fields", async () => {
+      await checkCreate(
+        "tasks/task-override.yaml",
+        renderYamlEntity({
+          type: "Project",
+          key: "wrong-key",
+          title: "Override Test",
+        }),
+        [
+          {
+            type: mockTaskTypeKey,
+            key: "task-override" as EntityKey,
+            title: "Override Test",
+          },
+        ],
+      );
+    });
+
+    it("still returns invalid_record_count without where", async () => {
+      const noWhereNavItems: NavigationItem[] = [
+        {
+          path: "tasks/{key}",
+          includes: { title: true, status: true, description: true },
+        },
+      ];
+      const filePath = "tasks/task-no-where.yaml";
+      const fullPath = join(ctx.config.paths.docs, filePath);
+      throwIfError(await ctx.fs.mkdir(dirname(fullPath), { recursive: true }));
+      throwIfError(
+        await ctx.fs.writeFile(
+          fullPath,
+          renderYamlEntity({ title: "No Where" }),
+        ),
+      );
+      const result = await extractFileChanges(
+        ctx.fs,
+        kg,
+        ctx.config,
+        noWhereNavItems,
+        mockRecordSchema,
+        filePath,
+        "record",
+        mockViews,
+      );
+      expect(result).toBeErrWithKey("invalid_record_count");
+    });
+
+    it("still diffs against existing entity when one matches", async () => {
+      await checkCreate(
+        `tasks/${mockTask1Record.key}.yaml`,
+        renderYamlEntity({
+          title: "Updated Title",
+          status: mockTask1Record.status,
+          description: mockTask1Record.description,
+        }),
+        [{ $ref: mockTask1Uid, title: "Updated Title" }],
+      );
     });
   });
 

@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
@@ -23,8 +23,11 @@ describe("Doc Sync", () => {
   const readDoc = (relPath: string) =>
     readFile(join(dir, "docs", relPath), "utf-8");
 
-  const writeDoc = (relPath: string, content: string) =>
-    writeFile(join(dir, "docs", relPath), content);
+  const writeDoc = async (relPath: string, content: string) => {
+    const fullPath = join(dir, "docs", relPath);
+    await mkdir(join(fullPath, ".."), { recursive: true });
+    await writeFile(fullPath, content);
+  };
 
   const docExists = (relPath: string) =>
     Bun.file(join(dir, "docs", relPath)).exists();
@@ -42,6 +45,19 @@ describe("Doc Sync", () => {
       const content = await readDoc("tasks/task-implement-user-auth.md");
       expect(content).toContain("Implement user authentication");
       expect(content).toContain("task-implement-user-auth");
+    });
+
+    it("create via CLI auto-renders new file", async () => {
+      await check([
+        "create",
+        "Task",
+        "title=Auto-rendered task",
+        "key=task-auto-rendered",
+      ]);
+
+      expect(await docExists("tasks/task-auto-rendered.md")).toBe(true);
+      const content = await readDoc("tasks/task-auto-rendered.md");
+      expect(content).toContain("Auto-rendered task");
     });
   });
 
@@ -88,6 +104,35 @@ describe("Doc Sync", () => {
         },
       );
     });
+
+    it("new file creates entity and re-renders", async () => {
+      // Empty file -> entity created from where + path, file backfilled
+      await writeDoc("teams/team-new.yaml", "");
+      await check(["docs", "sync"]);
+      await check(["read", "team-new", "--format", "json"], (stdout) => {
+        expect(JSON.parse(stdout)).toMatchObject({
+          type: "Team",
+          key: "team-new",
+        });
+      });
+      const rendered = await readDoc("teams/team-new.yaml");
+      expect(rendered).toContain("key: team-new");
+
+      // File with content -> entity created with extracted fields
+      await writeDoc("tasks-yaml/task-from-file.yaml", "title: From File\n");
+      await check(["docs", "sync"]);
+      await check(["read", "task-from-file", "--format", "json"], (stdout) => {
+        expect(JSON.parse(stdout)).toMatchObject({
+          type: "Task",
+          key: "task-from-file",
+          title: "From File",
+        });
+      });
+
+      // Wrong data type -> rejected
+      await writeDoc("tasks-yaml/task-bad.yaml", "title: 123\n");
+      await checkError(["docs", "sync"], "Expected string");
+    });
   });
 
   describe("lint", () => {
@@ -104,18 +149,5 @@ describe("Doc Sync", () => {
 
       await writeFile(typesPath, original);
     });
-  });
-
-  it("create via CLI auto-renders new file", async () => {
-    await check([
-      "create",
-      "Task",
-      "title=Auto-rendered task",
-      "key=task-auto-rendered",
-    ]);
-
-    expect(await docExists("tasks/task-auto-rendered.md")).toBe(true);
-    const content = await readDoc("tasks/task-auto-rendered.md");
-    expect(content).toContain("Auto-rendered task");
   });
 });

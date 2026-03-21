@@ -5,6 +5,8 @@ import type {
   EntityUid,
   Fieldset,
   FieldsetNested,
+  Filter,
+  Filters,
   Includes,
   KnowledgeGraph,
   NamespaceEditable,
@@ -52,14 +54,45 @@ import {
 import { normalizeReferences, normalizeReferencesList } from "./reference.ts";
 import { type Views } from "./view-entity.ts";
 
-const diffSingle = async (
-  kg: KnowledgeGraph,
-  schema: EntitySchema,
-  namespace: NamespaceEditable,
-  entity: FieldsetNested,
+const isSingleValueFilter = (filter: Filter): filter is string | number =>
+  typeof filter === "string" || typeof filter === "number";
+
+const buildCreateChangeset = (
+  where: Filters,
   pathFields: Fieldset,
-  includes?: Includes,
-): ResultAsync<ChangesetsInput> => {
+  entity: FieldsetNested,
+): ChangesetsInput => {
+  const typeFilter = where.type;
+  if (!typeFilter || !isSingleValueFilter(typeFilter)) return [];
+
+  const filterFields: Fieldset = {};
+  for (const [key, value] of Object.entries(where)) {
+    if (isSingleValueFilter(value)) {
+      filterFields[key] = value;
+    }
+  }
+
+  return [
+    { ...entity, ...filterFields, ...pathFields } as ChangesetsInput[number],
+  ];
+};
+
+type SingleEntityLookup =
+  | { status: "found"; kgEntity: Fieldset }
+  | { status: "create"; changeset: ChangesetsInput };
+
+// Searches for exactly one entity by pathFields. Returns the found entity, a
+// create changeset when there are zero results and `where` is provided, or an
+// error when the result count is not exactly one.
+const lookupSingleEntity = async (
+  kg: KnowledgeGraph,
+  namespace: NamespaceEditable,
+  schema: EntitySchema,
+  pathFields: Fieldset,
+  entity: FieldsetNested,
+  includes: Includes | undefined,
+  where: Filters | undefined,
+): ResultAsync<SingleEntityLookup> => {
   const kgResult = await kg.search(
     {
       filters: pathFields as Record<string, string>,
@@ -69,6 +102,19 @@ const diffSingle = async (
   );
   if (isErr(kgResult)) return kgResult;
 
+  if (kgResult.data.items.length === 0 && where) {
+    const normalizedResult = await normalizeReferences(
+      entity ?? {},
+      schema,
+      kg,
+    );
+    if (isErr(normalizedResult)) return normalizedResult;
+    return ok({
+      status: "create",
+      changeset: buildCreateChangeset(where, pathFields, normalizedResult.data),
+    });
+  }
+
   if (kgResult.data.items.length !== 1) {
     return fail(
       "invalid_record_count",
@@ -77,11 +123,36 @@ const diffSingle = async (
     );
   }
 
+  return ok({ status: "found", kgEntity: kgResult.data.items[0]! });
+};
+
+const diffSingle = async (
+  kg: KnowledgeGraph,
+  schema: EntitySchema,
+  namespace: NamespaceEditable,
+  entity: FieldsetNested,
+  pathFields: Fieldset,
+  includes?: Includes,
+  where?: Filters,
+): ResultAsync<ChangesetsInput> => {
+  const lookupResult = await lookupSingleEntity(
+    kg,
+    namespace,
+    schema,
+    pathFields,
+    entity,
+    includes,
+    where,
+  );
+  if (isErr(lookupResult)) return lookupResult;
+  if (lookupResult.data.status === "create")
+    return ok(lookupResult.data.changeset);
+
   const normalizedResult = await normalizeReferences(entity, schema, kg);
   if (isErr(normalizedResult)) return normalizedResult;
 
   return ok(
-    diffEntities(schema, normalizedResult.data, kgResult.data.items[0]!),
+    diffEntities(schema, normalizedResult.data, lookupResult.data.kgEntity),
   );
 };
 
@@ -125,23 +196,20 @@ const diffDocument = async (
   projections: ExtractedProjection[],
   pathFields: Fieldset,
   includes?: Includes,
+  where?: Filters,
 ): ResultAsync<ChangesetsInput> => {
-  const kgResult = await kg.search(
-    {
-      filters: pathFields as Record<string, string>,
-      includes: includes ? includesWithUid(includes) : undefined,
-    },
+  const lookupResult = await lookupSingleEntity(
+    kg,
     namespace,
+    schema,
+    pathFields,
+    entity,
+    includes,
+    where,
   );
-  if (isErr(kgResult)) return kgResult;
-
-  if (kgResult.data.items.length !== 1) {
-    return fail(
-      "invalid_record_count",
-      "Path fields must resolve to exactly one record",
-      { pathFields, recordCount: kgResult.data.items.length },
-    );
-  }
+  if (isErr(lookupResult)) return lookupResult;
+  if (lookupResult.data.status === "create")
+    return ok(lookupResult.data.changeset);
 
   const normalizedResult = await normalizeReferences(entity, schema, kg);
   if (isErr(normalizedResult)) return normalizedResult;
@@ -149,7 +217,7 @@ const diffDocument = async (
   const changesets: ChangesetsInput = diffEntities(
     schema,
     normalizedResult.data,
-    kgResult.data.items[0]!,
+    lookupResult.data.kgEntity,
   );
 
   for (const projection of projections) {
@@ -175,9 +243,18 @@ const diffExtracted = (
   data: ExtractedFileData,
   pathFields: Fieldset,
   includes?: Includes,
+  where?: Filters,
 ): ResultAsync<ChangesetsInput> => {
   if (data.kind === "single") {
-    return diffSingle(kg, schema, namespace, data.entity, pathFields, includes);
+    return diffSingle(
+      kg,
+      schema,
+      namespace,
+      data.entity,
+      pathFields,
+      includes,
+      where,
+    );
   }
 
   if (data.kind === "list") {
@@ -199,6 +276,7 @@ const diffExtracted = (
     data.projections,
     pathFields,
     data.includes,
+    where,
   );
 };
 
@@ -255,6 +333,7 @@ export const extractFileChanges = async <N extends NamespaceEditable>(
     },
     namespace,
   );
+  const isNewEntity = isErr(baseResult) || baseResult.data.items.length === 0;
   const base =
     !isErr(baseResult) && baseResult.data.items.length === 1
       ? baseResult.data.items[0]!
@@ -269,6 +348,11 @@ export const extractFileChanges = async <N extends NamespaceEditable>(
     base,
   );
   if (isErr(extractResult)) {
+    // For new entities, extraction may fail (e.g. empty file doesn't match
+    // the view structure). Fall back to creating from where + pathFields.
+    if (isNewEntity && navItem.where) {
+      return ok(buildCreateChangeset(navItem.where, pathFields, {}));
+    }
     extractResult.error.data = {
       ...extractResult.error.data,
       file: relativePath,
@@ -283,6 +367,7 @@ export const extractFileChanges = async <N extends NamespaceEditable>(
     extractResult.data,
     pathFields,
     includes,
+    navItem.where,
   );
   if (isErr(changesets)) return changesets;
 

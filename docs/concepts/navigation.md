@@ -73,6 +73,10 @@ The full rendering flow:
 5. **Save snapshot**: write the file with version tracking metadata
 6. **Recurse children**: process child navigation items with parent entity as context
 
+### Create by File
+
+Navigation items that include a `where` clause support the reverse direction: dropping a new file at a matching path creates a new entity during sync. The `where` filters (e.g. `type: Task`) seed the entity alongside fields extracted from the file path and content. Items without `where` do not support this — sync requires the entity to already exist.
+
 ### Config Navigation
 
 The config namespace has hardcoded navigation items for system entities:
