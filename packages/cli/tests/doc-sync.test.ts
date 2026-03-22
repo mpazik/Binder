@@ -4,6 +4,7 @@ import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
   binderDir,
   createRunHelpers,
+  run,
   setupWorkspace,
   teardownWorkspace,
 } from "./setup.ts";
@@ -148,6 +149,19 @@ describe("Doc Sync", () => {
       await checkError(["docs", "lint", "--config"]);
 
       await writeFile(typesPath, original);
+    });
+
+    it("malformed YAML frontmatter in doc file reports error", async () => {
+      const docPath = "tasks/task-implement-user-auth.md";
+      const original = await readDoc(docPath);
+
+      await writeDoc(docPath, "---\nstatus: [[[broken\n---\n\nBody\n");
+      const result = await run(["docs", "lint"], { cwd: dir });
+      expect(result.exitCode).not.toBe(0);
+      expect(result.stdout).toContain("task-implement-user-auth.md");
+      expect(result.stdout).toContain("yaml-syntax-error");
+
+      await writeDoc(docPath, original);
     });
   });
 });
