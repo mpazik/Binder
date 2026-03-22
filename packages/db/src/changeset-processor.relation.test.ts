@@ -615,6 +615,118 @@ describe("changeset processor relations", () => {
           },
         ));
     });
+
+    describe("intra-batch", () => {
+      const findChangesetByKey = (
+        result: EntitiesChangeset<"record">,
+        key: string,
+      ) => {
+        const changeset = Object.values(result).find((cs) => cs.key === key)!;
+        const uid = Object.keys(result).find(
+          (uid) => result[uid as RecordUid] === changeset,
+        ) as RecordUid;
+        return { changeset, uid };
+      };
+
+      it("1:M - insert referencing new entity in same batch", async () => {
+        const result = throwIfError(
+          await process([
+            {
+              type: mockTaskTypeKey,
+              key: "new-task" as RecordKey,
+              title: "New Task",
+            },
+            {
+              type: mockProjectTypeKey,
+              title: "New Project",
+              [mockTasksFieldKey]: [["insert", "new-task"]],
+            },
+          ]),
+        );
+
+        const { changeset: taskChangeset, uid: taskUid } = findChangesetByKey(
+          result,
+          "new-task",
+        );
+        const projectChangeset = Object.values(result).find(
+          (cs) => cs.title === "New Project",
+        )!;
+        const projectUid = Object.keys(result).find(
+          (uid) => result[uid as RecordUid] === projectChangeset,
+        ) as RecordUid;
+
+        expect(projectChangeset[mockTasksFieldKey]).toBeUndefined();
+        expect(result[taskUid]).toMatchObject({
+          [mockProjectFieldKey]: ["set", projectUid],
+        });
+      });
+
+      it("1:1 - setting field on new entity referencing another new entity", async () => {
+        const result = throwIfError(
+          await process([
+            {
+              type: mockUserTypeKey,
+              key: "user-a" as RecordKey,
+              name: "Alice",
+            },
+            {
+              type: mockUserTypeKey,
+              key: "user-b" as RecordKey,
+              name: "Bob",
+              [mockPartnerFieldKey]: "user-a",
+            },
+          ]),
+        );
+
+        const { changeset: userAChangeset, uid: userAUid } = findChangesetByKey(
+          result,
+          "user-a",
+        );
+        const { changeset: userBChangeset, uid: userBUid } = findChangesetByKey(
+          result,
+          "user-b",
+        );
+
+        expect(userBChangeset[mockPartnerFieldKey]).toBe(userAUid);
+        expect(result[userAUid]).toMatchObject({
+          [mockPartnerFieldKey]: ["set", userBUid],
+        });
+      });
+
+      it("M:M - insert referencing new entity in same batch", async () => {
+        const result = throwIfError(
+          await process([
+            {
+              type: mockTaskTypeKey,
+              key: "task-a" as RecordKey,
+              title: "Task A",
+            },
+            {
+              type: mockTaskTypeKey,
+              key: "task-b" as RecordKey,
+              title: "Task B",
+              [mockRelatedToFieldKey]: [["insert", "task-a"]],
+            },
+          ]),
+        );
+
+        const { changeset: taskAChangeset, uid: taskAUid } = findChangesetByKey(
+          result,
+          "task-a",
+        );
+        const { changeset: taskBChangeset, uid: taskBUid } = findChangesetByKey(
+          result,
+          "task-b",
+        );
+
+        expect(taskBChangeset[mockRelatedToFieldKey]).toEqual([
+          ["insert", taskAUid],
+        ]);
+        expect(result[taskAUid]).toMatchObject({
+          [mockRelatedToFieldKey]: ["seq", [["insert", taskBUid]]],
+        });
+      });
+    });
   });
 
   describe("validation", () => {
