@@ -570,6 +570,128 @@ ${mockTask1Record.description}
       });
     });
 
+    describe("cross-view changeset merge", () => {
+      it("merges non-conflicting changesets for the same entity from different files", async () => {
+        const yamlPath = join(
+          ctx.config.paths.docs,
+          `tasks/${mockTask1Record.key}.yaml`,
+        );
+        const mdPath = join(
+          ctx.config.paths.docs,
+          `md-tasks/${mockTask1Record.key}.md`,
+        );
+
+        throwIfError(
+          await ctx.fs.mkdir(dirname(yamlPath), { recursive: true }),
+        );
+        throwIfError(await ctx.fs.mkdir(dirname(mdPath), { recursive: true }));
+
+        throwIfError(
+          await ctx.fs.writeFile(
+            yamlPath,
+            renderYamlEntity({
+              title: mockTask1Record.title,
+              status: "done",
+            }),
+          ),
+        );
+
+        throwIfError(
+          await ctx.fs.writeFile(
+            mdPath,
+            `---
+status: done
+---
+
+# Updated Title
+
+## Description
+
+Updated description
+`,
+          ),
+        );
+
+        const result = throwIfError(
+          await extractModifiedFileChanges(ctx, ctx.config.paths.docs),
+        );
+        expect(result).not.toBeNull();
+        const records = result!.records ?? [];
+        const task1Changes = records.filter(
+          (r) => "$ref" in r && r.$ref === mockTask1Uid,
+        );
+        expect(task1Changes).toHaveLength(1);
+        expect(task1Changes[0]).toMatchObject({
+          $ref: mockTask1Uid,
+          status: "done",
+          title: "Updated Title",
+          description: "Updated description",
+        });
+      });
+
+      it("preserves non-overlapping changesets for different entities", async () => {
+        const task1Path = join(
+          ctx.config.paths.docs,
+          `tasks/${mockTask1Record.key}.yaml`,
+        );
+        const task2Path = join(
+          ctx.config.paths.docs,
+          `tasks/${mockTask2Record.key}.yaml`,
+        );
+
+        throwIfError(
+          await ctx.fs.mkdir(dirname(task1Path), { recursive: true }),
+        );
+
+        throwIfError(
+          await ctx.fs.writeFile(
+            task1Path,
+            renderYamlEntity({
+              title: "Task 1 Updated",
+              status: mockTask1Record.status,
+            }),
+          ),
+        );
+        throwIfError(
+          await ctx.fs.writeFile(
+            task2Path,
+            renderYamlEntity({
+              title: "Task 2 Updated",
+              status: mockTask2Record.status,
+              description: mockTask2Record.description,
+            }),
+          ),
+        );
+
+        const result = throwIfError(
+          await extractModifiedFileChanges(ctx, ctx.config.paths.docs),
+        );
+        expect(result).not.toBeNull();
+        const records = result!.records ?? [];
+
+        expect(records).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              $ref: mockTask1Uid,
+              title: "Task 1 Updated",
+            }),
+            expect.objectContaining({
+              $ref: mockTask2Uid,
+              title: "Task 2 Updated",
+            }),
+          ]),
+        );
+        const task1Changes = records.filter(
+          (r) => "$ref" in r && r.$ref === mockTask1Uid,
+        );
+        const task2Changes = records.filter(
+          (r) => "$ref" in r && r.$ref === mockTask2Uid,
+        );
+        expect(task1Changes).toHaveLength(1);
+        expect(task2Changes).toHaveLength(1);
+      });
+    });
+
     describe("config namespace", () => {
       it("detects changes", async () => {
         await check(
@@ -676,7 +798,6 @@ ${mockTask1Record.description}
         undefined,
         taskUid,
       );
-      expect(result).toBeOk();
       expect(throwIfError(result)).toEqual(expected);
     };
 

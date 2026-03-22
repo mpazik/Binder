@@ -13,12 +13,13 @@ import type {
   QueryParams,
   TransactionInput,
 } from "@binder/db";
-import { includesWithUid, isEntityDelete } from "@binder/db";
+import { includesWithUid, isEntityDelete, isEntityUpdate } from "@binder/db";
 import {
   fail,
   isEqual,
   isErr,
   ok,
+  okVoid,
   type Result,
   type ResultAsync,
 } from "@binder/utils";
@@ -360,7 +361,7 @@ export const extractFileChanges = async <N extends NamespaceEditable>(
     return extractResult;
   }
 
-  const changesets = await diffExtracted(
+  return diffExtracted(
     kg,
     schema,
     namespace,
@@ -369,9 +370,6 @@ export const extractFileChanges = async <N extends NamespaceEditable>(
     includes,
     navItem.where,
   );
-  if (isErr(changesets)) return changesets;
-
-  return changesets;
 };
 
 const extractNamespaceChanges = async <N extends NamespaceEditable>(
@@ -459,7 +457,36 @@ const detectCrossFileConflicts = <N extends NamespaceEditable>(
     }
   }
 
-  return ok(undefined);
+  return okVoid;
+};
+
+const mergeSameRefChangesets = <N extends NamespaceEditable>(
+  changesets: ChangesetsInput<N>,
+): ChangesetsInput<N> => {
+  const merged: ChangesetsInput<N> = [];
+  const updatesByRef = new Map<string, EntityChangesetInput<N>>();
+
+  for (const cs of changesets) {
+    if (!isEntityUpdate(cs)) {
+      merged.push(cs);
+      continue;
+    }
+
+    const ref = cs.$ref as string;
+    const existing = updatesByRef.get(ref);
+    if (!existing) {
+      const copy = { ...cs };
+      updatesByRef.set(ref, copy);
+      merged.push(copy);
+    } else {
+      for (const [key, value] of Object.entries(cs)) {
+        if (key === "$ref" || key === "type" || key === "key") continue;
+        (existing as Record<string, unknown>)[key] = value;
+      }
+    }
+  }
+
+  return merged;
 };
 
 export const extractModifiedFileChanges = async (
@@ -573,9 +600,12 @@ export const extractModifiedFileChanges = async (
   const configConflicts = detectCrossFileConflicts(configs);
   if (isErr(configConflicts)) return configConflicts;
 
+  const mergedRecords = mergeSameRefChangesets(records);
+  const mergedConfigs = mergeSameRefChangesets(configs);
+
   return ok({
     author: config.author,
-    records,
-    configs,
+    records: mergedRecords,
+    configs: mergedConfigs,
   });
 };
