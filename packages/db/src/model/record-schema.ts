@@ -107,6 +107,7 @@ export const standardFields = {
     name: "Summary",
     dataType: "richtext",
     richtextFormat: "block",
+    allowMultiple: true,
     description:
       "Short version of the body content. Written after the fact, unlike description which is upfront metadata.",
   },
