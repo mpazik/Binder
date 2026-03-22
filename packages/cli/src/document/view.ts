@@ -9,6 +9,7 @@ import {
   ok,
   type Result,
 } from "@binder/utils";
+
 import {
   type EntitySchema,
   type FieldDef,
@@ -39,6 +40,7 @@ import {
   extractFieldsetFromQuery,
   parseFiltersFromString,
 } from "../utils/query.ts";
+import { interpolatePlain } from "../utils/interpolate-fields.ts";
 import {
   type FieldSlot,
   fieldSlot,
@@ -177,10 +179,8 @@ const getItemView = (slot: ViewFieldSlot, views: Views): ViewEntity => {
   return assertDefinedPass(views.find((t) => t.key === defaultKey));
 };
 
-const DEFAULT_SLOT_POSITION: SlotPosition = "phrase";
-
 const getSlotPosition = (slot: ViewFieldSlot): SlotPosition =>
-  slot.slotPosition ?? DEFAULT_SLOT_POSITION;
+  slot.slotPosition ?? "phrase";
 
 const isInlinePosition = (slotPosition: SlotPosition): boolean =>
   slotPosition === "phrase" || slotPosition === "line";
@@ -191,6 +191,24 @@ const getDelimiterForSlotPosition = (
 ): MultiValueDelimiter => {
   if (viewFormat) return richtextFormats[viewFormat].delimiter;
   return richtextFormats[slotPosition].delimiter;
+};
+
+const literalMismatch = (context?: string) =>
+  createError("literal-mismatch", "View and snapshot content do not match", {
+    context,
+  });
+
+const getSoleFieldSlotFromParagraph = (
+  node: SimplifiedViewChild | Nodes,
+): ViewFieldSlot | undefined => {
+  if (node.type !== "paragraph") return undefined;
+  if (!("children" in node)) return undefined;
+  const children = node.children as (SimplifiedViewInlineChild | Nodes)[];
+  if (children.length !== 1) return undefined;
+  const child = children[0];
+  if (!child || !("type" in child) || child.type !== "fieldSlot")
+    return undefined;
+  return child as ViewFieldSlot;
 };
 
 const FRONTMATTER_TYPES = ["yaml", "toml"];
@@ -438,13 +456,13 @@ const renderFieldSlot = (
   return ok(renderFieldValue(value, fieldDef));
 };
 
-function renderViewAstInternal(
+const renderViewAstInternal = (
   schema: EntitySchema,
   views: Views,
   view: ViewAST,
   fieldset: FieldsetNested,
   renderingViews: Set<string>,
-): Result<string> {
+): Result<string> => {
   const ast = structuredClone(view) as Root;
   let renderError: ErrorObject | undefined;
 
@@ -524,8 +542,21 @@ function renderViewAstInternal(
     applyBlockReplacements(ast);
   }
 
+  // Interpolate field placeholders in link URLs (not parsed as fieldSlot by micromark)
+  visit(ast, "link", (node: Nodes & { url?: string }) => {
+    if (typeof node.url !== "string" || !node.url.includes("{")) return;
+    const result = interpolatePlain(node.url, (placeholder) => {
+      const path = placeholder.split(".") as FieldPath;
+      const value = getNestedValue(fieldset, path);
+      if (value === null || value === undefined) return ok("");
+      if (typeof value === "object") return ok("");
+      return ok(String(value));
+    });
+    if (!isErr(result)) node.url = result.data;
+  });
+
   return ok(renderAstToMarkdown(ast));
-}
+};
 
 export const renderViewAst = (
   schema: EntitySchema,
@@ -545,12 +576,6 @@ export const renderView = (
   if (isErr(viewResult)) return viewResult;
 
   return renderViewAst(schema, views, viewResult.data.viewAst, fieldset);
-};
-
-type MatchState = {
-  viewIndex: number;
-  snapIndex: number;
-  snapTextOffset: number;
 };
 
 export const extractFieldSlotsFromAst = (ast: ViewAST): string[] => {
@@ -708,6 +733,12 @@ const extractRelationFromBlocks = (
   );
 };
 
+type MatchState = {
+  viewIndex: number;
+  snapIndex: number;
+  snapTextOffset: number;
+};
+
 export const extractFieldsAst = (
   schema: EntitySchema,
   views: Views,
@@ -733,11 +764,6 @@ export const extractFieldsAst = (
       accumulator.set(fieldPath, value);
     }
   };
-
-  const literalMismatch = (context?: string) =>
-    createError("literal-mismatch", "View and snapshot content do not match", {
-      context,
-    });
 
   const matchFieldSlot = (
     viewChild: ViewFieldSlot,
@@ -906,19 +932,6 @@ export const extractFieldsAst = (
       state.snapTextOffset = 0;
     }
     return true;
-  };
-
-  const getSoleFieldSlotFromParagraph = (
-    node: SimplifiedViewChild | Nodes,
-  ): ViewFieldSlot | undefined => {
-    if (node.type !== "paragraph") return undefined;
-    if (!("children" in node)) return undefined;
-    const children = node.children as (SimplifiedViewInlineChild | Nodes)[];
-    if (children.length !== 1) return undefined;
-    const child = children[0];
-    if (!child || !("type" in child) || child.type !== "fieldSlot")
-      return undefined;
-    return child as ViewFieldSlot;
   };
 
   const matchBlockFieldSlot = (
@@ -1293,9 +1306,6 @@ const combinePositions = (
   end: end.end,
 });
 
-const getNodePosition = (node: Nodes): UnistPosition | undefined =>
-  node.position;
-
 const getBlockText = (node: Nodes | SimplifiedViewBlockChild): string => {
   if ("children" in node && Array.isArray(node.children)) {
     return node.children
@@ -1379,8 +1389,8 @@ export const extractFieldMappings = (
         endSnapIdx = snapBlocks.length;
       }
 
-      const startPos = getNodePosition(snapBlocks[snapIdx]!);
-      const endPos = getNodePosition(snapBlocks[endSnapIdx - 1]!);
+      const startPos = snapBlocks[snapIdx]!.position;
+      const endPos = snapBlocks[endSnapIdx - 1]!.position;
       if (startPos && endPos) {
         mappings.push({
           path: fieldSlot.path,

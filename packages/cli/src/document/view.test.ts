@@ -112,6 +112,14 @@ describe("view", () => {
           `**Project:** ${mockProjectRecord.title}\n`,
         );
       });
+
+      it("field slot in link text and URL", () => {
+        check(
+          "[← {project.title}](../projects/{project.key})\n",
+          { project: mockProjectRecord },
+          `[← ${mockProjectRecord.title}](../projects/${mockProjectRecord.key})\n`,
+        );
+      });
     });
 
     describe("scalar field types", () => {
@@ -492,54 +500,43 @@ describe("view", () => {
 
     describe("where: filter", () => {
       it("filters multi-value relation in section position", () => {
-        const view = `## Pending\n\n{tasks|where:status=pending|view:task-item}\n\n## Active\n\n{tasks|where:status=active|view:task-item}\n`;
-        const data = {
-          tasks: [mockTask1Record, mockTask2Record, mockTask3Record],
-        };
         check(
-          view,
-          data,
+          `## Pending\n\n{tasks|where:status=pending|view:task-item}\n\n## Active\n\n{tasks|where:status=active|view:task-item}\n`,
+          { tasks: [mockTask1Record, mockTask2Record, mockTask3Record] },
           `## Pending\n\n- ${mockTask1Record.title}\n- ${mockTask2Record.title}\n\n## Active\n\n- ${mockTask3Record.title}\n`,
           whereViews,
         );
       });
 
-      it("where: with no matches produces empty section", () => {
-        const view = `## Cancelled\n\n{tasks|where:status=cancelled|view:task-item}\n\n## Active\n\n{tasks|where:status=active|view:task-item}\n`;
-        const data = { tasks: [mockTask3Record] };
+      it("no matches produces empty section", () => {
         check(
-          view,
-          data,
+          `## Cancelled\n\n{tasks|where:status=cancelled|view:task-item}\n\n## Active\n\n{tasks|where:status=active|view:task-item}\n`,
+          { tasks: [mockTask3Record] },
           `## Cancelled\n\n## Active\n\n- ${mockTask3Record.title}\n`,
           whereViews,
         );
       });
 
-      it("where: with multiple conditions (AND)", () => {
-        const view = `{tasks|where:status=pending AND priority=medium|view:task-item}\n`;
-        const data = {
-          tasks: [
-            mockTask1Record, // pending, medium
-            mockTask3Record, // active, medium
-          ],
-        };
-        check(view, data, `- ${mockTask1Record.title}\n`, whereViews);
+      it("multiple conditions (AND)", () => {
+        check(
+          `{tasks|where:status=pending AND priority=medium|view:task-item}\n`,
+          { tasks: [mockTask1Record, mockTask3Record] },
+          `- ${mockTask1Record.title}\n`,
+          whereViews,
+        );
       });
 
-      it("where: combined with view:", () => {
+      it("combined with view:", () => {
         const sectionView = createViewEntity(
           "task-section",
           `### {title}\n\n{description}\n`,
           { viewFormat: "section" },
         );
-        const views: Views = [...mockDefaultViews, sectionView];
-        const view = `## Active Tasks\n\n{tasks|where:status=active|view:task-section}\n\n## End\n`;
-        const data = { tasks: [mockTask1Record, mockTask3Record] };
         check(
-          view,
-          data,
+          `## Active Tasks\n\n{tasks|where:status=active|view:task-section}\n\n## End\n`,
+          { tasks: [mockTask1Record, mockTask3Record] },
           `## Active Tasks\n\n### ${mockTask3Record.title}\n\n${mockTask3Record.description}\n\n## End\n`,
-          views,
+          [...mockDefaultViews, sectionView],
         );
       });
     });
@@ -1350,7 +1347,7 @@ Excellent first week. Schema is minimal and consistent.
   });
 
   describe("round-trip", () => {
-    const checkRoundTrip = (
+    const check = (
       view: string,
       snapshot: string,
       expected: FieldsetNested,
@@ -1369,7 +1366,7 @@ Excellent first week. Schema is minimal and consistent.
     };
 
     it("where-filtered relation sections", () => {
-      checkRoundTrip(
+      check(
         `# {title}\n\n{description}\n\n## Pending\n\n{tasks|where:status=pending|view:task-item}\n\n## Active\n\n{tasks|where:status=active|view:task-item}\n`,
         `# Pre-Launch\n\nPrepare for release.\n\n## Pending\n\n- Write docs\n- Create logo\n\n## Active\n\n- Markdown support\n`,
         {
@@ -1386,7 +1383,7 @@ Excellent first week. Schema is minimal and consistent.
     });
 
     it("extracted fields", () => {
-      checkRoundTrip(
+      check(
         mockTaskView.viewContent,
         `# Implement user authentication\n\n**Status:** todo\n\n## Description\n\nAdd login and registration functionality with JWT tokens\n`,
         {
