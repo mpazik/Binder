@@ -1,17 +1,26 @@
 items:
-  - key: nav-backlog
-    where:
-      type: Task
-      status: draft
-    path: backlog/{priority} {key}
-    view: task-view
-
   - key: nav-tasks
     where:
       type: Task
       status: { op: in, value: [ pending, active, paused ] }
     path: tasks/{priority} {key}
     view: task-view
+
+  - key: nav-backlog
+    where:
+      type: Task
+      status: draft
+    path: tasks/backlog/{priority} {key}
+    view: task-view
+
+  - key: nav-tasks-unassigned
+    query:
+      filters:
+        type: Task
+        partOf: { op: empty, value: true }
+        status: { op: notIn, value: [ complete, cancelled ] }
+      includes: { key: true, title: true, status: true, priority: true, module: true }
+    path: tasks/unassigned
 
   - key: nav-archive-tasks
     where:

@@ -224,17 +224,20 @@ items:
     dataType: richtext
     richtextFormat: block
 
-  - key: argumentType
-    name: Argument Type
-    description: Whether this argument supports or opposes the option
+  - key: stance
+    name: Stance
+    description: Judgement of how this characteristic affects the option
     dataType: option
     options:
       - key: pro
         name: Pro
-        description: Evidence or reasoning in favour of the option
+        description: Favourable — supports choosing this option
       - key: con
         name: Con
-        description: Evidence or reasoning against the option
+        description: Unfavourable — argues against this option
+      - key: neutral
+        name: Neutral
+        description: Balanced or negligible impact on the decision
 
   - key: outcome
     name: Outcome

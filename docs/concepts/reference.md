@@ -68,7 +68,6 @@ The `inverseOf` property is validated when creating field definitions:
 ### Cleanup on Deletion
 
 When an entity is deleted, all references pointing to it are cleaned up in the same transaction:
-
 - **Inverse relation fields** (`inverseOf`): handled by the existing inverse expansion machinery, which processes the clear/remove changes on the deleted entity's own relation fields.
 - **Non-inverse incoming references**: a separate pass scans for entities whose fields contain the deleted UID. Single-value relations are cleared; multi-value relations get remove mutations. Fields with `inverseOf` are skipped to avoid double-processing.
 

@@ -74,11 +74,10 @@ items:
 
   - key: Argument
     name: Argument
-    description: Evidence for or against an Option
+    description: A characteristic or claim about an Option, optionally judged
     fields:
-      - title: { required: true }
-      - description: { description: The reasoning or evidence presented }
-      - argumentType: { required: true }
+      - description: { required: true, description: The characteristic or claim being assessed }
+      - stance
       - respondsTo:
           required: true
           only: [ Option ]
