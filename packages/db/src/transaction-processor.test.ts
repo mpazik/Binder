@@ -30,7 +30,7 @@ import {
 describe("transaction processor", () => {
   let db: Database;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     db = getTestDatabase();
   });
 
@@ -151,7 +151,7 @@ describe("transaction processor", () => {
                 dataType: "plaintext",
               },
               {
-                $ref: mockTaskTypeKey,
+                key: mockTaskTypeKey,
                 fields: [[newFieldKey, { required: true }]],
               },
             ],

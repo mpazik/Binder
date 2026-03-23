@@ -8,12 +8,14 @@ import {
   objTupleToTuple,
   omit,
 } from "@binder/utils";
+import type { EntityRef } from "./entity.ts";
 import { type FieldKey, type Fieldset, type FieldValue } from "./field.ts";
 import { getMultiValueDelimiter, splitByDelimiter } from "./text-format.ts";
 import type {
   EntityNsKey,
   EntityNsRef,
   EntityNsType,
+  EntityNsUid,
   NamespaceEditable,
   NamespaceSchema,
 } from "./namespace.ts";
@@ -25,9 +27,6 @@ import {
 } from "./changeset.ts";
 import type { OptionDef } from "./data-type.ts";
 import type { FieldDef } from "./schema.ts";
-
-// Input mutation types - accept ObjTuple for ergonomic YAML/CLI input
-// These get normalized to internal ListMutation types during processing
 
 export type ListMutationInputValue = FieldValue | ObjTuple<string, Fieldset>;
 
@@ -76,15 +75,17 @@ export type FieldChangeInput =
   | ListMutationInput
   | ListMutationInput[];
 export type FieldChangesetInput = Record<FieldKey, FieldChangeInput>;
-export type EntityUpdate<N extends NamespaceEditable> = FieldChangesetInput & {
-  $ref: EntityNsRef[N];
-};
+type EntityRefFields<N extends NamespaceEditable> =
+  | { $ref: EntityNsRef[N] }
+  | { uid: EntityNsUid[N] }
+  | { key: EntityNsKey[N] };
+export type EntityUpdate<N extends NamespaceEditable> = FieldChangesetInput &
+  EntityRefFields<N>;
 export type EntityCreate<N extends NamespaceEditable> = FieldChangesetInput & {
   type: EntityNsType[N];
   key?: EntityNsKey[N];
 };
-export type EntityDelete<N extends NamespaceEditable> = {
-  $ref: EntityNsRef[N];
+export type EntityDelete<N extends NamespaceEditable> = EntityRefFields<N> & {
   $delete: true;
 };
 export type EntityMutationInput<N extends NamespaceEditable> =
@@ -101,14 +102,25 @@ export const changesetInputForNewEntity = <N extends NamespaceEditable>(
   entity: Fieldset,
 ): EntityChangesetInput<N> => omit(entity, ["id"]) as EntityChangesetInput<N>;
 
+const hasRefField = (input: Record<string, unknown>): boolean =>
+  ("$ref" in input || "uid" in input || "key" in input) && !("type" in input);
+
 export const isEntityDelete = <N extends NamespaceEditable>(
   input: EntityChangesetInput<N>,
 ): input is EntityDelete<N> =>
-  "$ref" in input && "$delete" in input && input.$delete === true;
+  hasRefField(input) && "$delete" in input && input.$delete === true;
 
 export const isEntityUpdate = <N extends NamespaceEditable>(
   input: EntityChangesetInput<N>,
-): input is EntityUpdate<N> => "$ref" in input && !isEntityDelete(input);
+): input is EntityUpdate<N> => hasRefField(input) && !isEntityDelete(input);
+
+/** Extract the entity ref from an update/delete input. Works before and after normalization. */
+export const getEntityInputRef = <N extends NamespaceEditable>(
+  input: EntityUpdate<N> | EntityDelete<N>,
+): EntityRef => {
+  const raw = input as Record<string, unknown>;
+  return (raw.$ref ?? raw.uid ?? raw.key) as EntityRef;
+};
 
 export const getMutationInputRef = (value: ListMutationInputValue): string =>
   isObjTuple(value) ? objTupleKey(value) : (value as string);
@@ -189,14 +201,38 @@ const normalizeFieldValue = (
   return value;
 };
 
+/**
+ * Collapse external `key`/`uid` ref aliases into the canonical `$ref` field.
+ * - `{ uid, ... }` (no `type`) → `$ref = uid`, drop `uid`, keep `key` as data
+ * - `{ key, ... }` (no `uid`, no `type`) → `$ref = key`, drop `key`
+ * - `{ $ref, ... }` → pass through
+ * - `{ $ref, key/uid }` → conflicting, `$ref` wins, `key`/`uid` kept as data
+ */
+const collapseRefAliases = <N extends NamespaceEditable>(
+  input: EntityChangesetInput<N>,
+): EntityChangesetInput<N> => {
+  if ("$ref" in input || "type" in input) return input;
+  const raw = input as Record<string, unknown>;
+  if ("uid" in raw) {
+    const { uid, ...rest } = raw;
+    return { $ref: uid, ...rest } as EntityChangesetInput<N>;
+  }
+  if ("key" in raw) {
+    const { key, ...rest } = raw;
+    return { $ref: key, ...rest } as EntityChangesetInput<N>;
+  }
+  return input;
+};
+
 export const normalizeInput = <N extends NamespaceEditable>(
   input: EntityChangesetInput<N>,
   schema: NamespaceSchema<N>,
 ): EntityChangesetInput<N> => {
-  if (isEntityDelete(input)) return input;
-  const normalized: EntityChangesetInput<N> = { ...input };
+  const collapsed = collapseRefAliases(input);
+  if (isEntityDelete(collapsed)) return collapsed;
+  const normalized: EntityChangesetInput<N> = { ...collapsed };
 
-  for (const [fieldKey, value] of objEntries(input)) {
+  for (const [fieldKey, value] of objEntries(collapsed)) {
     if (fieldKey === "$ref" || fieldKey === "type" || value === undefined)
       continue;
 
@@ -242,11 +278,17 @@ export const EntityCreateInputSchema = z
   .transform((val) => val as EntityCreate<NamespaceEditable>);
 
 export const EntityUpdateInputSchema = z
-  .object({ $ref: z.string() })
-  .passthrough()
+  .union([
+    z.object({ $ref: z.string() }).passthrough(),
+    z.object({ key: z.string() }).passthrough(),
+    z.object({ uid: z.string() }).passthrough(),
+  ])
   .transform((val) => val as EntityUpdate<NamespaceEditable>);
 
 export const EntityDeleteInputSchema = z
-  .object({ $ref: z.string(), $delete: z.literal(true) })
-  .strict()
+  .union([
+    z.object({ $ref: z.string(), $delete: z.literal(true) }).strict(),
+    z.object({ key: z.string(), $delete: z.literal(true) }).strict(),
+    z.object({ uid: z.string(), $delete: z.literal(true) }).strict(),
+  ])
   .transform((val) => val as EntityDelete<NamespaceEditable>);

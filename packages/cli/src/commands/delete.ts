@@ -16,7 +16,7 @@ const deleteHandler: CommandHandlerWithDb<{
 }> = async ({ kg, config, ui, args }) => {
   const result = await kg.update(
     createTransactionInput(config.author, args.namespace, [
-      { $ref: args.ref, $delete: true as const },
+      { $ref: args.ref, $delete: true },
     ]),
   );
   if (isErr(result)) return result;

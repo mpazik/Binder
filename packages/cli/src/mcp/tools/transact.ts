@@ -19,10 +19,18 @@ EXAMPLES:
   }]
 }
 
-2. Update an existing record:
+2. Update an existing record by key:
 {
   "records": [{
-    "$ref": "task-review-pr",
+    "key": "task-review-pr",
+    "status": "done"
+  }]
+}
+
+2b. Update an existing record by uid:
+{
+  "records": [{
+    "uid": "abc123def456",
     "status": "done"
   }]
 }
@@ -55,7 +63,7 @@ EXAMPLES:
   "records": [
     { "type": "Task", "title": "First task" },
     { "type": "Task", "title": "Second task" },
-    { "$ref": "existing-task", "status": "done" }
+    { "key": "existing-task", "status": "done" }
   ],
   "configs": [
     { "type": "Type", "key": "Bug", "name": "Bug Report", "fields": ["title", "severity", "assignedTo"]}
@@ -65,7 +73,7 @@ EXAMPLES:
 6. Working with array fields:
 {
   "records": [{
-    "$ref": "task-1",
+    "key": "task-1",
     "tags": ["insert", "urgent"]
   }]
 }
@@ -76,13 +84,13 @@ Call the 'schema' tool first to understand available types, fields, and data typ
       .array(z.record(z.string(), z.unknown()))
       .optional()
       .describe(
-        "Array of record changesets to create or update records. To CREATE: include 'type' field. To UPDATE: include '$ref' field with record reference (uid, key, or id). All other fields become record attributes.",
+        "Array of record changesets to create or update records. To CREATE: include 'type' field. To UPDATE: include 'key' or 'uid' field (without 'type'). To DELETE: include 'key' or 'uid' with '$delete: true'. All other fields become record attributes.",
       ),
     configs: z
       .array(z.record(z.string(), z.unknown()))
       .optional()
       .describe(
-        "Array of configuration changesets to create or update schema elements. Same pattern as records: use 'type' and 'key' to create, '$ref' to update. Common config types: 'Type' (record type definition), 'Field' (field definition), 'RelationField' (relation field definition).",
+        "Array of configuration changesets to create or update schema elements. Same pattern as records: use 'type' and 'key' to create, 'key' or 'uid' (without 'type') to update. Common config types: 'Type' (record type definition), 'Field' (field definition), 'RelationField' (relation field definition).",
       ),
   }),
   annotation: {

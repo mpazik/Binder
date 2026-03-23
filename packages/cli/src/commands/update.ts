@@ -1,5 +1,5 @@
 import type { Argv } from "yargs";
-import { fail, isErr, ok } from "@binder/utils";
+import { fail, isErr, okVoid } from "@binder/utils";
 import {
   createTransactionInput,
   type EntityRef,
@@ -44,7 +44,7 @@ const updateHandler: CommandHandlerWithDb<{
     if (isErr(result)) return result;
 
     ui.printTransaction(result.data, args.format ?? "full");
-    return ok(undefined);
+    return okVoid;
   }
 
   if (!args.ref)
@@ -62,7 +62,7 @@ const updateHandler: CommandHandlerWithDb<{
   const entityInput = {
     $ref: args.ref,
     ...fieldsResult.data,
-  };
+  } as EntityUpdate<typeof args.namespace>;
 
   const result = await kg.update(
     createTransactionInput(config.author, args.namespace, [entityInput]),
@@ -70,7 +70,7 @@ const updateHandler: CommandHandlerWithDb<{
   if (isErr(result)) return result;
 
   ui.printTransaction(result.data, args.format ?? "full");
-  return ok(undefined);
+  return okVoid;
 };
 
 export const UpdateCommand = types({

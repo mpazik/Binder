@@ -283,7 +283,7 @@ const main = async () => {
     }
 
     const changeset = {
-      $ref: `jd-${targetDate}`,
+      key: `jd-${targetDate}`,
       log: buildInsertMutations(logEntries, currentLog),
     };
 

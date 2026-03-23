@@ -111,11 +111,11 @@ describe("transaction applier", () => {
       await applyTransactionInput(mockTransactionInputUpdate);
       await applyTransactionInput({
         author: "test",
-        records: [{ $ref: mockTask1Uid, description: "Updated description" }],
+        records: [{ uid: mockTask1Uid, description: "Updated description" }],
       });
       await applyTransactionInput({
         author: "test",
-        records: [{ $ref: mockTask1Uid, status: "complete" }],
+        records: [{ uid: mockTask1Uid, status: "complete" }],
       });
 
       await check(3, {

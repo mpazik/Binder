@@ -51,7 +51,7 @@ describe("entity-diff", () => {
 
       it("emits update when field value changes", () => {
         check({ ...task1, title: "New Title" }, task1, [
-          { $ref: mockTask1Uid, title: "New Title" },
+          { uid: mockTask1Uid, title: "New Title" },
         ]);
       });
 
@@ -61,20 +61,20 @@ describe("entity-diff", () => {
 
       it("emits update with null when field explicitly set to null", () => {
         check({ ...task1, status: null }, task1, [
-          { $ref: mockTask1Uid, status: null },
+          { uid: mockTask1Uid, status: null },
         ]);
       });
 
       it("emits multiple field changes in single changeset", () => {
         check({ ...task1, title: "New", status: "active" }, task1, [
-          { $ref: mockTask1Uid, title: "New", status: "active" },
+          { uid: mockTask1Uid, title: "New", status: "active" },
         ]);
       });
 
       it("emits tag additions and removals as list mutations", () => {
         check({ ...task1, tags: ["urgent", "new-tag"] }, task1, [
           {
-            $ref: mockTask1Uid,
+            uid: mockTask1Uid,
             tags: [
               ["remove", "important"],
               ["insert", "new-tag"],
@@ -103,7 +103,7 @@ describe("entity-diff", () => {
               title: "Old Title",
             },
           },
-          [{ $ref: mockProjectUid, title: "New Title" }],
+          [{ uid: mockProjectUid, title: "New Title" }],
         );
       });
 
@@ -140,7 +140,7 @@ describe("entity-diff", () => {
               title: "Old Title",
             },
           },
-          [{ $ref: mockProjectUid, title: "New Title" }],
+          [{ uid: mockProjectUid, title: "New Title" }],
         );
       });
 
@@ -160,7 +160,7 @@ describe("entity-diff", () => {
         check(
           { ...task1, project: mockProjectUid },
           omit(task1, ["project"]) as FieldsetNested,
-          [{ $ref: mockTask1Uid, project: mockProjectUid }],
+          [{ uid: mockTask1Uid, project: mockProjectUid }],
         );
       });
     });
@@ -182,7 +182,7 @@ describe("entity-diff", () => {
               { ...task2, title: "Task 2" },
             ],
           },
-          [{ $ref: mockTask1Uid, title: "Updated Task 1" }],
+          [{ uid: mockTask1Uid, title: "Updated Task 1" }],
         );
       });
 
@@ -190,7 +190,7 @@ describe("entity-diff", () => {
         check(
           { ...project, tasks: [task1] },
           { ...project, tasks: [task1, task2] },
-          [{ $ref: mockProjectUid, tasks: [["remove", mockTask2Uid]] }],
+          [{ uid: mockProjectUid, tasks: [["remove", mockTask2Uid]] }],
         );
       });
 
@@ -203,7 +203,7 @@ describe("entity-diff", () => {
           { ...project, tasks: [task1] },
           [
             {
-              $ref: mockProjectUid,
+              uid: mockProjectUid,
               tasks: [["insert", expect.any(String)]],
             },
             expect.objectContaining({
@@ -221,7 +221,7 @@ describe("entity-diff", () => {
           { ...project, tasks: [task1] },
           [
             {
-              $ref: mockProjectUid,
+              uid: mockProjectUid,
               tasks: [["insert", expect.any(String)]],
             },
             expect.objectContaining({
@@ -249,7 +249,7 @@ describe("entity-diff", () => {
           { ...project, tasks: [task1] },
           [
             {
-              $ref: mockProjectUid,
+              uid: mockProjectUid,
               tasks: [["insert", expect.any(String)]],
             },
           ],
@@ -284,7 +284,7 @@ describe("entity-diff", () => {
               { ...task2, tags: ["backend"] },
             ],
           },
-          [{ $ref: mockTask1Uid, title: "Implement user authentication v2" }],
+          [{ uid: mockTask1Uid, title: "Implement user authentication v2" }],
         );
       });
 
@@ -330,7 +330,7 @@ describe("entity-diff", () => {
       it("matches entities by uid and returns field updates", () => {
         check([{ ...task1, title: "Updated" }], [task1], {
           toCreate: [],
-          toUpdate: [{ $ref: mockTask1Uid, title: "Updated" }],
+          toUpdate: [{ uid: mockTask1Uid, title: "Updated" }],
           toRemove: [],
         });
       });
@@ -344,7 +344,7 @@ describe("entity-diff", () => {
             toCreate: [],
             toUpdate: [
               {
-                $ref: mockTask1Uid,
+                uid: mockTask1Uid,
                 title: "Implement user authentication v2",
               },
             ],
@@ -469,7 +469,7 @@ describe("entity-diff", () => {
           [task1, task2, mockTask3Record as FieldsetNested],
           {
             toCreate: [{ type: mockTaskTypeKey, title: "Brand New" }],
-            toUpdate: [{ $ref: mockTask1Uid, title: "Updated" }],
+            toUpdate: [{ uid: mockTask1Uid, title: "Updated" }],
             toRemove: [mockTask2Uid, mockTask3Uid],
           },
         );
@@ -484,7 +484,7 @@ describe("entity-diff", () => {
           [task1],
           {
             toCreate: [{ type: mockTaskTypeKey, title: "New Task" }],
-            toUpdate: [{ $ref: mockTask1Uid, title: "Updated" }],
+            toUpdate: [{ uid: mockTask1Uid, title: "Updated" }],
             toRemove: [],
           },
         );
@@ -500,8 +500,8 @@ describe("entity-diff", () => {
           {
             toCreate: [],
             toUpdate: [
-              { $ref: mockTask2Uid, title: "Task 2 Updated" },
-              { $ref: mockTask1Uid, title: "Task 1 Updated" },
+              { uid: mockTask2Uid, title: "Task 2 Updated" },
+              { uid: mockTask1Uid, title: "Task 1 Updated" },
             ],
             toRemove: [],
           },

@@ -258,7 +258,7 @@ export const diffEntities = (
   }
 
   if (Object.keys(fieldChanges).length > 0) {
-    changesets.unshift({ $ref: uid, ...fieldChanges });
+    changesets.unshift({ uid, ...fieldChanges });
   }
 
   return changesets;

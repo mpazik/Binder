@@ -131,7 +131,7 @@ describe("change-extractor", () => {
         taskMarkdown("Updated Task Title", "done", "New description text"),
         [
           {
-            $ref: mockTask1Uid,
+            uid: mockTask1Uid,
             title: "Updated Task Title",
             status: "done",
             description: "New description text",
@@ -237,7 +237,7 @@ ${mockTask2Record.description}
           status: "done",
           description: mockTask1Record.description,
         }),
-        [{ $ref: mockTask1Uid, title: "Updated Task Title", status: "done" }],
+        [{ uid: mockTask1Uid, title: "Updated Task Title", status: "done" }],
       );
     });
   });
@@ -267,7 +267,7 @@ ${mockTask2Record.description}
           ...pick(mockProjectRecord, ["title", "status"]),
           tasks: [pick(mockTask2Record, ["uid", "title", "status"])],
         }),
-        [{ $ref: mockProjectUid, tasks: [["remove", mockTask3Uid]] }],
+        [{ uid: mockProjectUid, tasks: [["remove", mockTask3Uid]] }],
       );
     });
   });
@@ -301,15 +301,15 @@ ${mockTask2Record.description}
           { ...mockTask2Record, status: "done" },
         ]),
         [
-          { $ref: mockTask1Uid, title: "Modified Task 1" },
-          { $ref: mockTask2Uid, status: "done" },
+          { uid: mockTask1Uid, title: "Modified Task 1" },
+          { uid: mockTask2Uid, status: "done" },
         ],
       );
     });
 
     it("detects removal of entity from list", async () => {
       await check("all-tasks.yaml", renderYamlList([mockTask1Record]), [
-        { $ref: mockTask2Uid, $delete: true },
+        { uid: mockTask2Uid, $delete: true },
       ]);
     });
   });
@@ -427,7 +427,7 @@ ${mockTask2Record.description}
           status: mockTask1Record.status,
           description: mockTask1Record.description,
         }),
-        [{ $ref: mockTask1Uid, title: "Updated Title" }],
+        [{ uid: mockTask1Uid, title: "Updated Title" }],
       );
     });
   });
@@ -472,8 +472,8 @@ ${mockTask2Record.description}
         {
           author: ctx.config.author,
           records: [
-            { $ref: mockTask1Uid, title: "Updated Title" },
-            { $ref: mockTask2Uid, $delete: true },
+            { uid: mockTask1Uid, title: "Updated Title" },
+            { uid: mockTask2Uid, $delete: true },
           ],
           configs: [],
         },
@@ -486,8 +486,8 @@ ${mockTask2Record.description}
         renderYamlList([{ ...mockTask1Record, title: "Scoped Update" }]),
         {
           records: [
-            { $ref: mockTask1Uid, title: "Scoped Update" },
-            { $ref: mockTask2Uid, $delete: true },
+            { uid: mockTask1Uid, title: "Scoped Update" },
+            { uid: mockTask2Uid, $delete: true },
           ],
         },
       );
@@ -618,11 +618,11 @@ Updated description
         expect(result).not.toBeNull();
         const records = result!.records ?? [];
         const task1Changes = records.filter(
-          (r) => "$ref" in r && r.$ref === mockTask1Uid,
+          (r) => "uid" in r && r.uid === mockTask1Uid,
         );
         expect(task1Changes).toHaveLength(1);
         expect(task1Changes[0]).toMatchObject({
-          $ref: mockTask1Uid,
+          uid: mockTask1Uid,
           status: "done",
           title: "Updated Title",
           description: "Updated description",
@@ -672,20 +672,20 @@ Updated description
         expect(records).toEqual(
           expect.arrayContaining([
             expect.objectContaining({
-              $ref: mockTask1Uid,
+              uid: mockTask1Uid,
               title: "Task 1 Updated",
             }),
             expect.objectContaining({
-              $ref: mockTask2Uid,
+              uid: mockTask2Uid,
               title: "Task 2 Updated",
             }),
           ]),
         );
         const task1Changes = records.filter(
-          (r) => "$ref" in r && r.$ref === mockTask1Uid,
+          (r) => "uid" in r && r.uid === mockTask1Uid,
         );
         const task2Changes = records.filter(
-          (r) => "$ref" in r && r.$ref === mockTask2Uid,
+          (r) => "uid" in r && r.uid === mockTask2Uid,
         );
         expect(task1Changes).toHaveLength(1);
         expect(task2Changes).toHaveLength(1);
@@ -700,10 +700,10 @@ Updated description
           {
             records: [],
             configs: expect.arrayContaining([
-              { $ref: mockTaskType.uid, name: "Updated Task Type" },
-              { $ref: mockProjectType.uid, $delete: true },
-              { $ref: mockUserType.uid, $delete: true },
-              { $ref: mockTeamType.uid, $delete: true },
+              { uid: mockTaskType.uid, name: "Updated Task Type" },
+              { uid: mockProjectType.uid, $delete: true },
+              { uid: mockUserType.uid, $delete: true },
+              { uid: mockTeamType.uid, $delete: true },
             ]),
           },
         );
@@ -716,8 +716,8 @@ Updated description
           {
             records: [],
             configs: expect.arrayContaining([
-              { $ref: mockUserType.uid, $delete: true },
-              { $ref: mockTeamType.uid, $delete: true },
+              { uid: mockUserType.uid, $delete: true },
+              { uid: mockTeamType.uid, $delete: true },
             ]),
           },
         );
@@ -819,7 +819,7 @@ Updated description
           status: "done",
           description: "Weekly sync",
         }),
-        [{ $ref: taskUid, status: "done" }],
+        [{ uid: taskUid, status: "done" }],
       );
     });
 
@@ -845,7 +845,7 @@ Updated description
           status: "done",
           description: "Special chars test",
         }),
-        [{ $ref: taskUid, status: "done" }],
+        [{ uid: taskUid, status: "done" }],
       );
     });
 
@@ -867,7 +867,7 @@ Updated description
         ],
         "tasks/Design- Phase 1.md",
         taskMarkdown("Design: Phase 1", "done", "First phase"),
-        [{ $ref: taskUid, status: "done" }],
+        [{ uid: taskUid, status: "done" }],
       );
     });
 
@@ -905,7 +905,7 @@ Updated description
           status: mockTask1Record.status,
           description: mockTask1Record.description,
         }),
-        [{ $ref: mockTask1Uid, title: "Updated Title" }],
+        [{ uid: mockTask1Uid, title: "Updated Title" }],
       );
     });
   });

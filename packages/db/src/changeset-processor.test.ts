@@ -400,7 +400,7 @@ describe("changeset processor", () => {
         await insertRecord(db, mockTask1Record);
 
         await checkErrors(
-          [{ $ref: mockTask1Record.uid, status: "cancelled" }],
+          [{ uid: mockTask1Record.uid, status: "cancelled" }],
           [
             {
               index: 0,
@@ -417,7 +417,7 @@ describe("changeset processor", () => {
 
         await checkSuccess([
           {
-            $ref: mockTask1Record.uid,
+            uid: mockTask1Record.uid,
             status: "cancelled",
             cancelReason: "Project cancelled",
           },
@@ -476,7 +476,7 @@ describe("changeset processor", () => {
               title: "Test Task",
               invalidField: "test value",
             } as EntityChangesetInput<"record">,
-            { $ref: mockTask1Uid, anotherInvalidField: "test" },
+            { uid: mockTask1Uid, anotherInvalidField: "test" },
           ],
           [
             {
@@ -504,7 +504,7 @@ describe("changeset processor", () => {
               key: "first" as ConfigKey,
               dataType: "plaintext",
             },
-            { $ref: mockPriorityFieldKey, key: "last" as ConfigKey },
+            { uid: mockPriorityField.uid, key: "last" as ConfigKey },
           ],
           [
             {
@@ -534,7 +534,7 @@ describe("changeset processor", () => {
               key: "_0a1b2c3d4e" as ConfigKey,
               dataType: "plaintext",
             },
-            { $ref: mockPriorityFieldKey, key: "0a1b2c3d4e5" as ConfigKey },
+            { uid: mockPriorityField.uid, key: "0a1b2c3d4e5" as ConfigKey },
           ],
           [
             {
@@ -604,7 +604,7 @@ describe("changeset processor", () => {
         await checkErrors(
           [
             {
-              $ref: mockTask1Record.uid,
+              uid: mockTask1Record.uid,
               tags: [
                 ["insert", 123 as unknown as string, 0],
                 ["remove", 456 as unknown as string, 1],
@@ -633,7 +633,7 @@ describe("changeset processor", () => {
 
         await checkSuccess([
           {
-            $ref: mockTask1Record.uid,
+            uid: mockTask1Record.uid,
             tags: [
               ["insert", "urgent", 0],
               ["remove", "important", 1],
@@ -671,9 +671,9 @@ describe("changeset processor", () => {
 
         await checkErrors(
           [
-            { $ref: mockPriorityFieldKey, dataType: "integer" },
-            { $ref: mockPriorityFieldKey, allowMultiple: true },
-            { $ref: mockPriorityFieldKey, unique: true },
+            { key: mockPriorityFieldKey, dataType: "integer" },
+            { key: mockPriorityFieldKey, allowMultiple: true },
+            { key: mockPriorityFieldKey, unique: true },
           ],
           [
             {

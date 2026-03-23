@@ -16,7 +16,7 @@ export const mockChangesetInputCreateTask1: EntityChangesetInput<"record"> = {
 };
 
 export const mockChangesetInputUpdateTask1: EntityChangesetInput<"record"> = {
-  $ref: mockTask1Uid,
+  uid: mockTask1Uid,
   title: mockTaskRecord1Updated.title,
   tags: [["insert", "completed", 1]],
 };

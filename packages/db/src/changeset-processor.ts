@@ -28,7 +28,6 @@ import {
   type EntityChangesetInput,
   type EntityChangesetRef,
   type EntityId,
-  type EntityNsRef,
   type EntityNsUid,
   type EntityRef,
   type EntitySchema,
@@ -48,6 +47,7 @@ import {
   isClearChange,
   isEntityDelete,
   isEntityUpdate,
+  getEntityInputRef,
   type EntityMutationInput,
   isInsertMutation,
   isListMutation,
@@ -85,8 +85,8 @@ const systemGeneratedFields = ["id", "txIds"] as const;
 
 const fieldsToExcludeFromValidation = [
   ...coreIdentityFieldKeys,
-  "txIds",
   "$ref",
+  "txIds",
 ] as const;
 
 type ValidationError = {
@@ -647,7 +647,7 @@ const collectIntraBatchKeyToUid = <N extends NamespaceEditable>(
   const keyToUid: RefToUidMap = new Map();
 
   for (const input of normalizedInputs) {
-    if (isEntityUpdate(input)) continue;
+    if (isEntityUpdate(input) || isEntityDelete(input)) continue; // only creates
 
     const key = input["key"] as string | undefined;
     if (!key) continue;
@@ -1075,7 +1075,7 @@ const buildChangeset = async <N extends NamespaceEditable>(
   batchInputs: EntityChangesetInput<N>[],
 ): ResultAsync<[EntityChangesetRef<N>, FieldChangeset], ValidationError[]> => {
   if (isEntityDelete(input)) {
-    const ref = input.$ref as EntityNsRef[N];
+    const ref = getEntityInputRef(input);
     const entityResult = await fetchEntity(tx, namespace, ref);
     if (isErr(entityResult))
       return validationError(
@@ -1126,9 +1126,10 @@ const buildChangeset = async <N extends NamespaceEditable>(
   const changeset: FieldChangeset = {};
   let changesetRef: EntityChangesetRef<N>;
   let typeKey: EntityType;
+  let currentEntityUid: EntityNsUid[N] | undefined;
 
   if (isEntityUpdate(input)) {
-    const ref = input.$ref as EntityNsRef[N];
+    const ref = getEntityInputRef(input);
     const keys = objKeys(input).filter((k) => k !== "$ref");
     assertNotEmpty(keys);
     const selectResult = await fetchEntityFieldset(tx, namespace, ref, [
@@ -1142,6 +1143,7 @@ const buildChangeset = async <N extends NamespaceEditable>(
         selectResult.error.message ?? selectResult.error.key,
       );
     const currentValues = selectResult.data;
+    currentEntityUid = currentValues.uid as EntityNsUid[N];
 
     typeKey = currentValues.type as EntityType;
     const mergedValues = { ...currentValues, ...input } as Fieldset;
@@ -1256,7 +1258,7 @@ const buildChangeset = async <N extends NamespaceEditable>(
     namespace,
     input,
     schema,
-    undefined,
+    currentEntityUid,
   );
   if (isErr(uniquenessResult))
     return validationError(

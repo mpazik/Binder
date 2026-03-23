@@ -13,7 +13,7 @@ import type {
   QueryParams,
   TransactionInput,
 } from "@binder/db";
-import { includesWithUid, isEntityDelete, isEntityUpdate } from "@binder/db";
+import { includesWithUid } from "@binder/db";
 import {
   fail,
   isEqual,
@@ -54,6 +54,18 @@ import {
 } from "./extraction.ts";
 import { normalizeReferences, normalizeReferencesList } from "./reference.ts";
 import { type Views } from "./view-entity.ts";
+
+/** Extract the entity ref from a changeset input (handles both raw and normalized forms). */
+const getChangesetRef = (cs: Record<string, unknown>): string | undefined => {
+  if ("$ref" in cs) return cs.$ref as string;
+  if ("type" in cs) return undefined; // create, not a ref
+  if ("uid" in cs) return cs.uid as string;
+  if ("key" in cs) return cs.key as string;
+  return undefined;
+};
+
+/** Field keys that are ref identifiers, not data fields. */
+const refFieldKeys = new Set(["$ref", "uid", "key", "type"]);
 
 const isSingleValueFilter = (filter: Filter): filter is string | number =>
   typeof filter === "string" || typeof filter === "number";
@@ -182,7 +194,7 @@ const diffQueryWithEntities = async (
   );
 
   const toDelete = diffResult.toRemove.map((uid) => ({
-    $ref: uid,
+    uid,
     $delete: true as const,
   }));
 
@@ -412,7 +424,7 @@ const detectCrossFileConflicts = <N extends NamespaceEditable>(
 ): Result<void> => {
   const byRef = new Map<string, EntityChangesetInput<N>[]>();
   for (const cs of changesets) {
-    const ref = "$ref" in cs ? (cs.$ref as string) : undefined;
+    const ref = getChangesetRef(cs);
     if (!ref) continue;
     const group = byRef.get(ref);
     if (group) group.push(cs);
@@ -422,7 +434,7 @@ const detectCrossFileConflicts = <N extends NamespaceEditable>(
   for (const [ref, group] of byRef) {
     if (group.length < 2) continue;
 
-    const hasDelete = group.some(isEntityDelete);
+    const hasDelete = group.some((cs) => "$delete" in cs);
     if (hasDelete) {
       return fail(
         "field-conflict",
@@ -438,7 +450,7 @@ const detectCrossFileConflicts = <N extends NamespaceEditable>(
     const fieldValues = new Map<string, unknown>();
     for (const cs of group) {
       for (const [key, value] of Object.entries(cs)) {
-        if (key === "$ref" || key === "type" || key === "key") continue;
+        if (refFieldKeys.has(key)) continue;
         const existing = fieldValues.get(key);
         if (existing === undefined) {
           fieldValues.set(key, value);
@@ -467,12 +479,11 @@ const mergeSameRefChangesets = <N extends NamespaceEditable>(
   const updatesByRef = new Map<string, EntityChangesetInput<N>>();
 
   for (const cs of changesets) {
-    if (!isEntityUpdate(cs)) {
+    const ref = getChangesetRef(cs as Record<string, unknown>);
+    if (!ref || "$delete" in cs) {
       merged.push(cs);
       continue;
     }
-
-    const ref = cs.$ref as string;
     const existing = updatesByRef.get(ref);
     if (!existing) {
       const copy = { ...cs };
@@ -480,7 +491,7 @@ const mergeSameRefChangesets = <N extends NamespaceEditable>(
       merged.push(copy);
     } else {
       for (const [key, value] of Object.entries(cs)) {
-        if (key === "$ref" || key === "type" || key === "key") continue;
+        if (refFieldKeys.has(key)) continue;
         (existing as Record<string, unknown>)[key] = value;
       }
     }
@@ -585,9 +596,9 @@ export const extractModifiedFileChanges = async (
     configChangesets: configs.length,
     nodeChangesets: records.length,
     nodeDetails: records.map((n) => {
-      const { $ref, type, key, ...fields } = n as Record<string, unknown>;
+      const { uid, type, key, ...fields } = n as Record<string, unknown>;
       return {
-        ref: $ref ?? key ?? type,
+        ref: uid ?? key ?? type,
         fields: Object.keys(fields),
       };
     }),

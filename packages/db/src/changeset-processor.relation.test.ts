@@ -101,7 +101,7 @@ describe("changeset processor relations", () => {
       await insertRecord(db, mockTask1Record);
 
       const result = throwIfError(
-        await process([{ $ref: mockTask1Uid, $delete: true }]),
+        await process([{ uid: mockTask1Uid, $delete: true }]),
       );
 
       expect(result).toEqual({
@@ -129,7 +129,7 @@ describe("changeset processor relations", () => {
       await insertConfig(db, mockTaskType);
 
       const result = throwIfError(
-        await process([{ $ref: mockTaskType.uid, $delete: true }], "config"),
+        await process([{ uid: mockTaskType.uid, $delete: true }], "config"),
       );
 
       expect(result).toEqual({
@@ -147,7 +147,7 @@ describe("changeset processor relations", () => {
 
     it("returns error when deleting non-existent entity", async () => {
       const result = await process([
-        { $ref: "_nonexistent" as RecordUid, $delete: true },
+        { uid: "_nonexistent" as RecordUid, $delete: true },
       ]);
       expect(result).toBeErr();
     });
@@ -156,7 +156,7 @@ describe("changeset processor relations", () => {
       await setup(mockProjectRecord, mockTask3Record);
 
       const result = throwIfError(
-        await process([{ $ref: mockTask3Uid, $delete: true }]),
+        await process([{ uid: mockTask3Uid, $delete: true }]),
       );
 
       expect(result[mockTask3Uid]).toMatchObject({
@@ -172,7 +172,7 @@ describe("changeset processor relations", () => {
       await setup(mockUserRecord, taskWithAssignee);
 
       const result = throwIfError(
-        await process([{ $ref: mockUserUid, $delete: true }]),
+        await process([{ uid: mockUserUid, $delete: true }]),
       );
 
       expect(result[mockTask1Uid]).toEqual({
@@ -190,7 +190,7 @@ describe("changeset processor relations", () => {
       await setup(mockUserRecord, teamRecord);
 
       const result = throwIfError(
-        await process([{ $ref: mockUserUid, $delete: true }]),
+        await process([{ uid: mockUserUid, $delete: true }]),
       );
 
       expect(result[mockTaskWithOwnersUid]).toEqual({
@@ -210,7 +210,7 @@ describe("changeset processor relations", () => {
       await setup(task1WithRelated, task2WithRelated);
 
       const result = throwIfError(
-        await process([{ $ref: mockTask1Uid, $delete: true }]),
+        await process([{ uid: mockTask1Uid, $delete: true }]),
       );
 
       expect(result[mockTask2Uid]).toEqual({
@@ -262,7 +262,7 @@ describe("changeset processor relations", () => {
     it("resolves relation keys in list mutation insert", async () => {
       await setup(mockUserWithKey, mockTeamRecord);
       await check(
-        [{ $ref: mockTaskWithOwnersUid, members: [["insert", mockUserKey]] }],
+        [{ uid: mockTaskWithOwnersUid, members: [["insert", mockUserKey]] }],
         "members",
         ["seq", [["insert", mockUserUid]]],
       );
@@ -273,7 +273,7 @@ describe("changeset processor relations", () => {
       await check(
         [
           {
-            $ref: mockTaskWithOwnersUid,
+            uid: mockTaskWithOwnersUid,
             members: [["insert", [mockUserKey, { role: "admin" }]]],
           },
         ],
@@ -350,7 +350,7 @@ describe("changeset processor relations", () => {
         checkInverseExpansion(
           [mockProjectRecord, mockTask2Record],
           {
-            $ref: mockProjectUid,
+            uid: mockProjectUid,
             [mockTasksFieldKey]: [["remove", mockTask2Uid]],
           },
           {
@@ -364,7 +364,7 @@ describe("changeset processor relations", () => {
         checkInverseExpansion(
           [mockProjectRecord, task2Unlinked],
           {
-            $ref: mockProjectUid,
+            uid: mockProjectUid,
             [mockTasksFieldKey]: [["insert", mockTask2Uid]],
           },
           {
@@ -378,7 +378,7 @@ describe("changeset processor relations", () => {
         checkInverseExpansion(
           [mockProjectRecord, otherProject, mockTask2Record],
           {
-            $ref: otherProjectUid,
+            uid: otherProjectUid,
             [mockTasksFieldKey]: [["insert", mockTask2Uid]],
           },
           {
@@ -392,7 +392,7 @@ describe("changeset processor relations", () => {
         checkInverseExpansion(
           [mockProjectRecord, mockTask2Record, task3Unlinked],
           {
-            $ref: mockProjectUid,
+            uid: mockProjectUid,
             [mockTasksFieldKey]: [
               ["remove", mockTask2Uid],
               ["insert", mockTask3Uid],
@@ -413,7 +413,7 @@ describe("changeset processor relations", () => {
         const result = throwIfError(
           await process([
             {
-              $ref: mockProjectUid,
+              uid: mockProjectUid,
               title: "Updated Project Title",
               [mockTasksFieldKey]: [["insert", mockTask2Uid]],
             },
@@ -432,7 +432,7 @@ describe("changeset processor relations", () => {
         const result = throwIfError(
           await process([
             {
-              $ref: mockProjectUid,
+              uid: mockProjectUid,
               [mockTasksFieldKey]: [["insert", mockTask2Uid]],
             },
           ]),
@@ -482,7 +482,7 @@ describe("changeset processor relations", () => {
         checkInverseExpansion(
           [mockUserRecord, mockUser2Record],
           {
-            $ref: mockUserUid,
+            uid: mockUserUid,
             [mockPartnerFieldKey]: mockUser2Uid,
           },
           {
@@ -499,7 +499,7 @@ describe("changeset processor relations", () => {
         checkInverseExpansion(
           [userWithPartner, user2WithPartner],
           {
-            $ref: mockUserUid,
+            uid: mockUserUid,
             [mockPartnerFieldKey]: null,
           },
           {
@@ -524,7 +524,7 @@ describe("changeset processor relations", () => {
         await setup(userWithPartner, user2WithPartner, user3Record);
         const result = throwIfError(
           await process([
-            { $ref: mockUserUid, [mockPartnerFieldKey]: user3Uid },
+            { uid: mockUserUid, [mockPartnerFieldKey]: user3Uid },
           ]),
         );
 
@@ -556,7 +556,7 @@ describe("changeset processor relations", () => {
         checkInverseExpansion(
           [mockTask1Record, mockTask3Record],
           {
-            $ref: mockTask1Uid,
+            uid: mockTask1Uid,
             [mockRelatedToFieldKey]: [["insert", mockTask3Uid]],
           },
           {
@@ -573,7 +573,7 @@ describe("changeset processor relations", () => {
         checkInverseExpansion(
           [task1WithRelated, task2WithRelated],
           {
-            $ref: mockTask1Uid,
+            uid: mockTask1Uid,
             [mockRelatedToFieldKey]: [["remove", mockTask2Uid]],
           },
           {
@@ -590,7 +590,7 @@ describe("changeset processor relations", () => {
         checkInverseExpansion(
           [task1WithRelated, task2WithRelated, mockTask3Record],
           {
-            $ref: mockTask1Uid,
+            uid: mockTask1Uid,
             [mockRelatedToFieldKey]: [
               ["remove", mockTask2Uid],
               ["insert", mockTask3Uid],
@@ -644,10 +644,7 @@ describe("changeset processor relations", () => {
           ]),
         );
 
-        const { changeset: taskChangeset, uid: taskUid } = findChangesetByKey(
-          result,
-          "new-task",
-        );
+        const { uid: taskUid } = findChangesetByKey(result, "new-task");
         const projectChangeset = Object.values(result).find(
           (cs) => cs.title === "New Project",
         )!;
@@ -678,10 +675,7 @@ describe("changeset processor relations", () => {
           ]),
         );
 
-        const { changeset: userAChangeset, uid: userAUid } = findChangesetByKey(
-          result,
-          "user-a",
-        );
+        const { uid: userAUid } = findChangesetByKey(result, "user-a");
         const { changeset: userBChangeset, uid: userBUid } = findChangesetByKey(
           result,
           "user-b",
@@ -710,10 +704,7 @@ describe("changeset processor relations", () => {
           ]),
         );
 
-        const { changeset: taskAChangeset, uid: taskAUid } = findChangesetByKey(
-          result,
-          "task-a",
-        );
+        const { uid: taskAUid } = findChangesetByKey(result, "task-a");
         const { changeset: taskBChangeset, uid: taskBUid } = findChangesetByKey(
           result,
           "task-b",
@@ -737,7 +728,7 @@ describe("changeset processor relations", () => {
         await checkErrors(
           [
             {
-              $ref: mockTaskWithOwnersRecord.uid,
+              uid: mockTaskWithOwnersRecord.uid,
               owners: [["patch", "user-1", { role: 123 }]],
             },
           ],
@@ -757,7 +748,7 @@ describe("changeset processor relations", () => {
 
         await checkSuccess([
           {
-            $ref: mockTaskWithOwnersRecord.uid,
+            uid: mockTaskWithOwnersRecord.uid,
             owners: [["patch", "user-1", { role: "admin" }]],
           },
         ]);
@@ -768,7 +759,7 @@ describe("changeset processor relations", () => {
 
         await checkSuccess([
           {
-            $ref: mockTaskWithOwnersRecord.uid,
+            uid: mockTaskWithOwnersRecord.uid,
             owners: [["patch", "user-1", { unknownAttr: "value" }]],
           },
         ]);
@@ -780,7 +771,7 @@ describe("changeset processor relations", () => {
         await checkErrors(
           [
             {
-              $ref: mockTaskWithOwnersRecord.uid,
+              uid: mockTaskWithOwnersRecord.uid,
               owners: ["patch", "user-1", { role: false }],
             },
           ],

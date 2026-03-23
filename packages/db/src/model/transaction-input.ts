@@ -5,6 +5,7 @@ import {
   changesetToInput,
   type EntityChangesetInput,
 } from "./changeset-input.ts";
+import type { FieldChangeset } from "./changeset.ts";
 import type { NamespaceEditable } from "./namespace.ts";
 import type { Transaction } from "./transaction.ts";
 
@@ -34,29 +35,19 @@ export const createTransactionInput = (
     ? { author, records: changesets }
     : { author, configs: changesets };
 
-export const transactionToInput = (tx: Transaction): TransactionInput => {
-  const records: EntityChangesetInput<"record">[] = [];
-  for (const [uid, changeset] of Object.entries(tx.records)) {
+const changesetsToInputs = <N extends NamespaceEditable>(
+  changesets: Record<string, FieldChangeset>,
+): EntityChangesetInput<N>[] =>
+  Object.entries(changesets).map(([ref, changeset]) => {
     const input = changesetToInput(changeset);
-    if ("type" in input) {
-      records.push(input as EntityChangesetInput<"record">);
-    } else {
-      records.push({ $ref: uid, ...input } as EntityChangesetInput<"record">);
-    }
-  }
+    return (
+      "type" in input ? input : { $ref: ref, ...input }
+    ) as EntityChangesetInput<N>;
+  });
 
-  const configs: EntityChangesetInput<"config">[] = [];
-  for (const [key, changeset] of Object.entries(tx.configs)) {
-    const input = changesetToInput(changeset);
-    if ("type" in input) {
-      configs.push(input as EntityChangesetInput<"config">);
-    } else {
-      configs.push({
-        $ref: key,
-        ...input,
-      } as EntityChangesetInput<"config">);
-    }
-  }
+export const transactionToInput = (tx: Transaction): TransactionInput => {
+  const records = changesetsToInputs<"record">(tx.records);
+  const configs = changesetsToInputs<"config">(tx.configs);
 
   return {
     author: tx.author,
