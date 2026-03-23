@@ -13,9 +13,10 @@ import { type Options } from "remark-stringify";
 import { toMarkdown } from "mdast-util-to-markdown";
 import { gfmToMarkdown } from "mdast-util-gfm";
 import { frontmatterToMarkdown } from "mdast-util-frontmatter";
-import { type Brand } from "@binder/utils";
+import { type Brand, includes } from "@binder/utils";
 import type { Nodes, PhrasingContent, Root, RootContent, Text } from "mdast";
 import type { Data, Literal, Node } from "unist";
+import { type FieldPath } from "@binder/db";
 import { type FieldSlot } from "./field-slot.ts";
 import type { ViewAST } from "./view.ts";
 
@@ -70,35 +71,22 @@ export const defaultRenderOptions: Options = {
 
 const SLOT_PLACEHOLDER = "\u0000SLOT\u0000";
 
+const childrenText = (node: { children: ExtendedNode[] }): string =>
+  node.children.map(extractTextFromInline).join("");
+
 const extractTextFromInline = (node: ExtendedNode): string => {
-  if (node.type === "text") {
-    return node.value || "";
-  }
-  if (node.type === "fieldSlot") {
-    return SLOT_PLACEHOLDER;
-  }
-  if (node.type === "strong") {
-    const innerText = node.children.map(extractTextFromInline).join("");
-    return `**${innerText}**`;
-  }
-  if (node.type === "emphasis") {
-    const innerText = node.children.map(extractTextFromInline).join("");
-    return `_${innerText}_`;
-  }
-  if (node.type === "inlineCode") {
-    return `\`${node.value || ""}\``;
-  }
-  if (node.type === "delete") {
-    const innerText = node.children.map(extractTextFromInline).join("");
-    return `~~${innerText}~~`;
-  }
+  if (node.type === "text") return node.value || "";
+  if (node.type === "fieldSlot") return SLOT_PLACEHOLDER;
+  if (node.type === "inlineCode") return `\`${node.value || ""}\``;
+  if (node.type === "strong") return `**${childrenText(node)}**`;
+  if (node.type === "emphasis") return `_${childrenText(node)}_`;
+  if (node.type === "delete") return `~~${childrenText(node)}~~`;
   if (node.type === "link") {
-    const text = node.children.map(extractTextFromInline).join("");
-    return `[${text}](${node.url || ""})`;
+    const url = (node.url || "").replace(/\{[\w.-]+\}/g, SLOT_PLACEHOLDER);
+    return `[${childrenText(node)}](${url})`;
   }
-  if ("children" in node && Array.isArray(node.children)) {
+  if ("children" in node && Array.isArray(node.children))
     return node.children.map(extractTextFromInline).join("");
-  }
   return "";
 };
 
@@ -136,10 +124,7 @@ const inlineTypes = [
   "fieldSlot",
 ] as const;
 
-type InlineType = (typeof inlineTypes)[number];
-
-const isInline = (type: string): type is InlineType =>
-  inlineTypes.includes(type as InlineType);
+const isInline = (type: string): boolean => includes(inlineTypes, type);
 
 const hasInlineChildren = (node: ExtendedNode): boolean =>
   "children" in node &&
@@ -201,6 +186,16 @@ const extractSlots = (children: ExtendedNode[]): FieldSlot[] => {
   const traverse = (node: ExtendedNode): void => {
     if (node.type === "fieldSlot") {
       slots.push(node);
+    } else if (node.type === "link") {
+      // Collect child field slots first (link text comes before URL in serialized form)
+      for (const child of node.children) {
+        traverse(child);
+      }
+      // Create field slots for {placeholder} patterns in the URL
+      for (const match of (node.url || "").matchAll(/\{([\w.-]+)\}/g)) {
+        const path = match[1]!.split(".") as FieldPath;
+        slots.push({ type: "fieldSlot", value: match[1]!, path });
+      }
     } else if ("children" in node && Array.isArray(node.children)) {
       for (const child of node.children) {
         traverse(child);
@@ -252,14 +247,13 @@ export const simplifyViewAst = (ast: ViewAST): SimplifiedViewRoot => {
   } as SimplifiedViewRoot;
 };
 
-export const parseAst = (content: string): FullAST => {
-  const processor = unified()
+export const parseAst = (content: string): FullAST =>
+  unified()
     .use(remarkParse)
     .use(remarkGfm)
     .use(remarkFrontmatter)
-    .use(remarkParseFrontmatter);
-  return processor.parse(content) as FullAST;
-};
+    .use(remarkParseFrontmatter)
+    .parse(content) as FullAST;
 
 export const simplifyAst = (ast: FullAST): BlockAST => {
   const cleaned = removePosition(ast);
@@ -269,10 +263,8 @@ export const simplifyAst = (ast: FullAST): BlockAST => {
   } as unknown as BlockAST;
 };
 
-export const parseMarkdown = (content: string): BlockAST => {
-  const ast = parseAst(content);
-  return simplifyAst(ast);
-};
+export const parseMarkdown = (content: string): BlockAST =>
+  simplifyAst(parseAst(content));
 
 export const astNode = (
   type: string,

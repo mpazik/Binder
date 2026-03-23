@@ -737,6 +737,16 @@ describe("view", () => {
           { project: pick(mockProjectRecord, ["title"]) },
         );
       });
+
+      it("field slot in link text and URL", () => {
+        check(
+          "[← {project.title}](../projects/{project.key})\n",
+          `[← ${mockProjectRecord.title}](../projects/${mockProjectRecord.key})\n`,
+          {
+            project: pick(mockProjectRecord, ["title", "key"]),
+          },
+        );
+      });
     });
 
     describe("scalar field types", () => {
@@ -1395,6 +1405,16 @@ Excellent first week. Schema is minimal and consistent.
         [],
       );
     });
+
+    it("link with field references in URL", () => {
+      check(
+        "[← {project.title}](../projects/{project.key})\n",
+        `[← ${mockProjectRecord.title}](../projects/${mockProjectRecord.key})\n`,
+        {
+          project: pick(mockProjectRecord, ["title", "key"]),
+        },
+      );
+    });
   });
 
   describe("extractFieldSlotsFromAst", () => {
@@ -1569,15 +1589,6 @@ Excellent first week. Schema is minimal and consistent.
           },
         ],
       );
-    });
-  });
-
-  describe("parseMarkdown", () => {
-    it("trailing empty section produces only heading node", () => {
-      const ast = parseMarkdown("## Summary\n\n");
-      expect(ast.children).toEqual([
-        expect.objectContaining({ type: "heading", depth: 2 }),
-      ]);
     });
   });
 });

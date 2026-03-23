@@ -3,9 +3,12 @@ import {
   parseMarkdown,
   renderAstToMarkdown,
   simplifyAst,
+  simplifyViewAst,
+  type SimplifiedViewInlineChild,
   parseAst,
   removePosition,
 } from "./markdown.ts";
+import { parseView } from "./view.ts";
 
 describe("markdown", () => {
   describe("parseMarkdown", () => {
@@ -94,6 +97,13 @@ describe("markdown", () => {
         ],
       });
     });
+
+    it("trailing empty section produces only heading node", () => {
+      const ast = parseMarkdown("## Summary\n\n");
+      expect(ast.children).toEqual([
+        expect.objectContaining({ type: "heading", depth: 2 }),
+      ]);
+    });
   });
 
   describe("renderAstToMarkdown", () => {
@@ -165,6 +175,83 @@ describe("markdown", () => {
           },
         ],
       });
+    });
+  });
+
+  describe("simplifyViewAst", () => {
+    const check = (input: string, expected: SimplifiedViewInlineChild[]) => {
+      const simplified = simplifyViewAst(parseView(input));
+      expect(simplified.children[0]!.children!).toEqual(expected);
+    };
+
+    it("flattens link with field slot in text only", () => {
+      check("[{title}](../items)\n", [
+        { type: "text", value: "[" },
+        expect.objectContaining({ type: "fieldSlot", path: ["title"] }),
+        { type: "text", value: "](../items)" },
+      ]);
+    });
+
+    it("creates field slots for URL placeholders in links", () => {
+      check("[{title}](../items/{key})\n", [
+        { type: "text", value: "[" },
+        expect.objectContaining({ type: "fieldSlot", path: ["title"] }),
+        { type: "text", value: "](../items/" },
+        expect.objectContaining({ type: "fieldSlot", path: ["key"] }),
+        { type: "text", value: ")" },
+      ]);
+    });
+
+    it("creates field slots for nested URL placeholders", () => {
+      check("[← {project.title}](../projects/{project.key})\n", [
+        { type: "text", value: "[← " },
+        expect.objectContaining({
+          type: "fieldSlot",
+          path: ["project", "title"],
+        }),
+        { type: "text", value: "](../projects/" },
+        expect.objectContaining({
+          type: "fieldSlot",
+          path: ["project", "key"],
+        }),
+        { type: "text", value: ")" },
+      ]);
+    });
+
+    it("handles link with URL placeholder but no text slot", () => {
+      check("[Back](../weeks/{weekPeriod})\n", [
+        { type: "text", value: "[Back](../weeks/" },
+        expect.objectContaining({ type: "fieldSlot", path: ["weekPeriod"] }),
+        { type: "text", value: ")" },
+      ]);
+    });
+
+    it("handles link with multiple URL placeholders", () => {
+      check("[link](/{type}/{key})\n", [
+        { type: "text", value: "[link](/" },
+        expect.objectContaining({ type: "fieldSlot", path: ["type"] }),
+        { type: "text", value: "/" },
+        expect.objectContaining({ type: "fieldSlot", path: ["key"] }),
+        { type: "text", value: ")" },
+      ]);
+    });
+
+    it("leaves link without URL placeholders unchanged", () => {
+      check("[{title}](https://example.com)\n", [
+        { type: "text", value: "[" },
+        expect.objectContaining({ type: "fieldSlot", path: ["title"] }),
+        { type: "text", value: "](https://example.com)" },
+      ]);
+    });
+
+    it("handles link with URL placeholder alongside bold text", () => {
+      check("**Go to** [{title}](../items/{key})\n", [
+        { type: "text", value: "**Go to** [" },
+        expect.objectContaining({ type: "fieldSlot", path: ["title"] }),
+        { type: "text", value: "](../items/" },
+        expect.objectContaining({ type: "fieldSlot", path: ["key"] }),
+        { type: "text", value: ")" },
+      ]);
     });
   });
 
