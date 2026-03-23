@@ -9,8 +9,19 @@ tags: [ contributing ]
 ## Conventions
 
 Follow established CLI patterns. When in doubt, check how these tools handle it: git, cargo, gh, ripgrep.
-- stdout for data, stderr for diagnostics
 - Support `--format` for machine-readable output (json, yaml)
+
+## stdout vs stderr
+
+stdout is the command's answer. It's what arrives on the other end of a pipe. Use `ui.println` for output another program would consume: file paths, diagnostic lines, query results, serialized records.
+
+stderr is everything else. Status messages, summaries, progress, decoration. Use chrome methods (`ui.success`, `ui.warning`, `ui.heading`, `ui.keyValue`, etc.) for these. They write to stderr and are suppressed by `-q`.
+
+Errors (`ui.error`, `ui.printError`) always go to stderr and are never suppressed.
+
+For example, `binder docs lint` prints each diagnostic line with `ui.println` (the answer) but the summary "Found 3 errors" uses `ui.warning` (status). Piping to `grep` gives you only the diagnostics.
+
+Most commands produce no stdout at all. If you're showing a success message, a key-value pair, or a list of items, that belongs on stderr through helpers like `ui.success`, `ui.keyValue`, or `ui.list`. stdout is only for raw data meant for another program.
 
 ## Output Rules
 

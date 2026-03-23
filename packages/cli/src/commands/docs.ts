@@ -74,14 +74,17 @@ const lintNamespace = async <N extends NamespaceEditable>(
   if (isErr(schemaResult)) return schemaResult;
 
   let currentFile = "";
-  const printError = (relativePath: string, error: ValidationError) => {
+  const printDiagnostic = (
+    relativePath: string,
+    diagnostic: ValidationError,
+  ) => {
     if (currentFile !== relativePath) {
       ui.println(`\n${relativePath}:`);
       currentFile = relativePath;
     }
-    const location = `${error.range.start.line + 1}:${error.range.start.character + 1}`;
+    const location = `${diagnostic.range.start.line + 1}:${diagnostic.range.start.character + 1}`;
     ui.println(
-      `  ${location} ${error.severity} ${error.message} (${error.code})`,
+      `  ${location} ${diagnostic.severity} ${diagnostic.message} (${diagnostic.code})`,
     );
   };
 
@@ -126,11 +129,11 @@ const lintNamespace = async <N extends NamespaceEditable>(
       kg,
     });
 
-    for (const error of result.errors) {
-      printError(relativePath, error);
+    for (const diagnostic of result.errors) {
+      printDiagnostic(relativePath, diagnostic);
     }
-    for (const warning of result.warnings) {
-      printError(relativePath, warning);
+    for (const diagnostic of result.warnings) {
+      printDiagnostic(relativePath, diagnostic);
     }
 
     errors += result.errors.length;
@@ -193,9 +196,8 @@ export const docsLintHandler: CommandHandlerWithDb<{
     totalWarnings += result.data.warnings;
   }
 
-  ui.println("");
   if (totalErrors > 0 || totalWarnings > 0) {
-    ui.println(
+    ui.warning(
       `Found ${totalErrors} error${totalErrors === 1 ? "" : "s"} and ${totalWarnings} warning${totalWarnings === 1 ? "" : "s"}`,
     );
     if (totalErrors > 0) {

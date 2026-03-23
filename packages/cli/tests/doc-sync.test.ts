@@ -137,18 +137,22 @@ describe("Doc Sync", () => {
   });
 
   describe("lint", () => {
-    it("clean docs exits 0", async () => {
-      await check(["docs", "lint", "--config"]);
+    it("clean docs produce no stdout", async () => {
+      const result = await run(["docs", "lint", "--config"], { cwd: dir });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout.trim()).toBe("");
     });
 
-    it("invalid config file reports error", async () => {
-      const typesPath = join(dir, binderDir, "types.yaml");
-      const original = await readFile(typesPath, "utf-8");
+    it("wrong data type and unknown field report errors", async () => {
+      await writeDoc(
+        "tasks-yaml/task-lint-errors.yaml",
+        "title: 123\nfakeField: hello\n",
+      );
 
-      await writeFile(typesPath, "items:\n  - key: [[[broken\n");
-      await checkError(["docs", "lint", "--config"]);
-
-      await writeFile(typesPath, original);
+      await checkError(["docs", "lint"], {
+        stdout: ["task-lint-errors", "invalid-value", "invalid-field"],
+        stderr: "Found 3 error",
+      });
     });
 
     it("malformed YAML frontmatter in doc file reports error", async () => {
@@ -156,10 +160,10 @@ describe("Doc Sync", () => {
       const original = await readDoc(docPath);
 
       await writeDoc(docPath, "---\nstatus: [[[broken\n---\n\nBody\n");
-      const result = await run(["docs", "lint"], { cwd: dir });
-      expect(result.exitCode).not.toBe(0);
-      expect(result.stdout).toContain("task-implement-user-auth.md");
-      expect(result.stdout).toContain("yaml-syntax-error");
+      await checkError(["docs", "lint"], {
+        stdout: ["task-implement-user-auth.md", "yaml-syntax-error"],
+        stderr: "Found",
+      });
 
       await writeDoc(docPath, original);
     });

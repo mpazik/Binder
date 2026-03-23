@@ -5,7 +5,6 @@ import { join, resolve } from "node:path";
 import { $ } from "bun";
 import { expect } from "bun:test";
 import { stringify } from "yaml";
-
 import { omit } from "@binder/utils";
 import {
   mockStatusField,
@@ -69,9 +68,12 @@ export const run = async (args: string[], opts?: { cwd?: string }) => {
   };
 };
 
-type OutputAssertion = string | string[] | ((output: string) => void);
+type StreamAssertion = string | string[] | ((output: string) => void);
+type OutputAssertion =
+  | StreamAssertion
+  | { stdout?: StreamAssertion; stderr?: StreamAssertion };
 
-const assertOutput = (output: string, contains: OutputAssertion) => {
+const assertStream = (output: string, contains: StreamAssertion) => {
   if (typeof contains === "function") {
     contains(output);
   } else if (Array.isArray(contains)) {
@@ -81,18 +83,34 @@ const assertOutput = (output: string, contains: OutputAssertion) => {
   }
 };
 
+const assertOutput = (
+  result: { stdout: string; stderr: string },
+  contains: OutputAssertion,
+) => {
+  if (
+    typeof contains === "object" &&
+    !Array.isArray(contains) &&
+    typeof contains !== "function"
+  ) {
+    if (contains.stdout) assertStream(result.stdout, contains.stdout);
+    if (contains.stderr) assertStream(result.stderr, contains.stderr);
+  } else {
+    assertStream(result.stdout + result.stderr, contains);
+  }
+};
+
 /** Creates `check` and `checkError` helpers bound to a workspace directory. */
 export const createRunHelpers = (getDir: () => string) => {
   const check = async (args: string[], contains?: OutputAssertion) => {
     const result = await run(args, { cwd: getDir() });
     expect(result.exitCode).toBe(0);
-    if (contains) assertOutput(result.stdout, contains);
+    if (contains) assertOutput(result, contains);
   };
 
   const checkError = async (args: string[], contains?: OutputAssertion) => {
     const result = await run(args, { cwd: getDir() });
     expect(result.exitCode).not.toBe(0);
-    if (contains) assertOutput(result.stderr, contains);
+    if (contains) assertOutput(result, contains);
   };
 
   return { check, checkError };

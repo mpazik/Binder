@@ -25,7 +25,7 @@ import {
   loadGlobalConfig,
   loadWorkspaceConfig,
 } from "./config.ts";
-import { createUi, Style, type Ui } from "./cli/ui.ts";
+import { createUi, type Ui } from "./cli/ui.ts";
 import { createRealFileSystem, type FileSystem } from "./lib/filesystem.ts";
 import { setupCleanupHandlers } from "./lib/lock.ts";
 import {
@@ -123,8 +123,8 @@ export const initializeMinimalRuntime = async (
 
   const { log, close: closeLogger } = logResult.data;
 
-  process.on("uncaughtException", (err) => {
-    log.error("Uncaught exception", { error: err });
+  process.on("uncaughtException", (exception) => {
+    log.error("Uncaught exception", { error: exception });
   });
 
   process.on("unhandledRejection", (reason) => {
@@ -252,10 +252,10 @@ export const initializeFullRuntime = async (
   const dbResult = await initializeDbRuntime(context, callbacks);
   if (isErr(dbResult)) return dbResult;
 
-  const { runtime, close: closeDb } = dbResult.data;
+  const { runtime: dbRuntime, close: closeDb } = dbResult.data;
 
   return ok({
-    runtime,
+    runtime: dbRuntime,
     close: () => {
       closeDb();
       closeLog();
@@ -297,23 +297,18 @@ export const bootstrapMinimal = <TArgs extends object = object>(
       );
     }
 
-    const { runtime, close } = runtimeResult.data;
+    const { runtime: minimalRuntime, close } = runtimeResult.data;
 
-    const result = await tryCatch(() =>
-      handler({
-        ...runtime,
-        args,
-      }),
-    );
+    const result = await tryCatch(() => handler({ ...minimalRuntime, args }));
 
     if (isErr(result) || isErr(result.data)) {
       const error = isErr(result) ? result.error : result.data.error!;
-      return fatalError(error, runtime.log, opts.silent);
+      return fatalError(error, minimalRuntime.log, opts.silent);
     }
 
     const data = result.data.data;
     if (data && !opts.silent) {
-      defaultUi.println(Style.TEXT_SUCCESS + data + Style.TEXT_NORMAL);
+      defaultUi.success(data);
     }
     close();
   };
@@ -399,15 +394,10 @@ export const runtimeWithDb = <TArgs extends object = object>(
 
     const dbResult = await initializeDbRuntime(context);
     if (isErr(dbResult)) return dbResult;
-    const { runtime, close } = dbResult.data;
+    const { runtime: dbRuntime, close } = dbResult.data;
 
-    const result = await handler({
-      args,
-      ...runtime,
-    });
-
+    const result = await handler({ args, ...dbRuntime });
     close();
-
     return result;
   }, options);
 };
