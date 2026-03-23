@@ -17,12 +17,13 @@ import {
 /**
  * We use fstatSync(0) directly instead of `process.stdin.isTTY` because the Bun bundler transforms the latter into `fstatSync(0).isFIFO()`,
  * That work only for Pipe but misses sockets used in `execSync({ input })`.
+ * isFile() covers `< file` redirects where fd 0 points to a regular file.
  */
 export const isStdinPiped = (): boolean =>
   resultFallback(
     tryCatch(() => {
       const stat = fstatSync(0);
-      return stat.isFIFO() || stat.isSocket();
+      return stat.isFIFO() || stat.isSocket() || stat.isFile();
     }),
     false,
   );
@@ -31,8 +32,8 @@ export const isStdinPiped = (): boolean =>
 export const isInteractive = (): boolean =>
   !isStdinPiped() && process.stdout.isTTY === true;
 
-const collectStdin = (): Promise<string> => {
-  return new Promise((resolve, reject) => {
+const collectStdin = (): Promise<string> =>
+  new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     process.stdin.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
     process.stdin.on("end", () =>
@@ -40,7 +41,6 @@ const collectStdin = (): Promise<string> => {
     );
     process.stdin.on("error", reject);
   });
-};
 
 export const readStdin = async (): Promise<Result<string>> => {
   const result = await tryCatch(collectStdin());
