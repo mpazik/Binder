@@ -5,6 +5,7 @@ import {
   type FieldDef,
   type FieldKey,
   type Fieldset,
+  type MultiValueDelimiter,
   getMultiValueDelimiter,
   isListMutationInput,
   isListMutationInputArray,
@@ -111,19 +112,28 @@ const parseQuotedValue = (value: string): string => {
   return value;
 };
 
+// Override display delimiters for CLI input (e.g. comma instead of newline for filepaths)
+const inputDelimiterOverride: Partial<Record<string, MultiValueDelimiter>> = {
+  filepath: "comma",
+};
+
+const getInputDelimiter = (fieldDef: FieldDef): MultiValueDelimiter => {
+  if (fieldDef.dataType === "plaintext" && fieldDef.plaintextFormat) {
+    const override = inputDelimiterOverride[fieldDef.plaintextFormat];
+    if (override) return override;
+  }
+  return getMultiValueDelimiter(fieldDef);
+};
+
 const splitForField = (value: string, fieldDef: FieldDef): string[] => {
   const quoted = parseQuotedValue(value);
   if (quoted !== value) {
     return [quoted];
   }
-  const delimiter = getMultiValueDelimiter(fieldDef);
+  const delimiter = getInputDelimiter(fieldDef);
   return splitByDelimiter(value, delimiter, fieldDef.sectionDepth).filter(
     (item) => item.length > 0,
   );
-};
-
-const parseSimpleValue = (value: string): string => {
-  return value;
 };
 
 const createPatchFormatError = (patch: string): ErrorObject => {
@@ -186,10 +196,21 @@ export const parseFieldChange = (
 
   if (operator === "=") {
     if (value === "[]") return ok([]);
+    const inputDelimiter = getInputDelimiter(fieldDef);
+    const storageDelimiter = getMultiValueDelimiter(fieldDef);
+    if (fieldDef.allowMultiple && inputDelimiter !== storageDelimiter) {
+      const parsed = parseQuotedValue(value);
+      if (parsed !== value) return ok([parsed]);
+      const items = splitByDelimiter(parsed, inputDelimiter).filter(
+        (item) => item.length > 0,
+      );
+      return ok(items);
+    }
     return parseFieldValue(parseQuotedValue(value), fieldDef);
   }
 
-  if (operator === "+=") {
+  if (operator === "+=" || operator === "-=") {
+    const action = operator === "+=" ? "insert" : "remove";
     const position =
       normalizedAccessor !== undefined
         ? accessorToPosition(normalizedAccessor)
@@ -197,50 +218,12 @@ export const parseFieldChange = (
 
     const values = splitForField(value, fieldDef);
 
-    if (values.length === 1) {
-      const val = parseSimpleValue(values[0]!);
-      if (position === undefined) {
-        return ok(["insert", val]);
-      }
-      return ok(["insert", val, position]);
-    }
+    const toMutation = (v: string) =>
+      position === undefined ? [action, v] : [action, v, position];
 
-    return ok(
-      values.map((v) => {
-        const val = parseSimpleValue(v);
-        if (position === undefined) {
-          return ["insert", val];
-        }
-        return ["insert", val, position];
-      }),
-    );
-  }
+    if (values.length === 1) return ok(toMutation(values[0]!));
 
-  if (operator === "-=") {
-    const position =
-      normalizedAccessor !== undefined
-        ? accessorToPosition(normalizedAccessor)
-        : undefined;
-
-    const values = splitForField(value, fieldDef);
-
-    if (values.length === 1) {
-      const val = parseSimpleValue(values[0]!);
-      if (position === undefined) {
-        return ok(["remove", val]);
-      }
-      return ok(["remove", val, position]);
-    }
-
-    return ok(
-      values.map((v) => {
-        const val = parseSimpleValue(v);
-        if (position === undefined) {
-          return ["remove", val];
-        }
-        return ["remove", val, position];
-      }),
-    );
+    return ok(values.map(toMutation));
   }
 
   if (operator === "--") {

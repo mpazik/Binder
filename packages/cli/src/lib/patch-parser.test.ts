@@ -110,6 +110,15 @@ describe("patch-parser", () => {
       check("tags=urgent", ["urgent"], predefinedFields.tags);
     });
 
+    it("sets array with comma-separated values for filepath format", () => {
+      check(
+        "sourceFiles=src/a.ts,src/b.ts,src/c.ts",
+        ["src/a.ts", "src/b.ts", "src/c.ts"],
+        predefinedFields.sourceFiles,
+      );
+      check("sourceFiles=src/a.ts", ["src/a.ts"], predefinedFields.sourceFiles);
+    });
+
     it("sets array with newline-separated values for line format", () => {
       check(
         "aliases=first\nsecond\nthird",
@@ -139,6 +148,17 @@ describe("patch-parser", () => {
           ["insert", "c"],
         ],
         predefinedFields.tags,
+      );
+    });
+
+    it("appends multiple comma-separated values for filepath format", () => {
+      check(
+        "sourceFiles+=src/a.ts,src/b.ts",
+        [
+          ["insert", "src/a.ts"],
+          ["insert", "src/b.ts"],
+        ],
+        predefinedFields.sourceFiles,
       );
     });
 
@@ -234,6 +254,17 @@ describe("patch-parser", () => {
       );
     });
 
+    it("removes multiple comma-separated values for filepath format", () => {
+      check(
+        "sourceFiles-=src/a.ts,src/b.ts",
+        [
+          ["remove", "src/a.ts"],
+          ["remove", "src/b.ts"],
+        ],
+        predefinedFields.sourceFiles,
+      );
+    });
+
     it("does not split on commas for paragraph format (-=)", () => {
       check(
         "notes-=A paragraph, with a comma.",
@@ -264,6 +295,14 @@ describe("patch-parser", () => {
         'tags+="has space"',
         ["insert", "has space"],
         predefinedFields.tags,
+      );
+    });
+
+    it("does not split quoted filepath values on commas", () => {
+      check(
+        'sourceFiles+="path/with,comma.ts"',
+        ["insert", "path/with,comma.ts"],
+        predefinedFields.sourceFiles,
       );
     });
 
@@ -445,18 +484,20 @@ describe("patch-parser", () => {
     });
   });
 
-  it("handles patches with surrounding single quotes", () => {
-    check(`'title=value'`, "value");
-    check(`'field=123'`, 123, predefinedFields.id);
-    check(`'favorite=true'`, true, mockFavoriteField);
-    check(`'tags=a,b,c'`, ["a", "b", "c"], predefinedFields.tags);
-    check(`'options=[{"key":"draft","name":"Draft"}]'`, [
-      { key: "draft", name: "Draft" },
-    ]);
-  });
+  describe("quote handling", () => {
+    it("strips surrounding single quotes from patch", () => {
+      check(`'title=value'`, "value");
+      check(`'field=123'`, 123, predefinedFields.id);
+      check(`'favorite=true'`, true, mockFavoriteField);
+      check(`'tags=a,b,c'`, ["a", "b", "c"], predefinedFields.tags);
+      check(`'options=[{"key":"draft","name":"Draft"}]'`, [
+        { key: "draft", name: "Draft" },
+      ]);
+    });
 
-  it("handles value with surrounding quotes when patch has quotes", () => {
-    check(`'title="value"'`, "value");
-    check(`"title='value'"`, "value");
+    it("strips nested surrounding quotes from value", () => {
+      check(`'title="value"'`, "value");
+      check(`"title='value'"`, "value");
+    });
   });
 });
