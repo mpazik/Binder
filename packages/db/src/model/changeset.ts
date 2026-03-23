@@ -7,8 +7,10 @@ import {
   assertType,
   assertUndefined,
   filterObjectValues,
+  isEmptyObject,
   isEqual,
   mapObjectValues,
+  objEntries,
   transformEntries,
 } from "@binder/utils";
 import type { NamespaceEditable, NamespaceSchema } from "./namespace.ts";
@@ -16,7 +18,6 @@ import type { RecordUid } from "./record.ts";
 import type { ConfigKey } from "./config.ts";
 import { type FieldKey, type Fieldset, type FieldValue } from "./field.ts";
 import { type EntitySchema } from "./schema.ts";
-import type { EntityKey } from "./entity.ts";
 
 export type ListMutationInsert = [
   kind: "insert",
@@ -290,7 +291,7 @@ const applyRemoveMutation = (
 ): FieldValue[] => {
   const [, value, position] = mutation;
   const result = [...arr];
-  if (position !== undefined) {
+  if (position != null) {
     assertInArrayRange(position, result, "remove mutation position");
     assertEqual(result[position], value, "remove mutation value");
     result.splice(position, 1);
@@ -526,7 +527,7 @@ export const squashChange = (
 
   if (isPatchChange(baseChange) && isPatchChange(change)) {
     const squashedAttrs = squashChangesets(baseChange[1], change[1]);
-    if (Object.keys(squashedAttrs).length === 0) {
+    if (isEmptyObject(squashedAttrs)) {
       return null;
     }
     return ["patch", squashedAttrs];
@@ -550,8 +551,7 @@ export const squashChangesets = (
   changeset: FieldChangeset,
 ): FieldChangeset => {
   const squashedChanges = { ...base };
-  for (const [objKey, change] of Object.entries(changeset)) {
-    const key = objKey as EntityKey;
+  for (const [key, change] of objEntries(changeset)) {
     const normalizedChange = normalizeValueChange(change);
     if (squashedChanges[key]) {
       const squashed = squashChange(

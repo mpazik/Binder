@@ -189,6 +189,20 @@ describe("changeset", () => {
     it("applies remove with undefined position (remove last)", () =>
       check(["a", "b", "c"], ["seq", [["remove", "c"]]], ["a", "b"]));
 
+    it("applies remove with null position as positionless (JSON round-trip)", () =>
+      check(
+        ["urgent", "important"],
+        ["seq", [["remove", "urgent", null as unknown as number]]],
+        ["important"],
+      ));
+
+    it("applies insert with null position as append (JSON round-trip)", () =>
+      check(
+        ["a", "b"],
+        ["seq", [["insert", "c", null as unknown as number]]],
+        ["a", "b", "c"],
+      ));
+
     it("applies multiple appends in sequence", () =>
       check(
         ["a"],

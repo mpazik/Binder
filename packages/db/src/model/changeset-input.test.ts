@@ -1,6 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import {
   normalizeInput,
+  normalizeListMutationInput,
   type EntityChangesetInput,
 } from "./changeset-input.ts";
 import { mockRecordSchema } from "./schema.mock.ts";
@@ -16,47 +17,27 @@ import { tagsFieldKey } from "./schema.ts";
 describe("changeset-input", () => {
   describe("normalizeInput", () => {
     describe("allowMultiple plaintext identifier field", () => {
-      it("normalizes single value to array", () => {
+      const check = (tags: string | string[], expected: string[]) => {
         const input: EntityChangesetInput<"record"> = {
           type: mockTaskTypeKey,
           title: "Test Task",
-          [tagsFieldKey]: "single-tag",
+          [tagsFieldKey]: tags,
         };
-        const result = normalizeInput(input, mockRecordSchema);
-        expect(result).toMatchObject({ [tagsFieldKey]: ["single-tag"] });
-      });
-
-      it("normalizes comma-separated string to array", () => {
-        const input: EntityChangesetInput<"record"> = {
-          type: mockTaskTypeKey,
-          title: "Test Task",
-          [tagsFieldKey]: "tag1, tag2, tag3",
-        };
-        const result = normalizeInput(input, mockRecordSchema);
-        expect(result).toMatchObject({
-          [tagsFieldKey]: ["tag1", "tag2", "tag3"],
+        expect(normalizeInput(input, mockRecordSchema)).toMatchObject({
+          [tagsFieldKey]: expected,
         });
-      });
+      };
 
-      it("preserves array values", () => {
-        const input: EntityChangesetInput<"record"> = {
-          type: mockTaskTypeKey,
-          title: "Test Task",
-          [tagsFieldKey]: ["a", "b"],
-        };
-        const result = normalizeInput(input, mockRecordSchema);
-        expect(result).toMatchObject({ [tagsFieldKey]: ["a", "b"] });
-      });
+      it("normalizes single value to array", () =>
+        check("single-tag", ["single-tag"]));
 
-      it("filters empty items when splitting by delimiter", () => {
-        const input: EntityChangesetInput<"record"> = {
-          type: mockTaskTypeKey,
-          title: "Test Task",
-          [tagsFieldKey]: "a,,b",
-        };
-        const result = normalizeInput(input, mockRecordSchema);
-        expect(result).toMatchObject({ [tagsFieldKey]: ["a", "b"] });
-      });
+      it("normalizes comma-separated string to array", () =>
+        check("tag1, tag2, tag3", ["tag1", "tag2", "tag3"]));
+
+      it("preserves array values", () => check(["a", "b"], ["a", "b"]));
+
+      it("filters empty items when splitting by delimiter", () =>
+        check("a,,b", ["a", "b"]));
     });
 
     it("does not split non-allowMultiple fields", () => {
@@ -64,8 +45,9 @@ describe("changeset-input", () => {
         type: mockTaskTypeKey,
         title: "Title, with comma",
       };
-      const result = normalizeInput(input, mockRecordSchema);
-      expect(result).toMatchObject({ title: "Title, with comma" });
+      expect(normalizeInput(input, mockRecordSchema)).toMatchObject({
+        title: "Title, with comma",
+      });
     });
 
     it("normalizes ObjTuple to tuple in allowMultiple relation field", () => {
@@ -73,14 +55,12 @@ describe("changeset-input", () => {
         type: mockTeamTypeKey,
         [mockMembersFieldKey]: [{ [mockUserUid]: { role: "admin" } }],
       };
-      const result = normalizeInput(input, mockRecordSchema);
-      expect(result).toMatchObject({
+      expect(normalizeInput(input, mockRecordSchema)).toMatchObject({
         [mockMembersFieldKey]: [[mockUserUid, { role: "admin" }]],
       });
     });
 
     it("splits string by delimiter for allowMultiple richtext document fields", () => {
-      // Document format uses --- as delimiter
       const multiDocContent = `# First Document
 
 Content of first doc.
@@ -96,10 +76,7 @@ Content of second doc.`;
         title: "Test Task",
         [mockChaptersFieldKey]: multiDocContent as unknown as string[],
       };
-
-      const result = normalizeInput(input, mockRecordSchema);
-
-      expect(result).toMatchObject({
+      expect(normalizeInput(input, mockRecordSchema)).toMatchObject({
         [mockChaptersFieldKey]: [
           "# First Document\n\nContent of first doc.",
           "# Second Document\n\nContent of second doc.",
@@ -117,12 +94,37 @@ Content without any delimiter.`;
         title: "Test Task",
         [mockChaptersFieldKey]: singleDocContent as unknown as string[],
       };
-
-      const result = normalizeInput(input, mockRecordSchema);
-
-      expect(result).toMatchObject({
+      expect(normalizeInput(input, mockRecordSchema)).toMatchObject({
         [mockChaptersFieldKey]: [singleDocContent],
       });
+    });
+  });
+
+  describe("normalizeListMutationInput", () => {
+    const check = (
+      input: Parameters<typeof normalizeListMutationInput>[0],
+      expected: ReturnType<typeof normalizeListMutationInput>,
+    ) => {
+      expect(normalizeListMutationInput(input)).toEqual(expected);
+    };
+
+    it("produces 2-element remove when position is absent", () =>
+      check(["remove", "urgent"], ["remove", "urgent"]));
+
+    it("produces 3-element remove when position is provided", () =>
+      check(["remove", "urgent", 0], ["remove", "urgent", 0]));
+
+    it("produces 2-element insert when position is absent", () =>
+      check(["insert", "tag"], ["insert", "tag"]));
+
+    it("produces 3-element insert when position is provided", () =>
+      check(["insert", "tag", 1], ["insert", "tag", 1]));
+
+    it("survives JSON round-trip without gaining null position", () => {
+      const roundTripped = JSON.parse(
+        JSON.stringify(normalizeListMutationInput(["remove", "urgent"])),
+      );
+      expect(roundTripped).toEqual(["remove", "urgent"]);
     });
   });
 });

@@ -21,9 +21,6 @@ import {
   type FieldChangeset,
   isValueChange,
   type ListMutation,
-  type ListMutationInsert,
-  type ListMutationPatch,
-  type ListMutationRemove,
   type ValueChange,
 } from "./changeset.ts";
 import type { OptionDef } from "./data-type.ts";
@@ -124,48 +121,24 @@ export const normalizeInputValue = (value: FieldValue): FieldValue =>
 const normalizeItemInputValue = (value: ListMutationInputValue): FieldValue =>
   isObjTuple(value) ? objTupleToTuple(value) : value;
 
-const normalizeInsertMutation = (
-  input: ListMutationInputInsert,
-): ListMutationInsert => [
-  "insert",
-  normalizeItemInputValue(input[1]),
-  input[2],
-];
-
-const normalizeRemoveMutation = (
-  input: ListMutationInputRemove,
-): ListMutationRemove => [
-  "remove",
-  normalizeItemInputValue(input[1]),
-  input[2],
-];
-
-const normalizePatchMutation = (
-  input: ListMutationInputPatch,
-): ListMutationPatch => [
-  "patch",
-  input[1],
-  normalizeFieldChangesetInput(input[2]),
-];
-
 export const normalizeListMutationInput = (
   input: ListMutationInput,
 ): ListMutation => {
-  switch (input[0]) {
-    case "insert":
-      return normalizeInsertMutation(input);
-    case "remove":
-      return normalizeRemoveMutation(input);
-    case "patch":
-      return normalizePatchMutation(input);
-  }
+  if (input[0] === "patch")
+    return ["patch", input[1], normalizeFieldChangesetInput(input[2])];
+
+  const [kind, value, position] = input;
+  const normalized = normalizeItemInputValue(value);
+  return position !== undefined
+    ? [kind, normalized, position]
+    : [kind, normalized];
 };
 
 export const normalizeFieldChangesetInput = (
   input: FieldChangesetInput,
 ): FieldChangeset => {
   const result: FieldChangeset = {};
-  for (const [key, value] of Object.entries(input)) {
+  for (const [key, value] of objEntries(input)) {
     if (isListMutationInputArray(value)) {
       result[key] = ["seq", value.map(normalizeListMutationInput)];
     } else if (isListMutationInput(value)) {
@@ -190,10 +163,10 @@ const normalizeFieldValue = (
   value: FieldValue,
 ): FieldValue | ListMutation | ListMutation[] => {
   if (isListMutationInputArray(value)) {
-    return (value as ListMutationInput[]).map(normalizeListMutationInput);
+    return value.map(normalizeListMutationInput);
   }
   if (isListMutationInput(value)) {
-    return normalizeListMutationInput(value as ListMutationInput);
+    return normalizeListMutationInput(value);
   }
   if (fieldDef?.dataType === "optionSet" && Array.isArray(value)) {
     return normalizeOptionSet(value as OptionDefInput[]);
@@ -254,7 +227,7 @@ export const changesetToInput = (
   changeset: FieldChangeset,
 ): FieldChangesetInput => {
   const result: FieldChangesetInput = {};
-  for (const [key, value] of Object.entries(changeset)) {
+  for (const [key, value] of objEntries(changeset)) {
     if (key === "id") continue;
     result[key] = isValueChange(value)
       ? valueChangeToInput(value)
