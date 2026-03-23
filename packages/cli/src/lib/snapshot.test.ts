@@ -72,7 +72,7 @@ describe("snapshot", () => {
   describe("saveSnapshot", () => {
     const check = async (
       scenario: { existingContent?: string; newContent: string },
-      expectedWritten: boolean,
+      expectedResult: "written" | "skipped",
     ) => {
       if (scenario.existingContent !== undefined) {
         throwIfError(
@@ -99,7 +99,7 @@ describe("snapshot", () => {
           mockEntityUid,
         ),
       );
-      expect(result).toBe(expectedWritten);
+      expect(result).toBe(expectedResult);
 
       const fileContent = throwIfError(await fs.readFile(filePath));
       expect(fileContent).toBe(scenario.newContent);
@@ -118,15 +118,209 @@ describe("snapshot", () => {
     };
 
     it("writes new file", async () => {
-      await check({ newContent: "hello" }, true);
+      await check({ newContent: "hello" }, "written");
     });
 
     it("skips write when content unchanged", async () => {
-      await check({ existingContent: "hello", newContent: "hello" }, false);
+      await check({ existingContent: "hello", newContent: "hello" }, "skipped");
     });
 
     it("writes when content changes", async () => {
-      await check({ existingContent: "hello", newContent: "world" }, true);
+      await check({ existingContent: "hello", newContent: "world" }, "written");
+    });
+
+    describe("mode=fast (default)", () => {
+      it("skips when hash matches without checking file content", async () => {
+        throwIfError(
+          await saveSnapshot(
+            db,
+            fs,
+            paths,
+            filePath,
+            "hello",
+            version,
+            mockEntityUid,
+          ),
+        );
+
+        // Simulate a bad edit after failed sync
+        await fs.writeFile(filePath, "bad edit");
+
+        const result = throwIfError(
+          await saveSnapshot(
+            db,
+            fs,
+            paths,
+            filePath,
+            "hello",
+            version,
+            mockEntityUid,
+            {
+              mode: "fast",
+            },
+          ),
+        );
+        expect(result).toBe("skipped");
+        expect(throwIfError(await fs.readFile(filePath))).toBe("bad edit");
+      });
+    });
+
+    describe("mode=verify", () => {
+      it("skips when file content matches snapshot", async () => {
+        throwIfError(
+          await saveSnapshot(
+            db,
+            fs,
+            paths,
+            filePath,
+            "hello",
+            version,
+            mockEntityUid,
+          ),
+        );
+
+        const result = throwIfError(
+          await saveSnapshot(
+            db,
+            fs,
+            paths,
+            filePath,
+            "hello",
+            version,
+            mockEntityUid,
+            {
+              mode: "verify",
+            },
+          ),
+        );
+        expect(result).toBe("skipped");
+      });
+
+      it("returns skipped-diverged when file content differs from snapshot", async () => {
+        throwIfError(
+          await saveSnapshot(
+            db,
+            fs,
+            paths,
+            filePath,
+            "hello",
+            version,
+            mockEntityUid,
+          ),
+        );
+        await fs.writeFile(filePath, "bad edit");
+
+        const result = throwIfError(
+          await saveSnapshot(
+            db,
+            fs,
+            paths,
+            filePath,
+            "hello",
+            version,
+            mockEntityUid,
+            {
+              mode: "verify",
+            },
+          ),
+        );
+        expect(result).toBe("skipped-diverged");
+        expect(throwIfError(await fs.readFile(filePath))).toBe("bad edit");
+      });
+
+      it("skips when file stat matches snapshot metadata", async () => {
+        throwIfError(
+          await saveSnapshot(
+            db,
+            fs,
+            paths,
+            filePath,
+            "hello",
+            version,
+            mockEntityUid,
+          ),
+        );
+
+        const result = throwIfError(
+          await saveSnapshot(
+            db,
+            fs,
+            paths,
+            filePath,
+            "hello",
+            version,
+            mockEntityUid,
+            {
+              mode: "verify",
+            },
+          ),
+        );
+        expect(result).toBe("skipped");
+      });
+    });
+
+    describe("mode=force", () => {
+      it("overwrites when file content differs from snapshot", async () => {
+        throwIfError(
+          await saveSnapshot(
+            db,
+            fs,
+            paths,
+            filePath,
+            "hello",
+            version,
+            mockEntityUid,
+          ),
+        );
+        await fs.writeFile(filePath, "bad edit");
+
+        const result = throwIfError(
+          await saveSnapshot(
+            db,
+            fs,
+            paths,
+            filePath,
+            "hello",
+            version,
+            mockEntityUid,
+            {
+              mode: "force",
+            },
+          ),
+        );
+        expect(result).toBe("written");
+        expect(throwIfError(await fs.readFile(filePath))).toBe("hello");
+      });
+
+      it("skips when file content matches snapshot", async () => {
+        throwIfError(
+          await saveSnapshot(
+            db,
+            fs,
+            paths,
+            filePath,
+            "hello",
+            version,
+            mockEntityUid,
+          ),
+        );
+
+        const result = throwIfError(
+          await saveSnapshot(
+            db,
+            fs,
+            paths,
+            filePath,
+            "hello",
+            version,
+            mockEntityUid,
+            {
+              mode: "force",
+            },
+          ),
+        );
+        expect(result).toBe("skipped");
+      });
     });
   });
 

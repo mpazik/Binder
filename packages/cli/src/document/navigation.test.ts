@@ -315,9 +315,9 @@ describe("navigation", () => {
       );
     });
 
-    it("returns rendered and modified paths on first render", async () => {
+    const createRenderCtx = async () => {
       const views = throwIfError(await loadViews(kg));
-      const ctx = {
+      return {
         db,
         kg,
         fs,
@@ -326,6 +326,10 @@ describe("navigation", () => {
         views,
         log: mockLog,
       };
+    };
+
+    it("returns rendered and modified paths on first render", async () => {
+      const ctx = await createRenderCtx();
       const result = throwIfError(
         await renderNavigation(ctx, [{ path: "README", view: "static-view" }]),
       );
@@ -333,31 +337,23 @@ describe("navigation", () => {
       expect(result).toEqual({
         renderedPaths: ["README.md"],
         modifiedPaths: ["README.md"],
+        divergedPaths: [],
       });
     });
 
     it("returns empty modifiedPaths when content unchanged", async () => {
-      const views = throwIfError(await loadViews(kg));
-      const ctx = {
-        db,
-        kg,
-        fs,
-        paths,
-        namespace: "record" as const,
-        views,
-        log: mockLog,
-      };
+      const ctx = await createRenderCtx();
       const navigationItems: NavigationItem[] = [
         { path: "README", view: "static-view" },
       ];
 
       throwIfError(await renderNavigation(ctx, navigationItems));
-
       const result = throwIfError(await renderNavigation(ctx, navigationItems));
 
       expect(result).toEqual({
         renderedPaths: ["README.md"],
         modifiedPaths: [],
+        divergedPaths: [],
       });
     });
   });

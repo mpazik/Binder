@@ -1,6 +1,6 @@
 import type { Argv } from "yargs";
 import type { NamespaceEditable } from "@binder/db";
-import { fail, isErr, ok, type ResultAsync } from "@binder/utils";
+import { fail, isErr, ok, okVoid, type ResultAsync } from "@binder/utils";
 import {
   type CommandHandlerWithDb,
   type RuntimeContextWithDb,
@@ -24,13 +24,28 @@ import { getDocumentFileType, parseDocument } from "../document/document.ts";
 import { createPathMatcher } from "../utils/file.ts";
 import { types } from "../cli/types.ts";
 
-export const docsRenderHandler: CommandHandlerWithDb = async (context) => {
-  const { ui } = context;
-  const result = await renderDocs(context);
+export const docsRenderHandler: CommandHandlerWithDb<{
+  force?: boolean;
+}> = async (context) => {
+  const { ui, args } = context;
+  const result = await renderDocs({ ...context, force: args.force ?? false });
   if (isErr(result)) return result;
 
-  ui.println("Documentation and configuration files rendered successfully");
-  return ok(undefined);
+  if (result.data.divergedPaths.length > 0) {
+    ui.println(
+      `Warning: ${result.data.divergedPaths.length} file(s) have local changes that differ from the database:`,
+    );
+    for (const path of result.data.divergedPaths) {
+      ui.println(`  ${path}`);
+    }
+    ui.println(
+      "These files were not overwritten. Run 'docs render --force' to restore them from the database.",
+    );
+  } else {
+    ui.println("Documentation and configuration files rendered successfully");
+  }
+
+  return okVoid;
 };
 
 export const docsSyncHandler: CommandHandlerWithDb<{
@@ -45,7 +60,7 @@ export const docsSyncHandler: CommandHandlerWithDb<{
 
   if (syncResult.data === null) {
     ui.println("No changes detected");
-    return ok(undefined);
+    return okVoid;
   }
 
   const updateResult = await kg.update(syncResult.data);
@@ -61,7 +76,7 @@ export const docsSyncHandler: CommandHandlerWithDb<{
   ui.success(
     `Synchronized ${changeCount} change${changeCount === 1 ? "" : "s"}`,
   );
-  return ok(undefined);
+  return okVoid;
 };
 
 const lintNamespace = async <N extends NamespaceEditable>(
@@ -218,6 +233,14 @@ export const DocsCommand = types({
         types({
           command: "render",
           describe: "render documents to markdown files",
+          builder: (yargs: Argv) => {
+            return yargs.option("force", {
+              describe:
+                "overwrite files that have diverged from the database state",
+              type: "boolean",
+              default: false,
+            });
+          },
           handler: runtimeWithDb(docsRenderHandler),
         }),
       )

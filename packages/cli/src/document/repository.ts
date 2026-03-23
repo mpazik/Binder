@@ -4,13 +4,18 @@ import type { Logger } from "../log.ts";
 import type { FileSystem } from "../lib/filesystem.ts";
 import type { DatabaseCli } from "../db";
 import type { AppConfig } from "../config.ts";
-import { cleanupOrphanSnapshots } from "../lib/snapshot.ts";
+import { cleanupOrphanSnapshots, type SnapshotMode } from "../lib/snapshot.ts";
 import {
   CONFIG_NAVIGATION_ITEMS,
   loadNavigation,
   renderNavigation,
 } from "./navigation.ts";
 import { type ViewLoader } from "./view-entity.ts";
+
+export type RenderDocsResult = {
+  modifiedPaths: string[];
+  divergedPaths: string[];
+};
 
 export const renderDocs = async (services: {
   db: DatabaseCli;
@@ -19,7 +24,8 @@ export const renderDocs = async (services: {
   log: Logger;
   config: AppConfig;
   views: ViewLoader;
-}): ResultAsync<string[]> => {
+  force?: boolean;
+}): ResultAsync<RenderDocsResult> => {
   const {
     db,
     kg,
@@ -27,14 +33,18 @@ export const renderDocs = async (services: {
     log,
     views: loadViews,
     config: { paths },
+    force,
   } = services;
+
+  const mode: SnapshotMode =
+    force === true ? "force" : force === false ? "verify" : "fast";
 
   const navigationResult = await loadNavigation(kg);
   if (isErr(navigationResult)) return navigationResult;
   const viewsResult = await loadViews();
   if (isErr(viewsResult)) return viewsResult;
 
-  const baseCtx = { db, kg, fs, paths, log, views: viewsResult.data };
+  const baseCtx = { db, kg, fs, paths, log, views: viewsResult.data, mode };
 
   const renderRecordResult = await renderNavigation(
     { ...baseCtx, namespace: "record" },
@@ -67,8 +77,14 @@ export const renderDocs = async (services: {
   if (isErr(cleanupConfigResult)) return cleanupConfigResult;
 
   log.debug("renderDocs: complete");
-  return ok([
-    ...renderRecordResult.data.modifiedPaths,
-    ...renderConfigResult.data.modifiedPaths,
-  ]);
+  return ok({
+    modifiedPaths: [
+      ...renderRecordResult.data.modifiedPaths,
+      ...renderConfigResult.data.modifiedPaths,
+    ],
+    divergedPaths: [
+      ...renderRecordResult.data.divergedPaths,
+      ...renderConfigResult.data.divergedPaths,
+    ],
+  });
 };

@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
@@ -28,6 +28,9 @@ describe("Doc Sync", () => {
     await mkdir(join(fullPath, ".."), { recursive: true });
     await writeFile(fullPath, content);
   };
+
+  const removeDoc = (relPath: string) =>
+    rm(join(dir, "docs", relPath), { force: true });
 
   const docExists = (relPath: string) =>
     Bun.file(join(dir, "docs", relPath)).exists();
@@ -132,6 +135,94 @@ describe("Doc Sync", () => {
       // Wrong data type -> rejected
       await writeDoc("tasks-yaml/task-bad.yaml", "title: 123\n");
       await checkError(["docs", "sync"], "Expected string");
+      await removeDoc("tasks-yaml/task-bad.yaml");
+    });
+  });
+
+  describe("render after failed sync", () => {
+    it("render without --force warns about diverged files", async () => {
+      // Use task-create-api which has status: active and hasn't been
+      // modified by earlier tests
+      await check(["docs", "render"]);
+
+      const original = await readDoc("tasks-yaml/task-create-api.yaml");
+      expect(original).toContain("status: active");
+
+      // Make a bad edit — invalid option value
+      const bad = original.replace("status: active", "status: INVALID_VALUE");
+      await writeDoc("tasks-yaml/task-create-api.yaml", bad);
+
+      // Sync fails with validation error
+      const syncResult = await run(["docs", "sync"], { cwd: dir });
+      expect(syncResult.exitCode).not.toBe(0);
+
+      // File still has the bad edit
+      const afterFailedSync = await readDoc("tasks-yaml/task-create-api.yaml");
+      expect(afterFailedSync).toContain("status: INVALID_VALUE");
+
+      // Render (no --force) should warn about diverged file
+      const renderResult = await run(["docs", "render"], { cwd: dir });
+      expect(renderResult.exitCode).toBe(0);
+      expect(renderResult.stdout).toContain("differ from the database");
+      expect(renderResult.stdout).toContain("--force");
+
+      // File still has the bad edit (not overwritten without --force)
+      const afterRender = await readDoc("tasks-yaml/task-create-api.yaml");
+      expect(afterRender).toContain("status: INVALID_VALUE");
+    });
+
+    it("render --force overwrites diverged file and restores DB state", async () => {
+      // File still has INVALID_VALUE from previous test
+      const beforeForce = await readDoc("tasks-yaml/task-create-api.yaml");
+      expect(beforeForce).toContain("status: INVALID_VALUE");
+
+      // render --force overwrites diverged files
+      const forceResult = await run(["docs", "render", "--force"], {
+        cwd: dir,
+      });
+      expect(forceResult.exitCode).toBe(0);
+
+      // File should now have the correct DB value
+      const afterForce = await readDoc("tasks-yaml/task-create-api.yaml");
+      expect(afterForce).toContain("status: active");
+      expect(afterForce).not.toContain("INVALID_VALUE");
+
+      // Subsequent sync of this file should report no changes
+      await check(
+        ["docs", "sync", "tasks-yaml/task-create-api.yaml"],
+        "No changes",
+      );
+    });
+
+    it("render --force restores markdown file after manual corruption", async () => {
+      await check(["docs", "render"]);
+
+      const original = await readDoc("tasks/task-create-api.md");
+      expect(original).toContain("Add relationship fields");
+
+      // Directly corrupt the file so it diverges from the snapshot
+      await writeDoc("tasks/task-create-api.md", "completely wrong content");
+
+      // Render (default verify mode) detects divergence
+      const renderResult = await run(["docs", "render"], { cwd: dir });
+      expect(renderResult.exitCode).toBe(0);
+      expect(renderResult.stdout).toContain("differ from the database");
+
+      // File still has wrong content
+      const afterRender = await readDoc("tasks/task-create-api.md");
+      expect(afterRender).toBe("completely wrong content");
+
+      // render --force fixes it
+      const forceResult = await run(["docs", "render", "--force"], {
+        cwd: dir,
+      });
+      expect(forceResult.exitCode).toBe(0);
+
+      const restored = await readDoc("tasks/task-create-api.md");
+      expect(restored).toContain("Add relationship fields");
+
+      // Clean sync of this file
+      await check(["docs", "sync", "tasks/task-create-api.md"], "No changes");
     });
   });
 
@@ -150,8 +241,10 @@ describe("Doc Sync", () => {
 
       await checkError(["docs", "lint"], {
         stdout: ["task-lint-errors", "invalid-value", "invalid-field"],
-        stderr: "Found 3 error",
+        stderr: "Found 2 error",
       });
+
+      await removeDoc("tasks-yaml/task-lint-errors.yaml");
     });
 
     it("malformed YAML frontmatter in doc file reports error", async () => {

@@ -7,7 +7,6 @@ import {
   type EntityUid,
   type Fieldset,
   type FieldsetNested,
-  type Filter,
   type Filters,
   type GraphVersion,
   type Includes,
@@ -36,7 +35,7 @@ import {
 } from "../utils/interpolate-fields.ts";
 import type { DatabaseCli } from "../db";
 import { interpolateQueryParams } from "../utils/query.ts";
-import { saveSnapshot } from "../lib/snapshot.ts";
+import { saveSnapshot, type SnapshotMode } from "../lib/snapshot.ts";
 import type { FileSystem } from "../lib/filesystem.ts";
 import { BINDER_DIR, type ConfigPaths } from "../config.ts";
 import { renderView } from "./view.ts";
@@ -59,16 +58,19 @@ import { prependFrontmatter, renderFrontmatterString } from "./frontmatter.ts";
 export type RenderResult = {
   renderedPaths: string[];
   modifiedPaths: string[];
+  divergedPaths: string[];
 };
 
 const emptyRenderResult = (): RenderResult => ({
   renderedPaths: [],
   modifiedPaths: [],
+  divergedPaths: [],
 });
 
 const mergeRenderResults = (results: RenderResult[]): RenderResult => ({
   renderedPaths: results.flatMap((r) => r.renderedPaths),
   modifiedPaths: results.flatMap((r) => r.modifiedPaths),
+  divergedPaths: results.flatMap((r) => r.divergedPaths),
 });
 
 const inferFileType = (item: NavigationItem): FileType => {
@@ -108,6 +110,7 @@ export type RenderContext = {
   namespace: NamespaceEditable;
   views: Views;
   log: Logger;
+  mode?: SnapshotMode;
 };
 
 export const CONFIG_NAVIGATION_ITEMS: NavigationItem[] = [
@@ -255,9 +258,6 @@ const getParentDir = (filePath: string, fileType: FileType): string => {
   return withoutExt + "/";
 };
 
-const isSingleValueFilter = (filter: Filter): boolean =>
-  typeof filter !== "object" || !filter;
-
 const getExcludedFields = (
   namespace: NamespaceEditable,
   filters: Filters | undefined,
@@ -265,8 +265,9 @@ const getExcludedFields = (
   const excluded: string[] = ["id"];
   if (namespace === "config") excluded.push("uid");
 
-  // hide type, if only single type is being displayed
-  if (filters?.type && isSingleValueFilter(filters.type)) excluded.push("type");
+  const typeFilter = filters?.type;
+  if (typeFilter && (typeof typeFilter !== "object" || !typeFilter))
+    excluded.push("type");
   return excluded;
 };
 
@@ -451,12 +452,15 @@ export const renderNavigationItem = async (
         renderContentResult.data,
         version,
         entityUid,
+        { mode: ctx.mode },
       );
       if (isErr(saveResult)) return saveResult;
 
       result.renderedPaths.push(filePath);
-      if (saveResult.data) {
+      if (saveResult.data === "written") {
         result.modifiedPaths.push(filePath);
+      } else if (saveResult.data === "skipped-diverged") {
+        result.divergedPaths.push(filePath);
       }
     }
 
@@ -477,6 +481,7 @@ export const renderNavigationItem = async (
 
         result.renderedPaths.push(...childResult.data.renderedPaths);
         result.modifiedPaths.push(...childResult.data.modifiedPaths);
+        result.divergedPaths.push(...childResult.data.divergedPaths);
       }
     }
   }

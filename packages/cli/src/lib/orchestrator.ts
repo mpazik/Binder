@@ -378,8 +378,11 @@ export const setupKnowledgeGraph = (
           return;
         }
 
-        if (callbacks.onFilesUpdated && renderResult.data.length > 0) {
-          await callbacks.onFilesUpdated(renderResult.data);
+        if (
+          callbacks.onFilesUpdated &&
+          renderResult.data.modifiedPaths.length > 0
+        ) {
+          await callbacks.onFilesUpdated(renderResult.data.modifiedPaths);
         }
       },
       afterRollback: async (transactions, count) => {
@@ -397,8 +400,11 @@ export const setupKnowledgeGraph = (
           return;
         }
 
-        if (callbacks.onFilesUpdated && renderResult.data.length > 0) {
-          await callbacks.onFilesUpdated(renderResult.data);
+        if (
+          callbacks.onFilesUpdated &&
+          renderResult.data.modifiedPaths.length > 0
+        ) {
+          await callbacks.onFilesUpdated(renderResult.data.modifiedPaths);
         }
       },
     },

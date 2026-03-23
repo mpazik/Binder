@@ -10,6 +10,7 @@ import type {
 import {
   isErr,
   ok,
+  okVoid,
   type Result,
   type ResultAsync,
   tryCatch,
@@ -41,9 +42,8 @@ export const calculateSnapshotHash = async (
   return hasher.digest("hex");
 };
 
-export const calculateContentHash = (content: string): string => {
-  return createHash("sha256").update(content).digest("hex");
-};
+export const calculateContentHash = (content: string): string =>
+  createHash("sha256").update(content).digest("hex");
 
 const upsertSnapshotMetadata = (
   db: DatabaseCli,
@@ -269,6 +269,15 @@ export const modifiedSnapshots = async (
   return ok([...scanResults, ...removedFiles]);
 };
 
+/**
+ * Controls how saveSnapshot handles files that already exist on disk:
+ * - `fast`: skip write when the content hash matches the stored snapshot (default)
+ * - `verify`: also check the actual file on disk; report `skipped-diverged` if it differs
+ * - `force`: overwrite diverged files to restore database state
+ */
+export type SnapshotMode = "fast" | "verify" | "force";
+export type SnapshotSaveResult = "written" | "skipped" | "skipped-diverged";
+
 export const saveSnapshot = async (
   db: DatabaseCli,
   fs: FileSystem,
@@ -277,7 +286,9 @@ export const saveSnapshot = async (
   content: string,
   version: GraphVersion,
   entityUid: EntityUid | null,
-): ResultAsync<boolean> => {
+  options?: { mode?: SnapshotMode },
+): ResultAsync<SnapshotSaveResult> => {
+  const mode = options?.mode ?? "fast";
   const absolutePath = resolveSnapshotPath(filePath, paths);
   const snapshotPath = getRelativeSnapshotPath(absolutePath, paths);
   const newHash = calculateContentHash(content);
@@ -290,7 +301,30 @@ export const saveSnapshot = async (
 
   if (existingMetadata && existingMetadata.hash === newHash) {
     const exists = await fs.exists(absolutePath);
-    if (exists) return ok(false);
+    if (exists) {
+      if (mode === "fast") return ok("skipped");
+
+      // verify or force: check actual file content
+      const statResult = fs.stat(absolutePath);
+      if (isErr(statResult)) return statResult;
+
+      const fileStat = statResult.data;
+      let fileDiverged = false;
+
+      if (
+        fileStat.mtime !== existingMetadata.mtime ||
+        fileStat.size !== existingMetadata.size
+      ) {
+        const fileHash = await calculateSnapshotHash(fs, absolutePath);
+        fileDiverged = fileHash !== existingMetadata.hash;
+      }
+
+      if (!fileDiverged) return ok("skipped");
+
+      if (mode === "verify") return ok("skipped-diverged");
+
+      // mode === "force": fall through to write
+    }
   }
 
   const mkdirResult = await fs.mkdir(dirname(absolutePath), {
@@ -314,7 +348,7 @@ export const saveSnapshot = async (
   });
   if (isErr(insertResult)) return insertResult;
 
-  return ok(true);
+  return ok("written");
 };
 
 export const refreshSnapshotMetadata = (
@@ -375,5 +409,5 @@ export const cleanupOrphanSnapshots = async (
     if (isErr(deleteResult)) return deleteResult;
   }
 
-  return ok(undefined);
+  return okVoid;
 };
