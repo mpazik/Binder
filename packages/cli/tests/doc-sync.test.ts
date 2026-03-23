@@ -2,7 +2,6 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import {
-  binderDir,
   createRunHelpers,
   run,
   setupWorkspace,
