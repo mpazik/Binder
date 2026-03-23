@@ -9,8 +9,8 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "bun --filter @binder/cli build",
-    "build:prod": "bun --filter @binder/cli build:prod",
+    "build": "bun --filter @binder.do/cli build",
+    "build:prod": "bun --filter @binder.do/cli build:prod",
     "build:type": "bun --filter '*' build:type",
     "dev": "bun run --conditions=development packages/cli/src/index.ts",
     "start": "node packages/cli/dist/index.js",
@@ -20,10 +20,11 @@
     "typecheck": "bun --filter '*' typecheck",
     "test": "bun --filter '*' test",
     "test:e2e": "bun --filter '*' test:e2e",
-    "test:e2e:node": "bun run build && bun --filter @binder/cli test:e2e:node",
+    "test:e2e:node": "bun run build && bun --filter @binder.do/cli test:e2e:node",
     "check": "bun typecheck && bun test && bun lint &&  bun format",
     "check:verify": "prettier --check . && eslint . && bun typecheck && bun test",
-    "mcp:inspect": "bunx @modelcontextprotocol/inspector bun run dev mcp"
+    "mcp:inspect": "bunx @modelcontextprotocol/inspector bun run dev mcp",
+    "release": "bun scripts/release.ts"
   },
   "private": true,
   "devDependencies": {

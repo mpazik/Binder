@@ -12,7 +12,7 @@ type UpdateCache = {
 const CACHE_FILE = "update-check.json";
 const STALE_MS = 24 * 60 * 60 * 1000; // 24 hours
 const FETCH_TIMEOUT_MS = 5000;
-const DEFAULT_REGISTRY_URL = "https://registry.npmjs.org/@binder/cli/latest";
+const DEFAULT_REGISTRY_URL = "https://registry.npmjs.org/@binder.do/cli/latest";
 
 const getCachePath = (): string => join(getGlobalStatePath(), CACHE_FILE);
 
@@ -55,10 +55,10 @@ const isStale = (cache: UpdateCache): boolean =>
 
 const detectInstallCommand = (): string => {
   const argv0 = process.argv[0] ?? "";
-  if (argv0.includes("pnpm")) return "pnpm add -g @binder/cli";
-  if (argv0.includes("yarn")) return "yarn global add @binder/cli";
-  if (argv0.includes("bun")) return "bun add -g @binder/cli";
-  return "npm install -g @binder/cli";
+  if (argv0.includes("pnpm")) return "pnpm add -g @binder.do/cli";
+  if (argv0.includes("yarn")) return "yarn global add @binder.do/cli";
+  if (argv0.includes("bun")) return "bun add -g @binder.do/cli";
+  return "npm install -g @binder.do/cli";
 };
 
 const shouldSkip = (): boolean => {

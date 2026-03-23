@@ -1,8 +1,25 @@
 {
-  "name": "@binder/cli",
-  "version": "0.0.0",
+  "name": "@binder.do/cli",
+  "version": "0.1.0",
+  "description": "Local-first knowledge base with bidirectional Markdown sync, LSP, MCP, and CLI",
+  "license": "MIT",
+  "author": "Marek Pazik",
+  "homepage": "https://binder.do",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mpazik/binder",
+    "directory": "packages/cli"
+  },
+  "keywords": [
+    "knowledge-base",
+    "markdown",
+    "lsp",
+    "mcp",
+    "cli",
+    "local-first"
+  ],
   "type": "module",
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
   "bin": {
     "binder": "./dist/index.js"
   },
@@ -12,9 +29,13 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "NODE_ENV=development bun run build.ts",
     "build:prod": "NODE_ENV=production bun run build.ts --prod",
+    "prepublishOnly": "bun run build.ts --prod",
     "format": "bun prettier --write --ignore-path ../../.prettierignore .",
     "lint": "bun eslint . --fix",
     "typecheck": "tsc --noEmit",
@@ -27,11 +48,15 @@
     "build:type": "tsc --declaration --emitDeclarationOnly --noEmit false --outDir ./dist"
   },
   "dependencies": {
+    "better-sqlite3": "^12.8.0"
+  },
+  "devDependencies": {
     "@binder/db": "workspace:*",
     "@binder/utils": "workspace:*",
     "@clack/prompts": "^0.11.0",
     "@modelcontextprotocol/sdk": "^1.25.2",
     "@types/mdast": "^4.0.4",
+    "@types/picomatch": "^4.0.2",
     "@types/yargs": "^17.0.33",
     "drizzle-kit": "^0.31.5",
     "drizzle-orm": "^0.44.5",
@@ -53,8 +78,5 @@
     "yaml": "^2.8.1",
     "yargs": "^18.0.0",
     "zod": "^4.1.11"
-  },
-  "devDependencies": {
-    "@types/picomatch": "^4.0.2"
   }
 }
