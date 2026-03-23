@@ -1,12 +1,6 @@
-import { fstatSync } from "node:fs";
 import { spawn } from "node:child_process";
-import { isErr, resultFallback, tryCatch } from "@binder/utils";
-
-const isStdoutTTY = (): boolean =>
-  resultFallback(
-    tryCatch(() => fstatSync(1).isCharacterDevice()),
-    false,
-  );
+import { isErr, tryCatch } from "@binder/utils";
+import { isInteractive } from "./stdin.ts";
 
 const findPager = (): string[] | undefined => {
   const pager = process.env.PAGER;
@@ -57,7 +51,7 @@ const spawnPager = async (cmd: string[], output: string): Promise<boolean> => {
  * Falls back to direct output if no pager is available or stdout is not a TTY.
  */
 export const withPager = async (fn: () => void): Promise<void> => {
-  const pagerCmd = isStdoutTTY() ? findPager() : undefined;
+  const pagerCmd = isInteractive() ? findPager() : undefined;
   if (!pagerCmd) {
     fn();
     return;

@@ -20,6 +20,7 @@ import { LocateCommand } from "./commands/locate.ts";
 import { createUi, logo } from "./cli/ui.ts";
 import { BINDER_VERSION, isDevMode } from "./build-time";
 import { LOG_LEVELS } from "./log.ts";
+import { checkForUpdate } from "./lib/update-check.ts";
 
 const ui = createUi();
 
@@ -89,5 +90,7 @@ if (isErr(result)) {
   console.error("fatal", result.error);
   process.exitCode = 1;
 }
+
+await checkForUpdate(BINDER_VERSION);
 export { isFormatCompatibleWithPosition } from "./document/field-slot.ts";
 export type { SlotPosition } from "./document/field-slot.ts";
