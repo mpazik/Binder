@@ -288,6 +288,90 @@ describe("entity-diff", () => {
         );
       });
 
+      describe("string and tuple ref diffing", () => {
+        // Regression: when all items in a relation+allowMultiple field are
+        // strings or tuples (no nested fieldsets), extractOwnedChildren
+        // returned empty for both sides and the diff returned null.
+
+        it("detects added string ref", () => {
+          check(
+            {
+              ...project,
+              tasks: [mockTask1Uid, mockTask2Uid, mockTask3Uid],
+            },
+            {
+              ...project,
+              tasks: [mockTask1Uid, mockTask2Uid],
+            },
+            [
+              {
+                uid: mockProjectUid,
+                tasks: [["insert", mockTask3Uid]],
+              },
+            ],
+          );
+        });
+
+        it("detects removed string ref", () => {
+          check(
+            {
+              ...project,
+              tasks: [mockTask1Uid],
+            },
+            {
+              ...project,
+              tasks: [mockTask1Uid, mockTask2Uid],
+            },
+            [
+              {
+                uid: mockProjectUid,
+                tasks: [["remove", mockTask2Uid]],
+              },
+            ],
+          );
+        });
+
+        it("detects added tuple ref", () => {
+          check(
+            {
+              ...project,
+              tasks: [
+                ["fieldA", { required: true }],
+                "fieldB",
+                "fieldC",
+              ] as unknown as FieldsetNested[],
+            },
+            {
+              ...project,
+              tasks: [
+                ["fieldA", { required: true }],
+                "fieldB",
+              ] as unknown as FieldsetNested[],
+            },
+            [
+              {
+                uid: mockProjectUid,
+                tasks: [["insert", "fieldC"]],
+              },
+            ],
+          );
+        });
+
+        it("detects no changes when refs are identical", () => {
+          check(
+            {
+              ...project,
+              tasks: [mockTask1Uid, mockTask2Uid],
+            },
+            {
+              ...project,
+              tasks: [mockTask1Uid, mockTask2Uid],
+            },
+            [],
+          );
+        });
+      });
+
       it("throws on null in allowMultiple field during anonymous child matching", () => {
         // Documents the unguarded crash path in similarity-scorer. The
         // extraction fix in view.ts prevents null tombstones from reaching

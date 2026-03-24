@@ -24,10 +24,8 @@ import { extractFieldsetFromQuery } from "../utils/query.ts";
 import { matchEntities, type MatcherConfig } from "./entity-matcher.ts";
 import { classifyFields } from "./field-classifier.ts";
 
-const getType = (node: Fieldset): EntityType | undefined => {
-  const type = node.type;
-  return typeof type === "string" ? (type as EntityType) : undefined;
-};
+const getType = (node: Fieldset): EntityType | undefined =>
+  typeof node.type === "string" ? (node.type as EntityType) : undefined;
 
 const collectNonIdentityFields = (
   schema: EntitySchema,
@@ -79,17 +77,14 @@ const diffOwnedChildren = (
   const matchResult = matchEntities(config, newChildren, oldChildren);
 
   for (const newIdx of matchResult.toCreate) {
-    const newEntity = newChildren[newIdx]!;
     const generatedUid = createUid() as RecordUid;
-
-    const createChangeset = buildEntityCreate(
+    const created = buildEntityCreate(
       schema,
-      newEntity,
+      newChildren[newIdx]!,
       generatedUid,
       range,
     );
-    if (createChangeset) changesets.push(createChangeset);
-
+    if (created) changesets.push(created);
     mutations.push(["insert", generatedUid]);
   }
 
@@ -101,11 +96,9 @@ const diffOwnedChildren = (
   }
 
   for (const { newIndex, oldIndex } of matchResult.matches) {
-    const newNode = newChildren[newIndex]!;
-    const oldNode = oldChildren[oldIndex]!;
-
-    const childChangesets = diffEntities(schema, newNode, oldNode);
-    changesets.push(...childChangesets);
+    changesets.push(
+      ...diffEntities(schema, newChildren[newIndex]!, oldChildren[oldIndex]!),
+    );
   }
 
   return { changesets, mutations };
@@ -130,6 +123,9 @@ const diffSingleRelation = (
   return diffEntities(schema, newWithUid, oldValue);
 };
 
+const isComplex = (value: unknown): boolean =>
+  typeof value === "object" && value !== null;
+
 const diffMultipleValues = (
   newValue: unknown,
   oldValue: unknown,
@@ -137,21 +133,35 @@ const diffMultipleValues = (
   const newArray = Array.isArray(newValue) ? newValue : [];
   const oldArray = Array.isArray(oldValue) ? oldValue : [];
 
-  const oldSet = new Set(oldArray);
-  const newSet = new Set(newArray);
+  const hasComplex = newArray.some(isComplex) || oldArray.some(isComplex);
 
-  const mutations: ListMutation[] = [];
-
-  for (const item of oldArray) {
-    if (!newSet.has(item)) {
-      mutations.push(["remove", item]);
+  if (!hasComplex) {
+    const oldSet = new Set(oldArray);
+    const newSet = new Set(newArray);
+    const mutations: ListMutation[] = [];
+    for (const item of oldArray) {
+      if (!newSet.has(item)) mutations.push(["remove", item]);
     }
+    for (const item of newArray) {
+      if (!oldSet.has(item)) mutations.push(["insert", item]);
+    }
+    return mutations;
   }
 
-  for (const item of newArray) {
-    if (!oldSet.has(item)) {
-      mutations.push(["insert", item]);
-    }
+  // Deep-equality path for arrays containing objects/tuples
+  const mutations: ListMutation[] = [];
+  const matchedNew = new Set<number>();
+
+  for (const item of oldArray) {
+    const idx = newArray.findIndex(
+      (n, i) => !matchedNew.has(i) && isEqual(n, item),
+    );
+    if (idx >= 0) matchedNew.add(idx);
+    else mutations.push(["remove", item]);
+  }
+
+  for (let i = 0; i < newArray.length; i++) {
+    if (!matchedNew.has(i)) mutations.push(["insert", newArray[i]]);
   }
 
   return mutations;
@@ -185,19 +195,23 @@ const diffField = (
   if (fieldDef?.dataType === "relation" && fieldDef.allowMultiple) {
     const newChildren = extractOwnedChildren(newValue);
     const oldChildren = extractOwnedChildren(oldValue);
-    if (newChildren.length === 0 && oldChildren.length === 0) return null;
 
-    const result = diffOwnedChildren(
-      schema,
-      newChildren,
-      oldChildren,
-      fieldDef.range,
-    );
-    const fieldChange =
-      result.mutations.length > 0
-        ? (result.mutations as FieldValue)
-        : undefined;
-    return { changesets: result.changesets, fieldChange };
+    if (newChildren.length > 0 || oldChildren.length > 0) {
+      const result = diffOwnedChildren(
+        schema,
+        newChildren,
+        oldChildren,
+        fieldDef.range,
+      );
+      const fieldChange =
+        result.mutations.length > 0
+          ? (result.mutations as FieldValue)
+          : undefined;
+      return { changesets: result.changesets, fieldChange };
+    }
+
+    // No nested fieldsets (e.g. relation refs stored as strings/tuples).
+    // Fall through to diffMultipleValues below.
   }
 
   if (fieldDef?.dataType === "relation") {
@@ -276,8 +290,8 @@ const hydrateEntity = (
   queryContext: Fieldset,
 ): EntityChangesetInput<"record"> | null => {
   const hydrated = { ...queryContext, ...entity };
-  const type = hydrated.type;
-  if (typeof type !== "string") return null;
+  const type = getType(hydrated);
+  if (!type) return null;
 
   return {
     type,
@@ -309,20 +323,16 @@ export const diffQueryResults = (
   }
 
   for (const { newIndex, oldIndex } of matchResult.matches) {
-    const newEntity = newEntities[newIndex]!;
-    const oldEntity = oldEntities[oldIndex]!;
-
-    const entityChangesets = diffEntities(schema, newEntity, oldEntity);
-    toUpdate.push(...entityChangesets);
+    toUpdate.push(
+      ...diffEntities(schema, newEntities[newIndex]!, oldEntities[oldIndex]!),
+    );
   }
 
-  const toRemove: EntityUid[] = [];
-  for (const oldIdx of matchResult.toRemove) {
-    const oldEntity = oldEntities[oldIdx]!;
-    const uid = extractUid(oldEntity);
+  const toRemove = matchResult.toRemove.map((oldIdx) => {
+    const uid = extractUid(oldEntities[oldIdx]!);
     assertDefined(uid, "uid in diffQueryResults toRemove");
-    toRemove.push(uid as EntityUid);
-  }
+    return uid as EntityUid;
+  });
 
   return { toCreate, toUpdate, toRemove };
 };
