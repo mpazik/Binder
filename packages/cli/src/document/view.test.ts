@@ -120,6 +120,17 @@ describe("view", () => {
           `[← ${mockProjectRecord.title}](../projects/${mockProjectRecord.key})\n`,
         );
       });
+
+      it("preserves unresolved placeholders in link URLs within richtext values", () => {
+        check(
+          "{description}\n",
+          {
+            description:
+              "See [details](../items/{itemKey}) for more info",
+          },
+          "See [details](../items/{itemKey}) for more info\n",
+        );
+      });
     });
 
     describe("scalar field types", () => {

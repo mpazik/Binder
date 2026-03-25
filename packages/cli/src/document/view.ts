@@ -548,7 +548,7 @@ const renderViewAstInternal = (
     const result = interpolatePlain(node.url, (placeholder) => {
       const path = placeholder.split(".") as FieldPath;
       const value = getNestedValue(fieldset, path);
-      if (value === null || value === undefined) return ok("");
+      if (value === null || value === undefined) return ok(`{${placeholder}}`);
       if (typeof value === "object") return ok("");
       return ok(String(value));
     });

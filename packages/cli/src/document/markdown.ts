@@ -71,22 +71,33 @@ export const defaultRenderOptions: Options = {
 
 const SLOT_PLACEHOLDER = "\u0000SLOT\u0000";
 
-const childrenText = (node: { children: ExtendedNode[] }): string =>
-  node.children.map(extractTextFromInline).join("");
+const childrenText = (
+  node: { children: ExtendedNode[] },
+  slotAware: boolean,
+): string =>
+  node.children.map((c) => extractTextFromInline(c, slotAware)).join("");
 
-const extractTextFromInline = (node: ExtendedNode): string => {
+const extractTextFromInline = (
+  node: ExtendedNode,
+  slotAware: boolean = false,
+): string => {
   if (node.type === "text") return node.value || "";
   if (node.type === "fieldSlot") return SLOT_PLACEHOLDER;
   if (node.type === "inlineCode") return `\`${node.value || ""}\``;
-  if (node.type === "strong") return `**${childrenText(node)}**`;
-  if (node.type === "emphasis") return `_${childrenText(node)}_`;
-  if (node.type === "delete") return `~~${childrenText(node)}~~`;
+  if (node.type === "strong") return `**${childrenText(node, slotAware)}**`;
+  if (node.type === "emphasis") return `_${childrenText(node, slotAware)}_`;
+  if (node.type === "delete") return `~~${childrenText(node, slotAware)}~~`;
   if (node.type === "link") {
-    const url = (node.url || "").replace(/\{[\w.-]+\}/g, SLOT_PLACEHOLDER);
-    return `[${childrenText(node)}](${url})`;
+    const rawUrl = node.url || "";
+    const url = slotAware
+      ? rawUrl.replace(/\{[\w.-]+\}/g, SLOT_PLACEHOLDER)
+      : rawUrl;
+    return `[${childrenText(node, slotAware)}](${url})`;
   }
   if ("children" in node && Array.isArray(node.children))
-    return node.children.map(extractTextFromInline).join("");
+    return node.children
+      .map((c) => extractTextFromInline(c, slotAware))
+      .join("");
   return "";
 };
 
@@ -215,7 +226,7 @@ const flattenInlinePreservingSlots = (value: ExtendedNode): ExtendedNode => {
 
   if ("children" in value && hasInlineChildren(value)) {
     const textWithPlaceholders = value.children
-      .map((child: ExtendedNode) => extractTextFromInline(child))
+      .map((child: ExtendedNode) => extractTextFromInline(child, true))
       .join("");
     const slots = extractSlots(value.children);
 

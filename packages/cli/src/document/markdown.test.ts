@@ -104,39 +104,63 @@ describe("markdown", () => {
         expect.objectContaining({ type: "heading", depth: 2 }),
       ]);
     });
+
+    it("preserves curly-brace patterns in link URLs", () => {
+      const ast = parseMarkdown("[link](path/{field})\n");
+      expect(ast.children[0]).toMatchObject({
+        type: "paragraph",
+        children: [{ type: "text", value: "[link](path/{field})" }],
+      });
+    });
+
+    it("preserves nested curly-brace patterns in link URLs", () => {
+      const ast = parseMarkdown(
+        "## Context ([{parent.weekPeriod}](../weeks/{parent.weekPeriod}))\n",
+      );
+      expect(ast.children[0]).toMatchObject({
+        type: "heading",
+        children: [
+          {
+            type: "text",
+            value:
+              "Context ([{parent.weekPeriod}](../weeks/{parent.weekPeriod}))",
+          },
+        ],
+      });
+    });
   });
 
   describe("renderAstToMarkdown", () => {
+    const check = (input: string, expected: string) => {
+      expect(renderAstToMarkdown(parseAst(input))).toBe(expected);
+    };
+
     it("renders heading", () => {
-      const ast = parseAst("# Hello");
-      expect(renderAstToMarkdown(ast)).toBe("# Hello\n");
+      check("# Hello", "# Hello\n");
     });
 
     it("renders list with dash bullet", () => {
-      const ast = parseAst("- Item 1\n- Item 2");
-      expect(renderAstToMarkdown(ast)).toBe("- Item 1\n- Item 2\n");
+      check("- Item 1\n- Item 2", "- Item 1\n- Item 2\n");
     });
 
     it("renders thematic break with dashes", () => {
-      const ast = parseAst("---");
-      expect(renderAstToMarkdown(ast)).toBe("---\n");
+      check("---", "---\n");
     });
 
     it("renders frontmatter yaml node", () => {
-      const ast = parseAst("---\ntitle: Hello\n---\n\n# Hello\n");
-      expect(renderAstToMarkdown(ast)).toBe(
+      check(
+        "---\ntitle: Hello\n---\n\n# Hello\n",
         "---\ntitle: Hello\n---\n\n# Hello\n",
       );
     });
 
     it("renders emphasis with underscore", () => {
-      const ast = parseAst("*italic*");
-      expect(renderAstToMarkdown(ast)).toBe("_italic_\n");
+      check("*italic*", "_italic_\n");
     });
 
     it("renders paragraph followed by list without blank line", () => {
-      const ast = parseAst("Focus areas:\n- Item 1\n- Item 2");
-      expect(renderAstToMarkdown(ast)).toBe(
+      check(
+        "Focus areas:\n- Item 1\n- Item 2",
         "Focus areas:\n- Item 1\n- Item 2\n",
       );
     });
@@ -164,9 +188,7 @@ describe("markdown", () => {
 
   describe("simplifyAst", () => {
     it("flattens inline formatting", () => {
-      const full = parseAst("**bold** and _italic_");
-      const simplified = simplifyAst(full);
-      expect(simplified).toMatchObject({
+      expect(simplifyAst(parseAst("**bold** and _italic_"))).toMatchObject({
         type: "root",
         children: [
           {
