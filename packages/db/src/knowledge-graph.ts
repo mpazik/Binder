@@ -5,6 +5,7 @@ import {
   ok,
   type ResultAsync,
   tryCatch,
+  isObjectNonEmpty,
 } from "@binder/utils";
 import { and, asc, desc, inArray, sql } from "drizzle-orm";
 import {
@@ -22,11 +23,11 @@ import {
   mergeSchema,
   type NamespaceEditable,
   type NamespaceSchema,
+  type PaginationInfo,
+  type QueryParams,
   type RecordFieldDef,
   type RecordRef,
   type RecordSchema,
-  type PaginationInfo,
-  type QueryParams,
   type Transaction,
   type TransactionId,
   type TransactionInput,
@@ -177,8 +178,7 @@ export const openKnowledgeGraph = <C extends EntitySchema<ConfigDataType>>(
       const applyResult = await applyAndSaveTransaction(tx, transaction);
       if (isErr(applyResult)) return applyResult;
 
-      const hasConfigChanges = Object.keys(transaction.configs).length > 0;
-      if (hasConfigChanges) {
+      if (isObjectNonEmpty(transaction.configs)) {
         recordSchemaCache = null;
       }
 

@@ -206,5 +206,11 @@ export const isEqual = (a: unknown, b: unknown): boolean => {
   return a !== a && b !== b;
 };
 
-export const isEmptyObject = (obj: Record<string, unknown>): boolean =>
-  Object.keys(obj).length === 0;
+export const isObjectEmpty = <K extends string, V>(
+  obj?: Record<K, V>,
+): boolean => !obj || Object.keys(obj).length === 0;
+
+// A separate method for better typing
+export const isObjectNonEmpty = <K extends string, V>(
+  obj?: Record<K, V>,
+): obj is Record<K, V> => !isObjectEmpty(obj);

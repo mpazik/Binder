@@ -1,4 +1,4 @@
-import { isEmptyObject, noop, noopAsync } from "@binder/utils";
+import { isObjectEmpty, noop, noopAsync } from "@binder/utils";
 import { type Logger } from "./log.ts";
 import { createUi, type Ui } from "./cli/ui.ts";
 import { createInMemoryFileSystem } from "./lib/filesystem.mock.ts";
@@ -74,7 +74,7 @@ export const createMockRuntimeContextWithDb =
       { ...context, db, views: () => viewCache.load() },
       {
         afterCommit: async (transaction) => {
-          if (isEmptyObject(transaction.configs)) return;
+          if (isObjectEmpty(transaction.configs)) return;
           navigationCache.invalidate();
           viewCache.invalidate();
         },

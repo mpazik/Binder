@@ -196,6 +196,11 @@ export const resolveIncludes = async (
     const field = schema.fields[fieldKey];
     if (!field || field.dataType !== "relation") continue;
     if (!isObjectIncludes(includeValue)) continue;
+    if (
+      !isIncludesQuery(includeValue) &&
+      Object.keys(includeValue).length === 0
+    )
+      continue;
 
     const nestedFilters = isIncludesQuery(includeValue)
       ? includeValue.filters

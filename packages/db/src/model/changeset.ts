@@ -7,7 +7,7 @@ import {
   assertType,
   assertUndefined,
   filterObjectValues,
-  isEmptyObject,
+  isObjectEmpty,
   isEqual,
   mapObjectValues,
   objEntries,
@@ -527,7 +527,7 @@ export const squashChange = (
 
   if (isPatchChange(baseChange) && isPatchChange(change)) {
     const squashedAttrs = squashChangesets(baseChange[1], change[1]);
-    if (isEmptyObject(squashedAttrs)) {
+    if (isObjectEmpty(squashedAttrs)) {
       return null;
     }
     return ["patch", squashedAttrs];

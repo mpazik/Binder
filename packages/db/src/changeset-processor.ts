@@ -5,7 +5,6 @@ import {
   type ErrorObject,
   fail,
   includes,
-  isEmptyObject,
   isErr,
   isTuple,
   objEntries,
@@ -16,6 +15,7 @@ import {
   type ResultAsync,
   throwIfError,
   tryCatch,
+  isObjectNonEmpty,
 } from "@binder/utils";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { createUid, isValidUid } from "./utils/uid.ts";
@@ -983,7 +983,7 @@ const expandInverseRelations = async <N extends NamespaceEditable>(
       }
     }
 
-    if (!isEmptyObject(filteredChangeset)) {
+    if (isObjectNonEmpty(filteredChangeset)) {
       const existing = result[parentRef];
       result[parentRef] = existing
         ? { ...existing, ...filteredChangeset }

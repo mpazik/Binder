@@ -18,6 +18,7 @@ import {
   parseJson,
   type Result,
   type ResultAsync,
+  isObjectNonEmpty,
 } from "@binder/utils";
 import { cliFullConfigSchema } from "../cli-config-schema.ts";
 import type { FileSystem } from "./filesystem.ts";
@@ -303,7 +304,7 @@ export const verifyLog = async (
         },
       );
 
-    if (Object.keys(transaction.configs).length > 0) {
+    if (isObjectNonEmpty(transaction.configs)) {
       schema = applyConfigChangesetToSchema(schema, transaction.configs);
     }
 

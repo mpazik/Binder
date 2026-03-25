@@ -19,7 +19,13 @@ import {
   extractUid,
   isFieldsetNested,
 } from "@binder/db";
-import { assert, assertDefined, includes, isEqual } from "@binder/utils";
+import {
+  assert,
+  assertDefined,
+  includes,
+  isEqual,
+  isObjectNonEmpty,
+} from "@binder/utils";
 import { extractFieldsetFromQuery } from "../utils/query.ts";
 import { matchEntities, type MatcherConfig } from "./entity-matcher.ts";
 import { classifyFields } from "./field-classifier.ts";
@@ -271,7 +277,7 @@ export const diffEntities = (
     }
   }
 
-  if (Object.keys(fieldChanges).length > 0) {
+  if (isObjectNonEmpty(fieldChanges)) {
     changesets.unshift({ uid, ...fieldChanges });
   }
 

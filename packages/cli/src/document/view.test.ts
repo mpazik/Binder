@@ -125,8 +125,7 @@ describe("view", () => {
         check(
           "{description}\n",
           {
-            description:
-              "See [details](../items/{itemKey}) for more info",
+            description: "See [details](../items/{itemKey}) for more info",
           },
           "See [details](../items/{itemKey}) for more info\n",
         );

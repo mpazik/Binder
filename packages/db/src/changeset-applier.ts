@@ -3,7 +3,7 @@ import {
   assertDefined,
   assertFailed,
   includes,
-  isEmptyObject,
+  isObjectEmpty,
   isErr,
   objEntries,
   objKeys,
@@ -43,7 +43,7 @@ export const applyChangeset = async <N extends NamespaceEditable>(
   entityRef: EntityNsRef[N],
   changeset: FieldChangeset,
 ): ResultAsync<void> => {
-  if (isEmptyObject(changeset)) return okVoid;
+  if (isObjectEmpty(changeset)) return okVoid;
 
   if ("id" in changeset) {
     const idChange = normalizeValueChange(changeset.id);

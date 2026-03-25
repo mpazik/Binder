@@ -6,7 +6,7 @@ import {
   err,
   type ErrorObject,
   includes,
-  isEmptyObject,
+  isObjectEmpty,
   isErr,
   normalizeError,
   ok,
@@ -210,7 +210,7 @@ export const initializeDbRuntime = async (
 
   const orchestratorCallbacks: OrchestratorCallbacks = {
     afterCommit: async (transaction) => {
-      if (isEmptyObject(transaction.configs)) return;
+      if (isObjectEmpty(transaction.configs)) return;
       navigationCache.invalidate();
       viewCache.invalidate();
     },
