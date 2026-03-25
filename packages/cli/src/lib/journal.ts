@@ -132,8 +132,15 @@ const readLinesFromBeginning = async function* (
   }
 };
 
-const parseTransaction = (line: string): Result<Transaction> =>
-  parseJson<Transaction>(line, "Failed to parse transaction from log");
+const parseTransaction = (line: string): Result<Transaction> => {
+  const result = parseJson<Transaction>(
+    line,
+    "Failed to parse transaction from log",
+  );
+  if (isErr(result)) return result;
+  const { records = {}, configs = {}, ...rest } = result.data;
+  return ok({ ...rest, records, configs });
+};
 
 export const readTransactionsFromEnd = async function* (
   fs: FileSystem,
@@ -159,7 +166,15 @@ export const logTransaction = (
   fs: FileSystem,
   path: string,
   transaction: Transaction,
-): ResultAsync<void> => fs.appendFile(path, JSON.stringify(transaction) + "\n");
+): ResultAsync<void> => {
+  const { records, configs, ...rest } = transaction;
+  const entry = {
+    ...rest,
+    ...(Object.keys(records).length > 0 && { records }),
+    ...(Object.keys(configs).length > 0 && { configs }),
+  };
+  return fs.appendFile(path, JSON.stringify(entry) + "\n");
+};
 
 export const logTransactions = async (
   fs: FileSystem,
