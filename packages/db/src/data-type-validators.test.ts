@@ -453,7 +453,7 @@ describe("data-type-validators", () => {
       it("rejects headers at or above sectionDepth", () => {
         checkErr("richtext", "## Heading\n\nContent", {
           fieldDef,
-          message: "cannot contain headers at or above depth 2",
+          message: "must use headings below depth 2",
         });
         checkErr("richtext", "# Top level\n\nContent", { fieldDef });
       });

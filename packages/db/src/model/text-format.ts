@@ -196,7 +196,7 @@ export const richtextFormats = {
       if (context.sectionDepth === undefined)
         return "Section format requires sectionDepth to be set on the field definition";
       if (containsHeaderAtOrAboveDepth(value, context.sectionDepth))
-        return `Section content cannot contain headers at or above depth ${context.sectionDepth} (h${"#".repeat(context.sectionDepth)})`;
+        return `Content must use headings below depth ${context.sectionDepth} (use ${"#".repeat(context.sectionDepth + 1)} or deeper) — the field itself renders as a ${"#".repeat(context.sectionDepth)} heading`;
       return undefined;
     },
     isMultiline: true,
