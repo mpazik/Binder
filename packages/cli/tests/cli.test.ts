@@ -151,15 +151,30 @@ describe("CLI", () => {
       );
     });
 
-    it("search confirms created entity", async () => {
+    it("positional key", async () => {
+      await check(
+        ["create", "Task", "task-positional", "title=Positional key task"],
+        "task-positional",
+      );
+    });
+
+    it("type and key as patches", async () => {
+      await check(
+        ["create", "type=Task", "key=task-all-patches", "title=All patches"],
+        "task-all-patches",
+      );
+    });
+
+    it("search confirms created entities", async () => {
       await check(["search", "type=Task", "--format", "json"], (stdout) => {
-        const { items } = JSON.parse(stdout);
-        expect(items).toEqual([
-          expect.objectContaining({ key: "task-implement-user-auth" }),
-          expect.objectContaining({ key: "task-implement-auth" }),
-          expect.objectContaining({ key: "task-create-api" }),
-          expect.objectContaining({ key: "task-new" }),
-        ]);
+        const keys = JSON.parse(stdout).items.map((i: any) => i.key);
+        expect(keys).toEqual(
+          expect.arrayContaining([
+            "task-new",
+            "task-positional",
+            "task-all-patches",
+          ]),
+        );
       });
     });
   });

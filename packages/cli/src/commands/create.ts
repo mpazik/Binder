@@ -10,8 +10,8 @@ import {
 import { type CommandHandlerWithDb, runtimeWithDb } from "../runtime.ts";
 import {
   createPatchExamples,
+  parseCreatePatches,
   parsePatches,
-  patchesDescription,
 } from "../lib/patch-parser.ts";
 import { types } from "../cli/types.ts";
 import { itemFormatOption, namespaceOption } from "../cli/options.ts";
@@ -19,15 +19,14 @@ import type { SerializeItemFormat } from "../utils/serialize.ts";
 import { isStdinPiped, readStdinAsArray } from "../cli/stdin.ts";
 
 const createHandler: CommandHandlerWithDb<{
-  type?: string;
   patches: string[];
   namespace: NamespaceEditable;
   format?: SerializeItemFormat;
 }> = async ({ kg, config, ui, args }) => {
-  const hasPositionalArgs = args.type !== undefined || args.patches.length > 0;
+  let inputs: EntityCreate<typeof args.namespace>[];
 
   if (isStdinPiped()) {
-    if (hasPositionalArgs)
+    if (args.patches.length > 0)
       return fail(
         "conflicting-input",
         "Cannot combine stdin with positional arguments",
@@ -36,35 +35,34 @@ const createHandler: CommandHandlerWithDb<{
     const inputsResult = await readStdinAsArray(EntityCreateInputSchema);
     if (isErr(inputsResult)) return inputsResult;
 
-    const inputs = inputsResult.data as EntityCreate<typeof args.namespace>[];
-    const result = await kg.update(
-      createTransactionInput(config.author, args.namespace, inputs),
-    );
-    if (isErr(result)) return result;
+    inputs = inputsResult.data as EntityCreate<typeof args.namespace>[];
+  } else {
+    const parsedResult = parseCreatePatches(args.patches);
+    if (isErr(parsedResult)) return parsedResult;
+    const { type, fieldPatches } = parsedResult.data;
 
-    ui.printData(result.data, args.format);
-    return ok(undefined);
+    const schemaResult = await kg.getSchema(args.namespace);
+    if (isErr(schemaResult)) return schemaResult;
+
+    if (!schemaResult.data.types[type])
+      return fail(
+        "type-not-found",
+        `Unknown type '${type}'. Run binder schema to see available types.`,
+      );
+
+    const fieldsResult = parsePatches(fieldPatches, schemaResult.data);
+    if (isErr(fieldsResult)) return fieldsResult;
+
+    inputs = [
+      {
+        type: type as EntityNsType[typeof args.namespace],
+        ...fieldsResult.data,
+      },
+    ];
   }
 
-  if (!args.type)
-    return fail(
-      "missing-type",
-      "Provide a type (e.g., binder create Task) or pipe data via stdin",
-    );
-
-  const schemaResult = await kg.getSchema(args.namespace);
-  if (isErr(schemaResult)) return schemaResult;
-
-  const fieldsResult = parsePatches(args.patches, schemaResult.data);
-  if (isErr(fieldsResult)) return fieldsResult;
-
-  const entityInput = {
-    type: args.type as EntityNsType[typeof args.namespace],
-    ...fieldsResult.data,
-  };
-
   const result = await kg.update(
-    createTransactionInput(config.author, args.namespace, [entityInput]),
+    createTransactionInput(config.author, args.namespace, inputs),
   );
   if (isErr(result)) return result;
 
@@ -73,22 +71,23 @@ const createHandler: CommandHandlerWithDb<{
 };
 
 export const CreateCommand = types({
-  command: "create [type] [patches..]",
+  command: "create [patches..]",
   aliases: ["add"],
   describe: "create with field=value patches or stdin",
   builder: (yargs: Argv) =>
     yargs
-      .positional("type", {
-        describe: "type (required unless using stdin)",
-        type: "string",
-      })
       .positional("patches", {
-        describe: patchesDescription,
+        describe:
+          "type, optional key, then field patches — or all as field=value patches",
         type: "string",
         array: true,
         default: [],
       })
       .options({ ...namespaceOption, ...itemFormatOption })
-      .example(createPatchExamples("create Task")),
+      .example([
+        ["$0 create Task title=Hello", "Create entity"],
+        ["$0 create Task my-key title=Hello", "Create with key"],
+        ...createPatchExamples("create Task"),
+      ]),
   handler: runtimeWithDb(createHandler),
 });

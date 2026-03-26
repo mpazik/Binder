@@ -54,9 +54,7 @@ type PatchOperation = {
 };
 
 const trimSingleQuotes = (str: string): string => {
-  if (str.startsWith("'") && str.endsWith("'")) {
-    return str.slice(1, -1);
-  }
+  if (str.startsWith("'") && str.endsWith("'")) return str.slice(1, -1);
   return str;
 };
 
@@ -71,7 +69,7 @@ const parsePatchOperation = (patch: string): PatchOperation | null => {
   const [, field, accessor, operator, value] = match;
   return {
     field: field!,
-    accessor: accessor,
+    accessor,
     operator: operator as PatchOperation["operator"],
     value: trimSingleQuotes(value!),
   };
@@ -265,6 +263,94 @@ const mergeMutations = (
   const existingOps = toMutationArray(existing)!;
   const incomingOps = toMutationArray(incoming)!;
   return [...existingOps, ...incomingOps] as FieldChangeInput;
+};
+
+// Matches any patch operation: field=val, field+=val, field-=val, field:pos--
+const isPatch = (s: string): boolean =>
+  /^\w+(?::[^\s=]+)?(?:[-+]*=|--)/.test(s);
+
+const CREATE_USAGE = "binder create <type> [key] [field=value ...]";
+
+export type CreatePatchesResult = {
+  /** Resolved entity type */
+  type: string;
+  /** Normalized field patches ready to pass to parsePatches */
+  fieldPatches: string[];
+};
+
+/**
+ * Parses raw positional args from the create command into a type and field patches.
+ *
+ * Positional grammar:
+ *   [type] [key] [field=value ...]  — leading non-patch items are type then key
+ *   [field=value ...]               — all patches; type must be given as type=X
+ *
+ * Errors on: missing type, extra positionals, duplicate type/key across both forms.
+ */
+export const parseCreatePatches = (
+  patches: string[],
+): Result<CreatePatchesResult> => {
+  let type: string | undefined;
+  let key: string | undefined;
+  let startIdx = 0;
+
+  if (patches.length > 0 && !isPatch(patches[0]!)) {
+    type = patches[0];
+    startIdx = 1;
+
+    if (patches.length > 1 && !isPatch(patches[1]!)) {
+      key = patches[1];
+      startIdx = 2;
+    }
+  }
+
+  // All items from startIdx onward must be patches
+  const fieldPatches = patches.slice(startIdx);
+  for (const item of fieldPatches) {
+    if (!isPatch(item))
+      return fail(
+        "extra-positionals",
+        `Unexpected positional '${item}'. Usage: ${CREATE_USAGE}`,
+      );
+  }
+
+  // Conflict: type given both as positional and as type=X patch
+  if (type !== undefined) {
+    const conflict = fieldPatches.find((p) => /^type=/.test(p));
+    if (conflict)
+      return fail(
+        "duplicate-type",
+        `Type given twice: as positional '${type}' and as patch '${conflict}'.`,
+      );
+  }
+
+  // Conflict: key given both as positional and as key=X patch
+  if (key !== undefined) {
+    const conflict = fieldPatches.find((p) => /^key=/.test(p));
+    if (conflict)
+      return fail(
+        "duplicate-key",
+        `Key given twice: as positional '${key}' and as patch '${conflict}'.`,
+      );
+  }
+
+  // Extract type from type=X patch when not given as a positional
+  let remainingPatches = fieldPatches;
+  if (type === undefined) {
+    const typeIdx = remainingPatches.findIndex((p) => /^type=(.+)$/s.test(p));
+    if (typeIdx >= 0) {
+      type = remainingPatches[typeIdx]!.match(/^type=(.+)$/s)![1];
+      remainingPatches = remainingPatches.filter((_, i) => i !== typeIdx);
+    }
+  }
+
+  if (!type)
+    return fail("missing-type", `Provide a type. Usage: ${CREATE_USAGE}`);
+
+  // Positional key becomes a regular key=X patch
+  if (key !== undefined) remainingPatches = [...remainingPatches, `key=${key}`];
+
+  return ok({ type, fieldPatches: remainingPatches });
 };
 
 export const parsePatches = (

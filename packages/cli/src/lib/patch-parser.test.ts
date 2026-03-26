@@ -14,7 +14,11 @@ import {
   mockStepsField,
 } from "@binder/db/mocks";
 import { isErr } from "@binder/utils";
-import { parseFieldChange, parsePatches } from "./patch-parser.ts";
+import {
+  parseFieldChange,
+  parsePatches,
+  parseCreatePatches,
+} from "./patch-parser.ts";
 
 describe("patch-parser", () => {
   const check = (
@@ -498,6 +502,69 @@ describe("patch-parser", () => {
     it("strips nested surrounding quotes from value", () => {
       check(`'title="value"'`, "value");
       check(`"title='value'"`, "value");
+    });
+  });
+
+  describe("parseCreatePatches", () => {
+    const check = (patches: string[], type: string, fieldPatches: string[]) =>
+      expect(parseCreatePatches(patches)).toBeOkWith({ type, fieldPatches });
+
+    const checkErr = (patches: string[], key: string) =>
+      expect(parseCreatePatches(patches)).toBeErrWithKey(key);
+
+    describe("type", () => {
+      it("takes first non-patch as type", () => {
+        check(["Task"], "Task", []);
+      });
+
+      it("extracts type from type=X patch when no positional type", () => {
+        check(["type=Task", "key=my-key", "title=Hello"], "Task", [
+          "key=my-key",
+          "title=Hello",
+        ]);
+      });
+
+      it("errors when type is missing", () => {
+        checkErr([], "missing-type");
+      });
+
+      it("errors when first item is a patch and no type=X patch provided", () => {
+        checkErr(["title=Hello"], "missing-type");
+      });
+
+      it("errors on duplicate type", () => {
+        checkErr(["Task", "type=Task"], "duplicate-type");
+      });
+    });
+
+    describe("key", () => {
+      it("takes second non-patch as key and appends it as key=X patch", () => {
+        check(["Task", "my-key", "title=Hello"], "Task", [
+          "title=Hello",
+          "key=my-key",
+        ]);
+      });
+
+      it("accepts key as patch", () => {
+        check(["Task", "title=Hello", "key=my-key"], "Task", [
+          "title=Hello",
+          "key=my-key",
+        ]);
+      });
+
+      it("errors on duplicate key", () => {
+        checkErr(["Task", "my-key", "key=my-key"], "duplicate-key");
+      });
+    });
+
+    describe("extra positionals", () => {
+      it("errors on third non-patch item", () => {
+        checkErr(["Task", "my-key", "extra"], "extra-positionals");
+      });
+
+      it("errors on non-patch item after a patch", () => {
+        checkErr(["title=Hello", "Task"], "extra-positionals");
+      });
     });
   });
 });
