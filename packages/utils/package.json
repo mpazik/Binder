@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "date-fns": "^4.1.0",
-    "transliteration": "^2.3.5"
+    "transliteration": "^2.6.1"
   },
   "scripts": {
     "format": "bun prettier --write --ignore-path ../../.prettierignore .",

@@ -257,7 +257,7 @@ export const extractFieldValues = (
       const nextLiteral =
         nextLiteralIndex < template.length ? template[nextLiteralIndex] : null;
 
-      let value = "";
+      let value: string;
       if (nextLiteral) {
         const literalIndex = data.indexOf(nextLiteral, dataIndex);
         if (literalIndex === -1) {

@@ -1,5 +1,5 @@
 import js from "@eslint/js";
-import importPlugin from "eslint-plugin-import";
+import importPlugin from "eslint-plugin-import-x";
 import unusedImports from "eslint-plugin-unused-imports";
 import { includeIgnoreFile } from "@eslint/compat";
 import globals from "globals";
@@ -20,7 +20,7 @@ export default ts.config(
       },
     },
     plugins: {
-      import: importPlugin,
+      "import-x": importPlugin,
       "unused-imports": unusedImports,
     },
     rules: {
@@ -37,8 +37,8 @@ export default ts.config(
       "@typescript-eslint/ban-types": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "unused-imports/no-unused-imports": "error",
-      "import/order": "error",
-      "import/no-duplicates": "error",
+      "import-x/order": "error",
+      "import-x/no-duplicates": "error",
       "no-restricted-syntax": [
         "error",
         {
@@ -54,7 +54,7 @@ export default ts.config(
       ],
     },
     settings: {
-      "import/resolver": {
+      "import-x/resolver": {
         node: {},
       },
     },
