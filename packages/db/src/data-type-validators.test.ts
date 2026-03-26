@@ -290,7 +290,7 @@ describe("data-type-validators", () => {
       it("rejects blank lines", () => {
         checkErr("plaintext", "para1\n\npara2", {
           fieldDef,
-          message: "must not contain blank lines",
+          message: "delimited by blank lines",
         });
       });
     });
@@ -309,7 +309,7 @@ describe("data-type-validators", () => {
 
     it("uses block format by default - rejects blank lines", () => {
       checkErr("richtext", "para1\n\npara2", {
-        message: "must not contain blank lines",
+        message: "delimited by blank lines",
       });
     });
 
@@ -387,7 +387,7 @@ describe("data-type-validators", () => {
       it("rejects blank lines", () => {
         checkErr("richtext", "para1\n\npara2", {
           fieldDef,
-          message: "must not contain blank lines",
+          message: "delimited by blank lines",
         });
       });
 
@@ -461,7 +461,7 @@ describe("data-type-validators", () => {
       it("rejects horizontal rules", () => {
         checkErr("richtext", "### Heading\n\n---\n\nMore content", {
           fieldDef,
-          message: "cannot contain horizontal rules",
+          message: "reserved as delimiters",
         });
       });
 
@@ -490,7 +490,7 @@ describe("data-type-validators", () => {
       it("still rejects horizontal rules outside code blocks", () => {
         checkErr("richtext", "```\n---\n```\n\n---\n\nContent", {
           fieldDef,
-          message: "cannot contain horizontal rules",
+          message: "reserved as delimiters",
         });
       });
 
@@ -523,7 +523,7 @@ describe("data-type-validators", () => {
       it("rejects horizontal rules", () => {
         checkErr("richtext", "section1\n---\nsection2", {
           fieldDef,
-          message: "cannot contain horizontal rules",
+          message: "delimited by horizontal rules",
         });
         checkErr("richtext", "# Title\n---\ncontent", { fieldDef });
       });
@@ -537,7 +537,7 @@ describe("data-type-validators", () => {
       it("still rejects horizontal rules outside code blocks", () => {
         checkErr("richtext", "```\n---\n```\n\n---", {
           fieldDef,
-          message: "cannot contain horizontal rules",
+          message: "delimited by horizontal rules",
         });
       });
     });

@@ -106,7 +106,7 @@ export const plaintextFormats = {
       "Multiple lines of text without blank lines. Multiple values are separated by blank lines.",
     validate: createPatternValidator(
       /^(?!.*\n\n).*$/s,
-      "Value must not contain blank lines",
+      "Paragraph items are delimited by blank lines (\\n\\n), so individual values cannot contain them",
     ),
     isMultiline: true,
     delimiter: "blankline",
@@ -177,7 +177,8 @@ export const richtextFormats = {
     description:
       "Single content block such as a paragraph, list, or code block. No headers, blank lines, or horizontal rules allowed.",
     validate: (value) => {
-      if (/\n\n/.test(value)) return "Value must not contain blank lines";
+      if (/\n\n/.test(value))
+        return "Block items are delimited by blank lines (\\n\\n), so individual values cannot contain them";
       if (containsMarkdownHeader(value)) return "Block cannot contain headers";
       if (containsHorizontalRule(value))
         return "Block cannot contain horizontal rules (---)";
@@ -192,7 +193,7 @@ export const richtextFormats = {
       "Content section within a heading hierarchy. Requires sectionDepth to specify the heading level this section lives under. Only headers deeper than sectionDepth are allowed.",
     validate: (value, context) => {
       if (containsHorizontalRule(value))
-        return "Section cannot contain horizontal rules (---)";
+        return "Section cannot contain horizontal rules (---) — they are reserved as delimiters in document fields";
       if (context.sectionDepth === undefined)
         return "Section format requires sectionDepth to be set on the field definition";
       if (containsHeaderAtOrAboveDepth(value, context.sectionDepth))
@@ -208,7 +209,7 @@ export const richtextFormats = {
       "Complete document with full structure including headers. Horizontal rules (---) serve as delimiters for multi-value fields.",
     validate: (value) => {
       if (containsHorizontalRule(value))
-        return "Document cannot contain horizontal rules (---)";
+        return "Documents are delimited by horizontal rules (---), so individual values cannot contain them";
       return undefined;
     },
     isMultiline: true,
