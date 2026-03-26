@@ -93,6 +93,14 @@ The `where:` prop filters multi-value relation fields before rendering:
 
 **Extraction**: Entities under a `where:`-filtered section automatically inherit the filter's field values so a task listed under "In progress" gets `status: active`. When the same relation field appears in multiple `where:` sections, extracted entities are concatenated.
 
+**Creating new relation children during sync**: When a new item appears in a relation field section, the sync engine must determine its type to create it. Type is resolved in this order:
+
+1. An explicit `type` value in the rendered child content (e.g. a `{type}` slot rendered in the sub-view)
+2. The field's global `range`, if it is constrained to exactly one type
+3. The parent entity's type-level `only` constraint for that field, if it is constrained to exactly one type
+
+If none of these uniquely identifies a type, sync fails with an error. To avoid this, either ensure the sub-view renders a `{type}` slot, constrain the field to a single type via `range`, or add an `{only: SingleType}` constraint on the field in the parent entity's type definition.
+
 ### Preamble (Frontmatter)
 
 Views can declare a `preamble`: a list of fields rendered as YAML frontmatter at the top of the file:

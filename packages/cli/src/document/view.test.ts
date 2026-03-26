@@ -1,14 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import "@binder/utils/tests";
 import { pick, throwIfError } from "@binder/utils";
-import {
-  type FieldsetNested,
-  type EntityKey,
-  type EntitySchema,
-  coreRecordSchema,
-  mergeSchema,
-  newId,
-} from "@binder/db";
+import { type FieldsetNested } from "@binder/db";
 import {
   mockRecordSchema,
   mockProjectRecord,
@@ -1137,46 +1130,28 @@ Excellent first week. Schema is minimal and consistent.
         );
       });
 
-      describe("section view with custom schema", () => {
-        const journalSchema = mergeSchema(coreRecordSchema(), {
-          fields: {
-            dayPeriod: {
-              id: newId(100, 0),
-              key: "dayPeriod" as EntityKey,
-              name: "Day Period",
-              dataType: "period",
-              periodFormat: "day",
-            },
-            summary: {
-              id: newId(101, 0),
-              key: "summary" as EntityKey,
-              name: "Summary",
-              dataType: "richtext",
-              richtextFormat: "block",
-            },
-          },
-          types: {},
-        }) as EntitySchema;
-
-        const daySummaryView = createViewEntity(
-          "day-summary",
-          "### {dayPeriod}\n\n{summary}\n",
+      describe("section view with children field", () => {
+        const childSummaryView = createViewEntity(
+          "child-summary",
+          "### {title}\n\n{description}\n",
           { viewFormat: "section" },
         );
-
-        const daySummaryViews: Views = [...mockDefaultViews, daySummaryView];
+        const childSummaryViews: Views = [
+          ...mockDefaultViews,
+          childSummaryView,
+        ];
 
         it("empty block fields in some entities", () => {
           const viewAst = parseView(
-            "## Days Summary\n\n{children|view:day-summary}\n\n## Summary\n\n{description}\n",
+            "## Children Summary\n\n{children|view:child-summary}\n\n## Description\n\n{description}\n",
           );
           const snapAst = parseMarkdown(
-            "## Days Summary\n\n### 2026-02-09\n\n### 2026-02-10\n\nGood day.\n\n## Summary\n\n",
+            "## Children Summary\n\n### 2026-02-09\n\n### 2026-02-10\n\nGood day.\n\n## Description\n\n",
           );
           const result = throwIfError(
             extractFieldsAst(
-              journalSchema,
-              daySummaryViews,
+              mockRecordSchema,
+              childSummaryViews,
               viewAst,
               snapAst,
               {},
@@ -1184,8 +1159,8 @@ Excellent first week. Schema is minimal and consistent.
           );
           expect(result).toEqual({
             children: [
-              { dayPeriod: "2026-02-09", summary: null },
-              { dayPeriod: "2026-02-10", summary: "Good day." },
+              { title: "2026-02-09", description: null },
+              { title: "2026-02-10", description: "Good day." },
             ],
             description: null,
           });
@@ -1193,38 +1168,36 @@ Excellent first week. Schema is minimal and consistent.
 
         it("realistic base with unchanged null fields produces sparse diff", () => {
           const viewAst = parseView(
-            "## Days Summary\n\n{children|view:day-summary}\n\n## Summary\n\n{description}\n",
+            "## Children Summary\n\n{children|view:child-summary}\n\n## Description\n\n{description}\n",
           );
           const snapAst = parseMarkdown(
-            "## Days Summary\n\n### 2026-02-24\n\n### 2026-02-25\n\nGood day.\n\n## Summary\n\n",
+            "## Children Summary\n\n### 2026-02-24\n\n### 2026-02-25\n\nGood day.\n\n## Description\n\n",
           );
           const base = {
             children: [
-              {
-                uid: "_day24000001",
-                dayPeriod: "2026-02-24",
-                summary: null,
-              },
-              {
-                uid: "_day25000002",
-                dayPeriod: "2026-02-25",
-                summary: null,
-              },
+              { uid: "_child0000001", title: "2026-02-24", description: null },
+              { uid: "_child0000002", title: "2026-02-25", description: null },
             ],
             description: null,
           };
 
           const result = throwIfError(
             extractFieldsAst(
-              journalSchema,
-              daySummaryViews,
+              mockRecordSchema,
+              childSummaryViews,
               viewAst,
               snapAst,
               base,
             ),
           );
+          // UIDs from base entities must be propagated into extracted segments
+          // so that diffOwnedChildren can match them by uid and avoid treating
+          // unchanged items as new entities to create.
           expect(result).toEqual({
-            children: [{}, { summary: "Good day." }],
+            children: [
+              { uid: "_child0000001" },
+              { uid: "_child0000002", description: "Good day." },
+            ],
           });
         });
       });

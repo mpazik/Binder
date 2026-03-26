@@ -164,8 +164,10 @@ const diffSingle = async (
   const normalizedResult = await normalizeReferences(entity, schema, kg);
   if (isErr(normalizedResult)) return normalizedResult;
 
-  return ok(
-    diffEntities(schema, normalizedResult.data, lookupResult.data.kgEntity),
+  return diffEntities(
+    schema,
+    normalizedResult.data,
+    lookupResult.data.kgEntity,
   );
 };
 
@@ -192,13 +194,18 @@ const diffQueryWithEntities = async (
     kgResult.data.items,
     interpolatedQuery.data,
   );
+  if (isErr(diffResult)) return diffResult;
 
-  const toDelete = diffResult.toRemove.map((uid) => ({
+  const toDelete = diffResult.data.toRemove.map((uid) => ({
     uid,
     $delete: true as const,
   }));
 
-  return ok([...diffResult.toCreate, ...diffResult.toUpdate, ...toDelete]);
+  return ok([
+    ...diffResult.data.toCreate,
+    ...diffResult.data.toUpdate,
+    ...toDelete,
+  ]);
 };
 
 const diffDocument = async (
@@ -227,11 +234,13 @@ const diffDocument = async (
   const normalizedResult = await normalizeReferences(entity, schema, kg);
   if (isErr(normalizedResult)) return normalizedResult;
 
-  const changesets: ChangesetsInput = diffEntities(
+  const diffResult = diffEntities(
     schema,
     normalizedResult.data,
     lookupResult.data.kgEntity,
   );
+  if (isErr(diffResult)) return diffResult;
+  const changesets: ChangesetsInput = diffResult.data;
 
   for (const projection of projections) {
     const projectionResult = await diffQueryWithEntities(
@@ -611,12 +620,9 @@ export const extractModifiedFileChanges = async (
   const configConflicts = detectCrossFileConflicts(configs);
   if (isErr(configConflicts)) return configConflicts;
 
-  const mergedRecords = mergeSameRefChangesets(records);
-  const mergedConfigs = mergeSameRefChangesets(configs);
-
   return ok({
     author: config.author,
-    records: mergedRecords,
-    configs: mergedConfigs,
+    records: mergeSameRefChangesets(records),
+    configs: mergeSameRefChangesets(configs),
   });
 };

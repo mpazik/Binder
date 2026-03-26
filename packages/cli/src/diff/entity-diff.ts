@@ -17,14 +17,20 @@ import {
   coreIdentityFieldKeys,
   createUid,
   extractUid,
+  getTypeFieldAttrs,
+  getTypeFieldKey,
   isFieldsetNested,
 } from "@binder/db";
 import {
   assert,
   assertDefined,
+  fail,
   includes,
   isEqual,
+  isErr,
   isObjectNonEmpty,
+  ok,
+  type Result,
 } from "@binder/utils";
 import { extractFieldsetFromQuery } from "../utils/query.ts";
 import { matchEntities, type MatcherConfig } from "./entity-matcher.ts";
@@ -47,13 +53,30 @@ const collectNonIdentityFields = (
   return fields;
 };
 
+const resolveEffectiveRange = (
+  schema: EntitySchema,
+  fieldKey: FieldKey,
+  parentType: EntityType | undefined,
+  fieldRange: EntityType[] | undefined,
+): EntityType[] | undefined => {
+  if (fieldRange !== undefined) return fieldRange;
+  if (!parentType) return undefined;
+  const typeDef = schema.types[parentType];
+  if (!typeDef) return undefined;
+  const fieldRef = typeDef.fields.find((f) => getTypeFieldKey(f) === fieldKey);
+  const only = getTypeFieldAttrs(fieldRef!)?.only as EntityType[] | undefined;
+  return only;
+};
+
 const buildEntityCreate = (
   schema: EntitySchema,
   node: FieldsetNested,
   generatedUid: RecordUid,
-  range?: EntityType[],
+  effectiveRange: EntityType[] | undefined,
 ): EntityChangesetInput<"record"> | null => {
-  const type = getType(node) ?? (range?.length === 1 ? range[0] : undefined);
+  const type =
+    getType(node) ??
+    (effectiveRange?.length === 1 ? effectiveRange[0] : undefined);
   if (!type) return null;
 
   return {
@@ -70,10 +93,11 @@ const extractOwnedChildren = (value: FieldNestedValue): FieldsetNested[] => {
 
 const diffOwnedChildren = (
   schema: EntitySchema,
+  fieldKey: FieldKey,
   newChildren: FieldsetNested[],
   oldChildren: FieldsetNested[],
-  range?: EntityType[],
-): { changesets: ChangesetsInput; mutations: ListMutation[] } => {
+  effectiveRange: EntityType[] | undefined,
+): Result<{ changesets: ChangesetsInput; mutations: ListMutation[] }> => {
   const changesets: ChangesetsInput = [];
   const mutations: ListMutation[] = [];
 
@@ -88,9 +112,16 @@ const diffOwnedChildren = (
       schema,
       newChildren[newIdx]!,
       generatedUid,
-      range,
+      effectiveRange,
     );
-    if (created) changesets.push(created);
+    if (!created) {
+      return fail(
+        "cannot_determine_type",
+        `Cannot create entity for relation field '${fieldKey}': type cannot be determined. ` +
+          `Add a range or only constraint to the field, or include a type in the document.`,
+      );
+    }
+    changesets.push(created);
     mutations.push(["insert", generatedUid]);
   }
 
@@ -102,28 +133,32 @@ const diffOwnedChildren = (
   }
 
   for (const { newIndex, oldIndex } of matchResult.matches) {
-    changesets.push(
-      ...diffEntities(schema, newChildren[newIndex]!, oldChildren[oldIndex]!),
+    const result = diffEntities(
+      schema,
+      newChildren[newIndex]!,
+      oldChildren[oldIndex]!,
     );
+    if (isErr(result)) return result;
+    changesets.push(...result.data);
   }
 
-  return { changesets, mutations };
+  return ok({ changesets, mutations });
 };
 
 const diffSingleRelation = (
   schema: EntitySchema,
   newValue: FieldNestedValue,
   oldValue: FieldNestedValue,
-): ChangesetsInput => {
-  if (!isFieldsetNested(newValue) || !isFieldsetNested(oldValue)) return [];
+): Result<ChangesetsInput> => {
+  if (!isFieldsetNested(newValue) || !isFieldsetNested(oldValue)) return ok([]);
 
   const oldUid = extractUid(oldValue);
   const newUid = extractUid(newValue);
 
   // When newUid is undefined but oldUid exists, we're editing the same related
   // entity (extracted from markdown doesn't include uid). Set uid from old.
-  if (!oldUid) return [];
-  if (newUid !== undefined && oldUid !== newUid) return [];
+  if (!oldUid) return ok([]);
+  if (newUid !== undefined && oldUid !== newUid) return ok([]);
 
   const newWithUid = newUid ? newValue : { ...newValue, uid: oldUid };
   return diffEntities(schema, newWithUid, oldValue);
@@ -193,8 +228,9 @@ const diffField = (
   fieldKey: FieldKey,
   newValue: FieldNestedValue,
   oldValue: FieldNestedValue,
-): FieldDiffResult | null => {
-  if (includes(coreIdentityFieldKeys, fieldKey)) return null;
+  parentType: EntityType | undefined,
+): Result<FieldDiffResult | null> => {
+  if (includes(coreIdentityFieldKeys, fieldKey)) return ok(null);
 
   const fieldDef = schema.fields[fieldKey];
 
@@ -203,17 +239,25 @@ const diffField = (
     const oldChildren = extractOwnedChildren(oldValue);
 
     if (newChildren.length > 0 || oldChildren.length > 0) {
-      const result = diffOwnedChildren(
+      const effectiveRange = resolveEffectiveRange(
         schema,
-        newChildren,
-        oldChildren,
+        fieldKey,
+        parentType,
         fieldDef.range,
       );
+      const result = diffOwnedChildren(
+        schema,
+        fieldKey,
+        newChildren,
+        oldChildren,
+        effectiveRange,
+      );
+      if (isErr(result)) return result;
       const fieldChange =
-        result.mutations.length > 0
-          ? (result.mutations as FieldValue)
+        result.data.mutations.length > 0
+          ? (result.data.mutations as FieldValue)
           : undefined;
-      return { changesets: result.changesets, fieldChange };
+      return ok({ changesets: result.data.changesets, fieldChange });
     }
 
     // No nested fieldsets (e.g. relation refs stored as strings/tuples).
@@ -228,35 +272,38 @@ const diffField = (
         `oldValue must be a nested fieldset when newValue is nested (got ${typeof oldValue}). ` +
           `Ensure the navigation item or view includes the relation field.`,
       );
-      return { changesets: diffSingleRelation(schema, newValue, oldValue) };
+      const result = diffSingleRelation(schema, newValue, oldValue);
+      if (isErr(result)) return result;
+      return ok({ changesets: result.data });
     }
   }
 
-  if (newValue === undefined) return null;
+  if (newValue === undefined) return ok(null);
   if (newValue === null && (oldValue === null || oldValue === undefined))
-    return null;
+    return ok(null);
 
   if (fieldDef?.allowMultiple) {
     const mutations = diffMultipleValues(newValue, oldValue);
-    if (mutations.length === 0) return null;
-    return { fieldChange: mutations as FieldValue };
+    if (mutations.length === 0) return ok(null);
+    return ok({ fieldChange: mutations as FieldValue });
   }
 
   if (!isEqual(newValue, oldValue)) {
-    return { fieldChange: newValue as FieldValue };
+    return ok({ fieldChange: newValue as FieldValue });
   }
 
-  return null;
+  return ok(null);
 };
 
 export const diffEntities = (
   schema: EntitySchema,
   newEntity: FieldsetNested,
   oldEntity: FieldsetNested,
-): ChangesetsInput => {
+): Result<ChangesetsInput> => {
   const uid = extractUid(oldEntity);
   assertDefined(uid, "uid in diffEntities oldEntity");
 
+  const parentType = getType(oldEntity);
   const changesets: ChangesetsInput = [];
   const fieldChanges: Record<FieldKey, FieldValue> = {};
 
@@ -266,14 +313,16 @@ export const diffEntities = (
       fieldKey,
       newEntity[fieldKey],
       oldEntity[fieldKey],
+      parentType,
     );
-    if (!result) continue;
+    if (isErr(result)) return result;
+    if (!result.data) continue;
 
-    if (result.changesets !== undefined) {
-      changesets.push(...result.changesets);
+    if (result.data.changesets !== undefined) {
+      changesets.push(...result.data.changesets);
     }
-    if (result.fieldChange !== undefined) {
-      fieldChanges[fieldKey] = result.fieldChange;
+    if (result.data.fieldChange !== undefined) {
+      fieldChanges[fieldKey] = result.data.fieldChange;
     }
   }
 
@@ -281,7 +330,7 @@ export const diffEntities = (
     changesets.unshift({ uid, ...fieldChanges });
   }
 
-  return changesets;
+  return ok(changesets);
 };
 
 export type DiffQueryResult = {
@@ -310,7 +359,7 @@ export const diffQueryResults = (
   newEntities: FieldsetNested[],
   oldEntities: FieldsetNested[],
   query: QueryParams,
-): DiffQueryResult => {
+): Result<DiffQueryResult> => {
   const toCreate: EntityChangesetInput<"record">[] = [];
   const toUpdate: ChangesetsInput<"record"> = [];
 
@@ -329,9 +378,13 @@ export const diffQueryResults = (
   }
 
   for (const { newIndex, oldIndex } of matchResult.matches) {
-    toUpdate.push(
-      ...diffEntities(schema, newEntities[newIndex]!, oldEntities[oldIndex]!),
+    const result = diffEntities(
+      schema,
+      newEntities[newIndex]!,
+      oldEntities[oldIndex]!,
     );
+    if (isErr(result)) return result;
+    toUpdate.push(...result.data);
   }
 
   const toRemove = matchResult.toRemove.map((oldIdx) => {
@@ -340,5 +393,5 @@ export const diffQueryResults = (
     return uid as EntityUid;
   });
 
-  return { toCreate, toUpdate, toRemove };
+  return ok({ toCreate, toUpdate, toRemove });
 };

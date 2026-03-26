@@ -19,6 +19,7 @@ import {
   type FieldsetNested,
   type FieldValue,
   type Filters,
+  extractUid,
   getDelimiterString,
   getFieldDefNested,
   getNestedValue,
@@ -172,7 +173,7 @@ const DEFAULT_VIEW_BY_POSITION: Record<SlotPosition, string> = {
 const getItemView = (slot: ViewFieldSlot, views: Views): ViewEntity => {
   const viewKey = slot.props?.view;
   if (viewKey) {
-    const found = views?.find((t) => t.key === viewKey);
+    const found = views.find((t) => t.key === viewKey);
     if (found) return found;
   }
   const defaultKey = DEFAULT_VIEW_BY_POSITION[getSlotPosition(slot)];
@@ -623,16 +624,27 @@ const extractRelationSegments = (
 
   const entities: FieldsetNested[] = [];
   for (let i = 0; i < segments.length; i++) {
-    const segmentAst = parseMarkdown(segments[i]!);
+    const baseChild = baseChildren[i];
     const result = extractFieldsAst(
       schema,
       views,
       itemView.viewAst,
-      segmentAst,
-      baseChildren[i] ?? {},
+      parseMarkdown(segments[i]!),
+      baseChild ?? {},
     );
     if (isErr(result)) return result;
-    entities.push(result.data);
+
+    // The sub-view template doesn't render {uid}, so the accumulator never
+    // extracts it. Carry the base entity's uid forward so diffOwnedChildren
+    // can match this segment to the existing entity by uid rather than falling
+    // back to content similarity (which breaks when oldChildren is empty).
+    const baseUid = baseChild !== undefined ? extractUid(baseChild) : undefined;
+    const entity =
+      baseUid && !extractUid(result.data)
+        ? { uid: baseUid, ...result.data }
+        : result.data;
+
+    entities.push(entity);
   }
 
   return ok(entities);
@@ -1068,12 +1080,9 @@ export const extractFieldsAst = (
     }
 
     if (blockNodes.length === 0 && startIndex === state.snapIndex) {
-      if (isMultiValueRelation(fieldDef)) {
+      if (isMultiValueRelation(fieldDef))
         accumulateRelationValue(fieldPath, [], slot, true);
-        state.viewIndex++;
-        return true;
-      }
-      accumulator.set(fieldPath, null);
+      else accumulator.set(fieldPath, null);
       state.viewIndex++;
       return true;
     }

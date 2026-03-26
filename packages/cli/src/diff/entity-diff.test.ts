@@ -4,12 +4,15 @@ import type {
   EntitySchema,
   EntityType,
   Filters,
+  FieldKey,
   FieldsetNested,
   RecordUid,
 } from "@binder/db";
 import {
   mockRecordSchema,
   mockProjectRecord,
+  mockProjectType,
+  mockProjectTypeKey,
   mockProjectUid,
   mockTask1Record,
   mockTask1Uid,
@@ -19,7 +22,7 @@ import {
   mockTask3Uid,
   mockTaskTypeKey,
 } from "@binder/db/mocks";
-import { omit } from "@binder/utils";
+import { isErr, omit, throwIfError } from "@binder/utils";
 import {
   diffEntities,
   diffQueryResults,
@@ -40,8 +43,23 @@ describe("entity-diff", () => {
       expected: ChangesetsInput,
       opts?: { schema?: EntitySchema },
     ) => {
-      const result = diffEntities(opts?.schema ?? schema, newEntity, oldEntity);
+      const result = throwIfError(
+        diffEntities(opts?.schema ?? schema, newEntity, oldEntity),
+      );
       expect(result).toEqual(expected);
+    };
+
+    const checkError = (
+      newEntity: FieldsetNested,
+      oldEntity: FieldsetNested,
+      pattern: string | RegExp,
+      opts?: { schema?: EntitySchema },
+    ) => {
+      const result = diffEntities(opts?.schema ?? schema, newEntity, oldEntity);
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) {
+        expect(result.error.message ?? result.error.key).toMatch(pattern);
+      }
     };
 
     describe("field diffing", () => {
@@ -233,7 +251,9 @@ describe("entity-diff", () => {
         );
       });
 
-      it("emits insert but no create when range has multiple types", () => {
+      it("errors when range has multiple types and entity has no type", () => {
+        // When the range is ambiguous and no type can be inferred, we must
+        // error — emitting an orphan insert causes "Record not found" downstream.
         const multiRangeSchema: EntitySchema = {
           ...schema,
           fields: {
@@ -244,16 +264,60 @@ describe("entity-diff", () => {
             },
           },
         };
-        check(
+        checkError(
           { ...project, tasks: [task1, { title: "Ambiguous Task" }] },
           { ...project, tasks: [task1] },
-          [
-            {
-              uid: mockProjectUid,
-              tasks: [["insert", expect.any(String)]],
-            },
-          ],
+          /tasks/,
           { schema: multiRangeSchema },
+        );
+      });
+
+      it("infers type from parent entity type only constraint when field has no global range", () => {
+        // Milestone.contains has only: [Task] in the type schema even though
+        // the global 'children' field has no range. We simulate this with
+        // a project type that declares children with only: [Task].
+        const schemaWithOnly: EntitySchema = {
+          ...schema,
+          types: {
+            ...schema.types,
+            [mockProjectTypeKey]: {
+              ...mockProjectType,
+              fields: [
+                ...mockProjectType.fields,
+                ["children" as FieldKey, { only: [mockTaskTypeKey] }],
+              ],
+            },
+          },
+        };
+        check(
+          {
+            uid: mockProjectUid,
+            type: mockProjectTypeKey,
+            children: [{ title: "Sub Task" }],
+          },
+          { uid: mockProjectUid, type: mockProjectTypeKey, children: [] },
+          [
+            { uid: mockProjectUid, children: [["insert", expect.any(String)]] },
+            expect.objectContaining({
+              type: mockTaskTypeKey,
+              title: "Sub Task",
+            }),
+          ],
+          { schema: schemaWithOnly },
+        );
+      });
+
+      it("errors when field has no range and parent type has no only constraint", () => {
+        // 'children' has no global range and the Task type doesn't declare
+        // an only constraint for it — type is unresolvable, must error.
+        checkError(
+          {
+            uid: mockTask1Uid,
+            type: mockTaskTypeKey,
+            children: [{ title: "Sub Task" }],
+          },
+          { uid: mockTask1Uid, type: mockTaskTypeKey, children: [] },
+          /children/,
         );
       });
 
@@ -400,9 +464,11 @@ describe("entity-diff", () => {
       expected: DiffQueryResult,
       opts?: { filters?: Filters },
     ) => {
-      const result = diffQueryResults(schema, newEntities, oldEntities, {
-        filters: opts?.filters ?? {},
-      });
+      const result = throwIfError(
+        diffQueryResults(schema, newEntities, oldEntities, {
+          filters: opts?.filters ?? {},
+        }),
+      );
       expect(result).toEqual(expected);
     };
 
