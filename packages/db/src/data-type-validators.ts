@@ -33,13 +33,12 @@ export const coreValidators: { [K in CoreDataType]: DataTypeValidator<K> } = {
     return fail(
       "validation-error",
       `Expected non-negative integer for seqId, got: ${typeof value}`,
-      undefined,
     );
   },
 
   uid: (value) => {
     if (typeof value === "string" && isValidUid(value)) return okVoid;
-    return fail("validation-error", `Invalid UID format: ${value}`, undefined);
+    return fail("validation-error", `Invalid UID format: ${value}`);
   },
 
   relation: (value) => {
@@ -57,36 +56,23 @@ export const coreValidators: { [K in CoreDataType]: DataTypeValidator<K> } = {
     return fail(
       "validation-error",
       `Expected non-empty string or [string, object] tuple for relation`,
-      undefined,
     );
   },
 
   boolean: (value) => {
     if (typeof value === "boolean") return okVoid;
-    return fail(
-      "validation-error",
-      `Expected boolean, got: ${typeof value}`,
-      undefined,
-    );
+    return fail("validation-error", `Expected boolean, got: ${typeof value}`);
   },
 
   integer: (value) => {
     if (typeof value === "number" && Number.isInteger(value)) return okVoid;
-    return fail(
-      "validation-error",
-      `Expected integer, got: ${typeof value}`,
-      undefined,
-    );
+    return fail("validation-error", `Expected integer, got: ${typeof value}`);
   },
 
   decimal: (value) => {
     if (typeof value === "number" && !isNaN(value) && isFinite(value))
       return okVoid;
-    return fail(
-      "validation-error",
-      `Expected number, got: ${typeof value}`,
-      undefined,
-    );
+    return fail("validation-error", `Expected number, got: ${typeof value}`);
   },
 
   plaintext: (value, fieldDef) => {
@@ -94,7 +80,6 @@ export const coreValidators: { [K in CoreDataType]: DataTypeValidator<K> } = {
       return fail(
         "validation-error",
         `Expected string for plaintext, got: ${typeof value}`,
-        undefined,
       );
     if (value === "") return okVoid;
     const format = getPlaintextFormat(fieldDef.plaintextFormat);
@@ -108,7 +93,6 @@ export const coreValidators: { [K in CoreDataType]: DataTypeValidator<K> } = {
       return fail(
         "validation-error",
         `Expected string for richtext, got: ${typeof value}`,
-        undefined,
       );
     if (value === "") return okVoid;
     const format = getRichtextFormat(fieldDef.richtextFormat);
@@ -125,7 +109,6 @@ export const coreValidators: { [K in CoreDataType]: DataTypeValidator<K> } = {
     return fail(
       "validation-error",
       `Expected ISO date format (YYYY-MM-DD), got: ${value}`,
-      undefined,
     );
   },
 
@@ -134,7 +117,6 @@ export const coreValidators: { [K in CoreDataType]: DataTypeValidator<K> } = {
     return fail(
       "validation-error",
       `Expected ISO timestamp format, got: ${value}`,
-      undefined,
     );
   },
 
@@ -143,7 +125,6 @@ export const coreValidators: { [K in CoreDataType]: DataTypeValidator<K> } = {
       return fail(
         "validation-error",
         `Expected string for period, got: ${typeof value}`,
-        undefined,
       );
     if (value === "") return okVoid;
     const format: keyof typeof periodFormats = fieldDef.periodFormat ?? "day";
@@ -155,21 +136,15 @@ export const coreValidators: { [K in CoreDataType]: DataTypeValidator<K> } = {
 
   option: (value, fieldDef) => {
     if (typeof value !== "string" || value.length === 0)
-      return fail(
-        "validation-error",
-        `Expected non-empty string for option`,
-        undefined,
-      );
+      return fail("validation-error", `Expected non-empty string for option`);
 
     if (fieldDef.options && fieldDef.options.length > 0) {
       const validKeys = fieldDef.options.map((opt) => opt.key);
-      if (!validKeys.includes(value)) {
+      if (!validKeys.includes(value))
         return fail(
           "validation-error",
           `Invalid option value: ${value}. Expected one of: ${validKeys.join(", ")}`,
-          undefined,
         );
-      }
     }
 
     return okVoid;
@@ -177,11 +152,7 @@ export const coreValidators: { [K in CoreDataType]: DataTypeValidator<K> } = {
 
   uri: (value) => {
     if (typeof value === "string") return okVoid;
-    return fail(
-      "validation-error",
-      `Expected string, got: ${typeof value}`,
-      undefined,
-    );
+    return fail("validation-error", `Expected string, got: ${typeof value}`);
   },
 };
 
@@ -190,7 +161,6 @@ const queryValidator: DataTypeValidator<"query"> = (value) => {
     return fail(
       "validation-error",
       `Expected object for query, got: ${typeof value}`,
-      undefined,
     );
 
   const parseResult = QueryParamsSchema.safeParse(value);
@@ -198,7 +168,6 @@ const queryValidator: DataTypeValidator<"query"> = (value) => {
     return fail(
       "validation-error",
       `Invalid query structure: ${parseResult.error.message}`,
-      undefined,
     );
 
   return okVoid;
@@ -206,11 +175,7 @@ const queryValidator: DataTypeValidator<"query"> = (value) => {
 
 const stringValidator: DataTypeValidator<string> = (value) => {
   if (typeof value === "string") return okVoid;
-  return fail(
-    "validation-error",
-    `Expected string, got: ${typeof value}`,
-    undefined,
-  );
+  return fail("validation-error", `Expected string, got: ${typeof value}`);
 };
 
 export const recordDataTypeValidators: {
@@ -231,11 +196,7 @@ export const configDataTypeValidators: {
   object: (value) => {
     if (typeof value === "object" && value !== null && !Array.isArray(value))
       return okVoid;
-    return fail(
-      "validation-error",
-      `Expected object, got: ${typeof value}`,
-      undefined,
-    );
+    return fail("validation-error", `Expected object, got: ${typeof value}`);
   },
   json: () => okVoid,
   optionSet: (value) => {
@@ -243,7 +204,6 @@ export const configDataTypeValidators: {
       return fail(
         "validation-error",
         `Expected array for optionSet, got: ${typeof value}`,
-        undefined,
       );
 
     for (const item of value) {
@@ -252,7 +212,6 @@ export const configDataTypeValidators: {
           return fail(
             "validation-error",
             "Invalid option in optionSet: string key cannot be empty",
-            undefined,
           );
         continue;
       }
@@ -260,20 +219,30 @@ export const configDataTypeValidators: {
         return fail(
           "validation-error",
           "Invalid option in optionSet: expected string or object with key",
-          undefined,
         );
       const obj = item as Record<string, unknown>;
       if (typeof obj.key !== "string")
         return fail(
           "validation-error",
           "Invalid option in optionSet: expected {key: string}",
-          undefined,
         );
     }
 
     return okVoid;
   },
   query: queryValidator,
+};
+
+const formatValue = (value: JsonValue, maxLen = 50): string => {
+  const raw =
+    typeof value === "string"
+      ? value
+      : (JSON.stringify(value) ?? String(value));
+  const escaped = raw
+    .replace(/\n/g, "\\n")
+    .replace(/\r/g, "\\r")
+    .replace(/\t/g, "\\t");
+  return escaped.length > maxLen ? `${escaped.slice(0, maxLen)}…` : escaped;
 };
 
 const createValidateDataType =
@@ -285,7 +254,6 @@ const createValidateDataType =
       return fail(
         "validation-error",
         `Unknown data type: ${fieldDef.dataType}`,
-        undefined,
       );
 
     if (fieldDef.allowMultiple) {
@@ -293,15 +261,22 @@ const createValidateDataType =
         return fail(
           "validation-error",
           `Expected array when allowMultiple is true, got: ${typeof value}`,
-          undefined,
         );
 
       for (let i = 0; i < value.length; i++) {
         const result = validator(value[i], fieldDef);
-        if (isErr(result))
-          return fail("validation-error", `Invalid value at index ${i}`, {
-            originalError: result.error,
-          });
+        if (isErr(result)) {
+          const preview = formatValue(value[i]);
+          const format =
+            fieldDef.plaintextFormat ??
+            fieldDef.richtextFormat ??
+            fieldDef.dataType;
+          return fail(
+            "validation-error",
+            `"${preview}" (at index ${i}) is not a valid ${format}: ${result.error.message ?? result.error.key}`,
+            { originalError: result.error },
+          );
+        }
       }
       return okVoid;
     }

@@ -694,12 +694,13 @@ describe("data-type-validators", () => {
         fieldDef?: Partial<FieldDef<AllDataType>>;
       },
     ) => {
-      const result = validateDataType(
-        opts?.namespace ?? "record",
-        mockFieldDef(dataType, opts?.fieldDef),
-        value,
-      );
-      expect(result).toBeOk();
+      expect(
+        validateDataType(
+          opts?.namespace ?? "record",
+          mockFieldDef(dataType, opts?.fieldDef),
+          value,
+        ),
+      ).toBeOk();
     };
 
     const checkErr = (
@@ -711,16 +712,21 @@ describe("data-type-validators", () => {
         message?: string;
       },
     ) => {
-      const result = validateDataType(
-        opts?.namespace ?? "record",
-        mockFieldDef(dataType, opts?.fieldDef),
-        value,
-      );
-      const message = opts?.message
-        ? expect.stringContaining(opts.message)
-        : expect.any(String);
-      expect(result).toMatchObject(
-        err(createError("validation-error", message)),
+      expect(
+        validateDataType(
+          opts?.namespace ?? "record",
+          mockFieldDef(dataType, opts?.fieldDef),
+          value,
+        ),
+      ).toMatchObject(
+        err(
+          createError(
+            "validation-error",
+            opts?.message
+              ? expect.stringContaining(opts.message)
+              : expect.any(String),
+          ),
+        ),
       );
     };
 
@@ -741,10 +747,25 @@ describe("data-type-validators", () => {
       });
     });
 
-    it("rejects invalid values in array", () => {
+    it("rejects invalid values in array with value preview and format", () => {
       checkErr("integer", [1, 2.5, 3], {
         fieldDef: { allowMultiple: true },
-        message: "Invalid value at index 1",
+        message:
+          '"2.5" (at index 1) is not a valid integer: Expected integer, got: number',
+      });
+    });
+
+    it("includes escaped control characters in value preview", () => {
+      checkErr("plaintext", ["ok", "bad\nvalue"], {
+        fieldDef: { allowMultiple: true, plaintextFormat: "line" },
+        message: '"bad\\nvalue" (at index 1) is not a valid line',
+      });
+    });
+
+    it("names plaintextFormat in error for multi-value plaintext fields", () => {
+      checkErr("plaintext", ["ok", "bad value with spaces!"], {
+        fieldDef: { allowMultiple: true, plaintextFormat: "identifier" },
+        message: "is not a valid identifier",
       });
     });
 
