@@ -23,7 +23,6 @@
     "lint": "bun eslint . --fix",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
-    "check": "bun lint && bun format && bun typecheck && bun test",
-    "build:type": "tsc --declaration --emitDeclarationOnly --noEmit false --outDir ./dist"
+    "check": "bun lint && bun format && bun typecheck && bun test"
   }
 }
