@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import type { Result } from "@binder/utils";
 import { mockRecordSchema } from "@binder/db/mocks";
 import {
   renderYamlEntity,
@@ -193,6 +194,71 @@ describe("yaml", () => {
     it("returns error for invalid YAML", () => {
       const result = parseYamlList("items: [unclosed");
       expect(result.error).toBeDefined();
+    });
+  });
+
+  describe("humanized YAML errors", () => {
+    const check = (
+      input: string,
+      messagePattern: RegExp,
+      opts?: { parser?: (content: string) => Result<unknown> },
+    ) => {
+      const parse = opts?.parser ?? parseYamlEntity;
+      const result = parse(input);
+      expect(result.error).toBeDefined();
+      expect(result.error!.key).toBe("yaml_parse_error");
+      expect(result.error!.message).toMatch(messagePattern);
+    };
+
+    it("rewrites implicit map key error", () => {
+      check(
+        "title: foo\ndescription: bar\np\n",
+        /Could not parse YAML \(line 3\):.*`key: value`/,
+      );
+    });
+
+    it("rewrites multiline implicit key error", () => {
+      check(
+        "title: foo\nhello world\nstatus: bar\n",
+        /Could not parse YAML \(line 2\):.*multiple lines/,
+      );
+    });
+
+    it("rewrites block-as-implicit-key error", () => {
+      check(
+        "title: foo\n  status: done\n",
+        /Could not parse YAML.*Unexpected nested value/,
+      );
+    });
+
+    it("preserves clear messages like duplicate key", () => {
+      check(
+        "title: foo\ntitle: bar\n",
+        /Could not parse YAML \(line 2\):.*Map keys must be unique/,
+      );
+    });
+
+    it("preserves tab indentation message", () => {
+      check(
+        "title: foo\n\tstatus: done\n",
+        /Could not parse YAML \(line 2\):.*Tabs are not allowed/,
+      );
+    });
+
+    it("does not rewrite non-implicit MISSING_CHAR errors", () => {
+      check('title: "foo\n', /Could not parse YAML.*Missing closing/);
+      const result = parseYamlEntity('title: "foo\n');
+      expect(result.error!.message).not.toContain("`key: value`");
+    });
+
+    it("humanizes errors from parseYamlList", () => {
+      check(
+        "items:\n  - title: foo\np\n",
+        /Could not parse YAML.*`key: value`/,
+        {
+          parser: parseYamlList,
+        },
+      );
     });
   });
 

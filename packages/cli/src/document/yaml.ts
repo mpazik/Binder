@@ -5,10 +5,18 @@ import {
   isPair,
   isScalar,
   isSeq,
+  YAMLParseError,
   type YAMLMap,
   type YAMLSeq,
 } from "yaml";
-import { isErr, ok, type Result, tryCatch } from "@binder/utils";
+import {
+  createError,
+  type ErrorObject,
+  isErr,
+  ok,
+  type Result,
+  tryCatch,
+} from "@binder/utils";
 import {
   type EntitySchema,
   type FieldsetNested,
@@ -170,8 +178,52 @@ export const renderYamlList = (
   return doc.toString({ indent: 2, lineWidth: 0 });
 };
 
+const friendlyYamlMessages: Record<string, string | undefined> = {
+  MISSING_CHAR_implicit:
+    "Found text that isn't a `key: value` pair. " +
+    "Add a colon after the field name, or quote the value above if it wraps to the next line.",
+  MULTILINE_IMPLICIT_KEY:
+    "A value appears to span multiple lines without proper quoting. " +
+    "Wrap it in quotes or use a block scalar (|).",
+  BLOCK_AS_IMPLICIT_KEY:
+    "Unexpected nested value. " +
+    "Check for unquoted colons in values or incorrect indentation.",
+};
+
+const getFriendlyMessage = (error: YAMLParseError): string => {
+  const code = error.code;
+
+  // MISSING_CHAR is used for multiple things (missing quote, missing colon, etc.).
+  // Only rewrite the "implicit map keys" variant.
+  if (code === "MISSING_CHAR" && /implicit map keys/i.test(error.message)) {
+    return friendlyYamlMessages.MISSING_CHAR_implicit!;
+  }
+
+  const friendly = code ? friendlyYamlMessages[code] : undefined;
+  if (friendly) return friendly;
+
+  // Strip the location suffix that the yaml library appends (we add our own).
+  return error.message.replace(/ at line \d+, column \d+:[\s\S]*$/, "");
+};
+
+const humanizeYamlError = (error: unknown): ErrorObject => {
+  if (error instanceof YAMLParseError) {
+    const line = error.linePos?.[0]?.line;
+    const location = line ? ` (line ${line})` : "";
+    const message = `Could not parse YAML${location}: ${getFriendlyMessage(error)}`;
+    return createError("yaml_parse_error", message);
+  }
+  if (error instanceof Error) {
+    return createError(error.name, error.message);
+  }
+  return createError("unknown", String(error));
+};
+
 export const parseYamlEntity = (content: string): Result<FieldsetNested> => {
-  const parseResult = tryCatch(() => YAML.parse(content) as FieldsetNested);
+  const parseResult = tryCatch(
+    () => YAML.parse(content) as FieldsetNested,
+    humanizeYamlError,
+  );
   if (isErr(parseResult)) return parseResult;
   return ok(parseResult.data);
 };
@@ -179,6 +231,7 @@ export const parseYamlEntity = (content: string): Result<FieldsetNested> => {
 export const parseYamlList = (content: string): Result<FieldsetNested[]> => {
   const parseResult = tryCatch(
     () => YAML.parse(content) as { items: FieldsetNested[] },
+    humanizeYamlError,
   );
   if (isErr(parseResult)) return parseResult;
   return ok(parseResult.data.items);
