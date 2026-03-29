@@ -160,6 +160,14 @@ export const standardFields = {
     key: statusFieldKey,
     name: "Status",
     dataType: "option",
+    options: [
+      { key: "draft", name: "Draft" },
+      { key: "pending", name: "Pending" },
+      { key: "active", name: "Active" },
+      { key: "paused", name: "Paused" },
+      { key: "complete", name: "Complete" },
+      { key: "cancelled", name: "Cancelled" },
+    ],
     description: "Lifecycle state.",
   },
   priority: {
@@ -167,6 +175,13 @@ export const standardFields = {
     key: priorityFieldKey,
     name: "Priority",
     dataType: "option",
+    options: [
+      { key: "p0", name: "Blocker" },
+      { key: "p1", name: "Urgent" },
+      { key: "p2", name: "High" },
+      { key: "p3", name: "Medium" },
+      { key: "p4", name: "Low" },
+    ],
     description: "Importance or urgency level.",
   },
   source: {

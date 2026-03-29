@@ -26,19 +26,28 @@ describe("yaml", () => {
   });
 
   describe("block formatting", () => {
+    const check = (
+      entity: Parameters<typeof renderYamlEntity>[0],
+      expectedSnippet: string,
+      opts?: { expectNoInlineArray?: boolean },
+    ) => {
+      const yaml = renderYamlEntity(entity, mockRecordSchema);
+      if (opts?.expectNoInlineArray) expect(yaml).not.toContain("[");
+      expect(yaml).toContain(expectedSnippet);
+    };
+
     it("renders multi-value relation as block list", () => {
-      const yaml = renderYamlEntity(
+      check(
         { title: "Task", relatedTo: ["task-a", "task-b"] },
-        mockRecordSchema,
+        "relatedTo:\n  - task-a\n  - task-b",
+        { expectNoInlineArray: true },
       );
-      expect(yaml).not.toContain("[");
-      expect(yaml).toContain("relatedTo:\n  - task-a\n  - task-b");
     });
 
     it("renders single-element relation as block list", () => {
-      const yaml = renderYamlEntity({ relatedTo: ["a"] }, mockRecordSchema);
-      expect(yaml).not.toContain("[");
-      expect(yaml).toContain("relatedTo:\n  - a");
+      check({ relatedTo: ["a"] }, "relatedTo:\n  - a", {
+        expectNoInlineArray: true,
+      });
     });
 
     it("keeps nested object and enum formatting inline inside forced block lists", () => {
@@ -70,19 +79,14 @@ describe("yaml", () => {
     });
 
     it("renders newline-delimited field as block list", () => {
-      const yaml = renderYamlEntity(
-        { aliases: ["Alpha", "Beta"] },
-        mockRecordSchema,
-      );
-      expect(yaml).toContain("aliases:\n  - Alpha\n  - Beta");
+      check({ aliases: ["Alpha", "Beta"] }, "aliases:\n  - Alpha\n  - Beta");
     });
 
     it("renders blankline-delimited field as block list", () => {
-      const yaml = renderYamlEntity(
+      check(
         { notes: ["First note", "Second note"] },
-        mockRecordSchema,
+        "notes:\n  - First note\n  - Second note",
       );
-      expect(yaml).toContain("notes:\n  - First note\n  - Second note");
     });
   });
 
@@ -171,6 +175,14 @@ describe("yaml", () => {
     });
   });
 
+  const checkParseError = (
+    input: string,
+    parser: (yaml: string) => { error?: unknown },
+  ) => {
+    const result = parser(input);
+    expect(result.error).toBeDefined();
+  };
+
   describe("parseYamlEntity", () => {
     it("parses valid YAML", () => {
       const result = parseYamlEntity("title: Hello\nstatus: active\n");
@@ -178,8 +190,7 @@ describe("yaml", () => {
     });
 
     it("returns error for invalid YAML", () => {
-      const result = parseYamlEntity("key: [unclosed");
-      expect(result.error).toBeDefined();
+      checkParseError("key: [unclosed", parseYamlEntity);
     });
   });
 
@@ -192,8 +203,7 @@ describe("yaml", () => {
     });
 
     it("returns error for invalid YAML", () => {
-      const result = parseYamlList("items: [unclosed");
-      expect(result.error).toBeDefined();
+      checkParseError("items: [unclosed", parseYamlList);
     });
   });
 

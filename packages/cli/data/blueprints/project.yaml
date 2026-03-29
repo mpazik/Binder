@@ -133,20 +133,20 @@
       title: Build authentication flow
       description: Login, signup, password reset
       status: active
-      priority: high
+      priority: p2
       partOf: mvp-release
 
     - type: Task
       key: design-onboarding
       title: Design onboarding screens
       status: pending
-      priority: medium
+      priority: p3
       partOf: mvp-release
 
     - type: Task
       key: app-store-copy
       title: App store listing copy
-      priority: low
+      priority: p4
       partOf: v1-launch
 
     - type: Task
@@ -154,4 +154,4 @@
       title: Fix landscape orientation bug
       description: Orientation breaks on tablets
       status: active
-      priority: medium
+      priority: p3

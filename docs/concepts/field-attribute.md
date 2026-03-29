@@ -85,7 +85,7 @@ Attributes are stored alongside the field value using the `.attrs` suffix:
 
 The base value remains simple and indexable. Attributes are validated against their Attribute entity definitions.
 
-Currently partially implemented for `relation` fields, where type definitions use relation-attributes like `{required}`, `{only}`, `{exclude}`.
+Type-level field attributes are currently enforced for relation constraints and option-field `only` constraints, while broader attribute support is still evolving.
 
 ### Future: Data-Type Extensions
 

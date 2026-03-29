@@ -174,6 +174,26 @@ export const getTypeFieldAttrs = <K extends string>(
   ref: TypeFieldRef<K>,
 ): FieldAttrDef | undefined => (Array.isArray(ref) ? ref[1] : undefined);
 
+/**
+ * Returns the effective option definitions for a field after applying
+ * type-level field attributes.
+ *
+ * Currently this applies the `only` attribute as an allow-list for option keys.
+ */
+export const getOptionDefsForFieldRef = <D extends string>(
+  fieldDef: FieldDef<D>,
+  attrs?: FieldAttrDef,
+): OptionDef[] | undefined => {
+  const options = fieldDef.options;
+  if (fieldDef.dataType !== "option" || !options) return options;
+
+  const allowedOptionKeys = attrs?.only;
+  if (!allowedOptionKeys || allowedOptionKeys.length === 0) return options;
+
+  const allowedOptionKeySet = new Set(allowedOptionKeys);
+  return options.filter((option) => allowedOptionKeySet.has(option.key));
+};
+
 export type TypeDef<K extends string = FieldKey> = {
   id: EntityId;
   key: EntityType;

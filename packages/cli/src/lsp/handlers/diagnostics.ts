@@ -9,15 +9,20 @@ import type { Position as UnistPosition } from "unist";
 import {
   type DataTypeNs,
   type EntitySchema,
+  type FieldAttrDef,
   type FieldDef,
   type FieldPath,
   type FieldsetNested,
   type FieldValue,
   getFieldDefNested,
+  getOptionDefsForFieldRef,
   getRelationRef,
+  getTypeFieldAttrs,
+  getTypeFieldKey,
   isFieldsetNested,
   type NamespaceEditable,
   type NamespaceSchema,
+  type TypeDef,
   validateDataType,
 } from "@binder/db";
 import { isErr } from "@binder/utils";
@@ -66,6 +71,7 @@ export type FieldValidationError = {
 export type FieldValueValidationInput = {
   fieldPath: FieldPath;
   fieldDef: FieldDef;
+  fieldAttrs?: FieldAttrDef;
   value: FieldValue;
   namespace: NamespaceEditable;
 };
@@ -73,7 +79,7 @@ export type FieldValueValidationInput = {
 export const validateFieldValue = (
   input: FieldValueValidationInput,
 ): FieldValidationError | undefined => {
-  const { fieldPath, fieldDef, value, namespace } = input;
+  const { fieldPath, fieldDef, fieldAttrs, value, namespace } = input;
 
   // Null values represent empty/unset fields and are always valid
   if (value === null) return undefined;
@@ -82,9 +88,14 @@ export const validateFieldValue = (
   const normalizedValue =
     fieldDef.allowMultiple && !Array.isArray(value) ? [value] : value;
 
+  const effectiveFieldDef = {
+    ...fieldDef,
+    options: getOptionDefsForFieldRef(fieldDef, fieldAttrs),
+  } as FieldDef<DataTypeNs[typeof namespace]>;
+
   const result = validateDataType(
     namespace,
-    fieldDef as FieldDef<DataTypeNs[typeof namespace]>,
+    effectiveFieldDef,
     normalizedValue,
   );
   if (isErr(result)) {
@@ -165,17 +176,28 @@ export type ValidateMarkdownFieldsInput = {
   fieldset: FieldsetNested;
   schema: EntitySchema;
   namespace: NamespaceEditable;
+  typeDef: TypeDef;
 };
 
 export const validateMarkdownFields = (
   input: ValidateMarkdownFieldsInput,
 ): FieldValidationError[] => {
-  const { fieldset, schema, namespace } = input;
+  const { fieldset, schema, namespace, typeDef } = input;
   const errors: FieldValidationError[] = [];
+
+  const getFieldAttrsForPath = (path: FieldPath): FieldAttrDef | undefined => {
+    if (path.length !== 1) return undefined;
+
+    const fieldRef = typeDef.fields.find(
+      (ref) => getTypeFieldKey(ref) === path[0],
+    );
+    return fieldRef ? getTypeFieldAttrs(fieldRef) : undefined;
+  };
 
   const validateField = (path: FieldPath, value: FieldValue) => {
     const fieldDef = getFieldDefNested(schema, path);
     if (!fieldDef) return;
+    const fieldAttrs = getFieldAttrsForPath(path);
 
     if (fieldDef.dataType === "relation") {
       if (fieldDef.allowMultiple && Array.isArray(value)) {
@@ -193,6 +215,7 @@ export const validateMarkdownFields = (
     const error = validateFieldValue({
       fieldPath: path,
       fieldDef,
+      fieldAttrs,
       value,
       namespace,
     });
@@ -386,7 +409,6 @@ const getMarkdownDiagnostics = async (
       context.frontmatter,
     );
     return [
-      ...diagnostics,
       {
         range,
         severity: DiagnosticSeverity.Error,
@@ -402,10 +424,23 @@ const getMarkdownDiagnostics = async (
   const extracted = extractResult.data;
   if (extracted.kind !== "document") return diagnostics;
 
+  if (!context.typeDef) {
+    diagnostics.push({
+      range: zeroRange,
+      severity: DiagnosticSeverity.Error,
+      message:
+        "Cannot validate fields: type definition is missing for current navigation context",
+      source: "binder",
+      code: "missing-type-definition",
+    });
+    return diagnostics;
+  }
+
   const fieldErrors = validateMarkdownFields({
     fieldset: extracted.entity,
     schema: context.schema,
     namespace: context.namespace,
+    typeDef: context.typeDef,
   });
 
   for (const error of fieldErrors) {

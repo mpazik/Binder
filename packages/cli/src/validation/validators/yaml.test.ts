@@ -26,13 +26,14 @@ describe("createYamlValidator", () => {
     navigationItem:
       | typeof mockEntityNavigationItem
       | typeof mockDirectoryNavigationItem = mockEntityNavigationItem,
+    schema = mockRecordSchema,
   ) => {
     const content = parseYamlDocument(text);
     const errors = await validator.validate(content, {
       filePath: "test.yaml",
       navigationItem,
       namespace: "record",
-      schema: mockRecordSchema,
+      schema,
       ruleConfig: {},
       kg: mockKg,
     });
@@ -42,8 +43,19 @@ describe("createYamlValidator", () => {
     );
   };
 
+  const checkEntity = async (
+    text: string,
+    expectedErrors: Array<{ code: string; severity: string }>,
+    schema = mockRecordSchema,
+  ) => check(text, expectedErrors, mockEntityNavigationItem, schema);
+
+  const checkDirectory = async (
+    text: string,
+    expectedErrors: Array<{ code: string; severity: string }>,
+  ) => check(text, expectedErrors, mockDirectoryNavigationItem);
+
   it("detects YAML syntax errors", async () => {
-    await check(
+    await checkEntity(
       `
 key: [unclosed
 `,
@@ -52,7 +64,7 @@ key: [unclosed
   });
 
   it("detects invalid field not in schema", async () => {
-    await check(
+    await checkEntity(
       `
 title: My Task
 status: pending
@@ -63,7 +75,7 @@ unknownField: value
   });
 
   it("detects extra field not allowed for type", async () => {
-    await check(
+    await checkEntity(
       `
 type: Task
 title: My Task
@@ -75,7 +87,7 @@ name: Should be warning
   });
 
   it("validates invalid fields in directory items", async () => {
-    await check(
+    await checkDirectory(
       `
 items:
   - title: Valid Task
@@ -84,12 +96,11 @@ items:
     unknownField: should error
 `,
       [{ code: "invalid-field", severity: "error" }],
-      mockDirectoryNavigationItem,
     );
   });
 
   it("validates extra fields in directory items", async () => {
-    await check(
+    await checkDirectory(
       `
 items:
   - type: Task
@@ -100,12 +111,11 @@ items:
     name: Should be warning
 `,
       [{ code: "extra-field", severity: "warning" }],
-      mockDirectoryNavigationItem,
     );
   });
 
   it("returns no errors for valid YAML", async () => {
-    await check(
+    await checkEntity(
       `
 type: Task
 title: My Task
@@ -116,7 +126,7 @@ status: pending
   });
 
   it("detects invalid option value", async () => {
-    await check(
+    await checkEntity(
       `
 type: Task
 title: My Task
@@ -127,7 +137,7 @@ status: invalid_status
   });
 
   it("detects invalid date format", async () => {
-    await check(
+    await checkEntity(
       `
 type: Task
 title: My Task
@@ -139,7 +149,7 @@ dueDate: not-a-date
   });
 
   it("returns no errors for valid date", async () => {
-    await check(
+    await checkEntity(
       `
 type: Task
 title: My Task
@@ -151,7 +161,7 @@ dueDate: 2024-01-15
   });
 
   it("returns no errors for valid option value", async () => {
-    await check(
+    await checkEntity(
       `
 type: Task
 title: My Task
@@ -161,8 +171,27 @@ status: active
     );
   });
 
+  it("applies type-level only option constraints", async () => {
+    const schema = structuredClone(mockRecordSchema);
+    schema.types.Task.fields = schema.types.Task.fields.map((ref) =>
+      (Array.isArray(ref) ? ref[0] : ref) === "status"
+        ? ["status", { only: ["pending", "active"] }]
+        : ref,
+    );
+
+    await checkEntity(
+      `
+type: Task
+title: My Task
+status: complete
+`,
+      [{ code: "invalid-value", severity: "error" }],
+      schema,
+    );
+  });
+
   it("detects invalid boolean value", async () => {
-    await check(
+    await checkEntity(
       `
 title: My Task
 favorite: not-a-boolean
@@ -175,7 +204,7 @@ favorite: not-a-boolean
   });
 
   it("returns no errors for valid boolean", async () => {
-    await check(
+    await checkEntity(
       `
 title: My Task
 favorite: true
@@ -185,7 +214,7 @@ favorite: true
   });
 
   it("validates array values even without allowMultiple in schema", async () => {
-    await check(
+    await checkEntity(
       `
 title: My Task
 tags:
@@ -197,7 +226,7 @@ tags:
   });
 
   it("detects invalid values in array", async () => {
-    await check(
+    await checkEntity(
       `
 title: My Task
 owners:
@@ -318,19 +347,18 @@ items:
 
   describe("directory shape validation", () => {
     it("allows only items field in directory", async () => {
-      await check(
+      await checkDirectory(
         `
 items:
   - type: Task
     title: My Task
 `,
         [],
-        mockDirectoryNavigationItem,
       );
     });
 
     it("detects unexpected field in directory", async () => {
-      await check(
+      await checkDirectory(
         `
 foo: bar
 items:
@@ -338,12 +366,11 @@ items:
     title: My Task
 `,
         [{ code: "unexpected-field", severity: "error" }],
-        mockDirectoryNavigationItem,
       );
     });
 
     it("detects multiple unexpected fields in directory", async () => {
-      await check(
+      await checkDirectory(
         `
 foo: bar
 baz: qux
@@ -355,33 +382,30 @@ items:
           { code: "unexpected-field", severity: "error" },
           { code: "unexpected-field", severity: "error" },
         ],
-        mockDirectoryNavigationItem,
       );
     });
 
     it("detects items field that is not a sequence", async () => {
-      await check(
+      await checkDirectory(
         `
 items: not-a-sequence
 `,
         [{ code: "invalid-structure", severity: "error" }],
-        mockDirectoryNavigationItem,
       );
     });
 
     it("detects items field that is a map instead of sequence", async () => {
-      await check(
+      await checkDirectory(
         `
 items:
   key: value
 `,
         [{ code: "invalid-structure", severity: "error" }],
-        mockDirectoryNavigationItem,
       );
     });
 
     it("validates directory even with unexpected fields", async () => {
-      await check(
+      await checkDirectory(
         `
 foo: bar
 items:
@@ -393,7 +417,6 @@ items:
           { code: "unexpected-field", severity: "error" },
           { code: "invalid-field", severity: "error" },
         ],
-        mockDirectoryNavigationItem,
       );
     });
   });

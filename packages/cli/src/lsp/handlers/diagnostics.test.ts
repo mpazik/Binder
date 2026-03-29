@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import type { FieldDef, FieldValue } from "@binder/db";
+import type { FieldDef, FieldValue, FieldsetNested } from "@binder/db";
 import {
   mockDueDateField,
   mockRecordSchema,
@@ -49,6 +49,23 @@ describe("diagnostics", () => {
         code: "invalid-value",
         message:
           "Invalid value for field 'status': Invalid option value: invalid-status. Expected one of: pending, active, complete, cancelled, archived",
+      });
+    });
+
+    it("applies type-level only constraint for option validation", () => {
+      const result = validateFieldValue({
+        fieldPath: ["status"],
+        fieldDef: mockStatusField,
+        fieldAttrs: { only: ["pending", "active"] },
+        value: "complete",
+        namespace: "record",
+      });
+
+      expect(result).toEqual({
+        fieldPath: ["status"],
+        code: "invalid-value",
+        message:
+          "Invalid value for field 'status': Invalid option value: complete. Expected one of: pending, active",
       });
     });
 
@@ -224,58 +241,79 @@ describe("diagnostics", () => {
       },
     ];
 
+    const check = (
+      path: string[],
+      expected:
+        | {
+            start: { line: number; character: number };
+            end: { line: number; character: number };
+          }
+        | undefined,
+      mappings = mockMappings,
+    ) => {
+      expect(mapFieldPathToRange(path, mappings)).toEqual(expected);
+    };
+
     it("finds range for matching simple path", () => {
-      expect(mapFieldPathToRange(["title"], mockMappings)).toEqual({
+      check(["title"], {
         start: { line: 2, character: 0 },
         end: { line: 2, character: 19 },
       });
     });
 
     it("finds range for matching nested path", () => {
-      expect(mapFieldPathToRange(["project", "name"], mockMappings)).toEqual({
+      check(["project", "name"], {
         start: { line: 4, character: 4 },
         end: { line: 4, character: 24 },
       });
     });
 
     it("returns undefined for non-matching path", () => {
-      expect(
-        mapFieldPathToRange(["description"], mockMappings),
-      ).toBeUndefined();
+      check(["description"], undefined);
     });
 
     it("returns undefined for partial path match", () => {
-      expect(mapFieldPathToRange(["project"], mockMappings)).toBeUndefined();
+      check(["project"], undefined);
     });
 
     it("returns undefined for empty mappings", () => {
-      expect(mapFieldPathToRange(["title"], [])).toBeUndefined();
+      check(["title"], undefined, []);
     });
   });
 
   describe("validateMarkdownFields", () => {
-    it("returns empty array for valid fieldset", () => {
+    const check = (
+      fieldset: FieldsetNested,
+      expected: FieldValidationError[],
+      opts?: {
+        schema?: typeof mockRecordSchema;
+        typeDef?: typeof mockRecordSchema.types.Task;
+      },
+    ) => {
+      const schema = opts?.schema ?? mockRecordSchema;
+      const typeDef = opts?.typeDef ?? schema.types.Task;
       const errors = validateMarkdownFields({
-        fieldset: {
+        fieldset,
+        schema,
+        namespace: "record",
+        typeDef,
+      });
+      expect(errors).toEqual(expected);
+    };
+
+    it("returns empty array for valid fieldset", () => {
+      check(
+        {
           status: "pending",
           favorite: true,
           dueDate: "2024-12-01",
         },
-        schema: mockRecordSchema,
-        namespace: "record",
-      });
-      expect(errors).toEqual([]);
+        [],
+      );
     });
 
     it("returns error for invalid field value", () => {
-      const errors = validateMarkdownFields({
-        fieldset: {
-          status: "invalid-option",
-        },
-        schema: mockRecordSchema,
-        namespace: "record",
-      });
-      expect(errors).toEqual([
+      check({ status: "invalid-option" }, [
         {
           fieldPath: ["status"],
           code: "invalid-value",
@@ -284,27 +322,39 @@ describe("diagnostics", () => {
       ]);
     });
 
+    it("applies type-level only constraint for markdown option values", () => {
+      const schema = structuredClone(mockRecordSchema);
+      schema.types.Task.fields = schema.types.Task.fields.map((ref) =>
+        (Array.isArray(ref) ? ref[0] : ref) === "status"
+          ? ["status", { only: ["pending", "active"] }]
+          : ref,
+      );
+
+      check(
+        { status: "complete" },
+        [
+          {
+            fieldPath: ["status"],
+            code: "invalid-value",
+            message: expect.stringContaining("Invalid option value: complete"),
+          },
+        ],
+        { schema },
+      );
+    });
+
     it("skips unknown fields", () => {
-      const errors = validateMarkdownFields({
-        fieldset: {
+      check(
+        {
           unknownField: "some value",
           status: "pending",
         },
-        schema: mockRecordSchema,
-        namespace: "record",
-      });
-      expect(errors).toEqual([]);
+        [],
+      );
     });
 
     it("skips relation fields (they need existence check)", () => {
-      const errors = validateMarkdownFields({
-        fieldset: {
-          project: "project-ref",
-        },
-        schema: mockRecordSchema,
-        namespace: "record",
-      });
-      expect(errors).toEqual([]);
+      check({ project: "project-ref" }, []);
     });
 
     it("validates null as valid for richtext field (empty content)", () => {
@@ -321,14 +371,8 @@ describe("diagnostics", () => {
           },
         },
       };
-      const errors = validateMarkdownFields({
-        fieldset: {
-          summary: null,
-        },
-        schema: schemaWithRichtext,
-        namespace: "record",
-      });
-      expect(errors).toEqual([]);
+
+      check({ summary: null }, [], { schema: schemaWithRichtext });
     });
 
     it("validates nested richtext fields inside multi-value relations", () => {
@@ -349,51 +393,39 @@ describe("diagnostics", () => {
           },
         },
       };
-      const errors = validateMarkdownFields({
-        fieldset: {
-          children: [{ summary: "Valid summary text" }, { summary: "" }],
-        },
-        schema: schemaWithNestedRichtext,
-        namespace: "record",
-      });
-      expect(errors).toEqual([]);
+
+      check(
+        { children: [{ summary: "Valid summary text" }, { summary: "" }] },
+        [],
+        { schema: schemaWithNestedRichtext },
+      );
     });
   });
 
   describe("collectRelationRefs", () => {
+    const check = (fieldset: FieldsetNested, expected: RelationRef[]) => {
+      expect(collectRelationRefs(fieldset, mockRecordSchema)).toEqual(expected);
+    };
+
     it("returns empty array for fieldset without relations", () => {
-      const refs = collectRelationRefs(
-        { status: "pending", favorite: true },
-        mockRecordSchema,
-      );
-      expect(refs).toEqual([]);
+      check({ status: "pending", favorite: true }, []);
     });
 
     it("collects single relation ref", () => {
-      const refs = collectRelationRefs(
-        { project: "project-123" },
-        mockRecordSchema,
-      );
-      expect(refs).toEqual([{ fieldPath: ["project"], ref: "project-123" }]);
+      check({ project: "project-123" }, [
+        { fieldPath: ["project"], ref: "project-123" },
+      ]);
     });
 
     it("collects multiple relation refs", () => {
-      const refs = collectRelationRefs(
-        { owners: ["user-1", "user-2"] },
-        mockRecordSchema,
-      );
-      expect(refs).toEqual([
+      check({ owners: ["user-1", "user-2"] }, [
         { fieldPath: ["owners"], ref: "user-1" },
         { fieldPath: ["owners"], ref: "user-2" },
       ]);
     });
 
     it("skips expanded nested relations", () => {
-      const refs = collectRelationRefs(
-        { project: { uid: "p_abc", title: "Expanded Project" } },
-        mockRecordSchema,
-      );
-      expect(refs).toEqual([]);
+      check({ project: { uid: "p_abc", title: "Expanded Project" } }, []);
     });
   });
 });

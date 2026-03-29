@@ -1,16 +1,17 @@
-import type {
-  CompletionItem,
-  CompletionParams,
+import {
+  CompletionItemKind,
+  type CompletionItem,
+  type CompletionParams,
 } from "vscode-languageserver/node";
-import { CompletionItemKind } from "vscode-languageserver/node";
 import { isMap } from "yaml";
-import type {
-  FieldAttrDef,
-  FieldDef,
-  KnowledgeGraph,
-  NamespaceEditable,
-  RecordFieldDef,
-  RecordType,
+import {
+  getOptionDefsForFieldRef,
+  type FieldAttrDef,
+  type FieldDef,
+  type KnowledgeGraph,
+  type NamespaceEditable,
+  type RecordFieldDef,
+  type RecordType,
 } from "@binder/db";
 import { isErr } from "@binder/utils";
 import { getFieldKeys, getParentMap } from "../../document/yaml-cst.ts";
@@ -52,10 +53,14 @@ export type CompletionInput =
 
 const createOptionCompletions = (
   fieldDef: RecordFieldDef,
+  attrs?: FieldAttrDef,
 ): CompletionItem[] => {
-  if (fieldDef.dataType !== "option" || !fieldDef.options) return [];
+  if (fieldDef.dataType !== "option") return [];
 
-  return fieldDef.options.map((opt) => ({
+  const options = getOptionDefsForFieldRef(fieldDef, attrs);
+  if (!options || options.length === 0) return [];
+
+  return options.map((opt) => ({
     label: opt.key,
     kind: CompletionItemKind.EnumMember,
     documentation: opt.name,
@@ -76,7 +81,7 @@ const createRelationCompletions = async (
 ): Promise<CompletionItem[]> => {
   if (fieldDef.dataType !== "relation") return [];
 
-  const range = fieldDef.range ?? attrs?.only;
+  const range = attrs?.only ?? fieldDef.range;
   if (!range || range.length === 0) {
     return [
       {
@@ -124,6 +129,15 @@ const createRelationCompletions = async (
   return completions;
 };
 
+const getDocumentYamlContents = (
+  context: DocumentContext,
+  frontmatter?: FrontmatterContext,
+) => {
+  if (frontmatter) return frontmatter.parsed.doc.contents;
+  if (context.documentType === "yaml") return context.parsed.doc.contents;
+  return undefined;
+};
+
 const getFieldKeyCompletions = (
   input: FieldKeyCompletionInput,
 ): CompletionItem[] => {
@@ -131,22 +145,16 @@ const getFieldKeyCompletions = (
 
   if (context.documentType !== "yaml" && !frontmatter) return [];
 
-  const contents = frontmatter
-    ? frontmatter.parsed.doc.contents
-    : context.documentType === "yaml"
-      ? context.parsed.doc.contents
-      : undefined;
+  const contents = getDocumentYamlContents(context, frontmatter);
   if (!contents) return [];
 
-  const parentMap = getParentMap([contents as never]);
+  const parentMap = getParentMap([contents]);
   if (!parentMap || !isMap(parentMap)) return [];
 
   const existingFields = getFieldKeys(parentMap);
-
   const allowedFields = frontmatter
     ? frontmatter.preambleKeys.filter((key) => key in context.schema.fields)
     : getAllowedFields(context.typeDef, context.schema);
-
   const availableFields = allowedFields.filter(
     (field) => !existingFields.includes(field),
   );
@@ -154,7 +162,7 @@ const getFieldKeyCompletions = (
   const typeSpecificFields = new Set(context.typeDef?.fields ?? []);
 
   return availableFields.map((fieldKey) => {
-    const fieldDef = context.schema.fields[fieldKey as never];
+    const fieldDef = context.schema.fields[fieldKey];
     const isTypeSpecific = typeSpecificFields.has(fieldKey);
 
     return {
@@ -171,32 +179,30 @@ export const getCompletionItems = async (
   input: CompletionInput,
   kg: KnowledgeGraph,
 ): Promise<CompletionItem[]> => {
-  if (input.kind === "field-key") {
-    return getFieldKeyCompletions(input);
-  }
+  if (input.kind === "field-key") return getFieldKeyCompletions(input);
 
   const { cursorContext, context, excludeValues } = input;
   const { fieldDef, fieldAttrs } = cursorContext;
 
-  if (fieldDef.dataType === "option") {
-    return createOptionCompletions(fieldDef as FieldDef<"option">);
+  switch (fieldDef.dataType) {
+    case "option":
+      return createOptionCompletions(
+        fieldDef as FieldDef<"option">,
+        fieldAttrs,
+      );
+    case "boolean":
+      return createBooleanCompletions();
+    case "relation":
+      return createRelationCompletions(
+        kg,
+        context.namespace,
+        fieldDef,
+        fieldAttrs,
+        excludeValues,
+      );
+    default:
+      return [];
   }
-
-  if (fieldDef.dataType === "boolean") {
-    return createBooleanCompletions();
-  }
-
-  if (fieldDef.dataType === "relation") {
-    return createRelationCompletions(
-      kg,
-      context.namespace,
-      fieldDef,
-      fieldAttrs,
-      excludeValues,
-    );
-  }
-
-  return [];
 };
 
 const buildCompletionInput = (

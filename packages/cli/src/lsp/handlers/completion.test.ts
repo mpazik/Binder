@@ -7,6 +7,7 @@ import {
   mockAssignedToFieldKey,
   mockProjectKey,
   mockProjectTypeKey,
+  mockStatusField,
   mockStatusFieldKey,
   mockTransactionInit,
 } from "@binder/db/mocks";
@@ -19,7 +20,7 @@ import {
   getDocumentContext,
 } from "../document-context.ts";
 import { createEntityContextCache } from "../entity-context.ts";
-import { handleCompletion } from "./completion.ts";
+import { getCompletionItems, handleCompletion } from "./completion.ts";
 
 const CURSOR = "█";
 
@@ -112,6 +113,25 @@ describe("completion", () => {
     }
   };
 
+  const checkNoCompletions = async (
+    relativePath: string,
+    contentWithCursor: string,
+  ) => {
+    expect(await complete(relativePath, contentWithCursor)).toEqual([]);
+  };
+
+  const statusOptionKeys = [
+    "pending",
+    "active",
+    "complete",
+    "cancelled",
+    "archived",
+  ];
+
+  const checkStatusOptions = async (contentWithCursor: string) => {
+    await check("tasks/my-task.yaml", contentWithCursor, statusOptionKeys);
+  };
+
   describe("relation field completions", () => {
     it("provides completions for relation field value", async () => {
       const result = await complete(
@@ -149,15 +169,12 @@ project: pro█`,
       );
     });
 
-    it("returns empty for non-relation field", async () => {
-      const result = await complete(
+    it("returns empty for non-relation field", () =>
+      checkNoCompletions(
         "tasks/my-task.yaml",
         `type: Task
 title: █`,
-      );
-
-      expect(result).toEqual([]);
-    });
+      ));
   });
 
   describe("multi-relation field completions", () => {
@@ -201,38 +218,50 @@ title: █`,
       );
     });
 
-    it("returns empty for non-relation list fields", async () => {
-      const result = await complete(
+    it("returns empty for non-relation list fields", () =>
+      checkNoCompletions(
         "tasks/my-task.yaml",
         `type: Task
 title: My Task
 tags:
   - █`,
-      );
-
-      expect(result).toEqual([]);
-    });
+      ));
   });
 
   describe("option field completions", () => {
     it("provides all option completions regardless of partial input", async () => {
-      await check(
-        "tasks/my-task.yaml",
-        `type: Task
+      await checkStatusOptions(`type: Task
 title: My Task
-status: c█`,
-        ["pending", "active", "complete", "cancelled", "archived"],
-      );
+status: c█`);
     });
 
     it("provides all option completions for empty value", async () => {
-      await check(
-        "tasks/my-task.yaml",
-        `type: Task
+      await checkStatusOptions(`type: Task
 title: My Task
-status: █`,
-        ["pending", "active", "complete", "cancelled", "archived"],
+status: █`);
+    });
+
+    it("filters option completions by type-level only constraint", async () => {
+      const items = await getCompletionItems(
+        {
+          kind: "field-value",
+          cursorContext: {
+            documentType: "yaml",
+            type: "field-value",
+            position: { line: 0, character: 0 },
+            entity: { entityIndex: 0, mapping: { status: "new" } },
+            fieldPath: ["status"],
+            fieldDef: mockStatusField,
+            fieldAttrs: { only: ["pending", "active"] },
+          },
+          context: { namespace: "record" } as never,
+          excludeValues: [],
+        },
+        runtime.kg,
       );
+
+      const values = items.map((item) => item.label);
+      expect(values).toEqual(["pending", "active"]);
     });
   });
 
@@ -250,7 +279,7 @@ status: █
 
 Some description
 `,
-        ["pending", "active", "complete", "cancelled", "archived"],
+        statusOptionKeys,
       );
     });
 

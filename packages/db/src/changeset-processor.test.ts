@@ -85,9 +85,13 @@ describe("changeset processor", () => {
       expect(result).toBeOk();
     };
 
+    const insertTask1 = async () => {
+      await insertRecord(db, mockTask1Record);
+    };
+
     describe("changeset creation", () => {
       it("creates changeset for updated entity", async () => {
-        await insertRecord(db, mockTask1Record);
+        await insertTask1();
 
         const result = await db.transaction(async (tx) =>
           throwIfError(
@@ -397,7 +401,7 @@ describe("changeset processor", () => {
         ]));
 
       it("rejects update to status triggering conditional required field", async () => {
-        await insertRecord(db, mockTask1Record);
+        await insertTask1();
 
         await checkErrors(
           [{ uid: mockTask1Record.uid, status: "cancelled" }],
@@ -413,7 +417,7 @@ describe("changeset processor", () => {
       });
 
       it("accepts update to status with conditional required field provided", async () => {
-        await insertRecord(db, mockTask1Record);
+        await insertTask1();
 
         await checkSuccess([
           {
@@ -468,8 +472,10 @@ describe("changeset processor", () => {
           ],
         ));
 
-      it("rejects undefined fields in schema for create and update", () =>
-        checkErrors(
+      it("rejects undefined fields in schema for create and update", async () => {
+        await insertTask1();
+
+        await checkErrors(
           [
             {
               type: mockTaskTypeKey,
@@ -492,7 +498,8 @@ describe("changeset processor", () => {
               message: 'field "anotherInvalidField" is not defined in schema',
             },
           ],
-        ));
+        );
+      });
 
       it("rejects reserved keys on create and update", async () => {
         await insertConfig(db, mockPriorityField);
@@ -598,8 +605,61 @@ describe("changeset processor", () => {
           "config",
         ));
 
+      const createStatusOnlySchema = () => {
+        const schema = structuredClone(mockRecordSchema);
+        schema.types[mockTaskTypeKey].fields = schema.types[
+          mockTaskTypeKey
+        ].fields.map((ref) =>
+          (Array.isArray(ref) ? ref[0] : ref) === "status"
+            ? ["status", { only: ["pending", "active"] }]
+            : ref,
+        );
+        return schema;
+      };
+
+      const checkStatusOnlyConstraintError = async (
+        input: EntityChangesetInput<"record">,
+      ) => {
+        const result = await db.transaction(async (tx) =>
+          processChangesetInput(
+            tx,
+            "record",
+            [input],
+            createStatusOnlySchema(),
+            GENESIS_ENTITY_ID,
+          ),
+        );
+
+        expect(result).toBeErrWithKey("changeset-input-process-failed");
+        const error = throwIfValue(result);
+        expect((error.data as { errors: object[] }).errors).toEqual([
+          {
+            index: 0,
+            namespace: "record",
+            field: "status",
+            message: expect.stringContaining("Invalid option value: complete"),
+          },
+        ]);
+      };
+
+      it("enforces type-level only constraints for option fields on create", () =>
+        checkStatusOnlyConstraintError({
+          type: mockTaskTypeKey,
+          title: "Task with invalid status",
+          status: "complete",
+        }));
+
+      it("enforces type-level only constraints for option fields on update", async () => {
+        await insertTask1();
+
+        await checkStatusOnlyConstraintError({
+          uid: mockTask1Uid,
+          status: "complete",
+        });
+      });
+
       it("validates values in list mutations", async () => {
-        await insertRecord(db, mockTask1Record);
+        await insertTask1();
 
         await checkErrors(
           [
@@ -629,7 +689,7 @@ describe("changeset processor", () => {
       });
 
       it("accepts valid list mutations", async () => {
-        await insertRecord(db, mockTask1Record);
+        await insertTask1();
 
         await checkSuccess([
           {

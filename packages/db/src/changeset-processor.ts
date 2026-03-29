@@ -41,6 +41,7 @@ import {
   fieldSystemType,
   fieldTypes,
   type FieldValue,
+  getOptionDefsForFieldRef,
   getTypeFieldAttrs,
   getTypeFieldKey,
   incrementEntityId,
@@ -370,7 +371,7 @@ const validateTypeFieldDefaults = (
     const tempFieldDef = {
       dataType: fieldDef.dataType,
       allowMultiple: false,
-      options: fieldDef.options,
+      options: getOptionDefsForFieldRef(fieldDef, attrs),
     } as RecordFieldDef;
     const validationResult = validateDataType(
       "record",
@@ -393,10 +394,12 @@ const validateChangesetInput = <N extends NamespaceEditable>(
   namespace: N,
   input: EntityMutationInput<N>,
   schema: EntitySchema,
+  typeKey: EntityType,
 ): ValidationError[] => {
   const errors: ValidationError[] = [];
+  const fieldAttrs = getFieldAttrs(schema, typeKey);
 
-  const keyValue = input["key"] as string;
+  const keyValue = input["key"] as string | undefined;
   if (keyValue !== undefined) {
     if (isReservedEntityKey(keyValue)) {
       errors.push({
@@ -430,6 +433,8 @@ const validateChangesetInput = <N extends NamespaceEditable>(
 
     if (value == null) continue;
 
+    const attrs = fieldAttrs.get(fieldKey);
+
     if (isEntityUpdate(input)) {
       if (fieldDef.immutable) {
         errors.push({
@@ -439,29 +444,34 @@ const validateChangesetInput = <N extends NamespaceEditable>(
         continue;
       }
     } else {
-      const typeKey = (input as any).type;
-      if (typeKey) {
-        const fieldAttrs = getFieldAttrs(schema, typeKey);
-        const attrs = fieldAttrs.get(fieldKey);
-        if (attrs?.value !== undefined && value !== attrs.value) {
-          errors.push({
-            field: fieldKey,
-            message: `field must have value "${attrs.value}", got: ${value}`,
-          });
-          continue;
-        }
+      if (attrs?.value !== undefined && value !== attrs.value) {
+        errors.push({
+          field: fieldKey,
+          message: `field must have value "${attrs.value}", got: ${value}`,
+        });
+        continue;
       }
     }
+    const effectiveFieldDef = {
+      ...fieldDef,
+      options: getOptionDefsForFieldRef(fieldDef, attrs),
+    } as FieldDef<DataTypeNs[N]>;
 
     const mutations = collectMutationsFromValue(value);
     if (mutations) {
       errors.push(
-        ...validateMutations(namespace, fieldKey, fieldDef, mutations, schema),
+        ...validateMutations(
+          namespace,
+          fieldKey,
+          effectiveFieldDef,
+          mutations,
+          schema,
+        ),
       );
       continue;
     }
 
-    if (fieldDef.unique && fieldDef.allowMultiple) {
+    if (effectiveFieldDef.unique && effectiveFieldDef.allowMultiple) {
       errors.push({
         field: fieldKey,
         message: "unique constraint cannot be used with allowMultiple",
@@ -471,7 +481,7 @@ const validateChangesetInput = <N extends NamespaceEditable>(
 
     const validationResult = validateDataType(
       namespace,
-      fieldDef,
+      effectiveFieldDef,
       value as FieldValue,
     );
 
@@ -485,26 +495,6 @@ const validateChangesetInput = <N extends NamespaceEditable>(
 
   if (isEntityUpdate(input)) return errors;
 
-  if (!input.type) {
-    errors.push({
-      field: "type",
-      message: "type is required for create entity changeset",
-    });
-    return errors;
-  }
-
-  const typeKey = input.type;
-  const typeDef = (schema.types as any)[typeKey];
-
-  if (!typeDef) {
-    errors.push({
-      field: "type",
-      message: `invalid type: ${typeKey}`,
-    });
-    return errors;
-  }
-
-  const fieldAttrs = getFieldAttrs(schema, typeKey);
   // For creations, input contains all entity values needed to evaluate `when` conditions.
   // Updates are partial and skip mandatory validation, so this cast is safe.
   const mandatoryFields = getMandatoryFields(
@@ -546,7 +536,7 @@ const validateUniquenessConstraints = async <N extends NamespaceEditable>(
 
   for (const [fieldKey, value] of objEntries(input)) {
     if (value == null) continue;
-    const fieldDef = (schema.fields as any)[fieldKey];
+    const fieldDef = schema.fields[fieldKey as FieldKey];
     if (!fieldDef || !fieldDef.unique) continue;
     if (fieldDef.allowMultiple) {
       errors.push({
@@ -1024,7 +1014,7 @@ const expandDeleteCleanup = async <N extends NamespaceEditable>(
       .where(
         and(
           sql`${table.fields} LIKE ${"%" + deletedUid + "%"}`,
-          ne(table.uid, deletedUid as any),
+          ne(table.uid, deletedUid as EntityNsUid[N]),
         ),
       );
 
@@ -1120,9 +1110,6 @@ const buildChangeset = async <N extends NamespaceEditable>(
       `system field ${updatedSystemField} not allowed in update`,
     );
 
-  const validationErrors = validateChangesetInput(namespace, input, schema);
-  if (validationErrors.length > 0) return err(validationErrors);
-
   const changeset: FieldChangeset = {};
   let changesetRef: EntityChangesetRef<N>;
   let typeKey: EntityType;
@@ -1146,6 +1133,19 @@ const buildChangeset = async <N extends NamespaceEditable>(
     currentEntityUid = currentValues.uid as EntityNsUid[N];
 
     typeKey = currentValues.type as EntityType;
+    const updateTypeDef = schema.types[typeKey];
+    if (!updateTypeDef) {
+      return validationError(`invalid type: ${typeKey}`, "type");
+    }
+
+    const validationErrors = validateChangesetInput(
+      namespace,
+      input,
+      schema,
+      typeKey,
+    );
+    if (validationErrors.length > 0) return err(validationErrors);
+
     const mergedValues = { ...currentValues, ...input } as Fieldset;
     const mandatoryErrors = validateConditionalMandatoryFields(
       schema,
@@ -1180,14 +1180,28 @@ const buildChangeset = async <N extends NamespaceEditable>(
     if (input["uid"] && !isValidUid(input["uid"])) {
       return validationError("invalid uid format", "uid");
     }
-    if (namespace === "config" && !input["key"]) {
-      return validationError("key is required for config entities", "key");
+    if (!input.type) {
+      return validationError(
+        "type is required for create entity changeset",
+        "type",
+      );
     }
 
     typeKey = input.type as EntityType;
-
     const typeDef = schema.types[typeKey];
-    const typeFieldKeys = typeDef?.fields.map(getTypeFieldKey) ?? [];
+    if (!typeDef) {
+      return validationError(`invalid type: ${typeKey}`, "type");
+    }
+
+    const validationErrors = validateChangesetInput(
+      namespace,
+      input,
+      schema,
+      typeKey,
+    );
+    if (validationErrors.length > 0) return err(validationErrors);
+
+    const typeFieldKeys = typeDef.fields.map(getTypeFieldKey);
     const fieldAttrs = getFieldAttrs(schema, typeKey);
 
     const fieldsWithDefaults: Record<string, FieldValue> = {};

@@ -13,6 +13,7 @@ import {
   type EntityType,
   type Fieldset,
   getAllFieldsForType,
+  getOptionDefsForFieldRef,
   getTypeFieldAttrs,
   getTypeFieldKey,
   type Includes,
@@ -33,8 +34,6 @@ import {
 } from "../types.ts";
 import { rangeToValidationRange } from "../utils.ts";
 import { getTypeFromFilters } from "../../utils/query.ts";
-
-type RangeNode = { range?: [number, number, number] | null };
 
 const hasRange = (node: unknown): node is ParsedNode =>
   node !== null &&
@@ -107,13 +106,26 @@ const visitEntityNode = <N extends Namespace>(
       createValidationError(
         "invalid-structure",
         "Each item must be a mapping (object)",
-        getRange(node as RangeNode, lc),
+        getRange(node, lc),
         "error",
       ),
     ];
 
   const errors: ValidationError[] = [];
   const schema = context.schema;
+  const typeDef = schema.types[entityType];
+  if (!typeDef) {
+    return [
+      createValidationError(
+        "missing-type-definition",
+        `Type '${entityType}' does not exist in schema`,
+        getRange(node, lc),
+        "error",
+        { entityType },
+      ),
+    ];
+  }
+
   const allFieldsForType = getAllFieldsForType(entityType, schema);
   const entityValues = yamlNodeToJson(node) as Fieldset;
 
@@ -123,7 +135,7 @@ const visitEntityNode = <N extends Namespace>(
         createValidationError(
           "invalid-structure",
           "Expected key-value pair with scalar key",
-          getRange(item as RangeNode, lc),
+          getRange(item, lc),
           "error",
         ),
       );
@@ -187,6 +199,17 @@ const visitEntityNode = <N extends Namespace>(
 
     const valueNode = item.value;
 
+    const typeFieldRef = typeDef.fields.find(
+      (ref) => getTypeFieldKey(ref) === fieldKey,
+    );
+    const fieldAttrs = typeFieldRef
+      ? getTypeFieldAttrs(typeFieldRef)
+      : undefined;
+    const effectiveFieldDef = {
+      ...fieldDef,
+      options: getOptionDefsForFieldRef(fieldDef, fieldAttrs),
+    };
+
     const fieldInclude = currentIncludes?.[fieldKey];
     const nestedIncludes =
       typeof fieldInclude === "object" && fieldInclude !== null
@@ -196,13 +219,6 @@ const visitEntityNode = <N extends Namespace>(
         : undefined;
 
     if (fieldDef.dataType === "relation" && nestedIncludes) {
-      const typeDef = schema.types[entityType];
-      const typeFieldRef = typeDef?.fields.find(
-        (ref) => getTypeFieldKey(ref) === fieldKey,
-      );
-      const fieldAttrs = typeFieldRef
-        ? getTypeFieldAttrs(typeFieldRef)
-        : undefined;
       const range = fieldAttrs?.only ?? fieldDef.range;
       if (!range || range.length === 0) continue;
       // TODO: when range has multiple types, we should validate against all possible types
@@ -230,7 +246,7 @@ const visitEntityNode = <N extends Namespace>(
 
       const validationResult = validateDataType(
         context.namespace,
-        fieldDef,
+        effectiveFieldDef,
         jsonValue,
       );
       if (isErr(validationResult)) {
@@ -333,13 +349,12 @@ export const createYamlValidator = (): Validator<ParsedYaml> => ({
       ? context.navigationItem.query?.includes
       : context.navigationItem.includes;
 
-    const entityType = isDirectory
+    const typeFilters = isDirectory
       ? context.navigationItem.query?.filters
-        ? getTypeFromFilters(context.navigationItem.query?.filters)
-        : undefined
-      : context.navigationItem.where
-        ? getTypeFromFilters(context.navigationItem.where)
-        : undefined;
+      : context.navigationItem.where;
+    const entityType = typeFilters
+      ? getTypeFromFilters(typeFilters)
+      : undefined;
     if (!entityType)
       return [
         createValidationError(

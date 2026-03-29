@@ -252,7 +252,7 @@
       title: Run first 5km race
       description: Train for and complete a 5km running race
       status: active
-      priority: high
+      priority: p2
       parent: health
 
     - type: Project
@@ -266,7 +266,7 @@
     - type: Task
       title: Sign up for local 5km race
       status: complete
-      priority: high
+      priority: p2
       parent: run-5km
 
     - type: Task
@@ -276,12 +276,12 @@
     - type: Task
       title: Complete week 1 training plan
       status: active
-      priority: high
+      priority: p2
       parent: run-5km
 
     - type: Task
       title: Schedule rest days
-      priority: low
+      priority: p4
       parent: run-5km
 
     - type: Task
@@ -290,7 +290,7 @@
 
     - type: Task
       title: Set up TypeScript project
-      priority: high
+      priority: p2
       parent: learn-typescript
 
     - type: Task
