@@ -341,7 +341,7 @@ describe("LSP", () => {
     await waitFor(() => {
       const info = notifications.filter((n) => n.type === 3);
       expect(info.length).toBeGreaterThan(0);
-      expect(info[0]!.message).toMatch(/synced/i);
+      expect(info[0]!.message).toMatch(/saved/i);
     });
   });
 

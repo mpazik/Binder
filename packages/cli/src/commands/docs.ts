@@ -66,16 +66,10 @@ export const docsSyncHandler: CommandHandlerWithDb<{
   const updateResult = await kg.update(syncResult.data);
   if (isErr(updateResult)) return updateResult;
 
-  const changeCount =
-    (syncResult.data.records?.length ?? 0) +
-    (syncResult.data.configs?.length ?? 0);
-
   ui.block(() => {
     ui.printTransaction(updateResult.data);
   });
-  ui.success(
-    `Synchronized ${changeCount} change${changeCount === 1 ? "" : "s"}`,
-  );
+  ui.success("Synchronized successfully");
   return okVoid;
 };
 

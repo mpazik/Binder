@@ -16,10 +16,6 @@ import {
   namespaceFromSnapshotPath,
 } from "../../lib/snapshot.ts";
 
-// ---------------------------------------------------------------------------
-// Notifications
-// ---------------------------------------------------------------------------
-
 const notify = (
   deps: WorkspaceContextDeps,
   type: MessageType,
@@ -31,11 +27,18 @@ const notify = (
   });
 };
 
-// ---------------------------------------------------------------------------
-// Document sync
-// ---------------------------------------------------------------------------
+type SyncResult = { fieldChangeCount: number };
 
-type SyncResult = { changeCount: number };
+const META_KEYS = new Set(["$ref", "type", "key", "uid", "$delete"]);
+
+const countFieldChanges = (changesets: Record<string, unknown>[]): number => {
+  let count = 0;
+  for (const cs of changesets) {
+    const fieldKeys = Object.keys(cs).filter((k) => !META_KEYS.has(k));
+    count += fieldKeys.length > 0 ? fieldKeys.length : 1; // deletes count as 1
+  }
+  return count;
+};
 
 const syncDocument = async (
   context: RuntimeContextWithDb,
@@ -46,7 +49,7 @@ const syncDocument = async (
   const uriObj = new URL(uri);
   if (uriObj.protocol !== "file:") {
     log.warn("Ignoring non-file URI", { uri });
-    return ok({ changeCount: 0 });
+    return ok({ fieldChangeCount: 0 });
   }
   const absolutePath = uriObj.pathname;
 
@@ -56,7 +59,7 @@ const syncDocument = async (
       path: absolutePath,
       config: config.paths,
     });
-    return ok({ changeCount: 0 });
+    return ok({ fieldChangeCount: 0 });
   }
   const relativePath = getRelativeSnapshotPath(absolutePath, config.paths);
   log.info("Syncing file", { relativePath });
@@ -86,7 +89,7 @@ const syncDocument = async (
 
   if (syncResult.data.length === 0) {
     log.info("No changes detected", { relativePath });
-    return ok({ changeCount: 0 });
+    return ok({ fieldChangeCount: 0 });
   }
 
   log.debug("Changesets to apply", { changesets: syncResult.data });
@@ -98,20 +101,17 @@ const syncDocument = async (
   });
   if (isErr(applyResult)) return applyResult;
 
-  const changeCount = syncResult.data.length;
-  log.info("File synced successfully", { relativePath, changeCount });
+  const fieldChangeCount = countFieldChanges(
+    syncResult.data as Record<string, unknown>[],
+  );
+  log.info("File synced successfully", { relativePath, fieldChangeCount });
 
-  return ok({ changeCount });
+  return ok({ fieldChangeCount });
 };
 
-// ---------------------------------------------------------------------------
-// Per-URI save coalescing
-//
 // At most one sync runs per URI at a time. Saves arriving while a sync is
 // in-flight set a pending flag; when the current sync finishes, a single
 // re-sync runs with the latest disk content, preventing duplicate transactions.
-// ---------------------------------------------------------------------------
-
 type UriState = { running: boolean; pending: boolean };
 
 const uriStates = new Map<string, UriState>();
@@ -128,18 +128,23 @@ const executeSave = async (
   const result = await tryCatch(() => syncDocument(context, uri));
   if (isErr(result)) {
     context.log.error("Save sync failed", { uri, error: result.error });
-    notify(deps, MessageType.Error, `Sync failed: ${result.error}`);
+    notify(
+      deps,
+      MessageType.Error,
+      `Sync failed: ${result.error.message ?? result.error.key}`,
+    );
   } else if (isErr(result.data)) {
     context.log.error("Sync failed", { uri, error: result.data.error });
     notify(
       deps,
       MessageType.Error,
-      `Sync failed: ${result.data.error.message}`,
+      `Sync failed: ${result.data.error.message ?? result.data.error.key}`,
     );
-  } else if (result.data.data.changeCount > 0) {
-    const { changeCount } = result.data.data;
-    const s = changeCount === 1 ? "" : "s";
-    notify(deps, MessageType.Info, `Synced ${changeCount} change${s}`);
+  } else if (result.data.data.fieldChangeCount > 0) {
+    const n = result.data.data.fieldChangeCount;
+    const message =
+      n === 1 ? "Change saved to Binder" : `Saved ${n} changes to Binder`;
+    notify(deps, MessageType.Info, message);
   }
 
   state.running = false;
@@ -153,14 +158,8 @@ const executeSave = async (
   uriStates.delete(uri);
 };
 
-// ---------------------------------------------------------------------------
-// Public handler
-//
 // Doesn't use withDocumentContext/LspHandler because it runs its own
-// extraction pipeline via extractFileChanges. The DocumentContext built by
-// withDocumentContext would be redundant work discarded by the sync path.
-// ---------------------------------------------------------------------------
-
+// extraction pipeline via extractFileChanges.
 export const handleDocumentSave = async (
   event: { document: { uri: string } },
   workspace: WorkspaceEntry,
