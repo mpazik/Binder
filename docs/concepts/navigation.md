@@ -44,7 +44,9 @@ The system infers the output format from the navigation item:
 
 ### Path Resolution
 
-Path patterns use `{fieldName}` interpolation. When rendering, the system resolves each entity's field values into the path, sanitising for filesystem safety:
+Path patterns use `{fieldName}` interpolation. When rendering, the system resolves each entity's field values into the path, sanitising for filesystem safety.
+
+If any referenced path field resolves to `null` or `undefined` (including parent/ancestral placeholders), that entity is skipped for that navigation item and a warning is logged. This prevents invalid outputs such as empty filename segments.
 
 ```yaml
 path: tasks/{key}          # → tasks/implement-auth.md
@@ -68,7 +70,7 @@ For nested navigation, child items inherit parent entity context. A child can re
 The full rendering flow:
 1. **Load navigation**: fetch navigation items from config namespace, build tree
 2. **For each item**: execute the `where` filter as a query against the entity store
-3. **For each matching entity**: resolve the file path from the path pattern
+3. **For each matching entity**: resolve the file path from the path pattern (skip + warn when required path fields are null/undefined)
 4. **Render content**: apply the view (markdown) or serialise fields (YAML)
 5. **Save snapshot**: write the file with version tracking metadata
 6. **Recurse children**: process child navigation items with parent entity as context

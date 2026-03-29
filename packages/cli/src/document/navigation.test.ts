@@ -400,16 +400,17 @@ describe("navigation", () => {
       views = throwIfError(await loadViews(kg));
     };
 
-    type CheckOptions = {
+    type RenderItemOptions = {
       parentPath?: string;
       parentEntities?: Fieldset[];
+      log?: typeof mockLog;
     };
 
     const renderItem = async (
       item: NavigationItem,
-      options: CheckOptions = {},
+      options: RenderItemOptions = {},
     ) => {
-      const { parentPath = "", parentEntities = [] } = options;
+      const { parentPath = "", parentEntities = [], log = mockLog } = options;
       return throwIfError(
         await renderNavigationItem(
           {
@@ -421,7 +422,7 @@ describe("navigation", () => {
             version,
             namespace: "record",
             views,
-            log: mockLog,
+            log,
           },
           item,
           parentPath,
@@ -434,7 +435,7 @@ describe("navigation", () => {
       item: NavigationItem,
       expectedPath: string,
       expectedContent: string,
-      options: CheckOptions = {},
+      options: RenderItemOptions = {},
     ) => {
       await renderItem(item, options);
       const content = throwIfError(
@@ -593,6 +594,23 @@ describe("navigation", () => {
       );
     });
 
+    it("renders markdown with ancestral field in path", async () => {
+      await addView("task-detail", "# {title}\n");
+      await check(
+        {
+          path: "tasks/{title}",
+          where: { type: "Task", project: "{parent.uid}" },
+          view: "task-detail",
+        },
+        `projects/${mockProjectRecord.title}/tasks/${mockTask2Record.title}.md`,
+        `# ${mockTask2Record.title}\n`,
+        {
+          parentPath: `projects/${mockProjectRecord.title}/`,
+          parentEntities: [mockProjectRecord],
+        },
+      );
+    });
+
     it("renders all results when limit is not specified", async () => {
       const result = await renderItem({
         path: "tasks/{title}",
@@ -601,6 +619,42 @@ describe("navigation", () => {
       expect(result.renderedPaths).toEqual([
         `tasks/${mockTask1Record.title}.yaml`,
         `tasks/${mockTask2Record.title}.yaml`,
+      ]);
+    });
+
+    it("skips entity when a path field value is null and logs warning", async () => {
+      const warnings: string[] = [];
+      const result = await renderItem(
+        { path: "tasks/{project}", where: { type: "Task" } },
+        {
+          log: {
+            ...mockLog,
+            warn: (msg: string) => warnings.push(msg),
+          },
+        },
+      );
+
+      expect(result.renderedPaths).toEqual([`tasks/${mockProjectUid}.yaml`]);
+      expect(warnings).toEqual([
+        expect.stringContaining("missing value for path field 'project'"),
+      ]);
+
+      const generatedFiles = Array.from(fs.files.keys()).filter((f) =>
+        f.endsWith(".yaml"),
+      );
+      expect(generatedFiles).toEqual([
+        `${docsPath}/tasks/${mockProjectUid}.yaml`,
+      ]);
+    });
+
+    it("skips entity when any field in a multi-field path is null", async () => {
+      const result = await renderItem({
+        path: "tasks/{project}/{key}",
+        where: { type: "Task" },
+      });
+
+      expect(result.renderedPaths).toEqual([
+        `tasks/${mockProjectUid}/${mockTask2Record.key}.yaml`,
       ]);
     });
 
@@ -638,47 +692,17 @@ describe("navigation", () => {
 
     it("does not log warning when all results fit within default limit", async () => {
       const warnings: string[] = [];
-      const log = {
-        ...mockLog,
-        warn: (msg: string) => warnings.push(msg),
-      };
-
-      throwIfError(
-        await renderNavigationItem(
-          {
-            db,
-            kg,
-            fs,
-            paths,
-            schema,
-            version,
-            namespace: "record",
-            views,
-            log,
+      await renderItem(
+        { path: "tasks/{title}", where: { type: "Task" } },
+        {
+          log: {
+            ...mockLog,
+            warn: (msg: string) => warnings.push(msg),
           },
-          { path: "tasks/{title}", where: { type: "Task" } },
-          "",
-          [],
-        ),
+        },
       );
-      expect(warnings).toEqual([]);
-    });
 
-    it("renders markdown with ancestral field in path", async () => {
-      await addView("task-detail", "# {title}\n");
-      await check(
-        {
-          path: "tasks/{title}",
-          where: { type: "Task", project: "{parent.uid}" },
-          view: "task-detail",
-        },
-        `projects/${mockProjectRecord.title}/tasks/${mockTask2Record.title}.md`,
-        `# ${mockTask2Record.title}\n`,
-        {
-          parentPath: `projects/${mockProjectRecord.title}/`,
-          parentEntities: [mockProjectRecord],
-        },
-      );
+      expect(warnings).toEqual([]);
     });
   });
 

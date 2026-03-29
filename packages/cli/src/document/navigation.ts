@@ -20,6 +20,7 @@ import {
 } from "@binder/db";
 import {
   assertDefinedPass,
+  fail,
   isErr,
   ok,
   omit,
@@ -30,8 +31,8 @@ import type { Logger } from "../log.ts";
 import { sanitizeFilename } from "../utils/file.ts";
 import {
   extractFieldValues,
-  interpolateAncestralFields,
   interpolatePlain,
+  parseAncestralPlaceholder,
 } from "../utils/interpolate-fields.ts";
 import type { DatabaseCli } from "../db";
 import { interpolateQueryParams } from "../utils/query.ts";
@@ -67,11 +68,15 @@ const emptyRenderResult = (): RenderResult => ({
   divergedPaths: [],
 });
 
-const mergeRenderResults = (results: RenderResult[]): RenderResult => ({
-  renderedPaths: results.flatMap((r) => r.renderedPaths),
-  modifiedPaths: results.flatMap((r) => r.modifiedPaths),
-  divergedPaths: results.flatMap((r) => r.divergedPaths),
-});
+const appendRenderResult = (
+  target: RenderResult,
+  next: RenderResult,
+): RenderResult => {
+  target.renderedPaths.push(...next.renderedPaths);
+  target.modifiedPaths.push(...next.modifiedPaths);
+  target.divergedPaths.push(...next.divergedPaths);
+  return target;
+};
 
 const inferFileType = (item: NavigationItem): FileType => {
   if (item.path.endsWith("/")) return "directory";
@@ -221,34 +226,47 @@ export const findNavigationItemByPath = (
       const remainingPath = path.slice(slashIndex + 1);
       const found = findNavigationItemByPath(item.children, remainingPath);
       if (found) return found;
-    } else {
-      const pathPattern = item.path + getExtension(fileType);
-      const pathFieldsResult = extractFieldValues(pathPattern, path);
-      if (isErr(pathFieldsResult)) continue;
-      return item;
+      continue;
     }
+
+    const pathPattern = getPathPattern(item);
+    const pathFieldsResult = extractFieldValues(pathPattern, path);
+    if (isErr(pathFieldsResult)) continue;
+    return item;
   }
 };
 
+/**
+ * Resolves a navigation item's concrete file path for an entity.
+ *
+ * Returns `missing-path-field` when any interpolated placeholder resolves to
+ * `null` or `undefined` (including ancestral placeholders like `{parent.key}`).
+ */
 export const resolvePath = (
   schema: EntitySchema,
   navItem: NavigationItem,
   entity: Fieldset,
   parentEntities: AncestralFieldsetChain = [],
 ): Result<string> => {
-  const fileType = inferFileType(navItem);
-  const extension = getExtension(fileType);
-  const pathPattern = navItem.path + extension;
-  const context = [entity, ...parentEntities];
+  const pathPattern = getPathPattern(navItem);
+  const entityContext = [entity, ...parentEntities];
 
-  return interpolateAncestralFields(schema, pathPattern, (fieldName, depth) =>
-    sanitizeFilename(
-      stringifyFieldValue(
-        context[depth]?.[fieldName],
-        schema.fields[fieldName],
-      ),
-    ),
-  );
+  return interpolatePlain(pathPattern, (placeholder) => {
+    const { fieldName, depth } = parseAncestralPlaceholder(placeholder);
+    const value = entityContext[depth]?.[fieldName];
+
+    if (value === null || value === undefined) {
+      return fail("missing-path-field", "Path field is null or undefined", {
+        fieldName,
+        depth,
+        pathPattern,
+      });
+    }
+
+    return ok(
+      sanitizeFilename(stringifyFieldValue(value, schema.fields[fieldName])),
+    );
+  });
 };
 
 const getParentDir = (filePath: string, fileType: FileType): string => {
@@ -390,7 +408,7 @@ export const renderNavigationItem = async (
     } else if (interpolatedQuery.data.includes) {
       interpolatedQuery.data.includes = mergeIncludes(
         interpolatedQuery.data.includes,
-        { uid: true },
+        { key: true, uid: true },
       );
     }
 
@@ -409,10 +427,11 @@ export const renderNavigationItem = async (
     entities = [parentEntities[0] ?? emptyFieldset];
   }
 
-  // Strip uid from rendered output when the user specified includes but
-  // didn't list uid. Views control their own output so no stripping needed.
-  // When includes is undefined (all fields), uid stays.
+  // Keep key/uid in query includes for path resolution, then strip from output
+  // when the user explicitly provided includes without those fields.
+  // Views control their own output so no stripping is needed there.
   const stripUid = !item.view && !!item.includes && !item.includes.uid;
+  const stripKey = !item.view && !!item.includes && !item.includes.key;
 
   for (const entity of entities) {
     const entityUid = (entity.uid as EntityUid) ?? null;
@@ -423,12 +442,32 @@ export const renderNavigationItem = async (
       entity as Fieldset,
       parentEntities,
     );
-    if (isErr(resolvedPath)) return resolvedPath;
+    if (isErr(resolvedPath)) {
+      if (resolvedPath.error.key === "missing-path-field") {
+        const entityId =
+          (entity.key as string | undefined) ??
+          (entity.uid as string | undefined) ??
+          "<unknown>";
+        const missingFieldName = (
+          resolvedPath.error.data as { fieldName?: unknown } | undefined
+        )?.fieldName;
+
+        log.warn(
+          `Skipping render for entity '${entityId}' in navigation '${getPathPattern(item)}': missing value for path field '${String(missingFieldName ?? "unknown")}'.`,
+        );
+        continue;
+      }
+      return resolvedPath;
+    }
     const filePath = join(parentPath, resolvedPath.data);
 
+    const omittedFields = [
+      ...(stripUid ? ["uid"] : []),
+      ...(stripKey ? ["key"] : []),
+    ];
     const renderEntity =
-      stripUid && "uid" in entity
-        ? (omit(entity, ["uid"]) as FieldsetNested)
+      omittedFields.length > 0
+        ? (omit(entity, omittedFields) as FieldsetNested)
         : entity;
 
     const renderContentResult = await renderContent(
@@ -479,9 +518,7 @@ export const renderNavigationItem = async (
         );
         if (isErr(childResult)) return childResult;
 
-        result.renderedPaths.push(...childResult.data.renderedPaths);
-        result.modifiedPaths.push(...childResult.data.modifiedPaths);
-        result.divergedPaths.push(...childResult.data.divergedPaths);
+        appendRenderResult(result, childResult.data);
       }
     }
   }
@@ -505,15 +542,15 @@ export const renderNavigation = async (
     version: versionResult.data,
   };
 
-  const results: RenderResult[] = [];
+  const result = emptyRenderResult();
 
   for (const item of navigationItems) {
-    const result = await renderNavigationItem(renderCtx, item, "", []);
-    if (isErr(result)) return result;
-    results.push(result.data);
+    const itemResult = await renderNavigationItem(renderCtx, item, "", []);
+    if (isErr(itemResult)) return itemResult;
+    appendRenderResult(result, itemResult.data);
   }
 
-  return ok(mergeRenderResults(results));
+  return ok(result);
 };
 
 export type LocationInFile = {
