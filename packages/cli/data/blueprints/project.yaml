@@ -1,21 +1,73 @@
 # Project management blueprint
-# Provides: Task, Milestone types
+# Provides: Task, Milestone types with Markdown navigation
+
+# ====================
+# SCHEMA
+# ====================
 
 - author: system
   configs:
-    # Types
+    - key: size
+      type: Field
+      name: Size
+      description: Scope and complexity of the task
+      dataType: option
+      options:
+        - key: small
+          name: Small
+          description: Quick to complete, no decisions needed
+        - key: medium
+          name: Medium
+          description: Some coordination or multiple steps
+        - key: large
+          name: Large
+          description: Significant effort, non-trivial decisions required
+
+    - key: acceptanceCriteria
+      type: Field
+      name: Acceptance Criteria
+      dataType: richtext
+      richtextFormat: line
+      allowMultiple: true
+      description: Conditions that must be met for this task to be considered done
+
+    - key: constraints
+      type: Field
+      name: Constraints
+      dataType: richtext
+      richtextFormat: block
+      allowMultiple: true
+      description: Boundaries that must be respected
+
+    - key: outOfScope
+      type: Field
+      name: Out of Scope
+      dataType: richtext
+      richtextFormat: block
+      allowMultiple: true
+      description: What is deliberately not covered by this task
+
     - key: Task
       type: Type
       name: Task
       fields:
         - title: { required: true }
         - description
+        - details
         - status
         - priority
+        - size
         - dueDate
+        - acceptanceCriteria
+        - constraints
+        - outOfScope
         - parent: { only: [Task] }
         - children: { only: [Task] }
         - partOf: { only: [Milestone] }
+        - requires: { only: [Task] }
+        - requiredBy: { only: [Task] }
+        - relatesTo: { only: [Task] }
+        - tags
 
     - key: Milestone
       type: Type
@@ -23,86 +75,59 @@
       fields:
         - title: { required: true }
         - description
+        - details
         - status
         - dueDate
+        - acceptanceCriteria
+        - constraints
         - contains: { only: [Task] }
+        - requires: { only: [Milestone] }
+        - requiredBy: { only: [Milestone] }
 
-# Navigation & Views
+# ====================
+# NAVIGATION
+# ====================
+
 - author: system
   configs:
-    # --- Case 1: Frontmatter + body overlap ---
-    # View has {status} in body AND status in preamble (frontmatter).
-    # If user edits body status but not frontmatter, the body edit should win.
-    - key: task-detail-view
+    # --- Task view ---
+    - key: task-view
       type: View
-      name: Task Detail
-      preamble: [status, priority]
+      name: Task
+      preamble: [key, title, status, priority, size, dueDate, description, tags, partOf, requires, requiredBy, relatesTo, parent, children]
       viewContent: |
         # {title}
 
-        **Status:** {status}
+        ## Details
 
-        ## Description
+        {details}
 
-        {description}
+        ## Acceptance Criteria
 
-    # --- Case 2: Duplicate field slot in one view ---
-    # View has {title} in two places. If user edits them to different
-    # values, extraction should detect a conflict.
-    - key: task-summary-view
-      type: View
-      name: Task Summary
-      viewContent: |
-        # {title}
+        {acceptanceCriteria}
 
-        > **Summary:** {title}
+        ## Constraints
 
-        **Status:** {status}
+        {constraints}
 
-    # Navigation: markdown tasks with preamble (Case 1)
-    - key: nav-tasks-md
+        ## Out of Scope
+
+        {outOfScope}
+
+    # --- Task navigation ---
+    - key: nav-tasks
       type: Navigation
-      path: tasks/{key}
-      where: { type: Task }
-      view: task-detail-view
+      path: tasks/{title}
+      where: { type: Task, status: [pending, active, paused] }
+      view: task-view
 
-    # Navigation: markdown tasks with duplicate slot (Case 2)
-    - key: nav-tasks-summary
+    - key: nav-archive-tasks
       type: Navigation
-      path: summaries/{key}
-      where: { type: Task }
-      view: task-summary-view
+      path: archive/tasks/{title}
+      where: { type: Task, status: [complete, cancelled] }
+      view: task-view
 
-    # --- Case 3: Same field across files ---
-    # YAML route at a different path for the same entity. If both files
-    # are modified with different values for the same field, sync should
-    # detect a cross-file conflict.
-    - key: nav-tasks-yaml
-      type: Navigation
-      path: tasks-yaml/{key}
-      where: { type: Task }
-      includes:
-        key: true
-        title: true
-        status: true
-        description: true
-
-    # Milestones (YAML)
-    - key: nav-milestone
-      type: Navigation
-      path: milestones/{key}
-      where: { type: Milestone, status: [pending, active] }
-      includes:
-        key: true
-        title: true
-        description: true
-        status: true
-        dueDate: true
-        contains:
-          title: true
-          status: true
-
-    # Backlog
+    # Backlog index
     - key: nav-backlog
       type: Navigation
       path: backlog
@@ -112,9 +137,66 @@
           partOf: { op: empty, value: true }
           status: [pending, active]
 
-# Sample data
+    # --- Milestone views ---
+    - key: task-list-item
+      type: View
+      name: Task List Item
+      viewFormat: line
+      viewContent: |
+        - {title} ({priority})
+
+    - key: milestone-view
+      type: View
+      name: Milestone
+      preamble: [key, title, status, dueDate, description, requires, requiredBy]
+      viewContent: |
+        # {title}
+
+        ## Details
+
+        {details}
+
+        ## Acceptance Criteria
+
+        {acceptanceCriteria}
+
+        ## Constraints
+
+        {constraints}
+
+        ## Pending
+
+        {contains|where:status=pending|view:task-list-item}
+
+        ## Active
+
+        {contains|where:status=active|view:task-list-item}
+
+        ## Complete
+
+        {contains|where:status=complete|view:task-list-item}
+
+    # --- Milestone navigation ---
+    - key: nav-milestones-index
+      type: Navigation
+      path: milestones
+      query:
+        filters: { type: Milestone, status: { op: notIn, value: [cancelled] } }
+        includes: { key: true, title: true, status: true, dueDate: true }
+
+    - key: nav-milestones
+      type: Navigation
+      path: milestones/{key}
+      where: { type: Milestone }
+      view: milestone-view
+
+# ====================
+# SAMPLE DATA
+# ====================
+
 - author: system
   records:
+    # --- Milestones ---
     - type: Milestone
       key: mvp-release
       title: MVP Release
@@ -123,11 +205,22 @@
       dueDate: 2025-02-15
 
     - type: Milestone
+      key: public-beta
+      title: Public Beta
+      description: Open access beta with onboarding flow and docs
+      status: pending
+      dueDate: 2025-04-01
+      requires: [mvp-release]
+
+    - type: Milestone
       key: v1-launch
       title: V1 Public Launch
-      description: App store release
-      dueDate: 2025-04-01
+      description: App store release with stable API
+      status: pending
+      dueDate: 2025-06-01
+      requires: [public-beta]
 
+    # --- Tasks: MVP Release ---
     - type: Task
       key: build-auth
       title: Build authentication flow
@@ -135,23 +228,86 @@
       status: active
       priority: p2
       partOf: mvp-release
+      requires: [setup-database]
 
     - type: Task
-      key: design-onboarding
-      title: Design onboarding screens
-      status: pending
-      priority: p3
+      key: setup-database
+      title: Set up database schema
+      description: Define core tables and run initial migrations
+      status: complete
+      priority: p2
       partOf: mvp-release
 
     - type: Task
-      key: app-store-copy
-      title: App store listing copy
-      priority: p4
-      partOf: v1-launch
+      key: api-endpoints
+      title: Implement REST API endpoints
+      description: CRUD endpoints for all core entities
+      status: active
+      priority: p2
+      partOf: mvp-release
+      requires: [setup-database]
 
     - type: Task
       key: fix-landscape-bug
       title: Fix landscape orientation bug
-      description: Orientation breaks on tablets
+      description: Orientation breaks on tablets when rotating during navigation transitions
       status: active
       priority: p3
+      partOf: mvp-release
+
+    # --- Tasks: Public Beta ---
+    - type: Task
+      key: design-onboarding
+      title: Design onboarding screens
+      description: First-run experience with account setup and feature tour
+      status: pending
+      priority: p3
+      partOf: public-beta
+
+    - type: Task
+      key: write-user-guide
+      title: Write user guide
+      description: Getting started docs, FAQ, and troubleshooting
+      status: pending
+      priority: p3
+      partOf: public-beta
+
+    - type: Task
+      key: invite-system
+      title: Build invite system
+      description: Generate and validate beta invite codes
+      status: pending
+      priority: p4
+      partOf: public-beta
+
+    # --- Tasks: V1 Launch ---
+    - type: Task
+      key: app-store-copy
+      title: App store listing copy
+      description: Screenshots, description, and metadata for app store submission
+      status: pending
+      priority: p4
+      partOf: v1-launch
+
+    - type: Task
+      key: performance-audit
+      title: Performance audit
+      description: Profile and optimize startup time, memory usage, and render performance
+      status: pending
+      priority: p3
+      partOf: v1-launch
+
+    # --- Unassigned tasks (backlog) ---
+    - type: Task
+      key: dark-mode
+      title: Add dark mode support
+      description: System-aware theme switching with manual override
+      status: pending
+      priority: p4
+
+    - type: Task
+      key: export-csv
+      title: CSV export for lists
+      description: Export any list view as a CSV file
+      status: active
+      priority: p4

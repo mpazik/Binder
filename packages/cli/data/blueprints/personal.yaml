@@ -1,6 +1,10 @@
 # Personal knowledge management blueprint (PARA-based)
 # Provides: Area, Project, Task, Note, Resource types
 
+# ====================
+# SCHEMA
+# ====================
+
 - author: system
   configs:
     # Fields
@@ -8,7 +12,19 @@
       type: Field
       name: Resource Type
       dataType: option
-      options: [book, article, video, podcast, course, paper]
+      options:
+        - key: book
+          name: Book
+        - key: article
+          name: Article
+        - key: video
+          name: Video
+        - key: podcast
+          name: Podcast
+        - key: course
+          name: Course
+        - key: paper
+          name: Paper
 
     # Types
     - key: Area
@@ -25,8 +41,9 @@
       fields:
         - title: { required: true }
         - description
+        - details
         - status: { default: pending }
-        - priority: { default: medium }
+        - priority: { default: p3 }
         - dueDate
         - completedAt
         - parent: { only: [Task, Project] }
@@ -40,8 +57,12 @@
       fields:
         - title: { required: true }
         - description
+        - details
         - status: { default: pending }
         - priority
+        - startDate
+        - dueDate
+        - completedAt
         - parent: { only: [Area] }
         - children: { only: [Task] }
         - tags
@@ -52,7 +73,7 @@
       description: Captured thought or information
       fields:
         - title: { required: true }
-        - content
+        - details
         - parent: { only: [Area] }
         - tags
         - relatesTo
@@ -63,16 +84,105 @@
       fields:
         - title: { required: true }
         - description
+        - summary
         - resourceType: { required: true }
         - url
-        - status
+        - status: { default: pending }
         - tags
         - relatesTo
 
-# Navigation Structure (PARA-based workspace)
+# ====================
+# VIEWS
+# ====================
+
 - author: system
   configs:
-    # Areas
+    - key: task-list-item
+      type: View
+      name: Task List Item
+      viewFormat: line
+      viewContent: |
+        - {title} ({priority})
+
+    - key: project-list-item
+      type: View
+      name: Project List Item
+      viewFormat: line
+      viewContent: |
+        - {title} ({status})
+
+    - key: area-view
+      type: View
+      name: Area
+      preamble: [key, title, description]
+      viewContent: |
+        # {title}
+
+        {description}
+
+    - key: project-view
+      type: View
+      name: Project
+      preamble: [key, title, status, priority, startDate, dueDate, description, tags, parent, relatesTo]
+      viewContent: |
+        # {title}
+
+        ## Details
+
+        {details}
+
+        ## Tasks
+
+        ### Active
+
+        {children|where:status=active|view:task-list-item}
+
+        ### Pending
+
+        {children|where:status=pending|view:task-list-item}
+
+        ### Complete
+
+        {children|where:status=complete|view:task-list-item}
+
+    - key: task-view
+      type: View
+      name: Task
+      preamble: [key, title, status, priority, dueDate, description, tags, parent]
+      viewContent: |
+        # {title}
+
+        ## Details
+
+        {details}
+
+    - key: note-view
+      type: View
+      name: Note
+      preamble: [key, title, parent, tags]
+      viewContent: |
+        # {title}
+
+        {details}
+
+    - key: resource-view
+      type: View
+      name: Resource
+      preamble: [key, title, resourceType, status, url, description, tags, relatesTo]
+      viewContent: |
+        # {title}
+
+        ## Summary
+
+        {summary}
+
+# ====================
+# NAVIGATION
+# ====================
+
+- author: system
+  configs:
+    # --- Areas ---
     - key: nav-areas-index
       type: Navigation
       path: areas/index
@@ -88,6 +198,7 @@
       type: Navigation
       path: area
       parent: nav-areas-dir
+      view: area-view
 
     - key: nav-area-projects
       type: Navigation
@@ -113,6 +224,7 @@
       path: "{title}"
       parent: nav-area-notes-dir
       where: { type: Note, parent: "{parent.key}" }
+      view: note-view
 
     - key: nav-area-resources
       type: Navigation
@@ -121,7 +233,7 @@
       query:
         filters: { type: Resource, relatesTo: "{parent.key}" }
 
-    # Projects
+    # --- Projects ---
     - key: nav-projects-pending
       type: Navigation
       path: projects/pending
@@ -143,6 +255,7 @@
       type: Navigation
       path: project
       parent: nav-projects-dir
+      view: project-view
 
     - key: nav-project-tasks
       type: Navigation
@@ -151,7 +264,7 @@
       query:
         filters: { type: Task, parent: "{parent.key}" }
 
-    # Tasks
+    # --- Tasks ---
     - key: nav-tasks-pending
       type: Navigation
       path: tasks/pending
@@ -164,7 +277,7 @@
       query:
         filters: { type: Task, status: active }
 
-    # Resources
+    # --- Resources ---
     - key: nav-resources-pending
       type: Navigation
       path: resources/pending
@@ -200,16 +313,17 @@
           resourceType: [video, podcast, course, paper]
           status: [pending, active]
 
-    # Archive
+    # --- Archive ---
     - key: nav-archive-projects
       type: Navigation
       path: archive/projects/{title}/
-      where: { type: Project, status: [complete, cancelled, archived] }
+      where: { type: Project, status: [complete, cancelled] }
 
     - key: nav-archive-project
       type: Navigation
       path: project
-      parent: nav-archive-projects-dir
+      parent: nav-archive-projects
+      view: project-view
 
     - key: nav-archive-resources-books
       type: Navigation
@@ -232,7 +346,10 @@
           resourceType: [video, podcast, course, paper]
           status: complete
 
-# Sample data
+# ====================
+# SAMPLE DATA
+# ====================
+
 - author: system
   records:
     # Areas
@@ -251,9 +368,21 @@
       key: run-5km
       title: Run first 5km race
       description: Train for and complete a 5km running race
+      details: |
+        ### Training Plan
+
+        Follow the Couch to 5K program over 8 weeks. Run three times per week
+        with rest days between sessions.
+
+        ### Race Day
+
+        Target the local parkrun on April 12th. Arrive early to warm up.
       status: active
       priority: p2
+      startDate: 2025-01-15
+      dueDate: 2025-04-12
       parent: health
+      tags: [fitness, running]
 
     - type: Project
       key: learn-typescript
@@ -261,6 +390,7 @@
       description: Master TypeScript for better code quality
       status: pending
       parent: career
+      tags: [programming, learning]
 
     # Tasks
     - type: Task
@@ -272,11 +402,13 @@
     - type: Task
       title: Buy running shoes
       parent: run-5km
+      tags: [shopping]
 
     - type: Task
       title: Complete week 1 training plan
       status: active
       priority: p2
+      dueDate: 2025-01-22
       parent: run-5km
 
     - type: Task
@@ -300,23 +432,25 @@
     # Notes
     - type: Note
       title: Sleep Tips
-      content: |
+      details: |
         - Avoid screens 1 hour before bed
         - Keep bedroom cool (65-68°F)
         - Consistent sleep schedule
       parent: health
+      tags: [sleep, habits]
 
     - type: Note
       title: Running Form Cues
-      content: |
+      details: |
         - Land midfoot, not heel
         - Keep cadence around 180 steps/min
         - Relax shoulders, arms at 90°
       parent: health
+      tags: [running]
 
     - type: Note
       title: Career Goals 2025
-      content: |
+      details: |
         - Get promoted to senior developer
         - Learn TypeScript deeply
         - Contribute to open source
@@ -328,13 +462,18 @@
       resourceType: article
       url: https://www.typescriptlang.org/docs/handbook/
       relatesTo: [career]
+      tags: [typescript]
 
     - type: Resource
       title: Atomic Habits
       description: Book by James Clear on building good habits
+      summary: |
+        Key idea: small 1% improvements compound over time. Focus on systems
+        rather than goals. Use habit stacking and environment design.
       resourceType: book
       status: active
       relatesTo: [health]
+      tags: [habits, productivity]
 
     - type: Resource
       title: Couch to 5K
@@ -376,6 +515,7 @@
       title: Learn Git basics
       description: Understand version control fundamentals
       status: complete
+      completedAt: 2024-11-30T00:00:00.000Z
       parent: career
 
     - type: Resource
