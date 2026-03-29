@@ -5,6 +5,7 @@ import { join, resolve, dirname } from "path";
 import type { BunPlugin } from "bun";
 
 const isProd = process.argv.includes("--prod");
+const isLocal = process.argv.includes("--local");
 
 const packageJson = JSON.parse(
   readFileSync(join(import.meta.dir, "package.json"), "utf-8"),
@@ -12,7 +13,9 @@ const packageJson = JSON.parse(
 const baseVersion = packageJson.version;
 
 const version = isProd
-  ? baseVersion
+  ? isLocal
+    ? `${baseVersion}-local.${new Date().toISOString().slice(0, 10).replace(/-/g, "")}`
+    : baseVersion
   : `${baseVersion}-dev.${new Date().toISOString().replace(/[-:]/g, "").replace(/\..+/, "").replace("T", "")}`;
 
 console.log(
