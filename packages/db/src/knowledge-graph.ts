@@ -45,7 +45,11 @@ import {
   applyAndSaveTransaction,
   rollbackTransaction,
 } from "./transaction-applier";
-import { buildOrderByClause, buildWhereClause } from "./filter-entities.ts";
+import {
+  buildOrderByClause,
+  buildWhereClause,
+  normalizeRelationFilters,
+} from "./filter-entities.ts";
 import { resolveIncludes } from "./relationship-resolver.ts";
 
 export const DEFAULT_SEARCH_LIMIT = 50;
@@ -94,12 +98,20 @@ const internalSearch = async (
   filters: Filters,
   schema: EntitySchema,
 ): ResultAsync<Fieldset[]> => {
+  const normalizedFiltersResult = await normalizeRelationFilters(
+    tx,
+    namespace,
+    filters,
+    schema,
+  );
+  if (isErr(normalizedFiltersResult)) return normalizedFiltersResult;
+
   const table = namespace === "config" ? configTable : recordTable;
   return tryCatch(
     tx
       .select()
       .from(table)
-      .where(buildWhereClause(table, filters, schema))
+      .where(buildWhereClause(table, normalizedFiltersResult.data, schema))
       .orderBy(asc(table.id))
       .then((rows) => rows.map(dbModelToEntity)),
   );
@@ -125,9 +137,7 @@ export const openKnowledgeGraph = <C extends EntitySchema<ConfigDataType>>(
   let recordSchemaCache: RecordSchema | null = null;
 
   const getRecordSchema = async (): ResultAsync<RecordSchema> => {
-    if (recordSchemaCache !== null) {
-      return ok(recordSchemaCache);
-    }
+    if (recordSchemaCache !== null) return ok(recordSchemaCache);
 
     return db.transaction(async (tx) => {
       const configsResult = await tryCatch(
@@ -207,8 +217,8 @@ export const openKnowledgeGraph = <C extends EntitySchema<ConfigDataType>>(
       ref: RecordRef,
       includes?: Includes,
       namespace = "record",
-    ) => {
-      return db.transaction(async (tx) => {
+    ) =>
+      db.transaction(async (tx) => {
         const entityResult = await fetchEntity(tx, namespace, ref as any);
         if (isErr(entityResult)) return entityResult;
 
@@ -226,15 +236,14 @@ export const openKnowledgeGraph = <C extends EntitySchema<ConfigDataType>>(
         if (isErr(resolvedResult)) return resolvedResult;
 
         return ok(resolvedResult.data[0]!);
-      });
-    },
+      }),
     fetchTransaction: (ref: TransactionRef) =>
       db.transaction((tx) => fetchTransaction(tx, ref)),
     search: async (
       query: QueryParams,
       namespace: "record" | "config" = "record",
-    ) => {
-      return db.transaction(async (tx) => {
+    ) =>
+      db.transaction(async (tx) => {
         const { filters = {}, pagination, includes, orderBy } = query;
         const limit = pagination?.limit ?? DEFAULT_SEARCH_LIMIT;
         const after = pagination?.after;
@@ -254,8 +263,20 @@ export const openKnowledgeGraph = <C extends EntitySchema<ConfigDataType>>(
           );
         }
 
+        const normalizedFiltersResult = await normalizeRelationFilters(
+          tx,
+          namespace,
+          filters,
+          schema,
+        );
+        if (isErr(normalizedFiltersResult)) return normalizedFiltersResult;
+
         const table = namespace === "config" ? configTable : recordTable;
-        const filterClause = buildWhereClause(table, filters, schema);
+        const filterClause = buildWhereClause(
+          table,
+          normalizedFiltersResult.data,
+          schema,
+        );
 
         const orderClauses =
           orderBy && orderBy.length > 0
@@ -306,25 +327,23 @@ export const openKnowledgeGraph = <C extends EntitySchema<ConfigDataType>>(
             previousCursor: firstItem && after ? String(firstItem.id) : null,
           },
         });
-      });
-    },
+      }),
     version: () => db.transaction((tx) => getVersion(tx)),
-    update: async (input: TransactionInput) => {
-      return db.transaction(async (tx) => {
+    update: async (input: TransactionInput) =>
+      db.transaction(async (tx) => {
         const recordSchemaResult = await getRecordSchema();
         if (isErr(recordSchemaResult)) return recordSchemaResult;
+
         const processedResult = await processTransactionInput(
           tx,
           input,
           recordSchemaResult.data,
           configSchema,
         );
-
         if (isErr(processedResult)) return processedResult;
 
         return applyAndNotify(processedResult.data);
-      });
-    },
+      }),
     apply: (transaction: Transaction) => applyAndNotify(transaction),
     rollback: async (count, version) => {
       const dbResult = await db.transaction(async (dbTx) => {

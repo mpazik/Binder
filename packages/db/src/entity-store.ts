@@ -1,7 +1,7 @@
 import {
-  assertDefinedPass,
   fail,
   includes,
+  isErr,
   type JsonObject,
   objectFromKeys,
   objKeys,
@@ -161,25 +161,25 @@ export const createEntity = async <N extends NamespaceEditable>(
   tx: DbTransaction,
   namespace: N,
   patch: Fieldset,
-): ResultAsync<void> => {
-  return tryCatch(
+): ResultAsync<void> =>
+  tryCatch(
     async () =>
       await tx
         .insert(editableEntityTables[namespace])
         .values(entityToDbModel(patch) as any),
   );
-};
 
 export const deleteEntity = async <N extends Namespace>(
   tx: DbTransaction,
   namespace: N,
   ref: EntityRef,
-): ResultAsync<void> => {
-  const table = entityTables[namespace];
-  return tryCatch(
-    async () => await tx.delete(table).where(entityRefClause(namespace, ref)),
+): ResultAsync<void> =>
+  tryCatch(
+    async () =>
+      await tx
+        .delete(entityTables[namespace])
+        .where(entityRefClause(namespace, ref)),
   );
-};
 
 export const entityExists = async <N extends Namespace>(
   tx: DbTransaction,
@@ -204,13 +204,14 @@ export const resolveEntityRefs = async (
 ): ResultAsync<EntityUid[]> => {
   const entityUids = refs.filter(isEntityUid);
   if (entityUids.length === refs.length) return ok(entityUids);
+
   const entityIds = refs.filter(isEntityId);
   const entityKeys = refs.filter(
     (id) => !isEntityId(id) && !isEntityUid(id),
   ) as EntityKey[];
 
   const table = entityTables[namespace];
-  return tryCatch(
+  const lookupResult = await tryCatch(async () =>
     tx
       .select({
         id: table.id,
@@ -227,22 +228,41 @@ export const resolveEntityRefs = async (
             ? inArray(entityTables[namespace].key, entityKeys as any)
             : undefined,
         ),
-      )
-      .then((it) =>
-        refs.map((ref): EntityUid => {
-          if (isEntityId(ref))
-            return assertDefinedPass(
-              it.find((it) => it.id === ref),
-              `${namespace} entity with id ${ref}`,
-            ).uid;
-          if (isEntityUid(ref)) return ref as EntityUid;
-          return assertDefinedPass(
-            it.find((it) => it.key === ref),
-            `${namespace} entity with key "${ref}"`,
-          ).uid;
-        }),
       ),
   );
+  if (isErr(lookupResult)) return lookupResult;
+
+  const rowsById = new Map(lookupResult.data.map((row) => [row.id, row.uid]));
+  const rowsByKey = new Map(
+    lookupResult.data
+      .filter((row) => row.key !== null)
+      .map((row) => [row.key as EntityKey, row.uid]),
+  );
+
+  const resolved: EntityUid[] = [];
+  for (const ref of refs) {
+    if (isEntityUid(ref)) {
+      resolved.push(ref as EntityUid);
+      continue;
+    }
+
+    if (isEntityId(ref)) {
+      const uid = rowsById.get(ref);
+      if (!uid) {
+        return fail("entity-not-found", `${namespace} entity with id ${ref}`);
+      }
+      resolved.push(uid as EntityUid);
+      continue;
+    }
+
+    const uid = rowsByKey.get(ref as EntityKey);
+    if (!uid) {
+      return fail("entity-not-found", `${namespace} entity with key "${ref}"`);
+    }
+    resolved.push(uid as EntityUid);
+  }
+
+  return ok(resolved);
 };
 
 export const getLastEntityId = async <N extends NamespaceEditable>(

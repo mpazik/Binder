@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { okVoid, throwIfError } from "@binder/utils";
+import { isErr, okVoid, throwIfError } from "@binder/utils";
 import "@binder/utils/tests";
 import { getTestDatabase } from "./db.mock";
 import { openKnowledgeGraph } from "./knowledge-graph.ts";
 import type { Database } from "./db.ts";
 import { createEntity, fetchEntity, updateEntity } from "./entity-store.ts";
 import {
+  mockProjectKey,
   mockProjectRecord,
   mockTask1Key,
   mockTask1Record,
@@ -280,6 +281,24 @@ describe("knowledge graph", () => {
           mockTask2Record,
           mockTask3Record,
         ]));
+
+      it("filters relation fields by key", () =>
+        checkSearch({ filters: { type: "Task", project: mockProjectKey } }, [
+          mockTask2Record,
+          mockTask3Record,
+        ]));
+
+      it("returns error when relation filter key does not resolve", async () => {
+        const result = await kg.search({
+          filters: { type: "Task", project: "missing-project" },
+        });
+
+        expect(result).toBeErrWithKey("invalid-filter-value");
+        if (isErr(result)) {
+          expect(result.error.message).toContain("project");
+          expect(result.error.message).toContain("missing-project");
+        }
+      });
 
       it("respects pagination limit", async () => {
         const result = throwIfError(

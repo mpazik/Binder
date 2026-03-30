@@ -1,38 +1,39 @@
-import { includes } from "@binder/utils";
+import { fail, includes, isErr, ok, type ResultAsync } from "@binder/utils";
 import { and, asc, desc, or, sql, type SQL } from "drizzle-orm";
 import {
   type configTable,
   type recordTable,
   tableStoredFields,
 } from "./schema";
+import type { DbTransaction } from "./db.ts";
+import { resolveEntityRefs } from "./entity-store.ts";
 import type {
   ComplexFilter,
+  EntityRef,
   EntitySchema,
   FieldDef,
   Fieldset,
   FieldValue,
   Filter,
   Filters,
+  NamespaceEditable,
   OrderBy,
 } from "./model";
 
 type EntityTable = typeof recordTable | typeof configTable;
 
-export const isComplexFilter = (filter: Filter): filter is ComplexFilter => {
-  return (
-    typeof filter === "object" &&
-    filter !== null &&
-    "op" in filter &&
-    "value" in filter
-  );
-};
+export const isComplexFilter = (filter: Filter): filter is ComplexFilter =>
+  typeof filter === "object" &&
+  filter !== null &&
+  "op" in filter &&
+  "value" in filter;
 
 type NormalizedFilter = ComplexFilter | string | number | boolean;
 
-export const normalizeFilter = (filter: Filter): NormalizedFilter => {
-  if (Array.isArray(filter)) return { op: "in", value: filter };
-  return filter as NormalizedFilter;
-};
+export const normalizeFilter = (filter: Filter): NormalizedFilter =>
+  Array.isArray(filter)
+    ? { op: "in", value: filter }
+    : (filter as NormalizedFilter);
 
 const isComplexNormalized = (
   filter: NormalizedFilter,
@@ -113,7 +114,6 @@ export const matchesFilter = (filter: Filter, value: FieldValue): boolean =>
 const textSearchDataTypes = new Set(["plaintext", "richtext"]);
 const textSearchExcludedFields = new Set(["id", "uid", "type", "tags"]);
 
-/** Return fields eligible for `$text` full-text search: plaintext and richtext fields, excluding identity fields (`id`, `uid`, `type`) and `tags`. */
 export const getSearchableFields = (schema: EntitySchema): FieldDef[] =>
   Object.values(schema.fields).filter(
     (f) =>
@@ -287,6 +287,123 @@ const buildTextSearchCondition = (
 
   if (likeClauses.length === 1) return likeClauses[0];
   return or(...likeClauses);
+};
+
+const relationFilterOps = new Set(["eq", "not", "in", "notIn"]);
+
+const isRefLike = (value: unknown): value is EntityRef =>
+  typeof value === "string" || typeof value === "number";
+
+const refMapKey = (ref: EntityRef): string => `${typeof ref}:${String(ref)}`;
+
+const collectRelationFilterRefs = (filter: Filter): EntityRef[] => {
+  if (isRefLike(filter)) return [filter];
+  if (Array.isArray(filter)) return filter.filter(isRefLike);
+  if (typeof filter !== "object" || filter === null) return [];
+  if (!relationFilterOps.has(filter.op)) return [];
+
+  if (filter.op === "in" || filter.op === "notIn") {
+    if (!Array.isArray(filter.value)) return [];
+    return filter.value.filter(isRefLike);
+  }
+
+  return isRefLike(filter.value) ? [filter.value] : [];
+};
+
+const normalizeRelationFilter = (
+  filter: Filter,
+  resolvedRefMap: Map<string, string>,
+): Filter => {
+  const resolveRef = (ref: EntityRef): string =>
+    resolvedRefMap.get(refMapKey(ref)) ?? String(ref);
+
+  const resolveFilterValue = (value: string | number): string | number =>
+    isRefLike(value) ? resolveRef(value) : value;
+
+  if (isRefLike(filter)) return resolveRef(filter);
+
+  if (Array.isArray(filter))
+    return filter.map(resolveFilterValue) as (string | number)[];
+
+  if (typeof filter !== "object" || filter === null) return filter;
+  if (!relationFilterOps.has(filter.op)) return filter;
+
+  if (
+    (filter.op === "in" || filter.op === "notIn") &&
+    Array.isArray(filter.value)
+  ) {
+    return {
+      ...filter,
+      value: filter.value.map(resolveFilterValue) as (string | number)[],
+    };
+  }
+
+  if (isRefLike(filter.value)) {
+    return { ...filter, value: resolveRef(filter.value) };
+  }
+
+  return filter;
+};
+
+export const normalizeRelationFilters = async (
+  tx: DbTransaction,
+  namespace: NamespaceEditable,
+  filters: Filters,
+  schema: EntitySchema,
+): ResultAsync<Filters> => {
+  if (namespace !== "record") return ok(filters);
+
+  const refsWithField: { ref: EntityRef; fieldKey: string }[] = [];
+  for (const [fieldKey, filter] of Object.entries(filters)) {
+    if (fieldKey === "$text") continue;
+    if (schema.fields[fieldKey]?.dataType !== "relation") continue;
+    for (const ref of collectRelationFilterRefs(filter as Filter)) {
+      refsWithField.push({ ref, fieldKey });
+    }
+  }
+
+  if (refsWithField.length === 0) return ok(filters);
+
+  const refsToResolve = refsWithField.map((r) => r.ref);
+  const resolvedResult = await resolveEntityRefs(tx, "record", refsToResolve);
+  if (isErr(resolvedResult)) {
+    const inner = resolvedResult.error;
+    const failing = refsWithField.find(({ ref }) => {
+      const refStr = String(ref);
+      return inner.message?.includes(refStr);
+    });
+    const fieldHint = failing
+      ? `Filter field '${failing.fieldKey}': record '${failing.ref}' not found`
+      : inner.message;
+    return fail("invalid-filter-value", fieldHint, inner.data);
+  }
+
+  const resolvedRefMap = new Map<string, string>();
+  for (let i = 0; i < refsToResolve.length; i++) {
+    const originalRef = refsToResolve[i]!;
+    const resolvedRef = resolvedResult.data[i]!;
+    resolvedRefMap.set(refMapKey(originalRef), resolvedRef);
+  }
+
+  const normalizedFilters: Filters = {};
+  for (const [fieldKey, filter] of Object.entries(filters)) {
+    if (fieldKey === "$text") {
+      normalizedFilters[fieldKey] = filter;
+      continue;
+    }
+
+    if (schema.fields[fieldKey]?.dataType !== "relation") {
+      normalizedFilters[fieldKey] = filter;
+      continue;
+    }
+
+    normalizedFilters[fieldKey] = normalizeRelationFilter(
+      filter as Filter,
+      resolvedRefMap,
+    );
+  }
+
+  return ok(normalizedFilters);
 };
 
 export const buildWhereClause = (

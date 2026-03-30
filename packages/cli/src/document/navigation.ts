@@ -279,25 +279,19 @@ const getParentDir = (filePath: string, fileType: FileType): string => {
 const getExcludedFields = (
   namespace: NamespaceEditable,
   filters: Filters | undefined,
-): readonly string[] => {
+): string[] => {
   const excluded: string[] = ["id"];
   if (namespace === "config") excluded.push("uid");
-
-  const typeFilter = filters?.type;
-  if (typeFilter && (typeof typeFilter !== "object" || !typeFilter))
-    excluded.push("type");
+  if (filters?.type && typeof filters.type !== "object") excluded.push("type");
   return excluded;
 };
 
-export const findView = (views: Views, key: string | undefined): ViewEntity => {
-  const found = views.find((t) => t.key === key);
-  if (found) return found;
-  const defaultView = views.find((t) => t.key === DOCUMENT_VIEW_KEY);
-  return assertDefinedPass(
-    defaultView,
+export const findView = (views: Views, key: string | undefined): ViewEntity =>
+  views.find((t) => t.key === key) ??
+  assertDefinedPass(
+    views.find((t) => t.key === DOCUMENT_VIEW_KEY),
     `DOCUMENT_VIEW_KEY "${DOCUMENT_VIEW_KEY}" in views`,
   );
-};
 
 const renderContent = async (
   kg: KnowledgeGraph,
@@ -597,22 +591,18 @@ const findMatchingNavItem = (
   items: NavigationItem[],
   entity: Fieldset,
 ): NavigationItem | undefined => {
-  const flattened = flattenNavigationItems(items);
+  let best: { item: NavigationItem; score: number } | undefined;
 
-  const matches: { item: NavigationItem; score: number }[] = [];
-
-  for (const item of flattened) {
+  for (const item of flattenNavigationItems(items)) {
     const filters = item.where ?? item.query?.filters;
     if (!filters) continue;
     if (!matchesFilters(filters, entity)) continue;
 
-    matches.push({ item, score: scoreNavItem(item) });
+    const score = scoreNavItem(item);
+    if (!best || score > best.score) best = { item, score };
   }
 
-  if (matches.length === 0) return undefined;
-
-  matches.sort((a, b) => b.score - a.score);
-  return matches[0]!.item;
+  return best?.item;
 };
 
 export const findEntityLocation = async (
