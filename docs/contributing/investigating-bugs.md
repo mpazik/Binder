@@ -150,13 +150,60 @@ If the CLI produces the correct result but the LSP doesn't, the bug is in the LS
 
 ### Scripting LSP interactions
 
-You can start the LSP server and send JSON-RPC messages directly over stdio:
+Use the LSP test script to send requests without an editor:
 
 ```
-bun run dev lsp
+# Single command — hover at line 5, column 3 (1-based positions)
+bun packages/cli/scripts/lsp-test.ts docs-dev/tasks/my-task.yaml hover 5:3
+
+# Diagnostics (no position needed)
+bun packages/cli/scripts/lsp-test.ts docs-dev/tasks/my-task.yaml diagnostics
+
+# Completions at a specific position
+bun packages/cli/scripts/lsp-test.ts docs-dev/tasks/my-task.yaml completion 2:8
+
+# Go to definition
+bun packages/cli/scripts/lsp-test.ts docs-dev/tasks/my-task.yaml definition 3:10
+
+# Run against a different workspace
+bun packages/cli/scripts/lsp-test.ts docs/tasks/my-task.yaml hover 5:3 --cwd=/path/to/workspace
 ```
 
-The server reads JSON-RPC requests from stdin and writes responses to stdout. This lets you script specific LSP requests (initialize, textDocument/didOpen, textDocument/didSave, etc.) to reproduce issues without an editor. Alternatively, ask the user to perform the triggering action in their editor while tailing `lsp.log`.
+All 8 actions are supported: `hover`, `completion`, `diagnostics`, `definition`, `code-actions`, `inlay-hints`, `semantic-tokens`, `save`.
+
+For batch testing, pipe TSV to stdin (tab-separated: file, action, optional position):
+
+```
+printf 'docs-dev/tasks/my-task.yaml\thover\t5:3\ndocs-dev/tasks/my-task.yaml\tdiagnostics\n' \
+  | bun packages/cli/scripts/lsp-test.ts
+```
+
+Batch mode spawns one LSP server for all requests, opens each file once, and outputs one JSON object per line (JSONL). This is useful for reproducing sequences of interactions.
+
+The script can also be imported as a library in tests:
+
+```ts
+import { runLspTest } from "../scripts/lsp-test.ts";
+
+const results = await runLspTest({
+  cwd: "/path/to/workspace",
+  commands: [
+    { file: "docs/tasks/my-task.yaml", action: "hover", position: { line: 4, character: 2 } },
+    { file: "docs/tasks/my-task.yaml", action: "diagnostics" },
+  ],
+});
+```
+
+Note: positions in the library API are 0-based (LSP convention), while the CLI uses 1-based positions.
+
+LSP stderr is forwarded to your terminal for debug visibility. Combine with `lsp.log` tailing for full context.
+
+By default the script runs from source in dev mode, so it expects `.binder-dev/` and `docs-dev/` paths. To test against a production workspace (`.binder/`), set `BINDER_CLI` to the built binary:
+
+```
+export BINDER_CLI="node packages/cli/dist/index.js"
+bun packages/cli/scripts/lsp-test.ts tasks/my-task.md diagnostics --cwd=/path/to/workspace
+```
 
 ## MCP issues
 
