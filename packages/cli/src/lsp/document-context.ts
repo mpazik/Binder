@@ -32,9 +32,10 @@ import {
   namespaceFromSnapshotPath,
 } from "../lib/snapshot.ts";
 import { getTypeFromFilters } from "../utils/query.ts";
-import { extract } from "../document/extraction.ts";
+import { extract, type ExtractedFileData } from "../document/extraction.ts";
 import {
   getDocumentFileType,
+  type DocumentType,
   type ParsedDocument,
   parseDocument,
 } from "../document/document.ts";
@@ -106,7 +107,6 @@ export const withDocumentContext =
     handler: LspHandler<TParams, TResult>,
   ) =>
   async (params: TParams): Promise<TResult | null> => {
-    const { lspDocuments } = deps;
     const uri = params.textDocument.uri;
 
     const workspace = resolveWorkspace(uri, requestName, deps);
@@ -117,7 +117,7 @@ export const withDocumentContext =
 
     wsLog.debug(`${requestName} request received`, { uri });
 
-    const document = lspDocuments.get(uri);
+    const document = deps.lspDocuments.get(uri);
     if (!document) {
       wsLog.warn("Document not found", { uri });
       return null;
@@ -204,21 +204,18 @@ export const createDocumentCache = (log: Logger): DocumentCache => {
   };
 
   const invalidate = (uri: string): void => {
-    const keysToDelete: string[] = [];
+    let removed = 0;
     for (const key of cache.keys()) {
       if (key.startsWith(`${uri}:`)) {
-        keysToDelete.push(key);
+        cache.delete(key);
+        removed++;
       }
     }
 
-    for (const key of keysToDelete) {
-      cache.delete(key);
-    }
-
-    if (keysToDelete.length > 0) {
+    if (removed > 0) {
       log.debug("Document cache invalidated", {
         uri,
-        entriesRemoved: keysToDelete.length,
+        entriesRemoved: removed,
         cacheSize: cache.size,
       });
     }
@@ -252,6 +249,27 @@ const buildFrontmatterContext = (
   const lineOffset = yamlNode.position.start.line;
 
   return { parsed, lineOffset, preambleKeys: preamble };
+};
+
+// When the strict YAML parser fails (e.g. mid-edit, partial/invalid syntax),
+// fall back to empty entity data so the tolerant CST path can still serve
+// completions, hover, and diagnostics.
+const fallbackExtractedData = (
+  navigationItem: NavigationItem,
+  documentType: DocumentType,
+): ExtractedFileData => {
+  if (navigationItem.query) {
+    return { kind: "list", entities: [], query: navigationItem.query };
+  }
+  if (documentType === "markdown") {
+    return {
+      kind: "document",
+      entity: {},
+      projections: [],
+      includes: undefined,
+    };
+  }
+  return { kind: "single", entity: {} };
 };
 
 export const getDocumentContext = async (
@@ -302,10 +320,11 @@ export const getDocumentContext = async (
   const viewsResult = await runtime.views();
   if (isErr(viewsResult)) return viewsResult;
 
-  const baseEntity =
-    entityContextResult.data.entities.length > 0
-      ? entityContextResult.data.entities[0]!
-      : {};
+  const documentType = getDocumentFileType(filePath);
+  if (!documentType)
+    return fail("unknown-document-type", "Unknown document type", { uri });
+
+  const baseEntity = entityContextResult.data.entities[0] ?? {};
   const extractResult = extract(
     schema,
     navigationItem,
@@ -314,21 +333,29 @@ export const getDocumentContext = async (
     viewsResult.data,
     baseEntity,
   );
-  if (isErr(extractResult))
-    return fail("extract-failed", "Failed to extract document data", {
-      uri,
-      error: extractResult.error,
-    });
+
+  let extracted: ExtractedFileData;
+  if (isErr(extractResult)) {
+    // Extraction fails when the document contains partial or invalid YAML —
+    // common during active editing. Fall back to empty entity data so LSP
+    // features keep working via the tolerant YAML CST parser.
+    runtime.log.debug(
+      "Extraction failed; using empty fallback for LSP context",
+      {
+        uri,
+        error: extractResult.error.message,
+      },
+    );
+    extracted = fallbackExtractedData(navigationItem, documentType);
+  } else {
+    extracted = extractResult.data;
+  }
 
   const entityMappings = computeEntityMappings(
     schema,
-    extractResult.data,
+    extracted,
     entityContextResult.data,
   );
-
-  const documentType = getDocumentFileType(filePath);
-  if (!documentType)
-    return fail("unknown-document-type", "Unknown document type", { uri });
 
   const base = {
     document,
@@ -341,26 +368,24 @@ export const getDocumentContext = async (
   };
 
   if (documentType === "markdown") {
+    const parsedMarkdown = parsed as ParsedMarkdown;
     const viewEntity = navigationItem.view
       ? findView(viewsResult.data, navigationItem.view)
       : undefined;
 
     const fieldMappings = viewEntity
-      ? extractFieldMappings(
-          viewEntity.viewAst,
-          (parsed as ParsedMarkdown).root,
-        )
+      ? extractFieldMappings(viewEntity.viewAst, parsedMarkdown.root)
       : [];
 
     const frontmatter = buildFrontmatterContext(
-      (parsed as ParsedMarkdown).root,
+      parsedMarkdown.root,
       viewEntity?.preamble,
     );
 
     return ok({
       ...base,
       documentType: "markdown",
-      parsed: parsed as ParsedMarkdown,
+      parsed: parsedMarkdown,
       fieldMappings,
       frontmatter,
     });

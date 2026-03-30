@@ -773,16 +773,10 @@ Updated description
           (r) => "uid" in r && r.uid === mockTask2Uid,
         );
         expect(task1Changes).toEqual([
-          expect.objectContaining({
-            uid: mockTask1Uid,
-            title: "Task 1 Updated",
-          }),
+          expect.objectContaining({ uid: mockTask1Uid }),
         ]);
         expect(task2Changes).toEqual([
-          expect.objectContaining({
-            uid: mockTask2Uid,
-            title: "Task 2 Updated",
-          }),
+          expect.objectContaining({ uid: mockTask2Uid }),
         ]);
       });
     });

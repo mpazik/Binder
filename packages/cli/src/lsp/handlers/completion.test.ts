@@ -344,6 +344,21 @@ Some description
     });
   });
 
+  describe("yaml parse errors", () => {
+    it("provides field key completions when yaml has a syntax error", async () => {
+      // tags: [unclosed is an invalid YAML syntax error that makes YAML.parse throw.
+      // Completions should still work for the cursor on the partial key above it.
+      await check(
+        "tasks/my-task.yaml",
+        `type: Task
+title: My Task
+sta█
+tags: [unclosed`,
+        ["status"],
+      );
+    });
+  });
+
   describe("option field completions", () => {
     it("provides all option completions regardless of partial input", async () => {
       await checkStatusOptions(`type: Task
