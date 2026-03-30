@@ -214,17 +214,18 @@ const getSoleFieldSlotFromParagraph = (
 
 const FRONTMATTER_TYPES = ["yaml", "toml"];
 
+const isContentBlock = (n: FieldSlot | Text): boolean =>
+  !FRONTMATTER_TYPES.includes(n.type);
+
 const getViewBlockCount = (viewAst: ViewAST): number =>
-  viewAst.children.filter((n) => !FRONTMATTER_TYPES.includes(n.type)).length;
+  viewAst.children.filter(isContentBlock).length;
 
 type BlockSignature = { type: string; depth?: number };
 
 const getFirstBlockSignature = (
   viewAst: ViewAST,
 ): BlockSignature | undefined => {
-  const first = viewAst.children.find(
-    (n) => !FRONTMATTER_TYPES.includes(n.type),
-  );
+  const first = viewAst.children.find(isContentBlock);
   if (!first) return undefined;
   return {
     type: first.type,
@@ -317,7 +318,6 @@ const renderNestedFieldValues = (
     richtextFormats[slotPosition].delimiter,
   );
 
-  // For block position with block-level content, render as separate blocks
   if (!isInlinePosition(slotPosition) && isBlockLevelField(fieldDef)) {
     const combinedMarkdown = values
       .map((v) => String(v).trim())
@@ -377,8 +377,7 @@ const renderFieldSlot = (
 
   const slotPosition = getSlotPosition(slot);
 
-  // Handle nested path through multi-value relation: {tasks.title}
-  // Format check doesn't apply here - we're just extracting values
+  // Nested path through multi-value relation (e.g. {tasks.title}) bypasses format checks
   if (slot.path.length > 1) {
     const firstFieldDef = schema.fields[slot.path[0]!];
     if (firstFieldDef && isMultiValueRelation(firstFieldDef)) {
@@ -397,11 +396,13 @@ const renderFieldSlot = (
     }
   }
 
-  const formatCheck = validateFormatPositionCompatibility(
-    fieldDef.dataType === "richtext" ? fieldDef.richtextFormat : undefined,
+  const fieldFormat =
+    fieldDef.dataType === "richtext" ? fieldDef.richtextFormat : undefined;
+  const formatResult = validateFormatPositionCompatibility(
+    fieldFormat,
     slotPosition,
   );
-  if (isErr(formatCheck)) return formatCheck;
+  if (isErr(formatResult)) return formatResult;
 
   const whereFilters = parseWhereFilters(slot);
 
@@ -412,11 +413,11 @@ const renderFieldSlot = (
       : allEntities;
     if (entities.length > 0) {
       const itemView = getItemView(slot, views);
-      const viewFormatCheck = validateFormatPositionCompatibility(
+      const viewResult = validateFormatPositionCompatibility(
         itemView.viewFormat,
         slotPosition,
       );
-      if (isErr(viewFormatCheck)) return viewFormatCheck;
+      if (isErr(viewResult)) return viewResult;
       return renderRelationField(
         schema,
         views,
@@ -435,11 +436,11 @@ const renderFieldSlot = (
     if (whereFilters && !matchesFilters(whereFilters, value as Fieldset))
       return ok(renderFieldValue(null, fieldDef));
     const itemView = getItemView(slot, views);
-    const viewFormatCheck = validateFormatPositionCompatibility(
+    const viewResult = validateFormatPositionCompatibility(
       itemView.viewFormat,
       slotPosition,
     );
-    if (isErr(viewFormatCheck)) return viewFormatCheck;
+    if (isErr(viewResult)) return viewResult;
     return renderRelationField(
       schema,
       views,
@@ -594,10 +595,15 @@ export const extractFieldPathsFromAst = (ast: ViewAST): FieldPath[] => {
 const resolveBaseChildren = (
   base: FieldsetNested,
   fieldPath: FieldPath,
+  slot?: ViewFieldSlot,
 ): FieldsetNested[] => {
   const value = getNestedValue(base, fieldPath);
-  if (Array.isArray(value)) return value.filter(isFieldsetNested);
-  return [];
+  if (!Array.isArray(value)) return [];
+  const children = value.filter(isFieldsetNested);
+  if (!slot) return children;
+  const filters = parseWhereFilters(slot);
+  if (!filters) return children;
+  return children.filter((c) => matchesFilters(filters, c as Fieldset));
 };
 
 const resolveBaseChild = (
@@ -789,8 +795,7 @@ export const extractFieldsAst = (
     }
 
     const fieldDef = getFieldDefNested(schema, fieldPath);
-
-    if (fieldDef === undefined) {
+    if (!fieldDef) {
       error = createError(
         "field-not-found",
         `Field '${fieldPath}' was not found in schema`,
@@ -841,7 +846,7 @@ export const extractFieldsAst = (
         snapText,
         itemView,
         slotPosition,
-        resolveBaseChildren(base, fieldPath),
+        resolveBaseChildren(base, fieldPath, viewChild),
       );
       if (isErr(valueResult)) {
         error = valueResult.error;
@@ -958,8 +963,7 @@ export const extractFieldsAst = (
     }
 
     const fieldDef = getFieldDefNested(schema, fieldPath);
-
-    if (fieldDef === undefined) {
+    if (!fieldDef) {
       error = createError(
         "field-not-found",
         `Field '${fieldPath}' was not found in schema`,
@@ -973,8 +977,6 @@ export const extractFieldsAst = (
     const nextViewIndex = state.viewIndex + 1;
     const hasMoreViewContent = nextViewIndex < viewChildren.length;
 
-    // For relations in block/section positions, we need to determine how many
-    // blocks to consume based on the view
     const isBlockPositionRelation =
       isRelation(fieldDef) &&
       !isInlinePosition(slotPosition) &&
@@ -1045,7 +1047,6 @@ export const extractFieldsAst = (
             }
           }
         } else {
-          // For single relation, collect exactly as many blocks as the view expects
           while (
             state.snapIndex < snapChildren.length &&
             blockNodes.length < viewBlockCount
@@ -1058,8 +1059,6 @@ export const extractFieldsAst = (
     } else {
       while (state.snapIndex < snapChildren.length) {
         const snapNode = snapChildren[state.snapIndex]!;
-
-        // For empty relation field - if snapshot has no more content or next is matching view node
         if (hasMoreViewContent) {
           const nextView = viewChildren[nextViewIndex]!;
           if (
@@ -1091,7 +1090,7 @@ export const extractFieldsAst = (
         blockNodes,
         itemView,
         slotPosition,
-        resolveBaseChildren(base, fieldPath),
+        resolveBaseChildren(base, fieldPath, slot),
       );
       if (isErr(valueResult)) {
         error = valueResult.error;
@@ -1149,7 +1148,6 @@ export const extractFieldsAst = (
       snapChildren: Nodes[],
     ) => boolean,
   ): boolean => {
-    // Handle paragraph with sole field slot for block-level fields or relations
     const soleSlot = getSoleFieldSlotFromParagraph(viewChild);
     if (soleSlot) {
       const fieldDef = getFieldDefNested(schema, soleSlot.path);
@@ -1157,10 +1155,6 @@ export const extractFieldsAst = (
         return matchBlockFieldSlot(soleSlot, snapChildren, state, viewChildren);
 
       const snapChild = snapChildren[state.snapIndex];
-      // Trigger block handling when:
-      // 1. Field is block-level (richtext/plaintext with multiline format), OR
-      // 2. Field is a relation (single or multi-value) in non-inline slot position, OR
-      // 3. Snapshot node type differs from paragraph (e.g., list for relations)
       const slotPosition = getSlotPosition(soleSlot);
       const needsBlockHandling =
         isBlockLevelField(fieldDef) ||

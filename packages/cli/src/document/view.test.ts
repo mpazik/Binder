@@ -1158,6 +1158,9 @@ Excellent first week. Schema is minimal and consistent.
           );
         });
 
+        // UIDs from base entities must be propagated into extracted segments
+        // so that diffOwnedChildren can match them by uid and avoid treating
+        // unchanged items as new entities to create.
         it("unchanged null fields produce sparse diff against base", () => {
           check(
             childrenView,
@@ -1224,6 +1227,87 @@ Excellent first week. Schema is minimal and consistent.
             tasks: [{ title: "Task one", status: "active" }],
           },
           whereViews,
+        );
+      });
+
+      it("preserves UIDs from base when where-filtered", () => {
+        // Unchanged fields are dropped by the accumulator (diff semantics),
+        // so only uid (carried forward) and status (injected by where) remain.
+        check(
+          `## Pending\n\n{tasks|where:status=pending|view:task-item}\n\n## Active\n\n{tasks|where:status=active|view:task-item}\n`,
+          `## Pending\n\n- Write docs\n\n## Active\n\n- Markdown support\n`,
+          {
+            tasks: [
+              { uid: "uid-pending-1", status: "pending" },
+              { uid: "uid-active-1", status: "active" },
+            ],
+          },
+          whereViews,
+          {
+            tasks: [
+              { uid: "uid-pending-1", title: "Write docs", status: "pending" },
+              {
+                uid: "uid-active-1",
+                title: "Markdown support",
+                status: "active",
+              },
+            ],
+          },
+        );
+      });
+
+      it("does not assign UIDs from wrong where-filtered section", () => {
+        check(
+          `## Pending\n\n{tasks|where:status=pending|view:task-item}\n\n## Active\n\n{tasks|where:status=active|view:task-item}\n`,
+          `## Pending\n\n- Write docs\n- Create logo\n\n## Active\n\n- Markdown support\n`,
+          {
+            tasks: [
+              { uid: "uid-pending-1", status: "pending" },
+              { uid: "uid-pending-2", status: "pending" },
+              { uid: "uid-active-1", status: "active" },
+            ],
+          },
+          whereViews,
+          {
+            tasks: [
+              { uid: "uid-pending-1", title: "Write docs", status: "pending" },
+              {
+                uid: "uid-pending-2",
+                title: "Create logo",
+                status: "pending",
+              },
+              {
+                uid: "uid-active-1",
+                title: "Markdown support",
+                status: "active",
+              },
+            ],
+          },
+        );
+      });
+
+      it("new entity in one section does not steal UID from another", () => {
+        check(
+          `## Pending\n\n{tasks|where:status=pending|view:task-item}\n\n## Active\n\n{tasks|where:status=active|view:task-item}\n`,
+          `## Pending\n\n- Write docs\n- New task\n\n## Active\n\n- Markdown support\n`,
+          {
+            tasks: [
+              { uid: "uid-pending-1", status: "pending" },
+              { title: "New task", status: "pending" },
+              { uid: "uid-active-1", status: "active" },
+            ],
+          },
+          whereViews,
+          {
+            tasks: [
+              { uid: "uid-pending-1", title: "Write docs", status: "pending" },
+              {
+                uid: "uid-active-1",
+                title: "Markdown support",
+                status: "active",
+              },
+            ],
+          },
         );
       });
     });
