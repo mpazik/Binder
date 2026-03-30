@@ -43,19 +43,48 @@ export const Style = {
 export const logo = () => {
   // prettier-ignore
   const binderLogo = [
-    " ▃▄▅▅▅▄▂",
-    "▜█▀   ▝▜▙    ▄▄▄▄  ▄▖          ▗▄",
-    "  ▄▆▀▀▜▆▄▁   █▌ ▐▋ ▄▖ ▄▖▗▄▖  ▄▄▟█ ▗▄▄▄▖ ▄▖▄▄",
-    " ▐█▁▂▄▆▀▝█▎  █▛▀▜▙ █▌ █▛▘▐█ █▌ ▐█ █▙▄▟█ ▐█",
-    "  ▝▀▀▘  ▟▊   █▙▄▟▛ █▌ █▌ ▐█ ▜▙▄▟▛ ▜▙▄▄▆ ▐█",
-    "   ▀▆▄▆█▀",
+    " ▂▄▅▆▆▄▂",
+    "▜▛▆▇▁▁▆▜▙    ▄▄▄▄  ▄▖          ▗▄",
+    "  ▅▂▀▀▃▆▅▖   █▌ ▐▋ ▄▖ ▄▖▗▄▖  ▄▄▟█ ▗▄▄▄▖ ▄▖▄▄",
+    " ▌█▁ ▂▟▂▝█▏  █▛▀▜▙ █▌ █▛▘▐█ █▌ ▐█ █▙▄▟█ ▐█",
+    "  ▅▃▂▄▆ ▟▋   █▙▄▟▛ █▌ █▌ ▐█ ▜▙▄▟▛ ▜▙▄▄▆ ▐█",
+    "   ▃▆▄▅▂▄",
   ];
 
-  return (
-    Style.TEXT_DIM +
-    binderLogo.map((line) => line).join(EOL) +
-    Style.TEXT_NORMAL
-  );
+  // prettier-ignore
+  const inverseMask = [
+    "",
+    "  xx  x",
+    "   x  x",
+    " x     x",
+    "  xxxxx",
+    "   x   xx",
+  ];
+
+  const REVERSE = "\x1b[7m";
+  const REVERSE_OFF = "\x1b[27m";
+  const lines = binderLogo.map((line, r) => {
+    const mask = inverseMask[r] || "";
+    const chars = [...line];
+    const maskChars = [...mask];
+    let result = "";
+    let inInverse = false;
+    for (let c = 0; c < chars.length; c++) {
+      const isInverse = maskChars[c] === "x";
+      if (isInverse && !inInverse) {
+        result += REVERSE;
+        inInverse = true;
+      } else if (!isInverse && inInverse) {
+        result += REVERSE_OFF;
+        inInverse = false;
+      }
+      result += chars[c];
+    }
+    if (inInverse) result += REVERSE_OFF;
+    return result;
+  });
+
+  return Style.TEXT_DIM + lines.join(EOL) + Style.TEXT_NORMAL;
 };
 
 const print = (...message: string[]) => {
