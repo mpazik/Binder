@@ -70,6 +70,11 @@ const refFieldKeys = new Set(["$ref", "uid", "key", "type"]);
 const isSingleValueFilter = (filter: Filter): filter is string | number =>
   typeof filter === "string" || typeof filter === "number";
 
+const withTypeInclude = (includes: Includes) => ({
+  type: true as const,
+  ...includesWithUid(includes),
+});
+
 const buildCreateChangeset = (
   where: Filters,
   pathFields: Fieldset,
@@ -109,7 +114,7 @@ const lookupSingleEntity = async (
   const kgResult = await kg.search(
     {
       filters: pathFields as Record<string, string>,
-      includes: includes ? includesWithUid(includes) : undefined,
+      includes: includes ? withTypeInclude(includes) : undefined,
     },
     namespace,
   );
@@ -182,7 +187,13 @@ const diffQueryWithEntities = async (
   const interpolatedQuery = interpolateQueryParams(schema, query, [pathFields]);
   if (isErr(interpolatedQuery)) return interpolatedQuery;
 
-  const kgResult = await kg.search(interpolatedQuery.data, namespace);
+  const queryWithType = interpolatedQuery.data.includes
+    ? {
+        ...interpolatedQuery.data,
+        includes: withTypeInclude(interpolatedQuery.data.includes),
+      }
+    : interpolatedQuery.data;
+  const kgResult = await kg.search(queryWithType, namespace);
   if (isErr(kgResult)) return kgResult;
 
   const normalizedResult = await normalizeReferencesList(entities, schema, kg);
@@ -346,7 +357,8 @@ export const extractFileChanges = async <N extends NamespaceEditable>(
   if (isErr(contentResult)) return contentResult;
 
   const includes =
-    navItem.includes ?? views.find((t) => t.key === navItem.view)?.viewIncludes;
+    navItem.includes ??
+    views.find((view) => view.key === navItem.view)?.viewIncludes;
 
   const baseResult = await kg.search(
     {
@@ -604,8 +616,8 @@ export const extractModifiedFileChanges = async (
   log?.debug("Changesets after extraction", {
     configChangesets: configs.length,
     nodeChangesets: records.length,
-    nodeDetails: records.map((n) => {
-      const { uid, type, key, ...fields } = n as Record<string, unknown>;
+    nodeDetails: records.map((cs) => {
+      const { uid, type, key, ...fields } = cs as Record<string, unknown>;
       return {
         ref: uid ?? key ?? type,
         fields: Object.keys(fields),

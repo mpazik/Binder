@@ -5,6 +5,7 @@ import "@binder/utils/tests";
 import {
   type EntityChangesetInput,
   type EntityKey,
+  type EntitySchema,
   type KnowledgeGraph,
 } from "@binder/db";
 import {
@@ -272,6 +273,105 @@ ${mockTask2Record.description}
     });
   });
 
+  describe("yaml nested includes with only constraint and no range", () => {
+    // `requires` is a standard field: relation, allowMultiple, no range, no inverseOf.
+    // Add it to the Project type with `only: [Task]` so type is inferred from
+    // the constraint when creating nested entities.
+    const reqNavItems: NavigationItem[] = [
+      {
+        path: "projects/{key}",
+        includes: {
+          title: true,
+          status: true,
+          requires: { title: true, status: true },
+        },
+      },
+    ];
+
+    let schema: EntitySchema;
+
+    beforeEach(async () => {
+      throwIfError(
+        await kg.update({
+          author: "test",
+          configs: [
+            {
+              uid: mockProjectType.uid,
+              fields: [
+                ...mockProjectType.fields,
+                ["requires", { only: [mockTaskTypeKey] }],
+              ],
+            },
+          ] as any,
+        }),
+      );
+      throwIfError(
+        await kg.update({
+          author: "test",
+          records: [{ uid: mockProjectUid, requires: [mockTask1Uid] }] as any,
+        }),
+      );
+      schema = throwIfError(await kg.getSchema("record"));
+    });
+
+    const checkProject = async (
+      content: string,
+      expected: EntityChangesetInput<"record">[],
+    ) => {
+      const filePath = `projects/${mockProjectRecord.key}.yaml`;
+      const fullPath = join(ctx.config.paths.docs, filePath);
+      throwIfError(await ctx.fs.mkdir(dirname(fullPath), { recursive: true }));
+      throwIfError(await ctx.fs.writeFile(fullPath, content));
+      const result = throwIfError(
+        await extractFileChanges(
+          ctx.fs,
+          kg,
+          ctx.config,
+          reqNavItems,
+          schema,
+          filePath,
+          "record",
+          mockViews,
+        ),
+      );
+      expect(result).toEqual(expected);
+    };
+
+    it("creates entity with type from only constraint when adding nested item", async () => {
+      await checkProject(
+        renderYamlEntity({
+          ...pick(mockProjectRecord, ["title", "status"]),
+          requires: [
+            pick(mockTask1Record, ["title", "status"]),
+            { title: "New task from doc", status: "pending" },
+          ],
+        }),
+        [
+          {
+            uid: mockProjectUid,
+            requires: [["insert", expect.any(String)]],
+          },
+          {
+            uid: expect.any(String),
+            type: mockTaskTypeKey,
+            title: "New task from doc",
+            status: "pending",
+          },
+        ],
+      );
+    });
+
+    it("detects removed entry", async () => {
+      await checkProject(
+        renderYamlEntity({
+          ...pick(mockProjectRecord, ["title", "status"]),
+          requires: [],
+        }),
+        [{ uid: mockProjectUid, requires: [["remove", mockTask1Uid]] }],
+      );
+    });
+  });
+
   describe("yaml list", () => {
     it("returns empty array when no changes", async () => {
       await check(
@@ -459,10 +559,11 @@ ${mockTask2Record.description}
     };
 
     it("returns null when no modified files in docs folder", async () => {
-      const result = throwIfError(
-        await extractModifiedFileChanges(ctx, ctx.config.paths.docs),
-      );
-      expect(result).toEqual(null);
+      expect(
+        throwIfError(
+          await extractModifiedFileChanges(ctx, ctx.config.paths.docs),
+        ),
+      ).toEqual(null);
     });
 
     it("detects changes in a single modified file", async () => {
@@ -534,11 +635,9 @@ ${mockTask1Record.description}
           ),
         );
 
-        const result = await extractModifiedFileChanges(
-          ctx,
-          ctx.config.paths.docs,
-        );
-        expect(result).toBeErrWithKey("field-conflict");
+        expect(
+          await extractModifiedFileChanges(ctx, ctx.config.paths.docs),
+        ).toBeErrWithKey("field-conflict");
       });
 
       it("detects conflict when one file deletes and another updates same entity", async () => {
@@ -562,11 +661,9 @@ ${mockTask1Record.description}
           ),
         );
 
-        const result = await extractModifiedFileChanges(
-          ctx,
-          ctx.config.paths.docs,
-        );
-        expect(result).toBeErrWithKey("field-conflict");
+        expect(
+          await extractModifiedFileChanges(ctx, ctx.config.paths.docs),
+        ).toBeErrWithKey("field-conflict");
       });
     });
 
@@ -620,13 +717,14 @@ Updated description
         const task1Changes = records.filter(
           (r) => "uid" in r && r.uid === mockTask1Uid,
         );
-        expect(task1Changes).toHaveLength(1);
-        expect(task1Changes[0]).toMatchObject({
-          uid: mockTask1Uid,
-          status: "done",
-          title: "Updated Title",
-          description: "Updated description",
-        });
+        expect(task1Changes).toEqual([
+          expect.objectContaining({
+            uid: mockTask1Uid,
+            status: "done",
+            title: "Updated Title",
+            description: "Updated description",
+          }),
+        ]);
       });
 
       it("preserves non-overlapping changesets for different entities", async () => {
@@ -668,27 +766,24 @@ Updated description
         );
         expect(result).not.toBeNull();
         const records = result!.records ?? [];
-
-        expect(records).toEqual(
-          expect.arrayContaining([
-            expect.objectContaining({
-              uid: mockTask1Uid,
-              title: "Task 1 Updated",
-            }),
-            expect.objectContaining({
-              uid: mockTask2Uid,
-              title: "Task 2 Updated",
-            }),
-          ]),
-        );
         const task1Changes = records.filter(
           (r) => "uid" in r && r.uid === mockTask1Uid,
         );
         const task2Changes = records.filter(
           (r) => "uid" in r && r.uid === mockTask2Uid,
         );
-        expect(task1Changes).toHaveLength(1);
-        expect(task2Changes).toHaveLength(1);
+        expect(task1Changes).toEqual([
+          expect.objectContaining({
+            uid: mockTask1Uid,
+            title: "Task 1 Updated",
+          }),
+        ]);
+        expect(task2Changes).toEqual([
+          expect.objectContaining({
+            uid: mockTask2Uid,
+            title: "Task 2 Updated",
+          }),
+        ]);
       });
     });
 

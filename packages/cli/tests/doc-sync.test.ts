@@ -1,6 +1,16 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { stringify } from "yaml";
+import {
+  mockProjectKey,
+  mockProjectRecord,
+  mockProjectType,
+  mockProjectTypeKey,
+  mockTask1Key,
+  mockTask1Record,
+  mockTaskTypeKey,
+} from "@binder/db/mocks";
 import {
   createRunHelpers,
   run,
@@ -148,46 +158,39 @@ describe("Doc Sync", () => {
       const original = await readDoc("tasks-yaml/task-create-api.yaml");
       expect(original).toContain("status: active");
 
-      // Make a bad edit — invalid option value
       const bad = original.replace("status: active", "status: INVALID_VALUE");
       await writeDoc("tasks-yaml/task-create-api.yaml", bad);
 
-      // Sync fails with validation error
       const syncResult = await run(["docs", "sync"], { cwd: dir });
       expect(syncResult.exitCode).not.toBe(0);
 
-      // File still has the bad edit
       const afterFailedSync = await readDoc("tasks-yaml/task-create-api.yaml");
       expect(afterFailedSync).toContain("status: INVALID_VALUE");
 
-      // Render (no --force) should warn about diverged file
       const renderResult = await run(["docs", "render"], { cwd: dir });
       expect(renderResult.exitCode).toBe(0);
       expect(renderResult.stdout).toContain("differ from the database");
       expect(renderResult.stdout).toContain("--force");
 
-      // File still has the bad edit (not overwritten without --force)
       const afterRender = await readDoc("tasks-yaml/task-create-api.yaml");
       expect(afterRender).toContain("status: INVALID_VALUE");
     });
 
     it("render --force overwrites diverged file and restores DB state", async () => {
       // File still has INVALID_VALUE from previous test
-      const beforeForce = await readDoc("tasks-yaml/task-create-api.yaml");
-      expect(beforeForce).toContain("status: INVALID_VALUE");
+      expect(await readDoc("tasks-yaml/task-create-api.yaml")).toContain(
+        "status: INVALID_VALUE",
+      );
 
-      // render --force overwrites diverged files
       const forceResult = await run(["docs", "render", "--force"], {
         cwd: dir,
       });
       expect(forceResult.exitCode).toBe(0);
 
-      // File should now have the correct DB value
       const afterForce = await readDoc("tasks-yaml/task-create-api.yaml");
       expect(afterForce).toContain("status: active");
       expect(afterForce).not.toContain("INVALID_VALUE");
 
-      // Subsequent sync of this file should report no changes
       await check(
         ["docs", "sync", "tasks-yaml/task-create-api.yaml"],
         "No changes",
@@ -200,7 +203,6 @@ describe("Doc Sync", () => {
       const original = await readDoc("tasks/task-create-api.md");
       expect(original).toContain("Add relationship fields");
 
-      // Directly corrupt the file so it diverges from the snapshot
       await writeDoc("tasks/task-create-api.md", "completely wrong content");
 
       // Render (default verify mode) detects divergence
@@ -208,11 +210,9 @@ describe("Doc Sync", () => {
       expect(renderResult.exitCode).toBe(0);
       expect(renderResult.stdout).toContain("differ from the database");
 
-      // File still has wrong content
       const afterRender = await readDoc("tasks/task-create-api.md");
       expect(afterRender).toBe("completely wrong content");
 
-      // render --force fixes it
       const forceResult = await run(["docs", "render", "--force"], {
         cwd: dir,
       });
@@ -221,7 +221,6 @@ describe("Doc Sync", () => {
       const restored = await readDoc("tasks/task-create-api.md");
       expect(restored).toContain("Add relationship fields");
 
-      // Clean sync of this file
       await check(["docs", "sync", "tasks/task-create-api.md"], "No changes");
     });
   });
@@ -259,5 +258,102 @@ describe("Doc Sync", () => {
 
       await writeDoc(docPath, original);
     });
+  });
+});
+
+describe("Doc Sync — relation projection creates entity with only constraint", () => {
+  let dir: string;
+  const { check } = createRunHelpers(() => dir);
+
+  beforeAll(async () => {
+    dir = await setupWorkspace({ docs: true });
+
+    // `requires` is a standard field (relation, allowMultiple, no range).
+    // Add it to Project with only: [Task] so the nav config can infer the type
+    // for nested entities without explicitly specifying it in includes.
+    const setup = stringify([
+      {
+        author: "test",
+        configs: [
+          {
+            key: mockProjectTypeKey,
+            fields: [
+              ...mockProjectType.fields,
+              ["requires", { only: [mockTaskTypeKey] }],
+            ],
+          },
+          {
+            key: "nav-project-reqs",
+            type: "Navigation",
+            path: "project-reqs/{key}",
+            where: { type: mockProjectTypeKey },
+            includes: {
+              key: true,
+              title: true,
+              status: true,
+              requires: { title: true, status: true },
+            },
+          },
+        ],
+        records: [{ key: mockProjectKey, requires: [mockTask1Key] }],
+      },
+    ]);
+    const file = join(dir, "extra-setup.yaml");
+    await writeFile(file, setup);
+    await run(["tx", "import", file, "-q"], { cwd: dir });
+  });
+
+  afterAll(async () => {
+    await teardownWorkspace(dir);
+  });
+
+  const readDoc = (relPath: string) =>
+    readFile(join(dir, "docs", relPath), "utf-8");
+
+  const writeDoc = async (relPath: string, content: string) => {
+    const fullPath = join(dir, "docs", relPath);
+    await mkdir(join(fullPath, ".."), { recursive: true });
+    await writeFile(fullPath, content);
+  };
+
+  it("adding item to relation projection syncs and creates entity", async () => {
+    const docPath = `project-reqs/${mockProjectKey}.yaml`;
+    await check(["docs", "render"]);
+
+    const original = await readDoc(docPath);
+    expect(original).toContain(mockTask1Record.title);
+
+    await writeDoc(
+      docPath,
+      stringify({
+        key: mockProjectKey,
+        title: mockProjectRecord.title,
+        status: mockProjectRecord.status,
+        requires: [
+          { title: mockTask1Record.title, status: mockTask1Record.status },
+          { title: "New task from doc", status: "pending" },
+        ],
+      }),
+    );
+
+    await check(["docs", "sync"], "Synchronized");
+
+    await check(
+      [
+        "search",
+        `type=${mockTaskTypeKey}`,
+        "title=New task from doc",
+        "--format",
+        "json",
+      ],
+      (stdout) => {
+        const result = JSON.parse(stdout);
+        expect(result.items).toHaveLength(1);
+        expect(result.items[0]).toMatchObject({
+          type: mockTaskTypeKey,
+          title: "New task from doc",
+        });
+      },
+    );
   });
 });
