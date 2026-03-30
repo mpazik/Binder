@@ -1140,65 +1140,51 @@ Excellent first week. Schema is minimal and consistent.
           ...mockDefaultViews,
           childSummaryView,
         ];
+        const childrenView =
+          "## Children Summary\n\n{children|view:child-summary}\n\n## Description\n\n{description}\n";
 
         it("empty block fields in some entities", () => {
-          const viewAst = parseView(
-            "## Children Summary\n\n{children|view:child-summary}\n\n## Description\n\n{description}\n",
-          );
-          const snapAst = parseMarkdown(
+          check(
+            childrenView,
             "## Children Summary\n\n### 2026-02-09\n\n### 2026-02-10\n\nGood day.\n\n## Description\n\n",
+            {
+              children: [
+                { title: "2026-02-09", description: null },
+                { title: "2026-02-10", description: "Good day." },
+              ],
+              description: null,
+            },
+            childSummaryViews,
           );
-          const result = throwIfError(
-            extractFieldsAst(
-              mockRecordSchema,
-              childSummaryViews,
-              viewAst,
-              snapAst,
-              {},
-            ),
-          );
-          expect(result).toEqual({
-            children: [
-              { title: "2026-02-09", description: null },
-              { title: "2026-02-10", description: "Good day." },
-            ],
-            description: null,
-          });
         });
 
-        it("realistic base with unchanged null fields produces sparse diff", () => {
-          const viewAst = parseView(
-            "## Children Summary\n\n{children|view:child-summary}\n\n## Description\n\n{description}\n",
-          );
-          const snapAst = parseMarkdown(
+        it("unchanged null fields produce sparse diff against base", () => {
+          check(
+            childrenView,
             "## Children Summary\n\n### 2026-02-24\n\n### 2026-02-25\n\nGood day.\n\n## Description\n\n",
+            {
+              children: [
+                { uid: "_child0000001" },
+                { uid: "_child0000002", description: "Good day." },
+              ],
+            },
+            childSummaryViews,
+            {
+              children: [
+                {
+                  uid: "_child0000001",
+                  title: "2026-02-24",
+                  description: null,
+                },
+                {
+                  uid: "_child0000002",
+                  title: "2026-02-25",
+                  description: null,
+                },
+              ],
+              description: null,
+            },
           );
-          const base = {
-            children: [
-              { uid: "_child0000001", title: "2026-02-24", description: null },
-              { uid: "_child0000002", title: "2026-02-25", description: null },
-            ],
-            description: null,
-          };
-
-          const result = throwIfError(
-            extractFieldsAst(
-              mockRecordSchema,
-              childSummaryViews,
-              viewAst,
-              snapAst,
-              base,
-            ),
-          );
-          // UIDs from base entities must be propagated into extracted segments
-          // so that diffOwnedChildren can match them by uid and avoid treating
-          // unchanged items as new entities to create.
-          expect(result).toEqual({
-            children: [
-              { uid: "_child0000001" },
-              { uid: "_child0000002", description: "Good day." },
-            ],
-          });
         });
       });
     });
@@ -1572,6 +1558,40 @@ Excellent first week. Schema is minimal and consistent.
           },
         ],
       );
+    });
+
+    describe("empty field slots", () => {
+      it("returns no mapping when followed by static heading", () => {
+        check(
+          "## Details\n\n{description}\n\n## End\n",
+          "## Details\n\n## End\n",
+          [],
+        );
+      });
+
+      it("returns no mapping for multiple consecutive empty slots", () => {
+        check(
+          "## A\n\n{description}\n\n## B\n\n{children}\n\n## C\n",
+          "## A\n\n## B\n\n## C\n",
+          [],
+        );
+      });
+
+      it("maps only non-empty field when one slot is empty", () => {
+        check(
+          "## Details\n\n{description}\n\n## Notes\n\n{children}\n\n## End\n",
+          "## Details\n\n## Notes\n\nSome note content\n\n## End\n",
+          [
+            {
+              path: ["children"],
+              position: {
+                start: { line: 5, column: 1, offset: 22 },
+                end: { line: 5, column: 18, offset: 39 },
+              },
+            },
+          ],
+        );
+      });
     });
   });
 });

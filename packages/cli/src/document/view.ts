@@ -7,6 +7,7 @@ import {
   fail,
   isErr,
   ok,
+  okVoid,
   type Result,
 } from "@binder/utils";
 
@@ -72,11 +73,11 @@ import { createFieldAccumulator } from "./field-accumulator.ts";
 
 type SimplifiedViewChild = SimplifiedViewBlockChild | SimplifiedViewInlineChild;
 
-export interface ViewRoot extends Node {
+export type ViewRoot = Node & {
   type: "root";
   children: (FieldSlot | Text)[];
   data?: Data;
-}
+};
 
 export type ViewAST = Brand<ViewRoot, "ViewAST">;
 
@@ -159,7 +160,7 @@ const validateNestedPath = (
       );
   }
 
-  return ok(undefined);
+  return okVoid;
 };
 
 const DEFAULT_VIEW_BY_POSITION: Record<SlotPosition, string> = {
@@ -207,8 +208,7 @@ const getSoleFieldSlotFromParagraph = (
   const children = node.children as (SimplifiedViewInlineChild | Nodes)[];
   if (children.length !== 1) return undefined;
   const child = children[0];
-  if (!child || !("type" in child) || child.type !== "fieldSlot")
-    return undefined;
+  if (!child || child.type !== "fieldSlot") return undefined;
   return child as ViewFieldSlot;
 };
 
@@ -313,19 +313,18 @@ const renderNestedFieldValues = (
 
   if (values.length === 0) return [{ type: "text", value: "" }];
 
+  const delimiterStr = getDelimiterString(
+    richtextFormats[slotPosition].delimiter,
+  );
+
   // For block position with block-level content, render as separate blocks
   if (!isInlinePosition(slotPosition) && isBlockLevelField(fieldDef)) {
-    const delimiter = richtextFormats[slotPosition].delimiter;
-    const delimiterStr = getDelimiterString(delimiter);
     const combinedMarkdown = values
       .map((v) => String(v).trim())
       .join(delimiterStr);
     const ast = parseAst(combinedMarkdown);
     return ast.children as Nodes[];
   }
-
-  const delimiter = richtextFormats[slotPosition].delimiter;
-  const delimiterStr = getDelimiterString(delimiter);
 
   const renderedValues = values.map((v) => renderFieldValue(v, fieldDef));
   if (renderedValues.length === 1) return renderedValues[0]!;
@@ -349,14 +348,13 @@ const validateFormatPositionCompatibility = (
   format: RichtextFormat | ViewFormat | undefined,
   slotPosition: SlotPosition,
 ): Result<void> => {
-  if (!format) return ok(undefined);
-  if (!isFormatCompatibleWithPosition(format, slotPosition)) {
+  if (!format) return okVoid;
+  if (!isFormatCompatibleWithPosition(format, slotPosition))
     return fail(
       "format-position-incompatible",
       `Format '${format}' is not compatible with slot position '${slotPosition}'`,
     );
-  }
-  return ok(undefined);
+  return okVoid;
 };
 
 const renderFieldSlot = (
@@ -399,10 +397,8 @@ const renderFieldSlot = (
     }
   }
 
-  const fieldFormat =
-    fieldDef.dataType === "richtext" ? fieldDef.richtextFormat : undefined;
   const formatCheck = validateFormatPositionCompatibility(
-    fieldFormat,
+    fieldDef.dataType === "richtext" ? fieldDef.richtextFormat : undefined,
     slotPosition,
   );
   if (isErr(formatCheck)) return formatCheck;
@@ -1388,7 +1384,7 @@ export const extractFieldMappings = (
       const fieldSlot = viewBlock.children[0];
       const nextViewBlock = viewBlocks[viewIdx + 1];
 
-      let endSnapIdx = snapIdx + 1;
+      let endSnapIdx = snapIdx;
       if (nextViewBlock) {
         while (endSnapIdx < snapBlocks.length) {
           if (blocksMatch(nextViewBlock, snapBlocks[endSnapIdx]!)) break;
@@ -1398,13 +1394,15 @@ export const extractFieldMappings = (
         endSnapIdx = snapBlocks.length;
       }
 
-      const startPos = snapBlocks[snapIdx]!.position;
-      const endPos = snapBlocks[endSnapIdx - 1]!.position;
-      if (startPos && endPos) {
-        mappings.push({
-          path: fieldSlot.path,
-          position: combinePositions(startPos, endPos),
-        });
+      if (endSnapIdx > snapIdx) {
+        const startPos = snapBlocks[snapIdx]!.position;
+        const endPos = snapBlocks[endSnapIdx - 1]!.position;
+        if (startPos && endPos) {
+          mappings.push({
+            path: fieldSlot.path,
+            position: combinePositions(startPos, endPos),
+          });
+        }
       }
       snapIdx = endSnapIdx;
       viewIdx++;
