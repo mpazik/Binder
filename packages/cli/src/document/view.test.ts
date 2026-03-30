@@ -670,12 +670,12 @@ describe("view", () => {
       expectedKey: string,
       base: FieldsetNested = {},
     ) => {
-      const ast = parseView(view);
+      const viewAst = parseView(view);
       const snapAst = parseMarkdown(output);
       const result = extractFieldsAst(
         mockRecordSchema,
         mockDefaultViews,
-        ast,
+        viewAst,
         snapAst,
         base,
       );
@@ -1190,6 +1190,57 @@ Excellent first week. Schema is minimal and consistent.
           );
         });
       });
+
+      describe("section-format field slot boundaries", () => {
+        it("section field with subheadings extracts correctly before next heading", () => {
+          check(
+            "# {title}\n\n## Details\n\n{details}\n\n## Description\n\n{description}\n",
+            "# Test Task\n\n## Details\n\n### Overview\n\nSome content here\n\n## Description\n\nA description.\n",
+            {
+              title: "Test Task",
+              details: "### Overview\n\nSome content here",
+              description: "A description.",
+            },
+          );
+        });
+
+        it("section field with multiple subheadings extracts all content", () => {
+          check(
+            "# {title}\n\n## Details\n\n{details}\n\n## Description\n\n{description}\n",
+            "# Test Task\n\n## Details\n\n### First\n\nContent one\n\n### Second\n\nContent two\n\n## Description\n\nA description.\n",
+            {
+              title: "Test Task",
+              details: "### First\n\nContent one\n\n### Second\n\nContent two",
+              description: "A description.",
+            },
+          );
+        });
+
+        it("empty section field followed by another section heading", () => {
+          check(
+            "# {title}\n\n## Details\n\n{details}\n\n## Description\n\n{description}\n",
+            "# Test Task\n\n## Details\n\n## Description\n\nA description.\n",
+            {
+              title: "Test Task",
+              details: null,
+              description: "A description.",
+            },
+          );
+        });
+
+        it("empty section field between two section headings", () => {
+          check(
+            "# {title}\n\n## Details\n\n{details}\n\n## Steps\n\n{steps}\n\n## Description\n\n{description}\n",
+            "# Test Task\n\n## Details\n\n## Steps\n\n## Description\n\nSome text.\n",
+            {
+              title: "Test Task",
+              details: null,
+              steps: null,
+              description: "Some text.",
+            },
+          );
+        });
+      });
     });
 
     describe("where: filter extraction", () => {
@@ -1534,11 +1585,9 @@ Excellent first week. Schema is minimal and consistent.
       document: string,
       expected: FieldSlotMapping[],
     ) => {
-      const mappings = extractFieldMappings(
-        parseView(viewContent),
-        parseAst(document),
-      );
-      expect(mappings).toEqual(expected);
+      expect(
+        extractFieldMappings(parseView(viewContent), parseAst(document)),
+      ).toEqual(expected);
     };
 
     it("extracts position for single field in heading", () => {

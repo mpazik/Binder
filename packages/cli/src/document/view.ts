@@ -73,6 +73,18 @@ import { createFieldAccumulator } from "./field-accumulator.ts";
 
 type SimplifiedViewChild = SimplifiedViewBlockChild | SimplifiedViewInlineChild;
 
+const renderBlocksToMarkdown = (blocks: Nodes[]): string =>
+  renderSimplifiedAstToMarkdown({
+    type: "root",
+    children: blocks as Root["children"],
+  });
+
+const fieldNotFoundError = (path: FieldPath) =>
+  createError(
+    "field-not-found",
+    `Field '${path.join(".")}' was not found in schema`,
+  );
+
 export type ViewRoot = Node & {
   type: "root";
   children: (FieldSlot | Text)[];
@@ -203,13 +215,11 @@ const literalMismatch = (context?: string) =>
 const getSoleFieldSlotFromParagraph = (
   node: SimplifiedViewChild | Nodes,
 ): ViewFieldSlot | undefined => {
-  if (node.type !== "paragraph") return undefined;
-  if (!("children" in node)) return undefined;
+  if (node.type !== "paragraph" || !("children" in node)) return undefined;
   const children = node.children as (SimplifiedViewInlineChild | Nodes)[];
-  if (children.length !== 1) return undefined;
-  const child = children[0];
-  if (!child || child.type !== "fieldSlot") return undefined;
-  return child as ViewFieldSlot;
+  if (children.length !== 1 || children[0]?.type !== "fieldSlot")
+    return undefined;
+  return children[0] as ViewFieldSlot;
 };
 
 const FRONTMATTER_TYPES = ["yaml", "toml"];
@@ -369,11 +379,7 @@ const renderFieldSlot = (
 
   const value = getNestedValue(fieldset, slot.path);
   const fieldDef = getFieldDefNested(schema, slot.path);
-  if (!fieldDef)
-    return fail(
-      "field-not-found",
-      `Field '${slot.path.join(".")}' was not found in schema`,
-    );
+  if (!fieldDef) return err(fieldNotFoundError(slot.path));
 
   const slotPosition = getSlotPosition(slot);
 
@@ -716,12 +722,7 @@ const extractRelationFromBlocks = (
           : null;
 
     if (blockGroups) {
-      const segments = blockGroups.map((group) =>
-        renderSimplifiedAstToMarkdown({
-          type: "root",
-          children: group as Root["children"],
-        }),
-      );
+      const segments = blockGroups.map(renderBlocksToMarkdown);
       return extractRelationSegments(
         schema,
         views,
@@ -732,15 +733,10 @@ const extractRelationFromBlocks = (
     }
   }
 
-  const markdown = renderSimplifiedAstToMarkdown({
-    type: "root",
-    children: blocks as Root["children"],
-  });
-
   return extractRelationFromText(
     schema,
     views,
-    markdown,
+    renderBlocksToMarkdown(blocks),
     itemView,
     slotPosition,
     baseChildren,
@@ -796,10 +792,7 @@ export const extractFieldsAst = (
 
     const fieldDef = getFieldDefNested(schema, fieldPath);
     if (!fieldDef) {
-      error = createError(
-        "field-not-found",
-        `Field '${fieldPath}' was not found in schema`,
-      );
+      error = fieldNotFoundError(fieldPath);
       return false;
     }
 
@@ -964,10 +957,7 @@ export const extractFieldsAst = (
 
     const fieldDef = getFieldDefNested(schema, fieldPath);
     if (!fieldDef) {
-      error = createError(
-        "field-not-found",
-        `Field '${fieldPath}' was not found in schema`,
-      );
+      error = fieldNotFoundError(fieldPath);
       return false;
     }
 
@@ -1065,7 +1055,16 @@ export const extractFieldsAst = (
             nextView.type === snapNode.type &&
             nextView.type !== "paragraph"
           ) {
-            break;
+            // For headings, only break when the snap heading is at or above
+            // the next view heading's depth. Deeper headings (e.g. ### inside
+            // a sectionDepth:2 field) are valid field content.
+            const isDeeperHeading =
+              nextView.type === "heading" &&
+              "depth" in nextView &&
+              "depth" in snapNode &&
+              (snapNode as { depth: number }).depth >
+                (nextView as { depth: number }).depth;
+            if (!isDeeperHeading) break;
           }
         }
 
@@ -1103,11 +1102,7 @@ export const extractFieldsAst = (
 
     if (isRelation(fieldDef)) {
       const itemView = getItemView(slot, views);
-      const markdown = renderSimplifiedAstToMarkdown({
-        type: "root",
-        children: blockNodes as Root["children"],
-      });
-      const segmentAst = parseMarkdown(markdown);
+      const segmentAst = parseMarkdown(renderBlocksToMarkdown(blockNodes));
       const extractResult = extractFieldsAst(
         schema,
         views,
@@ -1124,11 +1119,10 @@ export const extractFieldsAst = (
       return true;
     }
 
-    const markdown = renderSimplifiedAstToMarkdown({
-      type: "root",
-      children: blockNodes as Root["children"],
-    });
-    const valueResult = parseFieldValue(markdown.trim(), fieldDef);
+    const valueResult = parseFieldValue(
+      renderBlocksToMarkdown(blockNodes).trim(),
+      fieldDef,
+    );
     if (isErr(valueResult)) {
       error = valueResult.error;
       return false;
