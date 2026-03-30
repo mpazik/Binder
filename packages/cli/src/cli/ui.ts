@@ -197,13 +197,15 @@ const printError = (errorObj: ErrorObject) => {
   eprintln(formatValue(errorObj.data, ""));
 };
 
+const stripNulls = (_: string, v: unknown) => (v === null ? undefined : v);
+
 const printData = (data: unknown, format?: SerializeFormat) => {
   if (format) {
     println(serialize(data, format));
     return;
   }
 
-  const yamlOutput = YAML.stringify(data, {
+  const yamlOutput = YAML.stringify(data, stripNulls, {
     indent: 2,
     lineWidth: 0,
     defaultStringType: "PLAIN",
