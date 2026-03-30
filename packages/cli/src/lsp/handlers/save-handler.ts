@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import {
   MessageType,
   ShowMessageNotification,
@@ -46,12 +47,11 @@ const syncDocument = async (
 ): ResultAsync<SyncResult> => {
   const { log, config, fs, kg } = context;
 
-  const uriObj = new URL(uri);
-  if (uriObj.protocol !== "file:") {
+  if (!uri.startsWith("file:")) {
     log.warn("Ignoring non-file URI", { uri });
     return ok({ fieldChangeCount: 0 });
   }
-  const absolutePath = uriObj.pathname;
+  const absolutePath = fileURLToPath(uri);
 
   const namespace = namespaceFromSnapshotPath(absolutePath, config.paths);
   if (namespace === undefined) {
