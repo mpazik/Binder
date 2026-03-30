@@ -3,9 +3,10 @@ import {
   type CompletionItem,
   type CompletionParams,
 } from "vscode-languageserver/node";
-import { isMap } from "yaml";
+import { isMap, type Pair, type ParsedNode } from "yaml";
 import {
   getOptionDefsForFieldRef,
+  IDENTIFIER_FORMAT_PATTERN,
   type FieldAttrDef,
   type FieldDef,
   type KnowledgeGraph,
@@ -14,7 +15,11 @@ import {
   type RecordType,
 } from "@binder/db";
 import { isErr } from "@binder/utils";
-import { getFieldKeys, getParentMap } from "../../document/yaml-cst.ts";
+import {
+  findYamlContext,
+  getFieldKeys,
+  getParentMap,
+} from "../../document/yaml-cst.ts";
 import {
   getAllowedFields,
   type DocumentContext,
@@ -25,6 +30,7 @@ import {
   getCursorContext,
   getSchemaFieldPath,
   getSiblingValues,
+  positionToOffset,
   type CursorContext,
   type MarkdownFieldValueContext,
   type MarkdownFrontmatterFieldValueContext,
@@ -35,6 +41,8 @@ export type FieldKeyCompletionInput = {
   kind: "field-key";
   context: DocumentContext;
   frontmatter?: FrontmatterContext;
+  parentMap?: ParsedNode | Pair;
+  keyPrefix?: string;
 };
 
 export type FieldValueCompletionInput = {
@@ -67,7 +75,7 @@ const createOptionCompletions = (
   }));
 };
 
-const createBooleanCompletions = (): CompletionItem[] => [
+const BOOLEAN_COMPLETIONS: CompletionItem[] = [
   { label: "true", kind: CompletionItemKind.Constant },
   { label: "false", kind: CompletionItemKind.Constant },
 ];
@@ -138,26 +146,137 @@ const getDocumentYamlContents = (
   return undefined;
 };
 
+const getDocumentLinePrefix = (
+  context: DocumentContext,
+  position: CompletionParams["position"],
+): string => {
+  const line = context.document.getText().split(/\r?\n/u)[position.line] ?? "";
+  return line.slice(0, position.character);
+};
+
+const isPositionInFrontmatter = (
+  frontmatter: FrontmatterContext,
+  position: CompletionParams["position"],
+): boolean => {
+  const localLine = position.line - frontmatter.lineOffset;
+  if (localLine < 0) return false;
+  return localLine < frontmatter.parsed.lineCounter.lineStarts.length;
+};
+
+const buildFieldKeyInputAtPosition = (
+  context: DocumentContext,
+  position: CompletionParams["position"],
+  opts?: {
+    frontmatter?: FrontmatterContext;
+    requireKeyIntent?: boolean;
+  },
+): FieldKeyCompletionInput | undefined => {
+  const frontmatter = opts?.frontmatter;
+
+  if (context.documentType !== "yaml" && !frontmatter) return undefined;
+
+  const contents = getDocumentYamlContents(context, frontmatter);
+  if (!contents) return undefined;
+
+  const lineCounter = frontmatter
+    ? frontmatter.parsed.lineCounter
+    : context.documentType === "yaml"
+      ? context.parsed.lineCounter
+      : undefined;
+  if (!lineCounter) return undefined;
+
+  const localPosition = frontmatter
+    ? {
+        line: position.line - frontmatter.lineOffset,
+        character: position.character,
+      }
+    : position;
+  if (localPosition.line < 0) return undefined;
+
+  const offset = positionToOffset(localPosition, lineCounter);
+  const yamlContext = findYamlContext(contents, offset);
+
+  const parentMapFromPath = getParentMap(yamlContext.path);
+  const parentMap =
+    parentMapFromPath && isMap(parentMapFromPath)
+      ? parentMapFromPath
+      : isMap(contents)
+        ? contents
+        : undefined;
+  if (!parentMap) return undefined;
+
+  const linePrefix = getDocumentLinePrefix(context, position);
+  const trimmedPrefix = linePrefix.trimStart();
+
+  const isIdentifierPrefix =
+    trimmedPrefix === "" || IDENTIFIER_FORMAT_PATTERN.test(trimmedPrefix);
+  const isKeyIntent =
+    !trimmedPrefix.includes(":") &&
+    !trimmedPrefix.startsWith("-") &&
+    isIdentifierPrefix &&
+    (trimmedPrefix === "" ||
+      yamlContext.type === "key" ||
+      yamlContext.type === "unknown");
+
+  if (opts?.requireKeyIntent && !isKeyIntent) return undefined;
+
+  const keyPrefix =
+    trimmedPrefix === "" ? "" : isIdentifierPrefix ? trimmedPrefix : undefined;
+
+  if (opts?.requireKeyIntent && keyPrefix === undefined) return undefined;
+
+  return {
+    kind: "field-key",
+    context,
+    frontmatter,
+    parentMap,
+    keyPrefix,
+  };
+};
+
+const getFallbackFieldKeyInput = (
+  context: DocumentContext,
+  position: CompletionParams["position"],
+): FieldKeyCompletionInput | undefined => {
+  if (context.documentType === "yaml") {
+    return buildFieldKeyInputAtPosition(context, position, {
+      requireKeyIntent: true,
+    });
+  }
+
+  if (!context.frontmatter) return undefined;
+  if (!isPositionInFrontmatter(context.frontmatter, position)) return undefined;
+
+  return buildFieldKeyInputAtPosition(context, position, {
+    frontmatter: context.frontmatter,
+    requireKeyIntent: true,
+  });
+};
+
 const getFieldKeyCompletions = (
   input: FieldKeyCompletionInput,
 ): CompletionItem[] => {
-  const { context, frontmatter } = input;
+  const { context, frontmatter, keyPrefix } = input;
 
   if (context.documentType !== "yaml" && !frontmatter) return [];
 
   const contents = getDocumentYamlContents(context, frontmatter);
   if (!contents) return [];
 
-  const parentMap = getParentMap([contents]);
+  const parentMap = input.parentMap ?? getParentMap([contents]);
   if (!parentMap || !isMap(parentMap)) return [];
 
   const existingFields = getFieldKeys(parentMap);
   const allowedFields = frontmatter
     ? frontmatter.preambleKeys.filter((key) => key in context.schema.fields)
     : getAllowedFields(context.typeDef, context.schema);
-  const availableFields = allowedFields.filter(
-    (field) => !existingFields.includes(field),
-  );
+
+  const normalizedPrefix = keyPrefix?.toLowerCase();
+  const availableFields = allowedFields.filter((field) => {
+    if (existingFields.includes(field)) return false;
+    if (normalizedPrefix === undefined || normalizedPrefix === "") return true;
+    return field.toLowerCase().startsWith(normalizedPrefix);
+  });
 
   const typeSpecificFields = new Set(context.typeDef?.fields ?? []);
 
@@ -191,7 +310,7 @@ export const getCompletionItems = async (
         fieldAttrs,
       );
     case "boolean":
-      return createBooleanCompletions();
+      return BOOLEAN_COMPLETIONS;
     case "relation":
       return createRelationCompletions(
         kg,
@@ -208,20 +327,19 @@ export const getCompletionItems = async (
 const buildCompletionInput = (
   cursorContext: CursorContext,
   context: DocumentContext,
+  position: CompletionParams["position"],
 ): CompletionInput | undefined => {
   if (
     cursorContext.documentType === "yaml" &&
     cursorContext.type === "field-key"
   ) {
-    return { kind: "field-key", context };
+    return buildFieldKeyInputAtPosition(context, position);
   }
 
   if (cursorContext.type === "frontmatter-field-key") {
-    return {
-      kind: "field-key",
-      context,
+    return buildFieldKeyInputAtPosition(context, position, {
       frontmatter: cursorContext.frontmatter,
-    };
+    });
   }
 
   if (
@@ -258,19 +376,24 @@ export const handleCompletion: LspHandler<
 
   const cursorContext = getCursorContext(context, params.position);
 
-  if (cursorContext.type === "none") {
-    log.debug("No cursor context at position");
-    return [];
+  const fallbackInput = getFallbackFieldKeyInput(context, params.position);
+  if (fallbackInput) {
+    const fallbackCompletions = await getCompletionItems(fallbackInput, kg);
+    if (fallbackCompletions.length > 0) return fallbackCompletions;
   }
 
-  const input = buildCompletionInput(cursorContext, context);
+  const input = buildCompletionInput(cursorContext, context, params.position);
+  if (input) {
+    const completions = await getCompletionItems(input, kg);
+    if (completions.length > 0) return completions;
+  }
+
   if (!input) {
     log.debug("Unsupported completion context", {
       documentType: cursorContext.documentType,
       type: cursorContext.type,
     });
-    return [];
   }
 
-  return getCompletionItems(input, kg);
+  return [];
 };

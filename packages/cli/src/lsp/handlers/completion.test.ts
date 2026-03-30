@@ -169,6 +169,35 @@ project: pro█`,
       );
     });
 
+    it("provides relation completions for project field in frontmatter", async () => {
+      await check(
+        "md-tasks/my-task.md",
+        `---
+status: active
+project: █
+---
+
+# My Task
+
+## Description
+
+Some description
+`,
+        [mockProjectKey],
+      );
+    });
+
+    it("provides relation completions for list item relation field", async () => {
+      await check(
+        "all-tasks.yaml",
+        `items:
+  - key: task-1
+    title: One
+    project: █`,
+        [mockProjectKey],
+      );
+    });
+
     it("returns empty for non-relation field", () =>
       checkNoCompletions(
         "tasks/my-task.yaml",
@@ -228,6 +257,93 @@ tags:
       ));
   });
 
+  describe("field key completions", () => {
+    it("provides completions for partial unknown key in yaml", async () => {
+      await check(
+        "tasks/my-task.yaml",
+        `type: Task
+title: My Task
+sta█: active`,
+        ["status"],
+        ["project", "type", "title"],
+      );
+    });
+
+    it("provides key completions on empty line in yaml map", async () => {
+      await check(
+        "tasks/my-task.yaml",
+        `type: Task
+title: My Task
+█
+status: active`,
+        ["priority"],
+        ["type", "title", "status"],
+      );
+    });
+
+    it("provides completions for partial unknown key in frontmatter", async () => {
+      await check(
+        "md-tasks/my-task.md",
+        `---
+sta█: active
+---
+
+# My Task
+
+## Description
+
+Some description
+`,
+        ["status"],
+        ["project"],
+      );
+    });
+
+    it("provides key completions on empty line in frontmatter", async () => {
+      await check(
+        "md-tasks/my-task.md",
+        `---
+status: active
+█
+---
+
+# My Task
+
+## Description
+
+Some description
+`,
+        ["project"],
+        ["status"],
+      );
+    });
+
+    it("uses current list item map for key completion scope", async () => {
+      await check(
+        "all-tasks.yaml",
+        `items:
+  - key: task-1
+    title: One
+    sta█: active`,
+        ["status"],
+        ["key", "title", "project"],
+      );
+    });
+
+    it("provides key completions on empty line inside list item", async () => {
+      await check(
+        "all-tasks.yaml",
+        `items:
+  - key: task-1
+    title: One
+    █
+    status: active`,
+        ["priority"],
+        ["key", "title", "status"],
+      );
+    });
+  });
+
   describe("option field completions", () => {
     it("provides all option completions regardless of partial input", async () => {
       await checkStatusOptions(`type: Task
@@ -239,6 +355,23 @@ status: c█`);
       await checkStatusOptions(`type: Task
 title: My Task
 status: █`);
+    });
+
+    it("provides option completions in frontmatter", async () => {
+      await check(
+        "md-tasks/my-task.md",
+        `---
+status: █
+---
+
+# My Task
+
+## Description
+
+Some description
+`,
+        statusOptionKeys,
+      );
     });
 
     it("filters option completions by type-level only constraint", async () => {
@@ -262,43 +395,6 @@ status: █`);
 
       const values = items.map((item) => item.label);
       expect(values).toEqual(["pending", "active"]);
-    });
-  });
-
-  describe("frontmatter completions", () => {
-    it("provides option completions in frontmatter", async () => {
-      await check(
-        "md-tasks/my-task.md",
-        `---
-status: █
----
-
-# My Task
-
-## Description
-
-Some description
-`,
-        statusOptionKeys,
-      );
-    });
-
-    it("provides relation completions for project field in frontmatter", async () => {
-      await check(
-        "md-tasks/my-task.md",
-        `---
-status: active
-project: █
----
-
-# My Task
-
-## Description
-
-Some description
-`,
-        [mockProjectKey],
-      );
     });
   });
 });

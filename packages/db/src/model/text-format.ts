@@ -34,6 +34,8 @@ export const createPatternValidator =
   (value, _context) =>
     pattern.test(value) ? undefined : errorMessage;
 
+export const IDENTIFIER_FORMAT_PATTERN = /^[A-Za-z][A-Za-z0-9_-]*$/;
+
 /**
  * Remove fenced code block content from a markdown string so that
  * structural checks (headers, horizontal rules) only inspect prose.
@@ -68,7 +70,7 @@ export const plaintextFormats = {
     description:
       "Programmatic identifier starting with a letter, containing letters, digits, hyphens, and underscores (e.g., my-item_v2)",
     validate: createPatternValidator(
-      /^[A-Za-z][A-Za-z0-9_-]*$/,
+      IDENTIFIER_FORMAT_PATTERN,
       "Value must start with a letter and contain only letters, digits, hyphens, and underscores",
     ),
     delimiter: "comma",
