@@ -147,6 +147,50 @@ describe("LSP", () => {
       }
     });
 
+    it("misspelled field reports diagnostic with fix code action", async () => {
+      const uri = fileUri("tasks-yaml/task-implement-user-auth.yaml");
+      const text = await readDoc("tasks-yaml/task-implement-user-auth.yaml");
+      const modified = text.replace(/status:/, "stauts:");
+      client.openDocument(uri, modified);
+
+      const report = await client.diagnostics(uri);
+      expect(report.kind).toBe("full");
+      if (report.kind !== "full") return;
+
+      const diagnostic = report.items.find(
+        (d) => d.code === "invalid-field" || d.code === "unknown-field",
+      );
+      expect(diagnostic).toBeDefined();
+      expect(diagnostic!.message).toContain("stauts");
+
+      const line = diagnostic!.range.start.line;
+      const actions = await client.codeActions(
+        uri,
+        line,
+        0,
+        line,
+        modified.split("\n")[line]!.length,
+        [diagnostic],
+      );
+
+      const replaceAction = actions.find((a) =>
+        a.title.includes("Replace with 'status'"),
+      );
+      expect(replaceAction).toBeDefined();
+
+      const fixed = client.applyCodeAction(replaceAction!, uri, modified);
+      expect(fixed).toContain("status:");
+
+      client.openDocument(uri, fixed);
+      const afterReport = await client.diagnostics(uri);
+      expect(afterReport.kind).toBe("full");
+      if (afterReport.kind !== "full") return;
+      const remaining = afterReport.items.filter(
+        (d) => d.code === "invalid-field" || d.code === "unknown-field",
+      );
+      expect(remaining).toEqual([]);
+    });
+
     it("invalid field value reports error", async () => {
       const uri = fileUri("tasks-yaml/task-create-api.yaml");
       const text = await readDoc("tasks-yaml/task-create-api.yaml");

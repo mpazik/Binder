@@ -343,14 +343,27 @@ describe("diagnostics", () => {
       );
     });
 
-    it("skips unknown fields", () => {
-      check(
-        {
+    it("returns warning for unknown fields with field name and type in message", () => {
+      const errors = validateMarkdownFields({
+        fieldset: {
           unknownField: "some value",
           status: "pending",
+          anotherBadField: 42,
         },
-        [],
-      );
+        schema: mockRecordSchema,
+        namespace: "record",
+        typeDef: mockRecordSchema.types.Task,
+      });
+      expect(errors.filter((e) => e.code === "unknown-field")).toEqual([
+        expect.objectContaining({
+          code: "unknown-field",
+          message: expect.stringMatching(/unknownField.*Task/),
+        }),
+        expect.objectContaining({
+          code: "unknown-field",
+          message: expect.stringMatching(/anotherBadField.*Task/),
+        }),
+      ]);
     });
 
     it("skips relation fields (they need existence check)", () => {

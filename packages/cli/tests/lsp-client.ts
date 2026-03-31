@@ -14,6 +14,7 @@ import type {
   InitializeResult,
   Location,
   SemanticTokens,
+  TextEdit,
 } from "vscode-languageserver-protocol";
 import { tryCatch } from "@binder/utils";
 
@@ -166,6 +167,7 @@ export const createLspClient = (child: ChildProcess) => {
       startChar: number,
       endLine: number,
       endChar: number,
+      diagnostics: unknown[] = [],
     ): Promise<CodeAction[]> => {
       const result = await sendRangeRequest<CodeAction[] | null>(
         "textDocument/codeAction",
@@ -174,7 +176,7 @@ export const createLspClient = (child: ChildProcess) => {
         startChar,
         endLine,
         endChar,
-        { context: { diagnostics: [] } },
+        { context: { diagnostics } },
       );
       return result ?? [];
     },
@@ -201,5 +203,39 @@ export const createLspClient = (child: ChildProcess) => {
       connection.sendRequest("textDocument/semanticTokens/full", {
         textDocument: { uri },
       }) as Promise<SemanticTokens>,
+
+    applyCodeAction: (
+      action: CodeAction,
+      uri: string,
+      text: string,
+    ): string => {
+      const edits = action.edit?.changes?.[uri];
+      if (!edits || edits.length === 0) return text;
+
+      // Apply edits bottom-to-top so offsets stay valid
+      const sorted = [...edits].sort((a, b) =>
+        b.range.start.line !== a.range.start.line
+          ? b.range.start.line - a.range.start.line
+          : b.range.start.character - a.range.start.character,
+      );
+
+      const lines = text.split("\n");
+      for (const edit of sorted as TextEdit[]) {
+        const { start, end } = edit.range;
+        if (start.line === end.line) {
+          const line = lines[start.line]!;
+          lines[start.line] =
+            line.slice(0, start.character) +
+            edit.newText +
+            line.slice(end.character);
+        } else {
+          const before = lines[start.line]!.slice(0, start.character);
+          const after = lines[end.line]!.slice(end.character);
+          const newLines = (before + edit.newText + after).split("\n");
+          lines.splice(start.line, end.line - start.line + 1, ...newLines);
+        }
+      }
+      return lines.join("\n");
+    },
   };
 };

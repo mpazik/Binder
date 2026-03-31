@@ -64,7 +64,7 @@ const validationErrorToDiagnostic = (error: ValidationError): Diagnostic => ({
 
 export type FieldValidationError = {
   fieldPath: FieldPath;
-  code: "invalid-value";
+  code: "invalid-value" | "unknown-field";
   message: string;
 };
 
@@ -81,10 +81,8 @@ export const validateFieldValue = (
 ): FieldValidationError | undefined => {
   const { fieldPath, fieldDef, fieldAttrs, value, namespace } = input;
 
-  // Null values represent empty/unset fields and are always valid
   if (value === null) return undefined;
 
-  // Normalize single values to arrays for allowMultiple fields
   const normalizedValue =
     fieldDef.allowMultiple && !Array.isArray(value) ? [value] : value;
 
@@ -196,7 +194,14 @@ export const validateMarkdownFields = (
 
   const validateField = (path: FieldPath, value: FieldValue) => {
     const fieldDef = getFieldDefNested(schema, path);
-    if (!fieldDef) return;
+    if (!fieldDef) {
+      errors.push({
+        fieldPath: path,
+        code: "unknown-field",
+        message: `Unknown field '${path.join(".")}' on type '${typeDef.key}'`,
+      });
+      return;
+    }
     const fieldAttrs = getFieldAttrsForPath(path);
 
     if (fieldDef.dataType === "relation") {
@@ -451,7 +456,10 @@ const getMarkdownDiagnostics = async (
     );
     diagnostics.push({
       range,
-      severity: DiagnosticSeverity.Error,
+      severity:
+        error.code === "unknown-field"
+          ? DiagnosticSeverity.Warning
+          : DiagnosticSeverity.Error,
       message: error.message,
       source: "binder",
       code: error.code,

@@ -262,10 +262,19 @@ describe("Doc Sync", () => {
   });
 
   it("undo re-renders View entity files", async () => {
-    await check(["update", "task-view", "--namespace", "config", "name=Renamed"]);
+    await check([
+      "update",
+      "task-view",
+      "--namespace",
+      "config",
+      "name=Renamed",
+    ]);
     await check(["undo"], "Undone successfully");
 
-    const content = await readFile(join(dir, binderDir, "views", "task-view.md"), "utf-8");
+    const content = await readFile(
+      join(dir, binderDir, "views", "task-view.md"),
+      "utf-8",
+    );
     expect(content).toContain("Task view");
   });
 });

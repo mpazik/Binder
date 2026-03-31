@@ -154,7 +154,7 @@ describe("code-actions", () => {
       ]);
     });
 
-    it("trims trailing whitespace from diagnostic range to preserve next line", () => {
+    it("trims trailing whitespace from diagnostic range to preserve next line on replace", () => {
       const document = createMockDocument("status: comple\npriority: high\n");
       const rangeWithTrailing: Range = {
         start: { line: 0, character: 8 },
@@ -177,6 +177,49 @@ describe("code-actions", () => {
           newText: "complete",
         },
       ]);
+    });
+  });
+
+  describe("unknown-field", () => {
+    const range: Range = {
+      start: { line: 0, character: 0 },
+      end: { line: 0, character: 14 },
+    };
+
+    it("suggests similar fields and remove action for misspelled field", () => {
+      const document = createMockDocument("stauts: pending");
+      const diagnostic = createMockDiagnostic("unknown-field", range, {
+        fieldPath: ["stauts"],
+      });
+
+      const actions = getActions(document, diagnostic, createMockContext());
+
+      expect(actions).toEqual([
+        expect.objectContaining({ title: "Replace with 'status'" }),
+        expect.objectContaining({ title: "Remove invalid field 'stauts'" }),
+      ]);
+    });
+
+    it("offers only remove action when no similar fields found", () => {
+      const document = createMockDocument("zzzzz: hello");
+      const diagnostic = createMockDiagnostic("unknown-field", range, {
+        fieldPath: ["zzzzz"],
+      });
+
+      const actions = getActions(document, diagnostic, createMockContext());
+
+      expect(actions).toEqual([
+        expect.objectContaining({ title: "Remove invalid field 'zzzzz'" }),
+      ]);
+    });
+
+    it("returns empty when fieldPath is missing", () => {
+      const document = createMockDocument("foo: bar");
+      const diagnostic = createMockDiagnostic("unknown-field", range, {});
+
+      const actions = getActions(document, diagnostic, createMockContext());
+
+      expect(actions).toEqual([]);
     });
   });
 });

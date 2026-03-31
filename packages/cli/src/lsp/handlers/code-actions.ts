@@ -247,29 +247,24 @@ export const handleCodeAction: LspHandler<CodeActionParams, CodeAction[]> = (
   for (const diagnostic of diagnostics) {
     const code = diagnostic.code as string | undefined;
 
-    if (code === "invalid-field") {
-      const data = diagnostic.data as { fieldKey?: string } | undefined;
-      if (!data?.fieldKey) continue;
+    if (code === "invalid-field" || code === "unknown-field") {
+      const data = diagnostic.data as
+        | { fieldKey?: string; fieldPath?: FieldPath }
+        | undefined;
+      const fieldKey =
+        code === "unknown-field" ? data?.fieldPath?.[0] : data?.fieldKey;
+      if (!fieldKey) continue;
 
       const allowedFields = getAllowedFields(context.typeDef, context.schema);
-      const suggestions = findSimilar(allowedFields, data.fieldKey, {
-        max: 3,
-      });
+      const suggestions = findSimilar(allowedFields, fieldKey, { max: 3 });
 
       for (const s of suggestions) {
         actions.push(
-          createReplaceFieldAction(
-            diagnostic,
-            document,
-            data.fieldKey,
-            s.value,
-          ),
+          createReplaceFieldAction(diagnostic, document, fieldKey, s.value),
         );
       }
 
-      actions.push(
-        createRemoveFieldAction(diagnostic, document, data.fieldKey),
-      );
+      actions.push(createRemoveFieldAction(diagnostic, document, fieldKey));
     }
 
     if (code === "extra-field") {
