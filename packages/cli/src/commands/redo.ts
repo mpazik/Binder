@@ -29,7 +29,7 @@ export const redoHandler: CommandHandlerWithDb<{
     originalTransactions,
   );
   for (const tx of resolved) {
-    ui.printRawTransaction(tx);
+    ui.printRawTransaction(tx, "full");
     ui.println("");
   }
 

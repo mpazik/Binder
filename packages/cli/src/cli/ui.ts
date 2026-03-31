@@ -102,8 +102,8 @@ const danger = (message: string) => {
   eprintln(Style.TEXT_DANGER + message + Style.TEXT_NORMAL);
 };
 
-const divider = () => {
-  eprintln(Style.TEXT_DIM + "─".repeat(60) + Style.TEXT_NORMAL);
+const divider = (width = 60) => {
+  eprintln(Style.TEXT_DIM + "─".repeat(width) + Style.TEXT_NORMAL);
 };
 
 const heading = (message: string) => {
@@ -458,7 +458,7 @@ export type Ui = {
   warning(message: string): void;
   info(message: string): void;
   danger(message: string): void;
-  divider(): void;
+  divider(width?: number): void;
   heading(message: string): void;
   block(fn: () => void): void;
   keyValue(key: string, value: string): void;

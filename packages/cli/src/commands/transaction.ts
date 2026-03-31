@@ -581,11 +581,15 @@ export const transactionLogHandler: CommandHandlerWithDb<{
       : "concise";
 
   const resolved = await resolveTransactionDisplayKeys(kg, logResult.data);
+  const dividerWidth =
+    format !== "oneline"
+      ? 61 + Math.max(...resolved.map((tx) => tx.author.length))
+      : 0;
   await withPager(() => {
     for (const tx of resolved) {
       ui.printRawTransaction(tx, format);
       if (format !== "oneline") {
-        ui.divider();
+        ui.divider(dividerWidth);
       }
     }
   });

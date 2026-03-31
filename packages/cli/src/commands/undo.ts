@@ -26,7 +26,7 @@ export const undoHandler: CommandHandlerWithDb<{
 
   const resolved = await resolveTransactionDisplayKeys(kg, transactionsToUndo);
   for (const tx of resolved) {
-    ui.printRawTransaction(tx);
+    ui.printRawTransaction(tx, "full");
     ui.println("");
   }
 
