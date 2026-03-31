@@ -12,6 +12,7 @@ import {
   mockTaskTypeKey,
 } from "@binder/db/mocks";
 import {
+  binderDir,
   createRunHelpers,
   run,
   setupWorkspace,
@@ -258,6 +259,14 @@ describe("Doc Sync", () => {
 
       await writeDoc(docPath, original);
     });
+  });
+
+  it("undo re-renders View entity files", async () => {
+    await check(["update", "task-view", "--namespace", "config", "name=Renamed"]);
+    await check(["undo"], "Undone successfully");
+
+    const content = await readFile(join(dir, binderDir, "views", "task-view.md"), "utf-8");
+    expect(content).toContain("Task view");
   });
 });
 

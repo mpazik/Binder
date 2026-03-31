@@ -124,7 +124,7 @@ const withLockedKg = async <T>(
   const lockResult = await acquireLock(fs, paths.binder);
   if (isErr(lockResult)) return lockResult;
 
-  const kg = openKnowledgeGraph(db);
+  const kg = openKnowledgeGraph(db, { configSchema: cliConfigSchema });
   const result = await operation(kg);
 
   await releaseLock(fs, paths.binder);
@@ -235,6 +235,36 @@ export const undoTransactions = async (
       transactionsToUndo.push(txResult.data);
     }
 
+    const transactionLogPath = join(paths.binder, TRANSACTION_LOG_FILE);
+    const logTailResult = await readLastTransactions(
+      fs,
+      transactionLogPath,
+      steps,
+    );
+    if (isErr(logTailResult)) return logTailResult;
+
+    const logTail = logTailResult.data;
+    if (logTail.length !== steps)
+      return err(
+        createError(
+          "log-db-mismatch",
+          `Log has ${logTail.length} transaction(s) but expected ${steps} to undo`,
+        ),
+      );
+
+    for (let i = 0; i < steps; i++) {
+      const dbTx = transactionsToUndo[i]!;
+      const logTx = logTail[steps - 1 - i]!;
+      if (dbTx.hash !== logTx.hash)
+        return err(
+          createError(
+            "log-db-mismatch",
+            `Transaction log and database are out of sync — run \`binder tx repair\` to fix`,
+            { dbHash: dbTx.hash, logHash: logTx.hash, step: i + 1 },
+          ),
+        );
+    }
+
     const rollbackResult = await kg.rollback(steps, currentId);
     if (isErr(rollbackResult)) return rollbackResult;
 
@@ -244,7 +274,6 @@ export const undoTransactions = async (
       if (isErr(logResult)) return logResult;
     }
 
-    const transactionLogPath = join(paths.binder, TRANSACTION_LOG_FILE);
     const removeResult = await removeLastFromLog(fs, transactionLogPath, steps);
     if (isErr(removeResult)) return removeResult;
 
@@ -328,6 +357,26 @@ export const setupKnowledgeGraph = (
     config: { paths },
   } = services;
 
+  const renderAndNotify = async (context: string) => {
+    const renderResult = await renderDocs({
+      ...services,
+      kg: knowledgeGraph,
+    });
+    if (isErr(renderResult)) {
+      log.error(`Failed to re-render docs after ${context}`, {
+        error: renderResult.error,
+      });
+      return;
+    }
+
+    if (
+      callbacks.onFilesUpdated &&
+      renderResult.data.modifiedPaths.length > 0
+    ) {
+      await callbacks.onFilesUpdated(renderResult.data.modifiedPaths);
+    }
+  };
+
   const knowledgeGraph = openKnowledgeGraph(db, {
     providerSchema: documentProviderSchema,
     configSchema: cliConfigSchema,
@@ -366,46 +415,11 @@ export const setupKnowledgeGraph = (
 
         // Invalidate caches before rendering (e.g., view cache)
         await callbacks.afterCommit?.(transaction);
-
-        const renderResult = await renderDocs({
-          ...services,
-          kg: knowledgeGraph,
-        });
-        if (isErr(renderResult)) {
-          log.error("Failed to re-render docs after transaction", {
-            error: renderResult.error,
-          });
-          return;
-        }
-
-        if (
-          callbacks.onFilesUpdated &&
-          renderResult.data.modifiedPaths.length > 0
-        ) {
-          await callbacks.onFilesUpdated(renderResult.data.modifiedPaths);
-        }
+        await renderAndNotify("transaction");
       },
       afterRollback: async (transactions, count) => {
-        // Invalidate caches before rendering
         await callbacks.afterRollback?.(transactions, count);
-
-        const renderResult = await renderDocs({
-          ...services,
-          kg: knowledgeGraph,
-        });
-        if (isErr(renderResult)) {
-          log.error("Failed to re-render docs after rollback", {
-            error: renderResult.error,
-          });
-          return;
-        }
-
-        if (
-          callbacks.onFilesUpdated &&
-          renderResult.data.modifiedPaths.length > 0
-        ) {
-          await callbacks.onFilesUpdated(renderResult.data.modifiedPaths);
-        }
+        await renderAndNotify("rollback");
       },
     },
   });

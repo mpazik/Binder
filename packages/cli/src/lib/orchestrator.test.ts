@@ -312,6 +312,37 @@ describe("orchestrator", () => {
       expect(resultOverflow).toBeErr();
       await checkVersion(mockTransactionUpdate.id);
     });
+
+    it("errors when log and db are out of sync", async () => {
+      throwIfError(
+        await applyTransactions(kg, [
+          mockTransactionInit,
+          mockTransactionUpdate,
+          mockTransaction3,
+        ]),
+      );
+
+      await fs.appendFile(
+        transactionLogPath,
+        JSON.stringify(mockTransaction4) + "\n",
+      );
+
+      const result = await undoTransactions(context, 1);
+      expect(result).toBeErr();
+
+      const version = throwIfError(await kg.version());
+      expect(version.id).toBe(mockTransaction3.id);
+
+      const mainLog = throwIfError(
+        await readLastTransactions(fs, transactionLogPath, 10),
+      );
+      expect(mainLog).toEqual([
+        mockTransactionInit,
+        mockTransactionUpdate,
+        mockTransaction3,
+        mockTransaction4,
+      ]);
+    });
   });
 
   describe("redoTransactions", () => {
@@ -386,6 +417,7 @@ describe("orchestrator", () => {
       await checkVersion(mockTransaction3.id);
     });
   });
+
   describe("squashTransactions", () => {
     it("squashes two transactions into one", async () => {
       throwIfError(

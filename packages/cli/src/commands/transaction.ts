@@ -279,6 +279,25 @@ export const transactionSquashHandler: CommandHandlerWithDb<{
   return ok(undefined);
 };
 
+const printChainError = (ui: Parameters<CommandHandlerWithDb>[0]["ui"]) => {
+  ui.block(() => {
+    ui.danger("Transaction chain broken");
+    ui.info("The transaction log has a broken previous-hash link.");
+    ui.println("");
+    ui.info("This may be caused by:");
+    ui.list(
+      [
+        "Manual modification of the transaction log file",
+        "An external script or sync tool modified or overwrote the log",
+        "A bug in binder. Try updating to the latest version or report it.",
+      ],
+      2,
+    );
+    ui.println("");
+    ui.info("Run 'binder tx repair --rehash' to rebuild the transaction chain");
+  });
+};
+
 export const transactionVerifyHandler: CommandHandlerWithDb = async ({
   kg,
   config,
@@ -308,12 +327,19 @@ export const transactionVerifyHandler: CommandHandlerWithDb = async ({
         ui.println("");
         ui.info("Run 'binder tx repair --rehash' to recompute all hashes");
       });
+    } else if (logIntegrityResult.error.key === "chain-error") {
+      printChainError(ui);
     }
     return logIntegrityResult;
   }
 
   const verifyResult = await verifySync(fs, kg, config.paths.binder);
-  if (isErr(verifyResult)) return verifyResult;
+  if (isErr(verifyResult)) {
+    if (verifyResult.error.key === "chain-error") {
+      printChainError(ui);
+    }
+    return verifyResult;
+  }
 
   const { dbOnlyTransactions, logOnlyTransactions } = verifyResult.data;
 
@@ -425,7 +451,12 @@ export const transactionRepairHandler: CommandHandlerWithDb<{
   }
 
   const verifyResult = await verifySync(fs, kg, config.paths.binder);
-  if (isErr(verifyResult)) return verifyResult;
+  if (isErr(verifyResult)) {
+    if (verifyResult.error.key === "chain-error") {
+      printChainError(ui);
+    }
+    return verifyResult;
+  }
 
   const { dbOnlyTransactions, logOnlyTransactions } = verifyResult.data;
 

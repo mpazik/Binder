@@ -194,6 +194,15 @@ const SEED_FIELDS = [
 
 const SEED_TYPES = [mockTaskType, mockProjectType, mockUserType, mockTeamType];
 
+const SEED_VIEWS = [
+  {
+    key: "task-view",
+    type: "View",
+    name: "Task view",
+    viewContent: "# {title}\n\n{description}\n",
+  },
+];
+
 const NAVIGATION_CONFIGS = [
   {
     key: "nav-tasks",
@@ -247,7 +256,7 @@ const buildSchemaTransaction = (opts?: { docs?: boolean }) => [
     configs: [
       ...SEED_FIELDS,
       ...SEED_TYPES,
-      ...(opts?.docs ? NAVIGATION_CONFIGS : []),
+      ...(opts?.docs ? [...SEED_VIEWS, ...NAVIGATION_CONFIGS] : []),
     ].map(stripIds),
   },
 ];
