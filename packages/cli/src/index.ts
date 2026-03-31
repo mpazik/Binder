@@ -21,6 +21,7 @@ import { createUi, logo } from "./cli/ui.ts";
 import { BINDER_VERSION, isDevMode } from "./build-time";
 import { LOG_LEVELS } from "./log.ts";
 import { checkForUpdate } from "./lib/update-check.ts";
+import { groupOptions, runWithFormattedHelp } from "./cli/help.ts";
 
 const ui = createUi();
 
@@ -70,6 +71,8 @@ let cli = yargs(hideBin(process.argv))
   .command(LspCommand)
   .command(LocateCommand);
 
+cli = groupOptions(cli);
+
 if (isDevMode()) {
   cli = cli.command(DevCommand);
 }
@@ -85,7 +88,9 @@ cli = cli
   })
   .strict();
 
-const result = await tryCatch(async () => cli.parse());
+const result = await tryCatch(async () =>
+  runWithFormattedHelp(async () => cli.parse()),
+);
 if (isErr(result)) {
   console.error("fatal", result.error);
   process.exitCode = 1;
