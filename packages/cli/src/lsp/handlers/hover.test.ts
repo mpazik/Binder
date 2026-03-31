@@ -10,6 +10,7 @@ import {
   mockStatusField,
 } from "@binder/db/mocks";
 import {
+  type EntityHoverInput,
   type FieldHoverInput,
   renderHoverContent,
   type ViewHoverInput,
@@ -140,6 +141,14 @@ describe("renderHoverContent", () => {
       expect(renderHoverContent(input)).toBe(expected);
     };
 
+    const titleFieldDef: FieldDef = {
+      id: 1 as FieldDef["id"],
+      key: "title" as FieldDef["key"],
+      name: "Title",
+      description: "Entity title",
+      dataType: "plaintext",
+    };
+
     it("renders same content as field-key hover", () => {
       check(
         mockProjectField,
@@ -148,43 +157,99 @@ describe("renderHoverContent", () => {
     });
 
     it("renders nested field (e.g., project.title resolved to title field)", () => {
-      const titleFieldDef: FieldDef = {
-        id: 1 as FieldDef["id"],
-        key: "title" as FieldDef["key"],
-        name: "Title",
-        description: "Entity title",
-        dataType: "plaintext",
-      };
       check(titleFieldDef, "**Title** (plaintext)\n\nEntity title");
     });
 
     it("renders nested field with attrs from parent type", () => {
-      const titleFieldDef: FieldDef = {
-        id: 1 as FieldDef["id"],
-        key: "title" as FieldDef["key"],
-        name: "Title",
-        dataType: "plaintext",
-      };
       check(
-        titleFieldDef,
+        { ...titleFieldDef, description: undefined },
         "**Title** (plaintext)\n\n---\n\n**Constraints:**\n- Required: yes",
         { required: true },
       );
     });
 
     it("renders field from relation with source info", () => {
-      const titleFieldDef: FieldDef = {
-        id: 1 as FieldDef["id"],
-        key: "title" as FieldDef["key"],
-        name: "Title",
-        description: "Entity title",
-        dataType: "plaintext",
-      };
       check(
         titleFieldDef,
         "**Title** (plaintext)\n\nEntity title\n\n**From:** Project (relation)",
         undefined,
         mockProjectField,
+      );
+    });
+  });
+
+  describe("entity hover", () => {
+    const check = (input: EntityHoverInput, expected: string) => {
+      expect(renderHoverContent(input)).toBe(expected);
+    };
+
+    it("renders entity with key, type, title, and description", () => {
+      check(
+        {
+          kind: "entity",
+          key: "mvp-release",
+          name: "MVP Release",
+          title: "MVP Release Milestone",
+          description: "First public release",
+          typeName: "Milestone",
+        },
+        "`mvp-release`: *Milestone*\n\n**MVP Release Milestone**\n\nFirst public release",
+      );
+    });
+
+    it("renders entity with title only", () => {
+      check({ kind: "entity", title: "Some Record" }, "**Some Record**");
+    });
+
+    it("renders entity with key only", () => {
+      check({ kind: "entity", key: "my-key" }, "`my-key`");
+    });
+
+    it("renders entity with name only", () => {
+      check({ kind: "entity", name: "My Name" }, "**My Name**");
+    });
+
+    it("renders entity with no identifiers", () => {
+      check({ kind: "entity" }, "");
+    });
+
+    it("renders entity with key and type only", () => {
+      check(
+        { kind: "entity", key: "feat-x", typeName: "Task" },
+        "`feat-x`: *Task*",
+      );
+    });
+
+    it("renders entity with type and title only", () => {
+      check(
+        { kind: "entity", typeName: "Task", title: "Fix the bug" },
+        "*Task*\n\n**Fix the bug**",
+      );
+    });
+
+    it("renders entity with type and description but no title", () => {
+      check(
+        {
+          kind: "entity",
+          key: "feat-x",
+          description: "A feature",
+          typeName: "Task",
+        },
+        "`feat-x`: *Task*\n\nA feature",
+      );
+    });
+
+    it("uses title over name for display name", () => {
+      check(
+        { kind: "entity", title: "The Title", name: "The Name" },
+        "**The Title**",
+      );
+    });
+
+    it("uses name when title is absent", () => {
+      check(
+        { kind: "entity", name: "The Name", typeName: "Concept" },
+        "*Concept*\n\n**The Name**",
       );
     });
   });

@@ -5,7 +5,7 @@ import type {
 } from "vscode-languageserver/node";
 import { MarkupKind } from "vscode-languageserver/node";
 import { isErr } from "@binder/utils";
-import type { FieldAttrDef, FieldDef } from "@binder/db";
+import type { EntityRef, FieldAttrDef, FieldDef } from "@binder/db";
 import { type LspHandler } from "../document-context.ts";
 import { getCursorContext } from "../cursor-context.ts";
 import { findView } from "../../document/navigation.ts";
@@ -23,6 +23,14 @@ export type FieldHoverInput = {
   fieldAttrs?: FieldAttrDef;
   relationFieldDef?: FieldDef;
 };
+export type EntityHoverInput = {
+  kind: "entity";
+  key?: string;
+  name?: string;
+  title?: string;
+  description?: string;
+  typeName?: string;
+};
 export type ViewHoverInput = {
   kind: "view";
   viewKey: string;
@@ -30,7 +38,7 @@ export type ViewHoverInput = {
   viewDescription?: string;
   viewFormat?: ViewFormat;
 };
-export type HoverInput = FieldHoverInput | ViewHoverInput;
+export type HoverInput = FieldHoverInput | EntityHoverInput | ViewHoverInput;
 
 const renderConstraints = (
   fieldDef: FieldDef,
@@ -88,6 +96,23 @@ const renderFieldHover = (input: FieldHoverInput): string => {
   return `${title}${description}${relationSource}${constraints}${range}${options}`;
 };
 
+const renderEntityHover = (input: EntityHoverInput): string => {
+  const parts: string[] = [];
+
+  const hasKey = !!input.key;
+  const hasType = !!input.typeName;
+  if (hasKey && hasType) parts.push(`\`${input.key}\`: *${input.typeName}*`);
+  else if (hasKey) parts.push(`\`${input.key}\``);
+  else if (hasType) parts.push(`*${input.typeName}*`);
+
+  const displayName = input.title ?? input.name;
+  if (displayName) parts.push(`**${displayName}**`);
+
+  if (input.description) parts.push(input.description);
+
+  return parts.join("\n\n");
+};
+
 const renderViewHover = (input: ViewHoverInput): string => {
   const name = input.viewName ?? input.viewKey;
   const title = `**${name}** (view)`;
@@ -100,6 +125,7 @@ const renderViewHover = (input: ViewHoverInput): string => {
 
 export const renderHoverContent = (input: HoverInput): string => {
   if (input.kind === "field") return renderFieldHover(input);
+  if (input.kind === "entity") return renderEntityHover(input);
   return renderViewHover(input);
 };
 
@@ -117,6 +143,33 @@ export const handleHover: LspHandler<HoverParams, Hover | null> = async (
     cursorContext.type === "frontmatter-field-key" ||
     cursorContext.type === "frontmatter-field-value"
   ) {
+    if (
+      (cursorContext.type === "field-value" ||
+        cursorContext.type === "frontmatter-field-value") &&
+      cursorContext.fieldDef.dataType === "relation" &&
+      cursorContext.currentValue
+    ) {
+      const ref = cursorContext.currentValue as EntityRef;
+      const result = await runtime.kg.fetchEntity(ref);
+      if (isErr(result)) {
+        runtime.log.warn(
+          `hover: failed to fetch entity "${cursorContext.currentValue}"`,
+          result.error,
+        );
+      } else {
+        const entity = result.data;
+        const content = renderHoverContent({
+          kind: "entity",
+          key: entity.key as string | undefined,
+          name: entity.name as string | undefined,
+          title: entity.title as string | undefined,
+          description: entity.description as string | undefined,
+          typeName: entity.type as string | undefined,
+        });
+        return buildHover(content, cursorContext.range);
+      }
+    }
+
     const relationFieldDef =
       cursorContext.fieldPath.length > 1
         ? context.schema.fields[cursorContext.fieldPath[0]!]
