@@ -22,7 +22,7 @@
     "test:e2e": "bun --filter '*' test:e2e",
     "test:e2e:node": "bun run build && bun --filter @binder.do/cli test:e2e:node",
     "check": "bun typecheck && bun test && bun lint &&  bun format",
-    "check:verify": "prettier --check . && eslint . && bun typecheck && bun test",
+    "check:verify": "prettier --check . && eslint packages/ scripts/ && bun typecheck && bun test",
     "mcp:inspect": "bunx @modelcontextprotocol/inspector bun run dev mcp",
     "release": "bun scripts/release.ts"
   },

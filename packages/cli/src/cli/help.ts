@@ -62,8 +62,10 @@ const isHelpOutput = (text: string): boolean =>
 export const runWithFormattedHelp = async <T>(
   run: () => Promise<T>,
 ): Promise<T> => {
+  // eslint-disable-next-line no-console
   const originalLog = console.log;
 
+  // eslint-disable-next-line no-console
   console.log = (...args: unknown[]) => {
     if (
       args.length === 1 &&
@@ -80,6 +82,7 @@ export const runWithFormattedHelp = async <T>(
   try {
     return await run();
   } finally {
+    // eslint-disable-next-line no-console
     console.log = originalLog;
   }
 };
