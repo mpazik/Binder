@@ -2,13 +2,27 @@
   "name": "binder-vscode",
   "displayName": "Binder",
   "description": "Language support for Binder - Git-inspired knowledge graph for Markdown",
-  "version": "0.0.1",
-  "publisher": "binder",
+  "version": "0.1.1",
+  "publisher": "Binder",
   "license": "MIT",
+  "homepage": "https://binder.do",
   "repository": {
     "type": "git",
-    "url": "https://github.com/binder/binder"
+    "url": "https://github.com/mpazik/binder"
   },
+  "bugs": {
+    "url": "https://github.com/mpazik/binder/issues"
+  },
+  "keywords": [
+    "markdown",
+    "knowledge-base",
+    "notes",
+    "yaml",
+    "language-server",
+    "lsp",
+    "binder"
+  ],
+  "icon": "icon.png",
   "engines": {
     "vscode": "^1.75.0"
   },
@@ -18,10 +32,18 @@
   ],
   "main": "./out/extension.js",
   "activationEvents": [
-    "onStartupFinished",
     "workspaceContains:.binder"
   ],
   "contributes": {
+    "configurationDefaults": {
+      "[markdown]": {
+        "editor.quickSuggestions": {
+          "other": true,
+          "comments": false,
+          "strings": false
+        }
+      }
+    },
     "configuration": {
       "type": "object",
       "title": "Binder",
@@ -57,9 +79,10 @@
     }
   },
   "scripts": {
-    "compile": "tsc -p .",
-    "watch": "tsc -watch -p .",
-    "prepackage": "npm install --production",
+    "build": "esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --minify",
+    "watch": "esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node --sourcemap --watch",
+    "typecheck": "tsc --noEmit",
+    "prepackage": "npm run build",
     "package": "vsce package --out out"
   },
   "dependencies": {
@@ -69,6 +92,7 @@
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.75.0",
     "@vscode/vsce": "^2.22.0",
+    "esbuild": "^0.27.4",
     "typescript": "^5.0.0"
   }
 }

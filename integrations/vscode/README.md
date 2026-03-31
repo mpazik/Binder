@@ -1,58 +1,102 @@
 # Binder for VS Code
 
-Language support for Binder - a Git-inspired knowledge graph system for Markdown files.
+[Binder](https://binder.do) is a local-first knowledge base with bidirectional Markdown sync — edit in any editor, query via CLI and MCP, share with AI agents.
+
+Language support for Binder workspaces in VS Code.
+
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/c1b9e21f-1e56-4b9e-967b-17fe6a30ab13" alt="Binder demo" width="720">
+</div>
 
 ## Features
 
-- **Automatic Sync on Save**: Automatically synchronizes your Markdown and YAML files with the Binder knowledge graph when you save them
-- **Real-time Diagnostics**: Shows error messages inline when synchronization fails
-- **Seamless Integration**: Works transparently in the background - just save your files
+<table>
+  <tr>
+    <td align="center" valign="top" width="50%">
+      <img src="https://raw.githubusercontent.com/mpazik/binder/main/.github/assets/screenshots/autocomplete.png" width="100%"/><br/>
+      <b>Autocomplete</b> - links, field names, and valid values completed as you type.
+    </td>
+    <td align="center" valign="top" width="50%">
+      <img src="https://raw.githubusercontent.com/mpazik/binder/main/.github/assets/screenshots/validation.png" width="100%"/><br/>
+      <b>Validation</b> - inline diagnostics with hover docs showing valid options and field descriptions.
+    </td>
+  </tr>
+</table>
+
+- **Autocomplete** - link references, field names, and valid option values as you type
+- **Hover docs** - field descriptions and allowed values on hover
+- **Go to definition** - jump to any referenced entity
+- **Inlay hints** - see referenced entity titles inline without leaving the file
+- **Code actions** - quick fixes for invalid field values
+- **Diagnostics** - real-time validation against your schema
+- **Sync on save** - Markdown and YAML files stay in sync with the knowledge graph automatically
 
 ## Requirements
 
 - Binder CLI must be installed and accessible in your PATH
 - Your project must be a Binder workspace (contains a `.binder` directory)
 
-To initialize a Binder workspace, run:
+To install the CLI and initialize a workspace:
 ```bash
+npm install -g @binder.do/cli
 binder init
 ```
 
 ## Extension Settings
 
-This extension contributes the following settings:
-
-- `binder.cliPath`: Path to the binder executable (default: `"binder"`)
-- `binder.trace.server`: Enable tracing of communication between VS Code and the language server (default: `"off"`)
+- `binder.command`: Command to run the Binder CLI (default: `"binder"`)
+- `binder.logLevel`: Log level for the Binder language server — `"info"` or `"debug"` (default: `"info"`)
+- `binderLsp.trace.server`: Traces the communication between VS Code and the language server — `"off"`, `"messages"`, or `"verbose"` (default: `"off"`)
 
 ## Usage
 
 1. Open a folder that contains a `.binder` directory (a Binder workspace)
-2. The extension will activate automatically
-3. Edit any `.md` or `.yaml` file
-4. Save the file - it will be automatically synchronized with the knowledge graph
-5. If sync fails, you'll see diagnostic messages in the editor
+2. The extension activates automatically
+3. Edit any `.md` or `.yaml` file — completions, diagnostics, and hints are live immediately
+4. Save the file to sync changes to the knowledge graph
 
 ## Troubleshooting
 
-### How to check if the LSP server is running
+### Check if the LSP server is running
 
 1. Open the Output panel (View → Output or Cmd+Shift+U)
 2. Select "Binder LSP" from the dropdown
 3. You should see server logs indicating the connection status
 
-### Configure custom CLI path
+### Configure a custom CLI path
 
-If Binder CLI is not in your PATH, you can configure a custom path:
+If Binder CLI is not in your PATH:
 
 1. Open Settings (Cmd+,)
-2. Search for "binder.cliPath"
-3. Set the absolute path to your binder executable
+2. Search for "binder.command"
+3. Set the command or absolute path to your binder executable
 
 ### Extension not activating
 
-Make sure your workspace contains a `.binder` directory. The extension only activates when it detects a Binder workspace.
+The extension only activates when a `.binder` directory is present in the workspace root.
 
 ## More Information
 
-For more information about Binder, visit the [Binder repository](https://github.com/binder/binder).
+Visit [binder.do](https://binder.do) or the [GitHub repository](https://github.com/mpazik/binder).
+
+## Other Editors
+
+### WebStorm / IntelliJ
+
+Install the [LSP4IJ](https://plugins.jetbrains.com/plugin/23257-lsp4ij) plugin, then add a new language server under **Settings → Languages & Frameworks → Language Servers**:
+
+- **Command**: `binder lsp`
+- **File patterns**: `*.md`, `*.yaml`
+
+### Neovim
+
+```lua
+require('lspconfig').configs.binder = {
+  default_config = {
+    cmd = { 'binder', 'lsp' },
+    filetypes = { 'markdown', 'yaml' },
+    root_dir = require('lspconfig.util').root_pattern('.binder'),
+  },
+}
+require('lspconfig').binder.setup({})
+```
