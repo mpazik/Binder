@@ -27,3 +27,25 @@ Bun workspaces monorepo with three packages under `packages/`:
 
 - **Unit tests** — `bun test` runs unit tests under each package's `src/` directory.
 - **E2E tests** — `bun test:e2e` runs end-to-end smoke tests under `packages/cli/tests/`. These spin up temporary workspaces, seed data, and exercise CLI, LSP, and MCP workflows against a real runtime.
+
+## Development
+
+### Dev Instance
+
+Two binder instances exist in the project. Use the right one:
+
+- `bun run dev` -- dev instance (`.binder-dev/` data). Use for experimentation, testing, inspecting data.
+- The `binder` tool / CLI -- production instance. For reading docs and updating task records.
+
+Dev instance commands:
+
+- `bun run dev init -q` -- initialize empty dev instance (no interactive prompts)
+- `bun run dev init -q --blueprint project` -- init with Task + Milestone types and sample data
+- `bun run dev init -q --blueprint personal` -- init with PARA schema (Area, Project, Task, Note, Resource) and sample data
+- `bun run dev read <key> --format yaml` -- inspect dev data
+- `bun run dev search <query>` -- search dev data
+- `sqlite3 .binder-dev/binder.db` -- direct SQL queries on dev instance
+
+### Temporary Files
+
+Scratch scripts, intermediate outputs, and other throwaway files go in `tmp/` at the project root. It is git-ignored.
