@@ -23,6 +23,7 @@ import { validateDocument } from "../validation";
 import { getDocumentFileType, parseDocument } from "../document/document.ts";
 import { createPathMatcher } from "../utils/file.ts";
 import { types } from "../cli/types.ts";
+import { resolveTransactionDisplayKey } from "../cli/ui.ts";
 
 export const docsRenderHandler: CommandHandlerWithDb<{
   force?: boolean;
@@ -66,8 +67,9 @@ export const docsSyncHandler: CommandHandlerWithDb<{
   const updateResult = await kg.update(syncResult.data);
   if (isErr(updateResult)) return updateResult;
 
+  const resolved = await resolveTransactionDisplayKey(kg, updateResult.data);
   ui.block(() => {
-    ui.printTransaction(updateResult.data);
+    ui.printRawTransaction(resolved);
   });
   ui.success("Synchronized successfully");
   return okVoid;

@@ -8,12 +8,15 @@ import {
   isClearChange,
   isSeqChange,
   isSetChange,
+  type KnowledgeGraph,
   normalizeValueChange,
+  type RecordsChangeset,
+  type RecordUid,
   shortTransactionHash,
   type Transaction,
   type ValueChange,
 } from "@binder/db";
-import { type ErrorObject, noop, noopAsync } from "@binder/utils";
+import { type ErrorObject, isErr, noop } from "@binder/utils";
 import {
   serialize,
   type SerializeFormat,
@@ -379,6 +382,74 @@ const printTransaction = (
   printEntityChanges("Config changes", transaction.configs, format);
 };
 
+/**
+ * Rewrites transaction record keys from UIDs to human-readable keys for display.
+ * Extracts keys from changesets first (covers creates), then falls back to a DB
+ * lookup for records that didn't have their key in the changeset. Silently keeps
+ * the raw UID for deleted or otherwise unresolvable records.
+ */
+const buildUidToKeyMap = async (
+  kg: KnowledgeGraph,
+  transactions: Transaction[],
+): Promise<Map<string, string>> => {
+  const uidToKey = new Map<string, string>();
+
+  for (const tx of transactions) {
+    for (const [uid, changeset] of Object.entries(tx.records)) {
+      if (uidToKey.has(uid)) continue;
+      const keyChange = changeset.key;
+      if (keyChange !== undefined) {
+        const normalized = normalizeValueChange(keyChange);
+        if (isSetChange(normalized) && typeof normalized[1] === "string") {
+          uidToKey.set(uid, normalized[1]);
+        }
+      }
+    }
+  }
+
+  const missing = [
+    ...new Set(transactions.flatMap((tx) => Object.keys(tx.records))),
+  ].filter((uid) => !uidToKey.has(uid));
+
+  for (const uid of missing) {
+    const result = await kg.fetchEntity(uid as RecordUid);
+    if (isErr(result)) continue;
+    const key = result.data.key;
+    if (typeof key === "string") uidToKey.set(uid, key);
+  }
+
+  return uidToKey;
+};
+
+const remapRecordKeys = (
+  tx: Transaction,
+  uidToKey: Map<string, string>,
+): Transaction => ({
+  ...tx,
+  records: Object.fromEntries(
+    Object.entries(tx.records).map(([uid, changeset]) => [
+      uidToKey.get(uid) ?? uid,
+      changeset,
+    ]),
+  ) as RecordsChangeset,
+});
+
+export const resolveTransactionDisplayKey = async (
+  kg: KnowledgeGraph,
+  transaction: Transaction,
+): Promise<Transaction> => {
+  const uidToKey = await buildUidToKeyMap(kg, [transaction]);
+  return remapRecordKeys(transaction, uidToKey);
+};
+
+export const resolveTransactionDisplayKeys = async (
+  kg: KnowledgeGraph,
+  transactions: Transaction[],
+): Promise<Transaction[]> => {
+  const uidToKey = await buildUidToKeyMap(kg, transactions);
+  return transactions.map((tx) => remapRecordKeys(tx, uidToKey));
+};
+
 export type Ui = {
   println(...message: string[]): void;
   print(...message: string[]): void;
@@ -394,14 +465,27 @@ export type Ui = {
   keyValuesInline(...pairs: [string, string][]): void;
   list(items: string[], indent?: number): void;
   confirm(prompt: string): Promise<boolean>;
-  printTransactions(
+  printRawTransaction(
+    transaction: Transaction,
+    format?: TransactionFormat,
+  ): void;
+  printRawTransactions(
     transactions: Transaction[],
     format?: TransactionFormat,
   ): void;
+  printTransaction(
+    kg: KnowledgeGraph,
+    transaction: Transaction,
+    format?: TransactionFormat,
+  ): Promise<void>;
+  printTransactions(
+    kg: KnowledgeGraph,
+    transactions: Transaction[],
+    format?: TransactionFormat,
+  ): Promise<void>;
   error(message: string): void;
   printError(error: ErrorObject): void;
   printData(data: unknown, format?: SerializeFormat): void;
-  printTransaction(transaction: Transaction, format?: TransactionFormat): void;
 };
 
 export const createUi = (options: { quiet?: boolean } = {}): Ui => {
@@ -422,15 +506,30 @@ export const createUi = (options: { quiet?: boolean } = {}): Ui => {
       keyValue: noop,
       keyValuesInline: noop,
       list: noop,
-      confirm: noopAsync,
-      printTransactions: noop,
-      error,
-      printError,
-      printData,
-      printTransaction: (transaction, format) => {
+      confirm: async () => false,
+      printRawTransaction: (transaction, format) => {
         if (format === "json" || format === "yaml")
           printData(transaction, format);
       },
+      printRawTransactions: noop,
+      printTransaction: async (kg, transaction, format) => {
+        if (format === "json" || format === "yaml") {
+          const resolved = await resolveTransactionDisplayKey(kg, transaction);
+          printData(resolved, format);
+        }
+      },
+      printTransactions: async (kg, transactions, format) => {
+        if (format === "json" || format === "yaml") {
+          const resolved = await resolveTransactionDisplayKeys(
+            kg,
+            transactions,
+          );
+          for (const tx of resolved) printData(tx, format);
+        }
+      },
+      error,
+      printError,
+      printData,
     };
   }
 
@@ -457,7 +556,8 @@ export const createUi = (options: { quiet?: boolean } = {}): Ui => {
       const answer = (await input(prompt)).toLowerCase();
       return answer === "yes" || answer === "y";
     },
-    printTransactions: (
+    printRawTransaction: printTransaction,
+    printRawTransactions: (
       transactions: Transaction[],
       format: TransactionFormat = "concise",
     ) => {
@@ -466,9 +566,19 @@ export const createUi = (options: { quiet?: boolean } = {}): Ui => {
         if (format === "full") eprintln("");
       }
     },
+    printTransaction: async (kg, transaction, format) => {
+      const resolved = await resolveTransactionDisplayKey(kg, transaction);
+      printTransaction(resolved, format);
+    },
+    printTransactions: async (kg, transactions, format = "concise") => {
+      const resolved = await resolveTransactionDisplayKeys(kg, transactions);
+      for (const tx of resolved) {
+        printTransaction(tx, format);
+        if (format === "full") eprintln("");
+      }
+    },
     error,
     printError,
     printData,
-    printTransaction,
   };
 };

@@ -7,6 +7,7 @@ import {
   normalizeEntityRef,
 } from "@binder/db";
 import { type CommandHandlerWithDb, runtimeWithDb } from "../runtime.ts";
+
 import { namespaceOption } from "../cli/options.ts";
 import { types } from "../cli/types.ts";
 
@@ -21,7 +22,7 @@ const deleteHandler: CommandHandlerWithDb<{
   );
   if (isErr(result)) return result;
 
-  ui.printTransaction(result.data);
+  await ui.printTransaction(kg, result.data);
   return okVoid;
 };
 

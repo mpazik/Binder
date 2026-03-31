@@ -10,4 +10,4 @@ export type AsyncPredicate<T> = (value: T) => Promise<boolean>;
 export type Comparator<T> = (a: T, b: T) => number;
 
 export const noop = () => {};
-export const noopAsync = async () => false;
+export const noopAsync = async () => {};

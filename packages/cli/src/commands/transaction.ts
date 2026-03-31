@@ -37,6 +37,7 @@ import {
   selectionOptions,
   yesOption,
 } from "../cli/options.ts";
+import { resolveTransactionDisplayKeys } from "../cli/ui.ts";
 import {
   serialize,
   serializeFormats,
@@ -147,10 +148,12 @@ export const transactionImportHandler: CommandHandlerWithDb<
   }
 
   log.info("Import completed successfully", { count: results.length });
+
+  const resolved = await resolveTransactionDisplayKeys(kg, results);
   ui.block(() => {
     ui.success(`Imported ${results.length} transaction(s) successfully`);
-    for (const tx of results) {
-      ui.printTransaction(tx, "oneline");
+    for (const tx of resolved) {
+      ui.printRawTransaction(tx, "oneline");
     }
   });
   return ok(undefined);
@@ -193,7 +196,8 @@ export const transactionRollbackHandler: CommandHandlerWithDb<{
   }
 
   ui.heading(`Rolling back ${args.count} transaction(s)`);
-  ui.printTransactions(transactionsToRollback, "concise");
+
+  await ui.printTransactions(kg, transactionsToRollback, "concise");
 
   const confirmResult = await confirmProtected(
     ui,
@@ -218,7 +222,7 @@ export const transactionSquashHandler: CommandHandlerWithDb<{
   count: number;
   yes?: boolean;
 }> = async (context) => {
-  const { ui, log, config, fs, args } = context;
+  const { kg, ui, log, config, fs, args } = context;
   const transactionLogPath = join(config.paths.binder, TRANSACTION_LOG_FILE);
   const logResult = await readLastTransactions(
     fs,
@@ -230,7 +234,8 @@ export const transactionSquashHandler: CommandHandlerWithDb<{
   const transactionsToSquash = logResult.data;
 
   ui.heading(`Squashing ${args.count} transaction(s)`);
-  ui.printTransactions(transactionsToSquash, "oneline");
+
+  await ui.printTransactions(kg, transactionsToSquash, "oneline");
 
   const uniqueAuthors = Array.from(
     new Set(transactionsToSquash.map((tx) => tx.author)),
@@ -458,12 +463,12 @@ export const transactionRepairHandler: CommandHandlerWithDb<{
 
   if (dbOnlyTransactions.length > 0) {
     ui.heading("Transactions to rollback:");
-    ui.printTransactions(dbOnlyTransactions, "concise");
+    await ui.printTransactions(kg, dbOnlyTransactions, "concise");
   }
 
   if (logOnlyTransactions.length > 0) {
     ui.heading("Transactions to apply:");
-    ui.printTransactions(logOnlyTransactions, "concise");
+    await ui.printTransactions(kg, logOnlyTransactions, "concise");
   }
 
   if (args.dryRun) {
@@ -521,7 +526,7 @@ export const transactionLogHandler: CommandHandlerWithDb<{
   oneline?: boolean;
   author?: string;
   chronological?: boolean;
-}> = async ({ config, ui, fs, args }) => {
+}> = async ({ kg, config, ui, fs, args }) => {
   const transactionLogPath = join(config.paths.binder, TRANSACTION_LOG_FILE);
 
   const logResult = await readTransactions(
@@ -544,9 +549,10 @@ export const transactionLogHandler: CommandHandlerWithDb<{
       ? "full"
       : "concise";
 
+  const resolved = await resolveTransactionDisplayKeys(kg, logResult.data);
   await withPager(() => {
-    for (const tx of logResult.data) {
-      ui.printTransaction(tx, format);
+    for (const tx of resolved) {
+      ui.printRawTransaction(tx, format);
       if (format !== "oneline") {
         ui.divider();
       }

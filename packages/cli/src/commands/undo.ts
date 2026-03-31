@@ -2,12 +2,13 @@ import type { Argv } from "yargs";
 import { createError, err, isErr, ok } from "@binder/utils";
 import { runtimeWithDb, type CommandHandlerWithDb } from "../runtime.ts";
 import { undoTransactions } from "../lib/orchestrator.ts";
+import { resolveTransactionDisplayKeys } from "../cli/ui.ts";
 import { types } from "../cli/types.ts";
 
 export const undoHandler: CommandHandlerWithDb<{
   steps: number;
 }> = async (ctx) => {
-  const { ui, log, args } = ctx;
+  const { kg, ui, log, args } = ctx;
   if (args.steps < 1)
     return err(
       createError(
@@ -23,8 +24,9 @@ export const undoHandler: CommandHandlerWithDb<{
 
   ui.heading(`Undoing ${args.steps} transaction(s)`);
 
-  for (const tx of transactionsToUndo) {
-    ui.printTransaction(tx);
+  const resolved = await resolveTransactionDisplayKeys(kg, transactionsToUndo);
+  for (const tx of resolved) {
+    ui.printRawTransaction(tx);
     ui.println("");
   }
 

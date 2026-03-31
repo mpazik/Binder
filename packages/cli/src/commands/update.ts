@@ -15,6 +15,7 @@ import {
   patchesDescription,
 } from "../lib/patch-parser.ts";
 import { types } from "../cli/types.ts";
+
 import { itemFormatOption, namespaceOption } from "../cli/options.ts";
 import type { SerializeItemFormat } from "../utils/serialize.ts";
 import { isStdinPiped, readStdinAsArray } from "../cli/stdin.ts";
@@ -43,7 +44,7 @@ const updateHandler: CommandHandlerWithDb<{
     );
     if (isErr(result)) return result;
 
-    ui.printTransaction(result.data, args.format ?? "full");
+    await ui.printTransaction(kg, result.data, args.format ?? "full");
     return okVoid;
   }
 
@@ -69,7 +70,7 @@ const updateHandler: CommandHandlerWithDb<{
   );
   if (isErr(result)) return result;
 
-  ui.printTransaction(result.data, args.format ?? "full");
+  await ui.printTransaction(kg, result.data, args.format ?? "full");
   return okVoid;
 };
 
