@@ -67,11 +67,11 @@
 
 ## Use cases
 
-- **Repeated templates**: tasks, decisions, contacts, meeting notes. Any collection where every file follows the same shape benefits from schema validation, autocomplete, and queryability.
+- **Templated notes**: tasks, decisions, contacts, meeting notes. Any collection where every file follows the same shape benefits from schema validation, autocomplete, and queryability.
 - **Embedded views**: write an entity once and have it appear in multiple documents. Views pull entity data into milestone pages, project overviews, and weekly summaries automatically.
-- **Human + agent collaboration**: Markdown keeps things readable for people. MCP gives agents a structured interface to the same data. Every change is recorded: audit what agents wrote, undo mistakes, replay state.
+- **Human-agent collaboration**: Markdown keeps things readable for people. CLI & MCP give agents a structured interface to **the same structured data**. Every change is recorded: audit what agents wrote, undo mistakes, replay state.
 - **Scripting and automation**: query structured data via CLI or API without parsing Markdown. Changes write back to files automatically. Binder is the storage layer your tooling has been missing.
-- **Persistent agent memory**: agents forget between sessions. Binder gives them typed, queryable memory that persists. Preferences, decisions, and context stay structured, not buried in a chat log.
+- **Persistent agent memory**: agents forget between sessions. Binder gives them typed, queryable memory that persists. Preferences, decisions, and indexed context stay structured, not buried in a chat log.
 
 ## Getting Started
 
@@ -165,27 +165,14 @@ The same knowledge graph is accessible through three interfaces. Use whichever f
 
 ### Editors
 
-For reading, writing, and reviewing. Open any Markdown file in your coding editor. Binder's LSP provides validation, autocomplete, and navigation as you type.
+Open any Markdown file in your coding editor to read, adjust, and review. Binder's LSP provides **validation, autocomplete, and navigation** across all entity files.
 
-```markdown
----
-key: dark-mode
-title: Add dark mode support
-status: active
-priority: p2
-partOf: mvp-release
-requires:
-  - api-endpoints
----
+Install the [VS Code extension](https://marketplace.visualstudio.com/items?itemName=Binder.binder-vscode) to get started — or see [Getting Started](#getting-started) for WebStorm/IntelliJ and Neovim setup.
 
-# Add dark mode support
-
-System-aware theme switching with a manual override.
-```
 
 ### AI Agents
 
-For autonomous work: querying context, capturing decisions, writing new entities. Agents can use the CLI directly or connect via MCP for a typed read/write API.
+For autonomous work: querying context, capturing decisions, writing new entities. Agents can use the **CLI directly** or connect via MCP for a typed read/write API.
 
 Add to `.mcp.json` to enable MCP:
 
@@ -206,8 +193,6 @@ Add to `.mcp.json` to enable MCP:
 ```bash
 npx skills add mpazik/binder
 ```
-
-[Browse skills →](skills/)
 
 ### Scripts and Automation
 
@@ -264,4 +249,4 @@ Binder is early-stage and actively shaped by feedback. Found a bug or have an id
 
 ## License
 
-[MIT](LICENSE) — © 2025 Marek Pazik
+[MIT](LICENSE)
