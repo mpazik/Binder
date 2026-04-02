@@ -40,6 +40,9 @@ export const fieldPreambleUid = "_4Yc7aHhIkL" as ConfigUid;
 export const fieldViewContentKey = "viewContent" as ConfigKey;
 export const fieldViewContentUid = "_5Zd8bIiJlM" as ConfigUid;
 
+export const typeSettingKey = "Setting" as ConfigKey;
+export const typeSettingUid = "_9Dh2fMmNpQ" as ConfigUid;
+
 export const fieldViewKey = "view" as ConfigKey;
 export const fieldViewUid = "_6Ae9cJjKmN" as ConfigUid;
 
@@ -118,6 +121,16 @@ const fieldViewFormat: CliConfigFieldDef = {
   default: "block",
 };
 
+const typeSetting: TypeDef = {
+  id: newConfigAppId(8),
+  uid: typeSettingUid,
+  key: typeSettingKey,
+  type: typeSystemType,
+  name: "Setting",
+  description: "Workspace configuration setting",
+  fields: ["name", "description", ["value", { required: true }]],
+};
+
 const typeNavigation: TypeDef = {
   id: newConfigAppId(0),
   uid: typeNavigationUid,
@@ -162,7 +175,7 @@ export const cliConfigSchema: EntitySchema<ConfigDataType> = createSchema(
     fieldViewFormat,
     fieldLimit,
   ],
-  [typeNavigation, typeView],
+  [typeNavigation, typeView, typeSetting],
 );
 
 export const cliFullConfigSchema = mergeSchema(
