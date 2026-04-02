@@ -152,19 +152,15 @@ export const coreFields = {
 
 export type CoreFieldKey = keyof typeof coreFields;
 
-export const coreFieldKeys = Object.keys(coreFields) as CoreFieldKey[];
-
 export type FieldAttrDef = {
   required?: boolean;
   description?: string;
-  default?: string | number | boolean;
-  value?: string | number | boolean;
+  default?: JsonValue;
+  value?: JsonValue;
   exclude?: string[];
   only?: string[];
   min?: number;
 };
-export type FieldAttrDefs = Record<string, FieldAttrDef>;
-
 export type TypeFieldRef<K extends string = FieldKey> = K | [K, FieldAttrDef];
 
 export const getTypeFieldKey = <K extends string>(ref: TypeFieldRef<K>): K =>

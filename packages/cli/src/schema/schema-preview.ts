@@ -46,9 +46,12 @@ const formatFieldAttributes = (
 
   if (attrs.required) parts.push("required");
 
+  if (attrs.value !== undefined && fieldDef !== undefined) {
+    parts.push(`value: ${serializeFieldValue(attrs.value, fieldDef)}`);
+  }
+
   if (attrs.default !== undefined && fieldDef !== undefined) {
-    const defaultValue = serializeFieldValue(attrs.default, fieldDef);
-    parts.push(`default: ${defaultValue}`);
+    parts.push(`default: ${serializeFieldValue(attrs.default, fieldDef)}`);
   }
 
   if (attrs.description) parts.push(`description: "${attrs.description}"`);
@@ -98,7 +101,10 @@ export const renderSchemaPreview = (schema: EntitySchema): string => {
       const formattedFields = fieldRefs
         .map((ref) => {
           const key = getTypeFieldKey(ref);
-          const attrs = formatFieldAttributes(getTypeFieldAttrs(ref), schema.fields[key]);
+          const attrs = formatFieldAttributes(
+            getTypeFieldAttrs(ref),
+            schema.fields[key],
+          );
           return `    ${key}${attrs}`;
         })
         .join(",\n");
@@ -107,7 +113,10 @@ export const renderSchemaPreview = (schema: EntitySchema): string => {
       const formattedFields = fieldRefs
         .map((ref) => {
           const key = getTypeFieldKey(ref);
-          const attrs = formatFieldAttributes(getTypeFieldAttrs(ref), schema.fields[key]);
+          const attrs = formatFieldAttributes(
+            getTypeFieldAttrs(ref),
+            schema.fields[key],
+          );
           return `${key}${attrs}`;
         })
         .join(", ");

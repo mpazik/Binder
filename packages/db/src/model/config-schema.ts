@@ -214,8 +214,7 @@ export const configFieldsDefs = {
     id: configSchemaIds.value,
     key: "value" as ConfigSchemaKey,
     name: "Value",
-    dataType: "plaintext",
-    plaintextFormat: "line",
+    dataType: "json",
     description: "Fixed value constraint for the field",
   },
   exclude: {
