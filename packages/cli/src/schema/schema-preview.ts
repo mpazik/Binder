@@ -5,6 +5,7 @@ import {
   type FieldAttrDef,
   type FieldDef,
 } from "@binder/db";
+import { serializeFieldValue } from "@binder/db";
 import { formatWhenCondition } from "../utils/query.ts";
 
 const formatFieldType = (field: FieldDef): string => {
@@ -35,18 +36,18 @@ const formatFieldType = (field: FieldDef): string => {
   return allowMultiple ? `${dataType}[]` : dataType;
 };
 
-const formatFieldAttributes = (attrs?: FieldAttrDef): string => {
+const formatFieldAttributes = (
+  attrs?: FieldAttrDef,
+  fieldDef?: FieldDef,
+): string => {
   if (!attrs) return "";
 
   const parts: string[] = [];
 
   if (attrs.required) parts.push("required");
 
-  if (attrs.default !== undefined) {
-    const defaultValue =
-      typeof attrs.default === "string" && attrs.default.includes(" ")
-        ? `"${attrs.default}"`
-        : String(attrs.default);
+  if (attrs.default !== undefined && fieldDef !== undefined) {
+    const defaultValue = serializeFieldValue(attrs.default, fieldDef);
     parts.push(`default: ${defaultValue}`);
   }
 
@@ -96,16 +97,18 @@ export const renderSchemaPreview = (schema: EntitySchema): string => {
     } else if (useMultiLine) {
       const formattedFields = fieldRefs
         .map((ref) => {
-          const attrs = formatFieldAttributes(getTypeFieldAttrs(ref));
-          return `    ${getTypeFieldKey(ref)}${attrs}`;
+          const key = getTypeFieldKey(ref);
+          const attrs = formatFieldAttributes(getTypeFieldAttrs(ref), schema.fields[key]);
+          return `    ${key}${attrs}`;
         })
         .join(",\n");
       result += `• ${typeKey}${description} [\n${formattedFields}\n  ]\n`;
     } else {
       const formattedFields = fieldRefs
         .map((ref) => {
-          const attrs = formatFieldAttributes(getTypeFieldAttrs(ref));
-          return `${getTypeFieldKey(ref)}${attrs}`;
+          const key = getTypeFieldKey(ref);
+          const attrs = formatFieldAttributes(getTypeFieldAttrs(ref), schema.fields[key]);
+          return `${key}${attrs}`;
         })
         .join(", ");
       result += `• ${typeKey}${description} [${formattedFields}]\n`;

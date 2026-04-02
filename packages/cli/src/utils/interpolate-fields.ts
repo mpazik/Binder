@@ -10,7 +10,7 @@ import {
   getNestedValue,
   type NestedFieldValueProvider,
   parseFieldPath,
-  stringifyFieldValue,
+  serializeFieldValue,
 } from "@binder/db";
 
 export type StringifyProvider = (placeholder: string) => Result<string>;
@@ -84,7 +84,7 @@ export const interpolateFields = (
         "field-not-found",
         `Field "${fieldName}" not found in schema`,
       );
-    return ok(stringifyFieldValue(getFieldValue(fieldName), fieldDef));
+    return ok(serializeFieldValue(getFieldValue(fieldName), fieldDef));
   });
 };
 
@@ -103,7 +103,7 @@ export const interpolateNestedFields = (
     const fieldDef = schema.fields[path[0]!];
     if (!fieldDef)
       return fail("field-not-found", `Field "${path[0]}" not found in schema`);
-    return ok(stringifyFieldValue(getFieldValue(path), fieldDef));
+    return ok(serializeFieldValue(getFieldValue(path), fieldDef));
   });
 };
 

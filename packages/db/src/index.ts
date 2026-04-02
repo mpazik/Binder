@@ -21,9 +21,7 @@ export {
   getMultiValueDelimiter,
   isMultilineFormat,
   type MultiValueDelimiter,
-  parseFieldValue,
   splitByDelimiter,
-  stringifyFieldValue,
 } from "./model/text-format.ts";
 export { buildIncludes, pickByIncludes } from "./model/query.ts";
 export {
@@ -33,3 +31,4 @@ export {
 } from "./filter-entities.ts";
 export { createUid } from "./utils/uid.ts";
 export { applyConfigChangesetToSchema } from "./changeset-applier.ts";
+export { parseFieldValue, serializeFieldValue } from "./model/field.ts";

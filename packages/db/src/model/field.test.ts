@@ -1,8 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import { type JsonValue, throwIfError } from "@binder/utils";
 import "@binder/utils/tests";
-import { getNestedValue, setNestedValue } from "./field.ts";
-import { parseFieldValue, stringifyFieldValue } from "./text-format.ts";
+import {
+  getNestedValue,
+  setNestedValue,
+  parseFieldValue,
+  serializeFieldValue,
+} from "./field.ts";
 import type { FieldDef, FieldsetNested } from "./index.ts";
 import {
   mockAliasesField,
@@ -199,6 +203,28 @@ describe("field", () => {
       check("high", mockPriorityField, "high");
     });
 
+    describe("json dataType", () => {
+      const jsonField = { ...coreFields.name, dataType: "json" } as FieldDef;
+
+      it("parses object", () => {
+        check('{"key":"value"}', jsonField, { key: "value" });
+      });
+
+      it("parses array", () => {
+        check("[1,2,3]", jsonField, [1, 2, 3]);
+      });
+
+      it("parses primitive values", () => {
+        check("42", jsonField, 42);
+        check("true", jsonField, true);
+        check('"hello"', jsonField, "hello");
+      });
+
+      it("returns error for invalid JSON", () => {
+        expect(parseFieldValue("{bad json}", jsonField)).toBeErr();
+      });
+    });
+
     describe("allowMultiple with identifier format", () => {
       it("splits by comma", () => {
         check("urgent, important, low-priority", mockTagsField, [
@@ -367,13 +393,13 @@ describe("field", () => {
     });
   });
 
-  describe("stringifyFieldValue", () => {
+  describe("serializeFieldValue", () => {
     const check = (
       value: JsonValue | undefined,
       fieldDef: FieldDef,
       expected: string,
     ) => {
-      expect(stringifyFieldValue(value, fieldDef)).toBe(expected);
+      expect(serializeFieldValue(value, fieldDef)).toBe(expected);
     };
 
     it("formats null as empty string", () => {
@@ -424,7 +450,7 @@ describe("field", () => {
 
     describe("parse/stringify round-trip", () => {
       const checkRoundtrip = (values: string[], fieldDef: FieldDef) => {
-        const stringified = stringifyFieldValue(values, fieldDef);
+        const stringified = serializeFieldValue(values, fieldDef);
         const parsed = throwIfError(parseFieldValue(stringified, fieldDef));
         expect(parsed).toEqual(values);
       };
@@ -435,6 +461,22 @@ describe("field", () => {
 
       it("round-trips newline-separated values", () => {
         checkRoundtrip(["first", "second"], mockAliasesField);
+      });
+
+      it("round-trips json object", () => {
+        const jsonField = { ...coreFields.name, dataType: "json" } as FieldDef;
+        const value = { key: "value", count: 42 };
+        const serialized = serializeFieldValue(value, jsonField);
+        const parsed = throwIfError(parseFieldValue(serialized, jsonField));
+        expect(parsed).toEqual(value);
+      });
+
+      it("round-trips json array", () => {
+        const jsonField = { ...coreFields.name, dataType: "json" } as FieldDef;
+        const value = [1, "two", true];
+        const serialized = serializeFieldValue(value as JsonValue, jsonField);
+        const parsed = throwIfError(parseFieldValue(serialized, jsonField));
+        expect(parsed).toEqual(value);
       });
     });
   });

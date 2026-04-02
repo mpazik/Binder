@@ -1,5 +1,12 @@
-import type { JsonValue } from "@binder/utils";
+import type { JsonValue, Result } from "@binder/utils";
+import { fail, ok, parseJson } from "@binder/utils";
 import type { EntityUid } from "./entity.ts";
+import type { FieldDef } from "./schema.ts";
+import {
+  getMultiValueDelimiter,
+  getDelimiterString,
+  splitByDelimiter,
+} from "./text-format.ts";
 
 export type FieldKey = string;
 export type FieldPath = readonly FieldKey[];
@@ -72,4 +79,73 @@ export const setNestedValue = (
   }
 
   current[path[path.length - 1]!] = value;
+};
+
+const serializeSingleValue = (value: FieldValue): string => {
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+};
+
+export const parseFieldValue = (
+  raw: string,
+  fieldDef: FieldDef,
+): Result<FieldValue> => {
+  const trimmed = raw.trim();
+
+  if (fieldDef.allowMultiple) {
+    if (trimmed === "") return ok([]);
+    const delimiter = getMultiValueDelimiter(fieldDef);
+    const items = splitByDelimiter(
+      trimmed,
+      delimiter,
+      fieldDef.sectionDepth,
+    ).filter((item) => item.length > 0);
+    return ok(items);
+  }
+
+  if (trimmed === "") return ok(null);
+
+  if (fieldDef.dataType === "seqId" || fieldDef.dataType === "integer") {
+    const parsed = parseInt(trimmed, 10);
+    if (isNaN(parsed))
+      return fail("invalid-field-value", `Invalid integer: ${trimmed}`);
+    return ok(parsed);
+  }
+
+  if (fieldDef.dataType === "decimal") {
+    const parsed = parseFloat(trimmed);
+    if (isNaN(parsed))
+      return fail("invalid-field-value", `Invalid decimal: ${trimmed}`);
+    return ok(parsed);
+  }
+
+  if (fieldDef.dataType === "boolean") {
+    const lower = trimmed.toLowerCase();
+    if (lower === "true" || lower === "yes" || lower === "on" || lower === "1")
+      return ok(true);
+    if (lower === "false" || lower === "no" || lower === "off" || lower === "0")
+      return ok(false);
+    return fail("invalid-field-value", `Invalid boolean: ${trimmed}`);
+  }
+
+  if (fieldDef.dataType === "json")
+    return parseJson<JsonValue>(trimmed, `Invalid JSON value: ${trimmed}`);
+
+  return ok(trimmed);
+};
+
+export const serializeFieldValue = (
+  value: FieldValue | undefined,
+  fieldDef: FieldDef,
+): string => {
+  if (value === null || value === undefined) return "";
+
+  if (Array.isArray(value) && fieldDef.allowMultiple) {
+    if (value.length === 0) return "";
+    const delimiter = getDelimiterString(getMultiValueDelimiter(fieldDef));
+    return value.map(serializeSingleValue).join(delimiter);
+  }
+
+  return serializeSingleValue(value);
 };

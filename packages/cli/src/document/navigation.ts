@@ -16,7 +16,7 @@ import {
   type NamespaceEditable,
   pickByIncludes,
   type QueryParams,
-  stringifyFieldValue,
+  serializeFieldValue,
 } from "@binder/db";
 import {
   assertDefinedPass,
@@ -264,7 +264,7 @@ export const resolvePath = (
     }
 
     return ok(
-      sanitizeFilename(stringifyFieldValue(value, schema.fields[fieldName])),
+      sanitizeFilename(serializeFieldValue(value, schema.fields[fieldName])),
     );
   });
 };

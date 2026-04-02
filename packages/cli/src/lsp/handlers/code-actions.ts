@@ -7,7 +7,7 @@ import type {
 } from "vscode-languageserver/node";
 import { CodeActionKind, TextEdit } from "vscode-languageserver/node";
 import type { TextDocument } from "vscode-languageserver-textdocument";
-import type { FieldAttrDef, FieldDef, FieldPath } from "@binder/db";
+import { type FieldAttrDef, type FieldDef, type FieldPath, serializeFieldValue } from "@binder/db";
 import { findSimilar } from "@binder/utils";
 import {
   type DocumentContext,
@@ -24,7 +24,7 @@ type InvalidValueData = {
 
 const getDefaultValue = (fieldDef: FieldDef, attrs?: FieldAttrDef): string => {
   if (attrs?.default !== undefined) {
-    return String(attrs.default);
+    return serializeFieldValue(attrs.default, fieldDef);
   }
 
   if (fieldDef.dataType === "option" && fieldDef.options?.[0]) {

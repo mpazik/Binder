@@ -4,7 +4,7 @@ import {
   getDelimiterString,
   getMultiValueDelimiter,
   isMultilineFormat,
-  stringifyFieldValue,
+  serializeFieldValue,
 } from "@binder/db";
 import type {
   Nodes,
@@ -95,7 +95,7 @@ export const renderFieldValue = (
     return joinNodesWithDelimiter(nodeGroups, fieldDef);
   }
 
-  return renderSingleValue(stringifyFieldValue(value, fieldDef), fieldDef);
+  return renderSingleValue(serializeFieldValue(value, fieldDef), fieldDef);
 };
 
 export const isBlockLevelField = (fieldDef: FieldDef | undefined): boolean =>
