@@ -2,7 +2,7 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { getGlobalStatePath } from "../config.ts";
 import { isDevMode } from "../build-time.ts";
-import { Style } from "../cli/ui.ts";
+import { textBold, textWarn } from "../cli/ui.ts";
 
 type UpdateCache = {
   lastCheck: string;
@@ -92,7 +92,7 @@ export const checkForUpdate = async (currentVersion: string): Promise<void> => {
   if (cache && isNewer(cache.latestVersion, currentVersion)) {
     const cmd = detectInstallCommand();
     process.stderr.write(
-      `${Style.TEXT_WARNING}Update available: ${currentVersion} \u2192 ${cache.latestVersion}.${Style.TEXT_NORMAL} Run: ${Style.TEXT_NORMAL_BOLD}${cmd}${Style.TEXT_NORMAL}\n`,
+      `${textWarn(`Update available: ${currentVersion} \u2192 ${cache.latestVersion}.`)} Run: ${textBold(cmd)}\n`,
     );
   }
 

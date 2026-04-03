@@ -16,7 +16,7 @@ import {
   listBlueprints,
   loadBlueprint,
 } from "../lib/blueprint.ts";
-import { createUi, Style } from "../cli/ui.ts";
+import { createUi, textInfo } from "../cli/ui.ts";
 import { types } from "../cli/types.ts";
 
 const ui = createUi();
@@ -186,7 +186,7 @@ const initSchemaHandler: CommandHandlerWithDb<InitSchemaArgs> = async ({
   });
 
   ui.println(
-    "Install agent skills:" + Style.TEXT_INFO + " npx skills add mpazik/binder",
+    "Install agent skills: " + textInfo("npx skills add mpazik/binder"),
   );
 
   return ok(undefined);

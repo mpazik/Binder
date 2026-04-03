@@ -1,4 +1,5 @@
 import { EOL } from "os";
+import { styleText } from "node:util";
 import * as readline from "node:readline/promises";
 import * as YAML from "yaml";
 import {
@@ -23,22 +24,17 @@ import {
   type SerializeItemFormat,
 } from "../utils/serialize.ts";
 
-export const Style = {
-  TEXT_HIGHLIGHT: "\x1b[95m",
-  TEXT_HIGHLIGHT_BOLD: "\x1b[95m\x1b[1m",
-  TEXT_DIM: "\x1b[90m",
-  TEXT_DIM_BOLD: "\x1b[90m\x1b[1m",
-  TEXT_NORMAL: "\x1b[0m",
-  TEXT_NORMAL_BOLD: "\x1b[1m",
-  TEXT_WARNING: "\x1b[93m",
-  TEXT_WARNING_BOLD: "\x1b[93m\x1b[1m",
-  TEXT_DANGER: "\x1b[91m",
-  TEXT_DANGER_BOLD: "\x1b[91m\x1b[1m",
-  TEXT_SUCCESS: "\x1b[92m",
-  TEXT_SUCCESS_BOLD: "\x1b[92m\x1b[1m",
-  TEXT_INFO: "\x1b[94m",
-  TEXT_INFO_BOLD: "\x1b[94m\x1b[1m",
-};
+// --- Text styling (TTY-aware via node:util styleText) ---
+
+export const textDim = (s: string) => styleText("gray", s);
+export const textBold = (s: string) => styleText("bold", s);
+export const textInfo = (s: string) => styleText("blueBright", s);
+export const textInfoBold = (s: string) => styleText(["blueBright", "bold"], s);
+export const textSuccess = (s: string) => styleText("greenBright", s);
+export const textWarn = (s: string) => styleText("yellowBright", s);
+export const textErr = (s: string) => styleText("redBright", s);
+export const textErrBold = (s: string) => styleText(["redBright", "bold"], s);
+export const textHighlight = (s: string) => styleText("magentaBright", s);
 
 export const logo = () => {
   // prettier-ignore
@@ -61,30 +57,27 @@ export const logo = () => {
     "   x   xx",
   ];
 
-  const REVERSE = "\x1b[7m";
-  const REVERSE_OFF = "\x1b[27m";
   const lines = binderLogo.map((line, r) => {
     const mask = inverseMask[r] || "";
     const chars = [...line];
     const maskChars = [...mask];
     let result = "";
-    let inInverse = false;
+    let run = "";
+    let runIsInverse = false;
     for (let c = 0; c < chars.length; c++) {
-      const isInverse = maskChars[c] === "x";
-      if (isInverse && !inInverse) {
-        result += REVERSE;
-        inInverse = true;
-      } else if (!isInverse && inInverse) {
-        result += REVERSE_OFF;
-        inInverse = false;
+      const inv = maskChars[c] === "x";
+      if (inv !== runIsInverse) {
+        result += runIsInverse ? styleText("inverse", run) : run;
+        run = "";
+        runIsInverse = inv;
       }
-      result += chars[c];
+      run += chars[c];
     }
-    if (inInverse) result += REVERSE_OFF;
+    result += runIsInverse ? styleText("inverse", run) : run;
     return result;
   });
 
-  return Style.TEXT_DIM + lines.join(EOL) + Style.TEXT_NORMAL;
+  return textDim(lines.join(EOL));
 };
 
 const print = (...message: string[]) => {
@@ -116,28 +109,28 @@ const input = async (prompt: string): Promise<string> => {
 };
 
 const success = (message: string) => {
-  eprintln(Style.TEXT_SUCCESS + message + Style.TEXT_NORMAL);
+  eprintln(textSuccess(message));
 };
 
 const warning = (message: string) => {
-  eprintln(Style.TEXT_WARNING + "WARNING: " + Style.TEXT_NORMAL + message);
+  eprintln(textWarn("WARNING:") + " " + message);
 };
 
 const info = (message: string) => {
-  eprintln(Style.TEXT_INFO + message + Style.TEXT_NORMAL);
+  eprintln(textInfo(message));
 };
 
 const danger = (message: string) => {
-  eprintln(Style.TEXT_DANGER + message + Style.TEXT_NORMAL);
+  eprintln(textErr(message));
 };
 
 const divider = (width = 60) => {
-  eprintln(Style.TEXT_DIM + "─".repeat(width) + Style.TEXT_NORMAL);
+  eprintln(textDim("─".repeat(width)));
 };
 
 const heading = (message: string) => {
   eprintln("");
-  eprintln(Style.TEXT_INFO_BOLD + message + Style.TEXT_NORMAL);
+  eprintln(textInfoBold(message));
 };
 
 const block = (fn: () => void) => {
@@ -147,14 +140,12 @@ const block = (fn: () => void) => {
 };
 
 const keyValue = (key: string, value: string) => {
-  eprintln(`  ${Style.TEXT_DIM}${key}:${Style.TEXT_NORMAL} ${value}`);
+  eprintln(`  ${textDim(key + ":")} ${value}`);
 };
 
 const keyValuesInline = (...pairs: [string, string][]) => {
   const formatted = pairs
-    .map(
-      ([key, value]) => `${Style.TEXT_DIM}${key}:${Style.TEXT_NORMAL} ${value}`,
-    )
+    .map(([key, value]) => `${textDim(key + ":")} ${value}`)
     .join("  ");
   eprintln(`  ${formatted}`);
 };
@@ -184,7 +175,7 @@ const formatValue = (value: unknown, indent: string): string => {
       entries
         .map(([k, v]) => {
           const valStr = formatValue(v, indent + "  ");
-          return `${indent}  ${Style.TEXT_INFO}${k}${Style.TEXT_NORMAL}: ${valStr}`;
+          return `${indent}  ${textInfo(k)}: ${valStr}`;
         })
         .join("\n")
     );
@@ -193,18 +184,13 @@ const formatValue = (value: unknown, indent: string): string => {
 };
 
 const error = (message: string) => {
-  eprintln(Style.TEXT_DANGER_BOLD + "Error: " + Style.TEXT_NORMAL + message);
+  eprintln(textErrBold("Error:") + " " + message);
 };
 
 type ValidationError = { field?: string; fieldKey?: string; message?: string };
 
 const printError = (errorObj: ErrorObject) => {
-  eprintln(
-    Style.TEXT_DANGER_BOLD +
-      "Error: " +
-      Style.TEXT_NORMAL +
-      (errorObj.message || errorObj.key),
-  );
+  eprintln(textErrBold("Error:") + " " + (errorObj.message || errorObj.key));
 
   if (
     errorObj.key === "changeset-input-process-failed" &&
@@ -213,11 +199,11 @@ const printError = (errorObj: ErrorObject) => {
   ) {
     const errors = errorObj.data.errors as ValidationError[] | undefined;
     if (Array.isArray(errors) && errors.length > 0) {
-      eprintln(Style.TEXT_DANGER + "Validation errors:" + Style.TEXT_NORMAL);
+      eprintln(textErr("Validation errors:"));
       for (const validationError of errors) {
         const fieldName = validationError.field ?? validationError.fieldKey;
         const message = fieldName
-          ? `Field '${Style.TEXT_INFO}${fieldName}${Style.TEXT_NORMAL}': ${validationError.message ?? formatValue(validationError, "    ")}`
+          ? `Field '${textInfo(fieldName)}': ${validationError.message ?? formatValue(validationError, "    ")}`
           : (validationError.message ?? formatValue(validationError, "    "));
         eprintln(`  - ${message}`);
       }
@@ -225,7 +211,7 @@ const printError = (errorObj: ErrorObject) => {
     }
   }
 
-  eprintln(Style.TEXT_DIM + "Error details:" + Style.TEXT_NORMAL);
+  eprintln(textDim("Error details:"));
   eprintln(formatValue(errorObj.data, ""));
 };
 
@@ -249,9 +235,7 @@ const printData = (data: unknown, format?: SerializeFormat) => {
       const keyMatch = line.match(/^(\s*)([^:\s][^:]*?)(:)(.*)$/);
       if (keyMatch) {
         const [, indent, key, colon, value] = keyMatch;
-        return (
-          indent + Style.TEXT_INFO + key + Style.TEXT_NORMAL + colon + value
-        );
+        return indent + textInfo(key) + colon + value;
       }
       return line;
     })
@@ -289,31 +273,28 @@ const printFieldChange = (
     const previous = change.length === 3 ? change[2] : undefined;
     if (previous === undefined && value !== undefined) {
       eprintln(
-        `${indent}${Style.TEXT_DIM}${fieldKey}:${Style.TEXT_NORMAL} ${formatFieldValue(value)}`,
+        `${indent}${textDim(fieldKey + ":")} ${formatFieldValue(value)}`,
       );
     } else {
       eprintln(
-        `${indent}${Style.TEXT_DIM}${fieldKey}:${Style.TEXT_NORMAL} ` +
+        `${indent}${textDim(fieldKey + ":")} ` +
           `${formatFieldValue(previous)} → ${formatFieldValue(value)}`,
       );
     }
   } else if (isClearChange(change)) {
     eprintln(
-      `${indent}${Style.TEXT_DIM}${fieldKey}: ` +
-        `${Style.TEXT_DANGER}${formatFieldValue(change[1])} → (deleted)${Style.TEXT_NORMAL}`,
+      `${indent}${textDim(fieldKey + ":")} ` +
+        textErr(`${formatFieldValue(change[1])} → (deleted)`),
     );
   } else if (isSeqChange(change)) {
-    eprintln(
-      `${indent}${Style.TEXT_DIM}${fieldKey}:${Style.TEXT_NORMAL} list mutations:`,
-    );
+    eprintln(`${indent}${textDim(fieldKey + ":")} list mutations:`);
     for (const mutation of change[1]) {
       const [kind, mutValue, position] = mutation;
       const posText =
         position !== undefined ? ` at position ${position}` : " at end";
-      const kindStyle =
-        kind === "insert" ? Style.TEXT_SUCCESS : Style.TEXT_DANGER;
+      const kindColor = kind === "insert" ? textSuccess : textErr;
       eprintln(
-        `${indent}  ${kindStyle}[${kind}]${Style.TEXT_NORMAL} ${formatFieldValue(mutValue)}${Style.TEXT_DIM}${posText}${Style.TEXT_NORMAL}`,
+        `${indent}  ${kindColor(`[${kind}]`)} ${formatFieldValue(mutValue)}${textDim(posText)}`,
       );
     }
   }
@@ -349,7 +330,7 @@ const printEntityChanges = (
   if (entries.length === 0) return;
 
   if (format === "full") eprintln("");
-  eprintln(`  ${Style.TEXT_DIM}${label} (${entries.length})`);
+  eprintln(`  ${textDim(`${label} (${entries.length})`)}`);
 
   for (const [uid, changeset] of entries) {
     const operation = getEntityOperation(changeset);
@@ -358,9 +339,7 @@ const printEntityChanges = (
     if (format === "concise") {
       eprintln(`    - ${uid}${entityLabel} ${operation}`);
     } else {
-      eprintln(
-        `    ${Style.TEXT_INFO}${uid}${entityLabel}${Style.TEXT_NORMAL} ${operation}`,
-      );
+      eprintln(`    ${textInfo(uid + entityLabel)} ${operation}`);
 
       const fields = Object.entries(changeset).filter(
         ([key]) => key !== "createdAt" && key !== "updatedAt",
@@ -391,16 +370,14 @@ const printTransaction = (
     const configText = configCount === 1 ? "config" : "configs";
 
     eprintln(
-      `${Style.TEXT_INFO_BOLD}#${transaction.id} ` +
-        `${Style.TEXT_DIM}${hash} (${transaction.author})` +
-        `${Style.TEXT_NORMAL} ${timestamp} - ${recordCount} ${recordText}, ${configCount} ${configText}`,
+      `${textInfoBold(`#${transaction.id}`)} ` +
+        `${textDim(`${hash} (${transaction.author})`)} ` +
+        `${timestamp} - ${recordCount} ${recordText}, ${configCount} ${configText}`,
     );
     return;
   }
 
-  eprintln(
-    Style.TEXT_INFO_BOLD + `Transaction #${transaction.id}` + Style.TEXT_NORMAL,
-  );
+  eprintln(textInfoBold(`Transaction #${transaction.id}`));
   keyValuesInline(
     ["Hash", hash],
     ["Author", transaction.author],
