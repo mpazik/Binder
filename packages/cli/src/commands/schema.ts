@@ -5,12 +5,11 @@ import { type CommandHandlerWithDb, runtimeWithDb } from "../runtime.ts";
 import { renderSchemaPreview } from "../schema/schema-preview.ts";
 import { filterSchemaByTypes } from "../schema/schema-filter.ts";
 import { types } from "../cli/types.ts";
+import { namespaceOption, parseCommaSeparatedList } from "../cli/options.ts";
 import {
-  itemFormatOption,
-  namespaceOption,
-  parseCommaSeparatedList,
-} from "../cli/options.ts";
-import type { SerializeItemFormat } from "../utils/serialize.ts";
+  serializeItemFormats,
+  type SerializeItemFormat,
+} from "../utils/serialize.ts";
 
 export const schemaHandler: CommandHandlerWithDb<{
   namespace: NamespaceEditable;
@@ -45,6 +44,13 @@ export const SchemaCommand = types({
         coerce: (value: string[] | string) =>
           parseCommaSeparatedList<EntityType>(value),
       })
-      .options({ ...namespaceOption, ...itemFormatOption }),
+      .options({
+        ...namespaceOption,
+        format: {
+          describe: "output format",
+          type: "string" as const,
+          choices: serializeItemFormats,
+        },
+      }),
   handler: runtimeWithDb(schemaHandler),
 });

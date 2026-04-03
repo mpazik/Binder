@@ -20,6 +20,8 @@ const respond = (response: JsonRpcResponse) => {
 };
 
 const mcpHandler: CommandHandlerWithDb = async ({ kg, log, config, fs }) => {
+  process.env.NO_COLOR = "1";
+
   log.info("MCP server starting", {
     version: BINDER_VERSION,
     cwd: config.paths.root,

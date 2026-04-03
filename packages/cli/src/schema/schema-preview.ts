@@ -7,6 +7,13 @@ import {
 } from "@binder/db";
 import { serializeFieldValue } from "@binder/db";
 import { formatWhenCondition } from "../utils/query.ts";
+import {
+  textBold,
+  textDim,
+  textHighlight,
+  textInfo,
+  textInfoBold,
+} from "../cli/ui.ts";
 
 const formatFieldType = (field: FieldDef): string => {
   const { dataType, allowMultiple, range, options } = field;
@@ -62,24 +69,24 @@ const formatFieldAttributes = (
   if (attrs.exclude && attrs.exclude.length > 0)
     parts.push(`exclude: ${attrs.exclude.join("|")}`);
 
-  return parts.length > 0 ? `{${parts.join(", ")}}` : "";
+  return parts.length > 0 ? textDim(`{${parts.join(", ")}}`) : "";
 };
 
 export const renderSchemaPreview = (schema: EntitySchema): string => {
-  let result = "FIELDS:\n";
+  let result = textBold("FIELDS:") + "\n";
 
   for (const [fieldKey, fieldDef] of Object.entries(schema.fields)) {
-    const typeInfo = formatFieldType(fieldDef);
+    const typeInfo = textHighlight(formatFieldType(fieldDef));
     const whenInfo = fieldDef.when
-      ? ` {when: ${formatWhenCondition(fieldDef.when)}}`
+      ? " " + textDim(`{when: ${formatWhenCondition(fieldDef.when)}}`)
       : "";
     const description = fieldDef.description
       ? ` - ${fieldDef.description}`
       : "";
-    result += `• ${fieldKey}: ${typeInfo}${whenInfo}${description}\n`;
+    result += `• ${textInfo(fieldKey)}: ${typeInfo}${whenInfo}${description}\n`;
   }
 
-  result += "\nTYPES:\n";
+  result += "\n" + textBold("TYPES:") + "\n";
 
   for (const [typeKey, typeDef] of Object.entries(schema.types)) {
     const description = typeDef.description ? ` - ${typeDef.description}` : "";
@@ -96,7 +103,7 @@ export const renderSchemaPreview = (schema: EntitySchema): string => {
     const useMultiLine = totalComplexity > 4;
 
     if (fieldRefs.length === 0) {
-      result += `• ${typeKey}${description}\n`;
+      result += `• ${textInfoBold(typeKey)}${description}\n`;
     } else if (useMultiLine) {
       const formattedFields = fieldRefs
         .map((ref) => {
@@ -108,7 +115,7 @@ export const renderSchemaPreview = (schema: EntitySchema): string => {
           return `    ${key}${attrs}`;
         })
         .join(",\n");
-      result += `• ${typeKey}${description} [\n${formattedFields}\n  ]\n`;
+      result += `• ${textInfoBold(typeKey)}${description} [\n${formattedFields}\n  ]\n`;
     } else {
       const formattedFields = fieldRefs
         .map((ref) => {
@@ -120,7 +127,7 @@ export const renderSchemaPreview = (schema: EntitySchema): string => {
           return `${key}${attrs}`;
         })
         .join(", ");
-      result += `• ${typeKey}${description} [${formattedFields}]\n`;
+      result += `• ${textInfoBold(typeKey)}${description} [${formattedFields}]\n`;
     }
   }
 

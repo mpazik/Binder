@@ -23,18 +23,32 @@ import {
   type SerializeFormat,
   type SerializeItemFormat,
 } from "../utils/serialize.ts";
+import { isBun, isTest } from "../environment.ts";
 
 // --- Text styling (TTY-aware via node:util styleText) ---
+// Bun's styleText ignores NO_COLOR / FORCE_COLOR / TTY — apply our own check there.
 
-export const textDim = (s: string) => styleText("gray", s);
-export const textBold = (s: string) => styleText("bold", s);
-export const textInfo = (s: string) => styleText("blueBright", s);
-export const textInfoBold = (s: string) => styleText(["blueBright", "bold"], s);
-export const textSuccess = (s: string) => styleText("greenBright", s);
-export const textWarn = (s: string) => styleText("yellowBright", s);
-export const textErr = (s: string) => styleText("redBright", s);
-export const textErrBold = (s: string) => styleText(["redBright", "bold"], s);
-export const textHighlight = (s: string) => styleText("magentaBright", s);
+const shouldUseColor = (): boolean =>
+  !isTest &&
+  (!!process.stdout.isTTY || !!process.env.FORCE_COLOR) &&
+  !process.env.NO_COLOR &&
+  process.env.TERM !== "dumb";
+
+const colorize = (
+  format: Parameters<typeof styleText>[0],
+  s: string,
+): string =>
+  isBun ? (shouldUseColor() ? styleText(format, s) : s) : styleText(format, s);
+
+export const textDim = (s: string) => colorize("gray", s);
+export const textBold = (s: string) => colorize("bold", s);
+export const textInfo = (s: string) => colorize("blueBright", s);
+export const textInfoBold = (s: string) => colorize(["blueBright", "bold"], s);
+export const textSuccess = (s: string) => colorize("greenBright", s);
+export const textWarn = (s: string) => colorize("yellowBright", s);
+export const textErr = (s: string) => colorize("redBright", s);
+export const textErrBold = (s: string) => colorize(["redBright", "bold"], s);
+export const textHighlight = (s: string) => colorize("magentaBright", s);
 
 export const logo = () => {
   // prettier-ignore
@@ -67,13 +81,13 @@ export const logo = () => {
     for (let c = 0; c < chars.length; c++) {
       const inv = maskChars[c] === "x";
       if (inv !== runIsInverse) {
-        result += runIsInverse ? styleText("inverse", run) : run;
+        result += runIsInverse ? colorize("inverse", run) : run;
         run = "";
         runIsInverse = inv;
       }
       run += chars[c];
     }
-    result += runIsInverse ? styleText("inverse", run) : run;
+    result += runIsInverse ? colorize("inverse", run) : run;
     return result;
   });
 

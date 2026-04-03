@@ -5,6 +5,8 @@ import { createLspServer } from "../lsp";
 import { types } from "../cli/types.ts";
 
 const lspHandler: CommandHandlerMinimal = async (context) => {
+  process.env.NO_COLOR = "1";
+
   const connection = createLspServer(context);
 
   const cleanup = () => {
