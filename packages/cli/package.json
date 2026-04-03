@@ -49,7 +49,27 @@
     "test:e2e:node": "BINDER_CLI=\"node $PWD/dist/index.js\" bun test ./tests/",
     "check": "bun lint && bun format && bun typecheck && bun test",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "release": "release-it"
+  },
+  "release-it": {
+    "git": {
+      "commitMessage": "release: v${version}"
+    },
+    "github": {
+      "release": true
+    },
+    "plugins": {
+      "@release-it/conventional-changelog": {
+        "preset": "conventionalcommits"
+      }
+    },
+    "hooks": {
+      "before:init": [
+        "[ $(git branch --show-current) = main ] || (echo 'Must be on main branch' && exit 1)",
+        "cd ../.. && bun run check:verify"
+      ]
+    }
   },
   "dependencies": {
     "better-sqlite3": "^12.8.0"
@@ -59,6 +79,7 @@
     "@binder/utils": "workspace:*",
     "@clack/prompts": "^1.1.0",
     "@modelcontextprotocol/sdk": "^1.28.0",
+    "@release-it/conventional-changelog": "^10.0.6",
     "@types/mdast": "^4.0.4",
     "@types/picomatch": "^4.0.2",
     "@types/yargs": "^17.0.35",
@@ -71,6 +92,7 @@
     "mdast-util-to-markdown": "^2.1.2",
     "micromark-util-types": "^2.0.2",
     "picomatch": "^4.0.4",
+    "release-it": "^19.2.4",
     "remark-frontmatter": "^5.0.0",
     "remark-gfm": "^4.0.1",
     "remark-parse": "^11.0.0",
