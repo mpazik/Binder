@@ -1,22 +1,45 @@
 <!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
-    <id>com.binder.intellij</id>
+    <id>do.binder.plugin</id>
     <name>Binder</name>
-    <vendor email="support@binder.dev" url="https://binder.do">Binder</vendor>
+    <vendor email="support@binder.do" url="https://binder.do">Binder</vendor>
 
     <description><![CDATA[
-    Language Server Protocol support for Binder - Git-inspired knowledge graph for Markdown.
+    Language support for <a href="https://binder.do">Binder</a> — a local-first knowledge base with bidirectional Markdown sync.
 
-    Features:
-    - Real-time validation of Binder documents
-    - Automatic sync on save
-    - Error diagnostics
-    - Code actions and quick fixes
+    <h3>Features</h3>
+    <ul>
+        <li>Autocomplete for link references, field names, and valid option values</li>
+        <li>Hover docs with field descriptions and allowed values</li>
+        <li>Go to definition for referenced entities</li>
+        <li>Inlay hints showing referenced entity titles inline</li>
+        <li>Code actions and quick fixes for invalid field values</li>
+        <li>Real-time diagnostics against your schema</li>
+        <li>Automatic sync on save</li>
+    </ul>
 
-    Requirements:
-    - Binder CLI must be installed and available in PATH
-    - Or configure custom path in Settings > Tools > Binder
+    <h3>Requirements</h3>
+    <ul>
+        <li>Binder CLI installed and available in PATH</li>
+        <li>A Binder workspace (contains a <code>.binder</code> directory)</li>
+    </ul>
+
+    Configure the CLI path at <b>Settings &gt; Tools &gt; Binder</b>.
     ]]></description>
+
+    <change-notes><![CDATA[
+    <h3>0.1.0</h3>
+    <ul>
+        <li>Autocomplete for link references, field names, and valid option values</li>
+        <li>Hover docs with field descriptions and allowed values</li>
+        <li>Go to definition for referenced entities</li>
+        <li>Inlay hints showing referenced entity titles inline</li>
+        <li>Code actions and quick fixes for invalid field values</li>
+        <li>Real-time diagnostics against your schema</li>
+        <li>Automatic sync on save</li>
+        <li>Configurable Binder executable path via Settings &gt; Tools &gt; Binder</li>
+    </ul>
+    ]]></change-notes>
 
     <!-- Product and plugin compatibility requirements -->
     <depends>com.intellij.modules.platform</depends>
@@ -35,7 +58,7 @@
         <applicationConfigurable
             parentId="tools"
             instance="com.binder.intellij.settings.BinderSettingsConfigurable"
-            id="com.binder.intellij.settings.BinderSettingsConfigurable"
+            id="do.binder.plugin.settings.BinderSettingsConfigurable"
             displayName="Binder"/>
     </extensions>
 </idea-plugin>

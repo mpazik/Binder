@@ -110,10 +110,7 @@ Adds autocomplete for field names and valid values, inline validation, and syncs
 <details>
 <summary>WebStorm / IntelliJ</summary>
 
-Install the [LSP4IJ](https://plugins.jetbrains.com/plugin/23257-lsp4ij) plugin, then add a new language server under **Settings → Languages & Frameworks → Language Servers**:
-
-- **Command**: `binder lsp`
-- **File patterns**: `*.md`, `*.yaml`
+Install the [Binder plugin](https://plugins.jetbrains.com/plugin/31075-binder). Activates automatically in any Binder workspace.
 
 </details>
 
