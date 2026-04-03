@@ -6,7 +6,7 @@ import {
   type EntityKey,
   type TransactionInput,
 } from "@binder/db";
-import { isBundled } from "../build-time.ts";
+import { isBundled } from "../environment.ts";
 import { parseTransactionInputContent } from "../utils/parse.ts";
 import type { FileSystem } from "./filesystem.ts";
 

@@ -9,7 +9,7 @@ import {
 } from "vscode-languageserver/node";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { type RuntimeContextInit } from "../runtime.ts";
-import { BINDER_VERSION } from "../build-time.ts";
+import { BINDER_VERSION } from "../environment.ts";
 import { handleDocumentSave } from "./handlers/save-handler.ts";
 import { handleHover } from "./handlers/hover.ts";
 import { handleCompletion } from "./handlers/completion.ts";

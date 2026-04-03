@@ -4,7 +4,7 @@ import { mkdtempSync } from "fs";
 import { tmpdir } from "os";
 import { openDb } from "@binder/db";
 import { isErr, ok, type Result } from "@binder/utils";
-import { isBundled } from "../build-time.ts";
+import { isBundled } from "../environment.ts";
 import { schema } from "./schema.ts";
 import { mergeMigrationFolders } from "./merge-migrations.ts";
 

@@ -1,7 +1,7 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { getGlobalStatePath } from "../config.ts";
-import { isDevMode } from "../build-time.ts";
+import { isDevMode } from "../environment.ts";
 import { textBold, textWarn } from "../cli/ui.ts";
 
 type UpdateCache = {

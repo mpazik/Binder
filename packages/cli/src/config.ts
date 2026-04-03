@@ -12,7 +12,7 @@ import {
 } from "@binder/utils";
 import type { FileSystem } from "./lib/filesystem.ts";
 import { LOG_LEVELS, type LogLevel } from "./log.ts";
-import { isDevMode } from "./build-time.ts";
+import { isDevMode } from "./environment.ts";
 
 const DEFAULT_AUTHOR = "cli-user";
 export const DEFAULT_DOCS_PATH = isDevMode() ? "docs-dev" : ".";

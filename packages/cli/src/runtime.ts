@@ -33,7 +33,7 @@ import {
   setupKnowledgeGraph,
 } from "./lib/orchestrator.ts";
 import { createLogger, type Logger, type LogLevel } from "./log.ts";
-import { isDevMode } from "./build-time.ts";
+import { isDevMode } from "./environment.ts";
 import {
   createNavigationCache,
   type NavigationLoader,

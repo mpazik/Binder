@@ -18,7 +18,7 @@ import { McpCommand } from "./commands/mcp.ts";
 import { LspCommand } from "./commands/lsp.ts";
 import { LocateCommand } from "./commands/locate.ts";
 import { createUi, logo } from "./cli/ui.ts";
-import { BINDER_VERSION, isDevMode } from "./build-time";
+import { BINDER_VERSION, isDevMode } from "./environment.ts";
 import { LOG_LEVELS } from "./log.ts";
 import { checkForUpdate } from "./lib/update-check.ts";
 import { groupOptions, runWithFormattedHelp } from "./cli/help.ts";

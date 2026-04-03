@@ -11,7 +11,7 @@ import {
   tryCatch,
 } from "@binder/utils";
 import { runtimeWithDb, type CommandHandlerWithDb } from "../runtime.ts";
-import { BINDER_VERSION } from "../build-time.ts";
+import { BINDER_VERSION } from "../environment.ts";
 import { processMcpRequest } from "../mcp";
 import { types } from "../cli/types.ts";
 
