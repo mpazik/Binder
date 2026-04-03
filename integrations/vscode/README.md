@@ -5,7 +5,10 @@
 Language support for Binder workspaces in VS Code.
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/c1b9e21f-1e56-4b9e-967b-17fe6a30ab13" alt="Binder demo" width="720">
+  <video autoplay loop muted playsinline width="720">
+    <source src="https://assets.binder.do/binder-demo.webm" type="video/webm">
+    <source src="https://assets.binder.do/binder-demo.mp4" type="video/mp4">
+  </video>
 </div>
 
 ## Features
