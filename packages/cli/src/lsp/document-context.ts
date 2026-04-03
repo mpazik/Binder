@@ -241,9 +241,13 @@ const buildFrontmatterContext = (
   if (!preamble || preamble.length === 0) return undefined;
 
   const yamlNode = root.children.find((child) => child.type === "yaml");
-  if (!yamlNode || !("value" in yamlNode) || typeof yamlNode.value !== "string")
+  if (
+    !yamlNode ||
+    !("value" in yamlNode) ||
+    typeof yamlNode.value !== "string" ||
+    !yamlNode.position
+  )
     return undefined;
-  if (!yamlNode.position) return undefined;
 
   const parsed = parseYamlDocument(yamlNode.value);
   const lineOffset = yamlNode.position.start.line;
@@ -314,6 +318,7 @@ export const getDocumentContext = async (
     schema,
     uri,
     navigationItem,
+    document.getText(),
   );
   if (isErr(entityContextResult)) return entityContextResult;
 

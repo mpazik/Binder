@@ -45,7 +45,7 @@ describe("entity-context", () => {
     expected: EntityMappings,
   ) => {
     const entityContext = throwIfError(
-      await fetchEntityContext(kg, ctx.db, schema, navItem, filePath),
+      await fetchEntityContext(kg, ctx.db, schema, navItem, filePath, content),
     );
 
     const extracted = throwIfError(
@@ -76,10 +76,7 @@ describe("entity-context", () => {
       });
     });
 
-    // TODO: Add support for recognizing entities by uid in content when path doesn't match.
-    // Currently fetchEntityContext only searches by path fields, so if a document has a uid
-    // that exists in DB but the file path doesn't match, we won't find it.
-    it.skip("resolves matched entity by uid in content", async () => {
+    it("resolves matched entity by uid in content", async () => {
       const content = renderYamlEntity({
         ...pick(mockTask1Record, ["uid"]),
         title: "Different Title",
@@ -161,7 +158,7 @@ describe("entity-context", () => {
       });
     });
 
-    it("use type that comes from the field if specified", async () => {
+    it("uses type from field when specified", async () => {
       const content = renderYamlList([
         pick(mockTask1Record, ["title"]),
         mockProjectRecord,
@@ -175,6 +172,28 @@ describe("entity-context", () => {
           { status: "matched", uid: mockTask2Uid, type: mockTaskTypeKey },
         ],
       });
+    });
+
+    it("does not use content uid fallback for list context", async () => {
+      const navItem: NavigationItem = {
+        path: "tasks/{key}.yaml",
+        query: { filters: { type: mockTaskTypeKey } },
+      };
+      // Content has a uid, but list contexts should ignore it and query by type
+      const content = renderYamlList([{ uid: mockTask1Uid, title: "Task 1" }]);
+      const result = throwIfError(
+        await fetchEntityContext(
+          kg,
+          ctx.db,
+          schema,
+          navItem,
+          "tasks/nonexistent-key.yaml",
+          content,
+        ),
+      );
+      expect(result.kind).toBe("list");
+      // Should return all tasks from the query, not just the one uid in content
+      expect(result.entities.length).toBe(2);
     });
   });
 
@@ -206,6 +225,24 @@ ${task.description}
           uid: mockTask1Uid,
           type: mockTaskTypeKey,
         },
+      });
+    });
+
+    it("resolves matched document entity by uid in content", async () => {
+      const content = `---\nuid: ${mockTask1Uid}\n---\n# Different Title\n`;
+      const result = throwIfError(
+        await fetchEntityContext(
+          kg,
+          ctx.db,
+          schema,
+          navItem,
+          "tasks/nonexistent-key.md",
+          content,
+        ),
+      );
+      expect(result).toEqual({
+        kind: "document",
+        entities: [expect.objectContaining({ uid: mockTask1Uid })],
       });
     });
 

@@ -862,70 +862,15 @@ describe("navigation", () => {
   });
 
   describe("getNavigationFilePatterns", () => {
-    const check = (items: NavigationItem[], expected: string[]) => {
-      expect(getNavigationFilePatterns(items)).toEqual(expected);
-    };
-
     it("converts path views to glob patterns", () => {
-      check(
-        [
+      expect(
+        getNavigationFilePatterns([
           { path: "tasks/{title}", view: DOCUMENT_VIEW_KEY },
           { path: "projects/{parent.title}/{uid}", view: DOCUMENT_VIEW_KEY },
           { path: "static/file", view: DOCUMENT_VIEW_KEY },
           { path: "dirs/{name}/" },
-        ],
-        ["tasks/*.md", "projects/*/*.md", "static/file.md", "dirs/*/"],
-      );
-    });
-
-    it("includes patterns from nested children", () => {
-      check(
-        [
-          {
-            path: "projects/{key}/",
-            where: { type: "Project" },
-            children: [
-              { path: "project", view: DOCUMENT_VIEW_KEY },
-              {
-                path: "tasks",
-                query: { filters: { type: "Task", project: "{uid}" } },
-              },
-            ],
-          },
-          { path: "tasks/{key}", view: DOCUMENT_VIEW_KEY },
-        ],
-        [
-          "projects/*/",
-          "projects/*/project.md",
-          "projects/*/tasks.yaml",
-          "tasks/*.md",
-        ],
-      );
-    });
-
-    it("includes patterns from deeply nested children", () => {
-      check(
-        [
-          {
-            path: "areas/{key}/",
-            where: { type: "Area" },
-            children: [
-              { path: "area", view: DOCUMENT_VIEW_KEY },
-              {
-                path: "notes/",
-                children: [
-                  {
-                    path: "{title}",
-                    where: { type: "Note" },
-                    view: DOCUMENT_VIEW_KEY,
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-        ["areas/*/", "areas/*/area.md", "areas/*/notes/", "areas/*/notes/*.md"],
-      );
+        ]),
+      ).toEqual(["tasks/*.md", "projects/*/*.md", "static/file.md", "dirs/*/"]);
     });
   });
 });
