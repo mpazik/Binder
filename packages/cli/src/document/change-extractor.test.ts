@@ -142,6 +142,93 @@ describe("change-extractor", () => {
     });
   });
 
+  describe("markdown with sub-view relation slot", () => {
+    const projectView = createViewEntity(
+      "project-tasks-view",
+      `# {title}\n\n## Tasks\n\n{tasks|view:__section__}\n\n## Description\n\n{description}\n`,
+    );
+    // resolveAllViewIncludes merges sub-view includes into the relation
+    // field, but only runs inside loadViews. Replicate for ad-hoc views.
+    projectView.viewIncludes = {
+      title: true,
+      tasks: { title: true, description: true },
+      description: true,
+    };
+
+    const projNavItems: NavigationItem[] = [
+      { path: "projects/{key}", view: "project-tasks-view" },
+    ];
+
+    beforeEach(async () => {
+      throwIfError(
+        await kg.update({
+          author: "test",
+          records: [
+            pick(mockTask3Record, [
+              "uid",
+              "type",
+              "title",
+              "description",
+              "project",
+            ]),
+          ],
+        }),
+      );
+    });
+
+    const checkProject = async (
+      content: string,
+      expected: EntityChangesetInput<"record">[],
+    ) => {
+      const filePath = `projects/${mockProjectRecord.key}.md`;
+      const fullPath = join(ctx.config.paths.docs, filePath);
+      throwIfError(await ctx.fs.mkdir(dirname(fullPath), { recursive: true }));
+      throwIfError(await ctx.fs.writeFile(fullPath, content));
+      const result = throwIfError(
+        await extractFileChanges(
+          ctx.fs,
+          kg,
+          ctx.config,
+          projNavItems,
+          mockRecordSchema,
+          filePath,
+          "record",
+          [projectView, ...mockViews],
+        ),
+      );
+      expect(result).toEqual(expected);
+    };
+
+    const projectMarkdown = (
+      description: string,
+    ) => `# ${mockProjectRecord.title}
+
+## Tasks
+
+### ${mockTask2Record.title}
+
+${mockTask2Record.description}
+
+### ${mockTask3Record.title}
+
+${mockTask3Record.description}
+
+## Description
+
+${description}
+`;
+
+    it("produces no mutations when content is unchanged", async () => {
+      await checkProject(projectMarkdown(mockProjectRecord.description), []);
+    });
+
+    it("produces only field change when editing non-relation field", async () => {
+      await checkProject(projectMarkdown("Updated project description"), [
+        { uid: mockProjectUid, description: "Updated project description" },
+      ]);
+    });
+  });
+
   describe("markdown with preamble", () => {
     it("propagates field-conflict when frontmatter and body diverge", async () => {
       const preambleViews = [

@@ -72,7 +72,7 @@ export const omit = <T extends Record<string, any>, K extends keyof T>(
   const result = {} as Omit<T, K>;
   for (const key of Object.keys(obj)) {
     if (!keys.includes(key as K)) {
-      // @ts-ignore
+      // @ts-expect-error — key is known to be in obj but not in K
       result[key] = obj[key];
     }
   }
@@ -84,7 +84,7 @@ export const removeNullish = <T extends Record<string, unknown>>(
 ): { [K in keyof T]: NonNullable<T[K]> } => {
   const result = {} as any;
   for (const [key, value] of Object.entries(obj)) {
-    if (value !== null && value !== undefined) {
+    if (value != null) {
       result[key] = value;
     }
   }
@@ -128,8 +128,9 @@ export const objKeys = <K extends string>(obj: Record<K, unknown>): K[] =>
 export const objEntries = <K extends string, V>(obj: Record<K, V>): [K, V][] =>
   Object.entries(obj) as [K, V][];
 
-// ObjTuple: Single-key object representing a key-value pair { [key]: value }
-// Used for external APIs where YAML ergonomics matter
+// ObjTuple: Single-key object representing a key-value pair { [key]: objectValue }
+// Used for external APIs where YAML ergonomics matter.
+// The value must be a non-null, non-array object.
 // Example: { "user-2": { role: "lead" } } represents ["user-2", { role: "lead" }]
 
 export type ObjTuple<K extends string = string, V = unknown> = {
@@ -138,11 +139,17 @@ export type ObjTuple<K extends string = string, V = unknown> = {
 
 export const isObjTuple = <V = unknown>(
   item: unknown,
-): item is ObjTuple<string, V> =>
-  typeof item === "object" &&
-  item !== null &&
-  !Array.isArray(item) &&
-  Object.keys(item).length === 1;
+): item is ObjTuple<string, V> => {
+  if (typeof item !== "object" || item === null || Array.isArray(item))
+    return false;
+  const values = Object.values(item);
+  return (
+    values.length === 1 &&
+    typeof values[0] === "object" &&
+    values[0] !== null &&
+    !Array.isArray(values[0])
+  );
+};
 
 export const isTuple = <K extends string, V = unknown>(
   item: unknown,
@@ -195,11 +202,8 @@ export const isEqual = (a: unknown, b: unknown): boolean => {
     if (length !== Object.keys(b).length) return false;
     for (i = length; i-- !== 0; )
       if (!Object.prototype.hasOwnProperty.call(b, keys[i])) return false;
-    for (i = length; i-- !== 0; ) {
-      const key = keys[i];
-
-      if (!isEqual((a as any)[key], (b as any)[key])) return false;
-    }
+    for (i = length; i-- !== 0; )
+      if (!isEqual((a as any)[keys[i]], (b as any)[keys[i]])) return false;
     return true;
   }
   // true if both NaN, false otherwise
@@ -210,7 +214,6 @@ export const isObjectEmpty = <K extends string, V>(
   obj?: Record<K, V>,
 ): boolean => !obj || Object.keys(obj).length === 0;
 
-// A separate method for better typing
 export const isObjectNonEmpty = <K extends string, V>(
   obj?: Record<K, V>,
 ): obj is Record<K, V> => !isObjectEmpty(obj);
