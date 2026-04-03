@@ -27,7 +27,10 @@
 > **Data loss is possible.** Do not use for critical data without independent backups.
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/c1b9e21f-1e56-4b9e-967b-17fe6a30ab13" alt="Binder demo" width="720">
+  <video autoplay loop muted playsinline width="720">
+    <source src="https://assets.binder.do/binder-demo.webm" type="video/webm">
+    <source src="https://assets.binder.do/binder-demo.mp4" type="video/mp4">
+  </video>
 </div>
 
 ## Features
@@ -56,7 +59,7 @@
   <tr>
     <td align="center" valign="top" width="50%">
       <img src=".github/assets/screenshots/transactions.png" width="100%"/><br/>
-      <b>Transaction log</b> - every change recorded, auditable, revertible.
+      <b>Transaction log</b> - every change recorded and attributed to its source. Audit history, undo mistakes, replay any past state.
     </td>
     <td align="center" valign="top" width="50%">
       <img src=".github/assets/screenshots/agent.png" width="100%"/><br/>
@@ -69,7 +72,7 @@
 
 - **Templated notes**: tasks, decisions, contacts, meeting notes. Any collection where every file follows the same shape benefits from schema validation, autocomplete, and queryability.
 - **Embedded views**: write an entity once and have it appear in multiple documents. Views pull entity data into milestone pages, project overviews, and weekly summaries automatically.
-- **Human-agent collaboration**: Markdown keeps things readable for people. CLI & MCP give agents a structured interface to **the same structured data**. Every change is recorded: audit what agents wrote, undo mistakes, replay state.
+- **Human-agent collaboration**: Markdown keeps things readable for people. CLI & MCP give agents a structured interface to **the same structured data**. Agents can write unexpected or incorrect data. Binder records every agent action with its source: audit what was written, undo any mistake, replay any past state.
 - **Scripting and automation**: query structured data via CLI or API without parsing Markdown. Changes write back to files automatically. Binder is the storage layer your tooling has been missing.
 - **Persistent agent memory**: agents forget between sessions. Binder gives them typed, queryable memory that persists. Preferences, decisions, and indexed context stay structured, not buried in a chat log.
 
@@ -145,7 +148,7 @@ items:
       - requires: { only: [Task] }
 ```
 
-Every change is recorded as an immutable [**transaction**](docs/concepts/transaction.md), like git commits for your data - full history, undo and redo, and complete replayability.
+Editors, scripts, and agents all write to the same data. When something goes wrong, you need to know what changed and undo it. Binder records every change as an immutable [**transaction**](docs/concepts/transaction.md), attributed to its source. Full history, undo and redo, replay to any past state.
 
 Markdown files are a view over this graph. [**Navigation**](docs/concepts/navigation.md) rules define where each entity lives on disk. Change a field value and Binder moves the file automatically:
 
