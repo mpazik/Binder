@@ -227,6 +227,19 @@ describe("navigation", () => {
       expect(generatedFiles).toEqual(files.map((f) => `${docsPath}/${f.path}`));
     };
 
+    const createRenderCtx = async () => {
+      const views = throwIfError(await loadViews(kg));
+      return {
+        db,
+        kg,
+        fs,
+        paths,
+        namespace: "record" as const,
+        views,
+        log: mockLog,
+      };
+    };
+
     it("renders simple markdown without iteration", async () => {
       await check(
         [{ path: "README", view: "static-view" }],
@@ -314,19 +327,6 @@ describe("navigation", () => {
         ],
       );
     });
-
-    const createRenderCtx = async () => {
-      const views = throwIfError(await loadViews(kg));
-      return {
-        db,
-        kg,
-        fs,
-        paths,
-        namespace: "record" as const,
-        views,
-        log: mockLog,
-      };
-    };
 
     it("returns rendered and modified paths on first render", async () => {
       const ctx = await createRenderCtx();
@@ -659,8 +659,6 @@ describe("navigation", () => {
     });
 
     it("renders all results when count exceeds old default limit of 50", async () => {
-      // This test reproduces the bug: with >50 entities and no explicit limit,
-      // the old default of 50 would silently drop entities past the limit.
       const totalTasks = 55;
       const records = Array.from({ length: totalTasks }, (_, i) => ({
         type: mockTaskTypeKey,
@@ -675,7 +673,6 @@ describe("navigation", () => {
         where: { type: "Task" },
       });
 
-      // 2 existing tasks + 55 new = 57 total
       expect(result.renderedPaths.length).toBe(2 + totalTasks);
     });
 
@@ -865,23 +862,70 @@ describe("navigation", () => {
   });
 
   describe("getNavigationFilePatterns", () => {
+    const check = (items: NavigationItem[], expected: string[]) => {
+      expect(getNavigationFilePatterns(items)).toEqual(expected);
+    };
+
     it("converts path views to glob patterns", () => {
-      const items: NavigationItem[] = [
-        { path: "tasks/{title}", view: DOCUMENT_VIEW_KEY },
-        {
-          path: "projects/{parent.title}/{uid}",
-          view: DOCUMENT_VIEW_KEY,
-        },
-        { path: "static/file", view: DOCUMENT_VIEW_KEY },
-        { path: "dirs/{name}/" },
-      ];
-      const patterns = getNavigationFilePatterns(items);
-      expect(patterns).toEqual([
-        "tasks/*.md",
-        "projects/*/*.md",
-        "static/file.md",
-        "dirs/*/",
-      ]);
+      check(
+        [
+          { path: "tasks/{title}", view: DOCUMENT_VIEW_KEY },
+          { path: "projects/{parent.title}/{uid}", view: DOCUMENT_VIEW_KEY },
+          { path: "static/file", view: DOCUMENT_VIEW_KEY },
+          { path: "dirs/{name}/" },
+        ],
+        ["tasks/*.md", "projects/*/*.md", "static/file.md", "dirs/*/"],
+      );
+    });
+
+    it("includes patterns from nested children", () => {
+      check(
+        [
+          {
+            path: "projects/{key}/",
+            where: { type: "Project" },
+            children: [
+              { path: "project", view: DOCUMENT_VIEW_KEY },
+              {
+                path: "tasks",
+                query: { filters: { type: "Task", project: "{uid}" } },
+              },
+            ],
+          },
+          { path: "tasks/{key}", view: DOCUMENT_VIEW_KEY },
+        ],
+        [
+          "projects/*/",
+          "projects/*/project.md",
+          "projects/*/tasks.yaml",
+          "tasks/*.md",
+        ],
+      );
+    });
+
+    it("includes patterns from deeply nested children", () => {
+      check(
+        [
+          {
+            path: "areas/{key}/",
+            where: { type: "Area" },
+            children: [
+              { path: "area", view: DOCUMENT_VIEW_KEY },
+              {
+                path: "notes/",
+                children: [
+                  {
+                    path: "{title}",
+                    where: { type: "Note" },
+                    view: DOCUMENT_VIEW_KEY,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        ["areas/*/", "areas/*/area.md", "areas/*/notes/", "areas/*/notes/*.md"],
+      );
     });
   });
 });

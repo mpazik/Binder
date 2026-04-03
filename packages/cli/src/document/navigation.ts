@@ -26,6 +26,7 @@ import {
   omit,
   type Result,
   type ResultAsync,
+  resultFallback,
 } from "@binder/utils";
 import type { Logger } from "../log.ts";
 import { sanitizeFilename } from "../utils/file.ts";
@@ -56,6 +57,31 @@ import {
 } from "./view-entity.ts";
 import { prependFrontmatter, renderFrontmatterString } from "./frontmatter.ts";
 
+export type NavigationItem = {
+  path: string;
+  where?: Filters;
+  view?: string;
+  includes?: Includes;
+  query?: QueryParams;
+  limit?: number;
+  children?: NavigationItem[];
+};
+
+const inferFileType = (item: NavigationItem): FileType => {
+  if (item.path.endsWith("/")) return "directory";
+  if (item.view !== undefined) return "markdown";
+  return "yaml";
+};
+
+const getExtension = (fileType: FileType): string => {
+  if (fileType === "markdown") return ".md";
+  if (fileType === "yaml") return ".yaml";
+  return "";
+};
+
+export const getPathPattern = (item: NavigationItem): string =>
+  item.path + getExtension(inferFileType(item));
+
 export type RenderResult = {
   renderedPaths: string[];
   modifiedPaths: string[];
@@ -76,31 +102,6 @@ const appendRenderResult = (
   target.modifiedPaths.push(...next.modifiedPaths);
   target.divergedPaths.push(...next.divergedPaths);
   return target;
-};
-
-const inferFileType = (item: NavigationItem): FileType => {
-  if (item.path.endsWith("/")) return "directory";
-  if (item.view !== undefined) return "markdown";
-  return "yaml";
-};
-
-const getExtension = (fileType: FileType): string => {
-  if (fileType === "markdown") return ".md";
-  if (fileType === "yaml") return ".yaml";
-  return "";
-};
-
-export const getPathPattern = (item: NavigationItem): string =>
-  item.path + getExtension(inferFileType(item));
-
-export type NavigationItem = {
-  path: string;
-  where?: Filters;
-  view?: string;
-  includes?: Includes;
-  query?: QueryParams;
-  limit?: number;
-  children?: NavigationItem[];
 };
 
 const DEFAULT_RENDER_LIMIT = 1_000;
@@ -144,12 +145,36 @@ export const CONFIG_NAVIGATION_ITEMS: NavigationItem[] = [
   },
 ];
 
-export const getNavigationFilePatterns = (items: NavigationItem[]): string[] =>
-  items.map((item) => {
+const getParentDir = (filePath: string, fileType: FileType): string => {
+  if (fileType === "directory") return filePath;
+  const ext = extname(filePath);
+  const withoutExt = ext ? filePath.slice(0, -ext.length) : filePath;
+  return withoutExt + "/";
+};
+
+export const getNavigationFilePatterns = (
+  items: NavigationItem[],
+  prefix = "",
+): string[] => {
+  const patterns: string[] = [];
+  for (const item of items) {
     const pattern = getPathPattern(item);
-    const result = interpolatePlain(pattern, () => ok("*"));
-    return isErr(result) ? pattern : result.data;
-  });
+    const resolvedPattern = resultFallback(
+      interpolatePlain(pattern, () => ok("*")),
+      pattern,
+    );
+    patterns.push(prefix + resolvedPattern);
+
+    if (item.children) {
+      const fileType = inferFileType(item);
+      const parentDir = getParentDir(resolvedPattern, fileType);
+      patterns.push(
+        ...getNavigationFilePatterns(item.children, prefix + parentDir),
+      );
+    }
+  }
+  return patterns;
+};
 
 export const buildNavigationTree = (
   items: FieldsetNested[],
@@ -236,12 +261,7 @@ export const findNavigationItemByPath = (
   }
 };
 
-/**
- * Resolves a navigation item's concrete file path for an entity.
- *
- * Returns `missing-path-field` when any interpolated placeholder resolves to
- * `null` or `undefined` (including ancestral placeholders like `{parent.key}`).
- */
+// Returns `missing-path-field` error when a placeholder (including ancestral ones) is null/undefined.
 export const resolvePath = (
   schema: EntitySchema,
   navItem: NavigationItem,
@@ -255,7 +275,7 @@ export const resolvePath = (
     const { fieldName, depth } = parseAncestralPlaceholder(placeholder);
     const value = entityContext[depth]?.[fieldName];
 
-    if (value === null || value === undefined) {
+    if (value == null) {
       return fail("missing-path-field", "Path field is null or undefined", {
         fieldName,
         depth,
@@ -267,13 +287,6 @@ export const resolvePath = (
       sanitizeFilename(serializeFieldValue(value, schema.fields[fieldName])),
     );
   });
-};
-
-const getParentDir = (filePath: string, fileType: FileType): string => {
-  if (fileType === "directory") return filePath;
-  const ext = extname(filePath);
-  const withoutExt = ext ? filePath.slice(0, -ext.length) : filePath;
-  return withoutExt + "/";
 };
 
 const getExcludedFields = (
@@ -421,11 +434,13 @@ export const renderNavigationItem = async (
     entities = [parentEntities[0] ?? emptyFieldset];
   }
 
-  // Keep key/uid in query includes for path resolution, then strip from output
-  // when the user explicitly provided includes without those fields.
-  // Views control their own output so no stripping is needed there.
-  const stripUid = !item.view && !!item.includes && !item.includes.uid;
-  const stripKey = !item.view && !!item.includes && !item.includes.key;
+  // Key/uid are kept in query includes for path resolution, then stripped from
+  // output when the user provided includes without those fields.
+  // Views control their own output so no stripping is needed.
+  const fieldsToStrip =
+    !item.view && item.includes
+      ? (["uid", "key"] as const).filter((f) => !item.includes![f])
+      : [];
 
   for (const entity of entities) {
     const entityUid = (entity.uid as EntityUid) ?? null;
@@ -455,13 +470,9 @@ export const renderNavigationItem = async (
     }
     const filePath = join(parentPath, resolvedPath.data);
 
-    const omittedFields = [
-      ...(stripUid ? ["uid"] : []),
-      ...(stripKey ? ["key"] : []),
-    ];
     const renderEntity =
-      omittedFields.length > 0
-        ? (omit(entity, omittedFields) as FieldsetNested)
+      fieldsToStrip.length > 0
+        ? (omit(entity, [...fieldsToStrip]) as FieldsetNested)
         : entity;
 
     const renderContentResult = await renderContent(
