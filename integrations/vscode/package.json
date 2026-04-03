@@ -2,7 +2,7 @@
   "name": "binder-vscode",
   "displayName": "Binder",
   "description": "Language support for Binder - Git-inspired knowledge graph for Markdown",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "Binder",
   "license": "MIT",
   "homepage": "https://binder.do",
