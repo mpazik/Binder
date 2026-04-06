@@ -106,57 +106,47 @@ describe("knowledge graph", () => {
         });
       });
 
-      it("fetches record by id", async () => {
-        const result = throwIfError(await kg.fetchEntity(mockTask1Record.id));
+      const checkFetch = async (
+        identifier: Parameters<typeof kg.fetchEntity>[0],
+        expected: Fieldset,
+        includes?: Parameters<typeof kg.fetchEntity>[1],
+        namespace?: Parameters<typeof kg.fetchEntity>[2],
+      ) => {
+        const result = throwIfError(
+          await kg.fetchEntity(identifier, includes, namespace),
+        );
+        expect(result).toEqual(expected);
+      };
 
-        expect(result).toEqual(mockTask1Record);
-      });
+      it("fetches record by id", () =>
+        checkFetch(mockTask1Record.id, mockTask1Record));
 
-      it("fetches record by uid", async () => {
-        const result = throwIfError(await kg.fetchEntity(mockTask1Uid));
+      it("fetches record by uid", () =>
+        checkFetch(mockTask1Uid, mockTask1Record));
 
-        expect(result).toEqual(mockTask1Record);
-      });
-
-      it("fetches record by key", async () => {
-        const result = throwIfError(await kg.fetchEntity(mockTask1Key));
-
-        expect(result).toEqual(mockTask1Record);
-      });
+      it("fetches record by key", () =>
+        checkFetch(mockTask1Key, mockTask1Record));
 
       it("returns error when record doesn't exist", async () => {
-        const result = await kg.fetchEntity(NONEXISTENT_NODE_UID);
-
-        expect(result).toBeErr();
+        expect(await kg.fetchEntity(NONEXISTENT_NODE_UID)).toBeErr();
       });
 
-      it("fetches record with relationship includes - returns uid without expansion", async () => {
-        const result = throwIfError(
-          await kg.fetchEntity(mockTask2Record.uid, {
-            uid: true,
-            project: true,
-          }),
-        );
+      it("returns uid without expansion for relationship includes", () =>
+        checkFetch(
+          mockTask2Record.uid,
+          { uid: mockTask2Record.uid, project: mockProjectRecord.uid },
+          { uid: true, project: true },
+        ));
 
-        expect(result).toEqual({
-          uid: mockTask2Record.uid,
-          project: mockProjectRecord.uid,
-        });
-      });
-
-      it("applies field selection with includes", async () => {
-        const result = throwIfError(
-          await kg.fetchEntity(mockTask2Record.uid, {
-            title: true,
-            project: { includes: { title: true } },
-          }),
-        );
-
-        expect(result).toEqual({
-          title: mockTask2Record.title,
-          project: { title: mockProjectRecord.title },
-        });
-      });
+      it("applies field selection with includes", () =>
+        checkFetch(
+          mockTask2Record.uid,
+          {
+            title: mockTask2Record.title,
+            project: { title: mockProjectRecord.title },
+          },
+          { title: true, project: { includes: { title: true } } },
+        ));
 
       it("applies field selection with two levels of nested includes", async () => {
         await db.transaction(async (tx) => {
@@ -166,8 +156,21 @@ describe("knowledge graph", () => {
           });
         });
 
-        const result = throwIfError(
-          await kg.fetchEntity(mockProjectRecord.uid, {
+        await checkFetch(
+          mockProjectRecord.uid,
+          {
+            title: mockProjectRecord.title,
+            tasks: [
+              {
+                title: mockTask2Record.title,
+                assignedTo: {
+                  uid: mockUserRecord.uid,
+                  name: mockUserRecord.name,
+                },
+              },
+            ],
+          },
+          {
             title: true,
             tasks: {
               filters: { uid: mockTask2Record.uid },
@@ -176,47 +179,24 @@ describe("knowledge graph", () => {
                 assignedTo: { uid: true, name: true },
               },
             },
-          }),
+          },
         );
-
-        expect(result).toEqual({
-          title: mockProjectRecord.title,
-          tasks: [
-            {
-              title: mockTask2Record.title,
-              assignedTo: {
-                uid: mockUserRecord.uid,
-                name: mockUserRecord.name,
-              },
-            },
-          ],
-        });
       });
 
-      it("fetches config by uid", async () => {
-        const result = throwIfError(
-          await kg.fetchEntity(mockTaskType.uid, undefined, "config"),
-        );
+      it("fetches config by uid", () =>
+        checkFetch(mockTaskType.uid, mockTaskType, undefined, "config"));
 
-        expect(result).toEqual(mockTaskType);
-      });
-
-      it("fetches config by key", async () => {
-        const result = throwIfError(
-          await kg.fetchEntity(mockTaskTypeKey as any, undefined, "config"),
-        );
-
-        expect(result).toEqual(mockTaskType);
-      });
+      it("fetches config by key", () =>
+        checkFetch(mockTaskTypeKey as any, mockTaskType, undefined, "config"));
 
       it("returns error when config doesn't exist", async () => {
-        const result = await kg.fetchEntity(
-          NONEXISTENT_NODE_UID as ConfigUid,
-          undefined,
-          "config",
-        );
-
-        expect(result).toBeErr();
+        expect(
+          await kg.fetchEntity(
+            NONEXISTENT_NODE_UID as ConfigUid,
+            undefined,
+            "config",
+          ),
+        ).toBeErr();
       });
     });
 
@@ -288,6 +268,22 @@ describe("knowledge graph", () => {
           mockTask3Record,
         ]));
 
+      it("filters by $text across text fields", () =>
+        checkSearch({ filters: { $text: "authentication" } }, [
+          mockTask1Record,
+        ]));
+
+      it("combines $text with regular filters", () =>
+        checkSearch({ filters: { $text: "schema", type: "Task" } }, [
+          mockTask2Record,
+        ]));
+
+      it("rejects filters with invalid field names", async () => {
+        expect(
+          await kg.search({ filters: { InvalidField: "value" } }),
+        ).toBeErrWithKey("invalid_filter_field");
+      });
+
       it("returns error when relation filter key does not resolve", async () => {
         const result = await kg.search({
           filters: { type: "Task", project: "missing-project" },
@@ -302,46 +298,20 @@ describe("knowledge graph", () => {
 
       it("respects pagination limit", async () => {
         const result = throwIfError(
-          await kg.search({
-            pagination: { limit: 2 },
-          }),
+          await kg.search({ pagination: { limit: 2 } }),
         );
 
         expect(result.items).toEqual([mockTask1Record, mockProjectRecord]);
         expect(result.pagination).toMatchObject({ hasNext: true });
       });
 
-      it("rejects filters with invalid field names", async () => {
-        const result = await kg.search({
-          filters: { InvalidField: "value" },
-        });
-        expect(result).toBeErrWithKey("invalid_filter_field");
-      });
-
-      it("filters by $text across text fields", async () => {
-        // "authentication" appears in mockTask1Record title/description
-        const result = throwIfError(
-          await kg.search({ filters: { $text: "authentication" } }),
-        );
-        expect(result.items).toEqual([mockTask1Record]);
-      });
-
-      it("combines $text with regular filters", async () => {
-        // "schema" appears in mockTask2Record description, filter to Tasks
-        const result = throwIfError(
-          await kg.search({
-            filters: { $text: "schema", type: "Task" },
-          }),
-        );
-        expect(result.items).toEqual([mockTask2Record]);
-      });
-
       it("searches config namespace when specified", async () => {
         const result = throwIfError(
           await kg.search({ filters: { type: "Type" } }, "config"),
         );
-        const types = Object.keys(mockRecordSchemaRaw.types);
-        expect(result.items.map((it) => it.key)).toEqual(types);
+        expect(result.items.map((it) => it.key)).toEqual(
+          Object.keys(mockRecordSchemaRaw.types),
+        );
       });
 
       it("returns relation uid without expansion when includes is true", () =>
@@ -534,6 +504,46 @@ describe("knowledge graph", () => {
             },
             [{ [mockRelatedToFieldKey]: [] }],
           ));
+
+        it("resolves stored forward links on the declaring entity", () =>
+          checkSearch(
+            {
+              filters: { uid: mockTask2Uid },
+              includes: { [mockRelatedToFieldKey]: { uid: true, title: true } },
+            },
+            [
+              {
+                [mockRelatedToFieldKey]: [
+                  { uid: mockTask1Record.uid, title: mockTask1Record.title },
+                ],
+              },
+            ],
+          ));
+
+        it("merges forward and inverse links for self-inverse M:M", async () => {
+          // task2 -> task1 (forward, from beforeEach)
+          // now also task3 -> task2 (so task2 has both forward and inverse)
+          await db.transaction(async (tx) => {
+            await updateEntity(tx, "record", mockTask3Record.uid, {
+              [mockRelatedToFieldKey]: [mockTask2Uid],
+            });
+          });
+
+          await checkSearch(
+            {
+              filters: { uid: mockTask2Uid },
+              includes: { [mockRelatedToFieldKey]: { uid: true, title: true } },
+            },
+            [
+              {
+                [mockRelatedToFieldKey]: expect.arrayContaining([
+                  { uid: mockTask1Record.uid, title: mockTask1Record.title },
+                  { uid: mockTask3Record.uid, title: mockTask3Record.title },
+                ]),
+              },
+            ],
+          );
+        });
       });
     });
 
