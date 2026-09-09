@@ -1,5 +1,6 @@
 ---
 name: binder-import
+disable-model-invocation: true
 description: Import external data into a Binder workspace. Handles CSV, JSON, YAML, Markdown files, and directories of Markdown. Use when asked to "import data", "load records from a file", "ingest documents", "migrate data into binder", or bulk-create records from an external source.
 ---
 

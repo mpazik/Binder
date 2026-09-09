@@ -1,5 +1,6 @@
 ---
 name: binder-modeling
+disable-model-invocation: true
 description: Binder data modeling — define entity types, fields, relations, constraints, views, and navigation. Use when asked to "create a type", "add a field", "define a schema", "set up relations", "model entities", "create a view", "set up navigation", "render entities as files", or design a binder workspace schema.
 ---
 
