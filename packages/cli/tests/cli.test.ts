@@ -67,6 +67,25 @@ describe("CLI", () => {
   });
 
   describe("search", () => {
+    it("groups equality predicates in one argument", async () => {
+      await check(
+        ["search", "type=Task status=active", "--format", "json"],
+        (stdout) => {
+          const { items } = JSON.parse(stdout);
+          expect(items.map((item: { key: string }) => item.key)).toEqual([
+            "task-create-api",
+          ]);
+        },
+      );
+    });
+
+    it("rejects unterminated inner quotes", async () => {
+      await checkError(
+        ["search", 'type=Task title="unfinished'],
+        "Unterminated quoted filter value",
+      );
+    });
+
     it("filters and plain text queries", async () => {
       await check(
         ["search", "type=Task", "status=active", "--format", "tsv"],

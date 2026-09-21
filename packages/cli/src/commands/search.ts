@@ -24,6 +24,7 @@ import { type SerializeFormat, flatListFormats } from "../utils/serialize.ts";
 import { applySelection } from "../utils/selection.ts";
 import { isStdinPiped, readStdinAs } from "../cli/stdin.ts";
 import { formatNamespaceReferencesList } from "../lib/reference.ts";
+import { tokenizeSearchQuery } from "../cli/search-query.ts";
 
 const searchHandler: CommandHandlerReadonly<{
   query: string[];
@@ -58,8 +59,10 @@ const searchHandler: CommandHandlerReadonly<{
       },
     };
   } else {
+    const tokens = tokenizeSearchQuery(args.query);
+    if (isErr(tokens)) return tokens;
     query = {
-      filters: parseSerialFilters(args.query),
+      filters: parseSerialFilters(tokens.data),
       includes: args.fields,
       orderBy: args.orderBy,
     };
@@ -95,7 +98,8 @@ export const SearchCommand = types({
   builder: (yargs: Argv) =>
     yargs
       .positional("query", {
-        describe: "search query (plain strings or key=value pairs)",
+        describe:
+          "plain text or grouped predicates (e.g. 'type=Task status=active'); quote literal values inside the argument: title=\"Discuss score>=3\"",
         type: "string",
         array: true,
         default: [],
