@@ -7,7 +7,10 @@ import {
 } from "./schema";
 import type { DbTransaction } from "./db.ts";
 import { resolveEntityRefs } from "./entity-store.ts";
+import { RangeFilterSchema } from "./model/query.ts";
+import { periodFormats } from "./model/period-format.ts";
 import type {
+  RangeFilter,
   ComplexFilter,
   EntityRef,
   EntitySchema,
@@ -28,16 +31,68 @@ export const isComplexFilter = (filter: Filter): filter is ComplexFilter =>
   "op" in filter &&
   "value" in filter;
 
-type NormalizedFilter = ComplexFilter | string | number | boolean;
+type RangeEndpoint = {
+  value: number | string;
+  inclusive: boolean;
+};
+type NormalizedRangeFilter = {
+  op: "range";
+  value: [RangeEndpoint, RangeEndpoint];
+};
+type NormalizedComplexFilter =
+  | Exclude<ComplexFilter, RangeFilter>
+  | NormalizedRangeFilter;
+type NormalizedFilter = NormalizedComplexFilter | string | number | boolean;
 
-export const normalizeFilter = (filter: Filter): NormalizedFilter =>
-  Array.isArray(filter)
-    ? { op: "in", value: filter }
-    : (filter as NormalizedFilter);
+const normalizeEndpoint = (
+  endpoint: RangeFilter["value"][number],
+): RangeEndpoint =>
+  typeof endpoint === "object"
+    ? endpoint
+    : { value: endpoint, inclusive: true };
+
+export const normalizeFilter = (filter: Filter): NormalizedFilter => {
+  if (Array.isArray(filter)) return { op: "in", value: filter };
+  if (isComplexFilter(filter) && filter.op === "range") {
+    return {
+      op: "range",
+      value: [
+        normalizeEndpoint(filter.value[0]),
+        normalizeEndpoint(filter.value[1]),
+      ],
+    };
+  }
+  return filter;
+};
 
 const isComplexNormalized = (
   filter: NormalizedFilter,
-): filter is ComplexFilter => typeof filter === "object" && filter !== null;
+): filter is NormalizedComplexFilter =>
+  typeof filter === "object" && filter !== null;
+
+const rangeMatchesField = (
+  filter: RangeFilter,
+  field: FieldDef | undefined,
+): boolean => {
+  if (!field || field.allowMultiple) return false;
+  const lower = normalizeEndpoint(filter.value[0]).value;
+  if (field.dataType === "period") {
+    const format = periodFormats[field.periodFormat ?? "day"];
+    return filter.value.every((endpoint) => {
+      const value = normalizeEndpoint(endpoint).value;
+      return typeof value === "string" && !format.validate(value, {});
+    });
+  }
+  if (typeof lower === "number")
+    return (
+      field.dataType === "integer" ||
+      field.dataType === "decimal" ||
+      field.dataType === "seqId"
+    );
+  return field.dataType === "date"
+    ? lower.length === 10
+    : field.dataType === "datetime" && lower.length === 24;
+};
 
 const matchesNormalizedFilter = (
   filter: NormalizedFilter,
@@ -50,6 +105,18 @@ const matchesNormalizedFilter = (
   const { op, value: filterValue } = filter;
 
   switch (op) {
+    case "range": {
+      const [lower, upper] = filterValue;
+      if (
+        (typeof value !== "number" && typeof value !== "string") ||
+        typeof value !== typeof lower.value
+      )
+        return false;
+      return (
+        (lower.inclusive ? value >= lower.value : value > lower.value) &&
+        (upper.inclusive ? value <= upper.value : value < upper.value)
+      );
+    }
     case "eq":
       return value === filterValue;
     case "not":
@@ -165,6 +232,13 @@ export const matchesFilters = (
         return false;
       continue;
     }
+    if (
+      schema &&
+      isComplexFilter(filter) &&
+      filter.op === "range" &&
+      !rangeMatchesField(filter, schema.fields[fieldKey])
+    )
+      return false;
     if (!matchesFilter(filter, entity[fieldKey])) return false;
   }
   return true;
@@ -199,6 +273,33 @@ const buildFilterCondition = (
   const { op, value } = normalized;
 
   switch (op) {
+    case "range": {
+      if (
+        !isComplexFilter(filter) ||
+        filter.op !== "range" ||
+        !rangeMatchesField(filter, fieldDef)
+      )
+        return sql`0`;
+      const [lower, upper] = value;
+      // json_extract exposes JSON booleans as integers. Check the JSON type,
+      // not just SQLite's storage class, to avoid treating true as numeric 1.
+      const typeSql = includes(tableStoredFields, fieldKey)
+        ? sql`typeof(${fieldSql})`
+        : sql`json_type(${table.fields}, ${`$.${fieldKey}`})`;
+      const typeCondition =
+        typeof lower.value === "number"
+          ? sql`${typeSql} IN ('integer', 'real')`
+          : sql`${typeSql} = 'text'`;
+      return and(
+        typeCondition,
+        lower.inclusive
+          ? sql`${fieldSql} >= ${lower.value}`
+          : sql`${fieldSql} > ${lower.value}`,
+        upper.inclusive
+          ? sql`${fieldSql} <= ${upper.value}`
+          : sql`${fieldSql} < ${upper.value}`,
+      );
+    }
     case "eq":
       if (isMultiValue) {
         return sql`EXISTS (SELECT 1 FROM json_each(${fieldSql}) WHERE value = ${value})`;
@@ -333,7 +434,7 @@ const normalizeRelationFilter = (
     return filter.map(resolveFilterValue) as (string | number)[];
 
   if (typeof filter !== "object" || filter === null) return filter;
-  if (!relationFilterOps.has(filter.op)) return filter;
+  if (filter.op === "range" || !relationFilterOps.has(filter.op)) return filter;
 
   if (
     (filter.op === "in" || filter.op === "notIn") &&
@@ -352,12 +453,24 @@ const normalizeRelationFilter = (
   return filter;
 };
 
-export const normalizeRelationFilters = async (
+export const normalizeFilters = async (
   tx: DbTransaction,
   namespace: NamespaceEditable,
   filters: Filters,
   schema: EntitySchema,
 ): ResultAsync<Filters> => {
+  for (const [fieldKey, filter] of Object.entries(filters)) {
+    if (!isComplexFilter(filter) || filter.op !== "range") continue;
+    if (
+      !RangeFilterSchema.safeParse(filter).success ||
+      !rangeMatchesField(filter, schema.fields[fieldKey])
+    ) {
+      return fail(
+        "invalid-filter-value",
+        `Filter field '${fieldKey}': range requires two matching numeric, date, datetime, or period endpoints and a scalar field of that datatype and period format`,
+      );
+    }
+  }
   if (namespace !== "record") return ok(filters);
 
   const refsWithField: { ref: EntityRef; fieldKey: string }[] = [];

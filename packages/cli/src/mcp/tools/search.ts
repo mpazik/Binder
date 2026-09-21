@@ -13,11 +13,12 @@ export const searchTool = defineTool({
 Use the 'schema' tool to see all available types and fields.`,
   parameters: z.object({
     filters: FiltersSchema.optional().describe(
-      `Filters to apply to the search. Each key is a field name, and the value can be a simple value (string, number, boolean) or a complex filter object with 'op' and 'value' properties. Supported operators: eq, not, in, notIn, contains, notContains, match, lt, lte, gt, gte, empty
+      `Filters to apply to the search. Each key is a field name, and the value can be a simple value (string, number, boolean) or a complex filter object with 'op' and 'value' properties. Supported operators: eq, not, in, notIn, contains, notContains, match, lt, lte, gt, gte, range, empty
       
 Filter examples:
 - By type: { "type": "Task" }
 - Complex filter: { "priority": { "op": "gte", "value": 5 }, "status": "done" }
+- Range: { "weekPeriod": { "op": "range", "value": ["2026-W32", "2026-W37"] } }. Exactly two endpoints on a scalar numeric, date, datetime, or period field. Endpoints must match the field datatype and period format. Scalars are inclusive; use { "value": 9, "inclusive": false } for an exclusive endpoint.
       `,
     ),
     limit: z

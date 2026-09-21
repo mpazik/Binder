@@ -130,7 +130,7 @@ const getMandatoryFields = (
     if (!attrs?.required) continue;
     const fieldKey = getTypeFieldKey(fieldRef) as FieldKey;
     const fieldDef = schema.fields[fieldKey];
-    if (fieldDef?.when && !matchesFilters(fieldDef.when, entityValues))
+    if (fieldDef?.when && !matchesFilters(fieldDef.when, entityValues, schema))
       continue;
     mandatoryFields.push(fieldKey);
   }
@@ -171,7 +171,7 @@ const validateConditionalMandatoryFields = (
     const fieldDef = schema.fields[fieldKey];
     if (!fieldDef?.when) continue;
 
-    if (!matchesFilters(fieldDef.when, mergedValues)) continue;
+    if (!matchesFilters(fieldDef.when, mergedValues, schema)) continue;
 
     if (mergedValues[fieldKey] != null) continue;
     if (inputKeys.includes(fieldKey)) continue;
@@ -1539,7 +1539,10 @@ const buildChangeset = async <N extends NamespaceEditable>(
       const fieldDef = schema.fields[fieldKey];
       if (fieldDef?.default !== undefined) {
         // TODO: later this should be a function
-        if (fieldDef.when && !matchesFilters(fieldDef.when, input as Fieldset))
+        if (
+          fieldDef.when &&
+          !matchesFilters(fieldDef.when, input as Fieldset, schema)
+        )
           continue;
         fieldsWithDefaults[fieldKey] = fieldDef.default as FieldValue;
       }

@@ -3,7 +3,7 @@ import { fail, isErr, ok, parseJson, type Result } from "@binder/utils";
 // Recognize serial predicate boundaries only; the repo still interprets each token.
 // The capture identifies operators that take no value.
 const predicatePrefix =
-  /^(?:\$text=|[A-Za-z][A-Za-z0-9_-]*(?:!=|>=?|<=?|=|:(?:notContains|contains|notIn|in|match)=|(:notEmpty|:empty)(?=\s|$)))/;
+  /^(?:\$text=|[A-Za-z][A-Za-z0-9_-]*(?:!=|>=?|<=?|=|:(?:notContains|contains|notIn|in|match|range)=|(:notEmpty|:empty)(?=\s|$)))/;
 
 /** Split argv predicates, leaving spaces in values unless a valid predicate follows. */
 export const tokenizeSearchQuery = (parts: string[]): Result<string[]> => {

@@ -330,6 +330,31 @@ describe("knowledge graph", () => {
         expect(result.pagination).toMatchObject({ hasNext: false });
       });
 
+      it("filters numeric identities by an inclusive range", () =>
+        checkSearch({ filters: { id: { op: "range", value: [3, 4] } } }, [
+          mockTask2Record,
+          mockTask3Record,
+        ]));
+
+      it("combines a range with other fields", () =>
+        checkSearch(
+          {
+            filters: {
+              type: "Task",
+              id: { op: "range", value: [2, { value: 4, inclusive: false }] },
+            },
+          },
+          [mockTask2Record],
+        ));
+
+      it("rejects numeric range endpoints for a date field", async () => {
+        expect(
+          await kg.search({
+            filters: { dueDate: { op: "range", value: [3, 9] } },
+          }),
+        ).toBeErrWithKey("invalid-filter-value");
+      });
+
       it("filters by type", () =>
         checkSearch({ filters: { type: "Task" } }, [
           mockTask1Record,
@@ -449,6 +474,24 @@ describe("knowledge graph", () => {
               ],
             },
           ],
+        ));
+
+      it("applies a numeric range inside a filters-only include", () =>
+        checkSearch(
+          {
+            filters: { type: "Project" },
+            includes: {
+              [mockTasksFieldKey]: {
+                filters: {
+                  id: {
+                    op: "range",
+                    value: [3, { value: 4, inclusive: false }],
+                  },
+                },
+              },
+            },
+          },
+          [{ [mockTasksFieldKey]: [mockTask2Uid] }],
         ));
 
       it("collapses filters-only include on inverse relation to filtered uids", () =>

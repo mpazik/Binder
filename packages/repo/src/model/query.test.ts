@@ -1,11 +1,144 @@
 import { describe, it, expect } from "bun:test";
+import { z } from "zod";
 import type { FieldsetNested } from "./field.ts";
 import {
   type Includes,
+  FiltersSchema,
+  QueryParamsSchema,
+  RangeFilterSchema,
+  type QueryParams,
+  type RangeFilter,
   includesWithUid,
   mergeIncludes,
   pickByIncludes,
 } from "./query.ts";
+
+describe("structured range schema", () => {
+  const accepts = (value: unknown): boolean =>
+    RangeFilterSchema.safeParse({ op: "range", value }).success;
+
+  it("accepts scalar shorthand and explicit endpoints through query schemas", () => {
+    const query: QueryParams = {
+      filters: {
+        score: { op: "range", value: [3, { value: 9, inclusive: false }] },
+      },
+    };
+    expect(QueryParamsSchema.parse(query)).toEqual(query);
+  });
+  it("accepts two explicit endpoints", () => {
+    expect(
+      accepts([
+        { value: 3, inclusive: false },
+        { value: 9, inclusive: true },
+      ]),
+    ).toBe(true);
+  });
+  it("accepts ISO dates", () => {
+    expect(accepts(["2026-01-01", "2026-12-31"])).toBe(true);
+  });
+  it("accepts canonical UTC timestamps", () => {
+    expect(
+      accepts(["2026-01-01T00:00:00.000Z", "2026-12-31T23:59:59.999Z"]),
+    ).toBe(true);
+  });
+  it("accepts week periods across a year boundary", () => {
+    expect(accepts(["2025-W52", "2026-W02"])).toBe(true);
+  });
+  it("accepts month periods", () => {
+    expect(accepts(["2026-01", "2026-09"])).toBe(true);
+  });
+  it("accepts quarter periods", () => {
+    expect(accepts(["2025-Q4", "2026-Q2"])).toBe(true);
+  });
+  it("accepts year periods as strings", () => {
+    expect(accepts(["2024", "2026"])).toBe(true);
+  });
+  it("rejects mixed period granularities", () => {
+    expect(accepts(["2026-W01", "2026-09"])).toBe(false);
+  });
+  it("rejects out-of-format period labels", () => {
+    expect([
+      accepts(["2026-W00", "2026-W54"]),
+      accepts(["2026-00", "2026-13"]),
+      accepts(["2026-Q0", "2026-Q5"]),
+    ]).toEqual([false, false, false]);
+  });
+  it("rejects arbitrary text", () => {
+    expect(accepts(["a", "z"])).toBe(false);
+  });
+  it("requires exactly two endpoints", () => {
+    expect([accepts([]), accepts([3]), accepts([3, 9, 12])]).toEqual([
+      false,
+      false,
+      false,
+    ]);
+  });
+  it("rejects mixed endpoint categories", () => {
+    expect([
+      accepts([3, "2026-01-01"]),
+      accepts(["2026-01-01", "2026-01-01T00:00:00.000Z"]),
+    ]).toEqual([false, false]);
+  });
+  it("requires both explicit endpoint properties and rejects extras", () => {
+    expect([
+      accepts([{ value: 3 }, 9]),
+      accepts([{ inclusive: true }, 9]),
+      accepts([{ value: 3, inclusive: true, extra: 1 }, 9]),
+    ]).toEqual([false, false, false]);
+  });
+  it("rejects null, boolean, and non-finite endpoints", () => {
+    expect([
+      accepts([null, 9]),
+      accepts([true, false]),
+      accepts([3, Infinity]),
+      accepts([NaN, 9]),
+    ]).toEqual([false, false, false, false]);
+  });
+  it("rejects impossible calendar dates and noncanonical timestamps", () => {
+    expect([
+      accepts(["2026-02-30", "2026-03-01"]),
+      accepts(["2026-01-01T00:00:00+02:00", "2026-01-02T00:00:00+02:00"]),
+    ]).toEqual([false, false]);
+  });
+  it("accepts reversed endpoints without swapping them", () => {
+    expect(RangeFilterSchema.parse({ op: "range", value: [9, 3] })).toEqual({
+      op: "range",
+      value: [9, 3],
+    });
+  });
+  it("keeps endpoint objects exclusive to range", () => {
+    expect(
+      FiltersSchema.safeParse({
+        score: { op: "in", value: [3, { value: 9, inclusive: false }] },
+      }).success,
+    ).toBe(false);
+  });
+  it("rejects parameters outside value", () => {
+    expect(
+      RangeFilterSchema.safeParse({
+        op: "range",
+        value: [3, 9],
+        inclusive: false,
+      }).success,
+    ).toBe(false);
+  });
+  it("retains ordinary comparison filters", () => {
+    expect(FiltersSchema.parse({ score: { op: "gte", value: 3 } })).toEqual({
+      score: { op: "gte", value: 3 },
+    });
+  });
+  it("supports JSON Schema generation without opaque transforms", () => {
+    expect(z.toJSONSchema(RangeFilterSchema).type).toBe("object");
+  });
+  it("requires branded dates in TypeScript, not raw strings", () => {
+    const filter: RangeFilter = {
+      op: "range",
+      // @ts-expect-error Unvalidated strings are not branded date endpoints.
+      value: ["2026-01-01", "2026-12-31"],
+    };
+    expect(RangeFilterSchema.safeParse(filter).success).toBe(true);
+  });
+});
 
 describe("query", () => {
   describe("includesWithUid", () => {

@@ -1,10 +1,16 @@
-import { mapObjectValues } from "@binder/utils";
+import {
+  mapObjectValues,
+  type CalendarInterval,
+  type IsoDate,
+  type IsoTimestamp,
+} from "@binder/utils";
 import { z } from "zod";
 import {
   isFieldsetNested,
   type FieldNestedValue,
   type FieldsetNested,
 } from "./field.ts";
+import { PERIOD_FORMAT_PATTERNS } from "./period-format.ts";
 
 const FilterOperatorSchema = z.enum([
   "eq",
@@ -18,6 +24,7 @@ const FilterOperatorSchema = z.enum([
   "lte",
   "gt",
   "gte",
+  "range",
   "empty",
 ]);
 export type FilterOperator = z.infer<typeof FilterOperatorSchema>;
@@ -33,10 +40,48 @@ export type FilterValue = z.infer<typeof FilterValueSchema>;
 const SimpleFilterSchema = FilterValueSchema;
 export type SimpleFilter = z.infer<typeof SimpleFilterSchema>;
 
-const ComplexFilterSchema = z.object({
-  op: FilterOperatorSchema,
-  value: FilterValueSchema,
+// Brands have no wire representation. These schemas validate the string before
+// exposing the existing domain brand, without transforms that break JSON Schema.
+const RangeDateSchema = z.iso.date() as unknown as z.ZodType<IsoDate, string>;
+const RangeTimestampSchema = z.iso.datetime({
+  precision: 3,
+}) as unknown as z.ZodType<IsoTimestamp, string>;
+
+const rangeEndpoints = <T extends z.ZodType>(scalar: T) => {
+  const endpoint = z.union([
+    scalar,
+    z.strictObject({ value: scalar, inclusive: z.boolean() }),
+  ]);
+  return z.tuple([endpoint, endpoint]);
+};
+
+const rangePeriod = (format: "week" | "month" | "quarter" | "year") =>
+  z.string().regex(PERIOD_FORMAT_PATTERNS[format]) as unknown as z.ZodType<
+    CalendarInterval,
+    string
+  >;
+
+export const RangeFilterSchema = z.strictObject({
+  op: z.literal("range"),
+  value: z.union([
+    rangeEndpoints(z.number()),
+    rangeEndpoints(RangeDateSchema),
+    rangeEndpoints(RangeTimestampSchema),
+    rangeEndpoints(rangePeriod("week")),
+    rangeEndpoints(rangePeriod("month")),
+    rangeEndpoints(rangePeriod("quarter")),
+    rangeEndpoints(rangePeriod("year")),
+  ]),
 });
+export type RangeFilter = z.infer<typeof RangeFilterSchema>;
+
+const ComplexFilterSchema = z.union([
+  z.object({
+    op: FilterOperatorSchema.exclude(["range"]),
+    value: FilterValueSchema,
+  }),
+  RangeFilterSchema,
+]);
 export type ComplexFilter = z.infer<typeof ComplexFilterSchema>;
 
 const FilterSchema = z.union([SimpleFilterSchema, ComplexFilterSchema]);

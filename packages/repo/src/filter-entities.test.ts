@@ -1,10 +1,250 @@
 import { describe, expect, it } from "bun:test";
+import { throwIfError } from "@binder/utils";
+import "@binder/utils/tests";
+import { openDb } from "./db.ts";
+import { recordTable } from "./schema.ts";
+import {
+  FiltersSchema,
+  type FieldValue,
+  type Filters,
+  type EntitySchema,
+  type FieldDef,
+  type EntityKey,
+  type PeriodFormat,
+} from "./model";
 import {
   matchesFilter,
   matchesFilters,
   getSearchableFields,
+  buildWhereClause,
+  normalizeFilters,
 } from "./filter-entities.ts";
 import { mockRecordSchema } from "./model/schema.mock.ts";
+
+describe("range SQL and in-memory evaluation", () => {
+  const periodField = (key: string, periodFormat?: PeriodFormat): FieldDef => ({
+    ...mockRecordSchema.fields.dueDate!,
+    key: key as EntityKey,
+    dataType: "period",
+    periodFormat,
+  });
+  const periodSchema: EntitySchema = {
+    ...mockRecordSchema,
+    fields: {
+      ...mockRecordSchema.fields,
+      weekPeriod: periodField("weekPeriod", "week"),
+      monthPeriod: periodField("monthPeriod", "month"),
+      quarterPeriod: periodField("quarterPeriod", "quarter"),
+      yearPeriod: periodField("yearPeriod", "year"),
+      dayPeriod: periodField("dayPeriod"),
+    },
+  };
+  const checkRange = (
+    field: string,
+    value: unknown,
+    candidates: (FieldValue | undefined)[],
+    expected: number[],
+    schema: EntitySchema = mockRecordSchema,
+  ): void => {
+    const filters = FiltersSchema.parse({ [field]: { op: "range", value } });
+    const db = throwIfError(openDb({ memory: true }));
+    using sqlite = db.$client;
+    const insert = sqlite.query(
+      "INSERT INTO records (id, uid, type, fields) VALUES (?, ?, 'Task', ?)",
+    );
+    candidates.forEach((candidate, index) => {
+      insert.run(
+        index + 1,
+        `range-${index}`,
+        JSON.stringify({ [field]: candidate }),
+      );
+    });
+    const rows = db
+      .select({ id: recordTable.id })
+      .from(recordTable)
+      .where(buildWhereClause(recordTable, filters, schema))
+      .orderBy(recordTable.id)
+      .all();
+    const memory = candidates.flatMap((candidate, index) =>
+      matchesFilters(
+        filters,
+        candidate === undefined ? {} : { [field]: candidate },
+        schema,
+      )
+        ? [index + 1]
+        : [],
+    );
+    expect({ sql: rows.map((row) => Number(row.id)), memory }).toEqual({
+      sql: expected,
+      memory: expected,
+    });
+  };
+
+  const checkInvalidField = async (
+    filters: Filters,
+    schema: EntitySchema = mockRecordSchema,
+  ): Promise<void> => {
+    const db = throwIfError(openDb({ memory: true }));
+    using _sqlite = db.$client;
+    const result = await db.transaction((tx) =>
+      normalizeFilters(tx, "record", filters, schema),
+    );
+    expect(result).toBeErrWithKey("invalid-filter-value");
+  };
+
+  it("includes both numeric boundaries by default", () =>
+    checkRange("price", [3, 9], [2, 3, 5, 9, 10], [2, 3, 4]));
+  it("supports an exclusive upper endpoint", () =>
+    checkRange(
+      "price",
+      [3, { value: 9, inclusive: false }],
+      [2, 3, 5, 9, 10],
+      [2, 3],
+    ));
+  it("supports an exclusive lower endpoint", () =>
+    checkRange(
+      "price",
+      [{ value: 3, inclusive: false }, 9],
+      [3, 5, 9],
+      [2, 3],
+    ));
+  it("supports two exclusive endpoints", () =>
+    checkRange(
+      "price",
+      [
+        { value: 3, inclusive: false },
+        { value: 9, inclusive: false },
+      ],
+      [3, 5, 9],
+      [2],
+    ));
+  it("matches a singleton only when both endpoints are inclusive", () =>
+    checkRange("price", [3, 3], [2, 3, 4], [2]));
+  it("matches nothing for equal endpoints with either boundary excluded", () =>
+    checkRange("price", [3, { value: 3, inclusive: false }], [2, 3, 4], []));
+  it("matches nothing for reversed bounds", () =>
+    checkRange("price", [9, 3], [2, 3, 5, 9, 10], []));
+  it("does not coerce text, booleans, null, missing values, or lists to numbers", () =>
+    checkRange(
+      "price",
+      [0, 9],
+      [false, true, "5", null, undefined, [5, 7], 5],
+      [7],
+    ));
+  it("supports fractional and negative numeric endpoints", () =>
+    checkRange("price", [-1.5, 2.5], [-2, -1.5, 0, 2.5, 3], [2, 3, 4]));
+  it("compares ISO dates chronologically", () =>
+    checkRange(
+      "dueDate",
+      ["2026-01-01", { value: "2026-02-01", inclusive: false }],
+      ["2025-12-31", "2026-01-01", "2026-01-15", "2026-02-01", null],
+      [2, 3],
+    ));
+  it("compares canonical UTC timestamps at millisecond precision", () =>
+    checkRange(
+      "completedAt",
+      ["2026-01-01T00:00:00.001Z", "2026-01-01T00:00:00.002Z"],
+      [
+        "2026-01-01T00:00:00.000Z",
+        "2026-01-01T00:00:00.001Z",
+        "2026-01-01T00:00:00.002Z",
+        "2026-01-01T00:00:00.003Z",
+      ],
+      [2, 3],
+    ));
+  it("matches weekly periods at both bounds and excludes surrounding weeks", () =>
+    checkRange(
+      "weekPeriod",
+      ["2026-W32", "2026-W37"],
+      [
+        "2026-W31",
+        "2026-W32",
+        "2026-W35",
+        "2026-W37",
+        "2026-W38",
+        null,
+        undefined,
+      ],
+      [2, 3, 4],
+      periodSchema,
+    ));
+  it("compares week labels across year boundaries", () =>
+    checkRange(
+      "weekPeriod",
+      ["2025-W52", { value: "2026-W02", inclusive: false }],
+      ["2025-W51", "2025-W52", "2026-W01", "2026-W02"],
+      [2, 3],
+      periodSchema,
+    ));
+  it("compares month labels without converting to dates", () =>
+    checkRange(
+      "monthPeriod",
+      ["2025-12", "2026-02"],
+      ["2025-11", "2025-12", "2026-01", "2026-02", "2026-03"],
+      [2, 3, 4],
+      periodSchema,
+    ));
+  it("compares quarter labels across years", () =>
+    checkRange(
+      "quarterPeriod",
+      ["2025-Q4", "2026-Q1"],
+      ["2025-Q3", "2025-Q4", "2026-Q1", "2026-Q2"],
+      [2, 3],
+      periodSchema,
+    ));
+  it("compares year strings without coercing numbers or booleans", () =>
+    checkRange(
+      "yearPeriod",
+      ["2024", "2026"],
+      ["2023", "2024", "2025", "2026", "2027", 2025, true],
+      [2, 3, 4],
+      periodSchema,
+    ));
+  it("defaults period fields to day format", () =>
+    checkRange(
+      "dayPeriod",
+      ["2026-04-01", "2026-04-05"],
+      ["2026-03-31", "2026-04-01", "2026-04-05", "2026-04-06"],
+      [2, 3],
+      periodSchema,
+    ));
+  it("rejects period endpoints of the wrong field format", () =>
+    checkInvalidField(
+      FiltersSchema.parse({
+        weekPeriod: { op: "range", value: ["2026-01", "2026-09"] },
+      }),
+      periodSchema,
+    ));
+  it("rejects numeric endpoints for year period fields", () =>
+    checkInvalidField(
+      { yearPeriod: { op: "range", value: [2024, 2026] } },
+      periodSchema,
+    ));
+  it("rejects week endpoints for datetime fields", () =>
+    checkInvalidField(
+      FiltersSchema.parse({
+        completedAt: { op: "range", value: ["2026-W32", "2026-W37"] },
+      }),
+    ));
+  it("rejects week endpoints for plaintext fields", () =>
+    checkInvalidField(
+      FiltersSchema.parse({
+        title: { op: "range", value: ["2026-W32", "2026-W37"] },
+      }),
+    ));
+  it("rejects range on ordinary text fields", () =>
+    checkInvalidField(
+      FiltersSchema.parse({
+        title: { op: "range", value: ["2026-01-01", "2026-12-31"] },
+      }),
+    ));
+  it("rejects numeric endpoints on a date field", () =>
+    checkInvalidField({ dueDate: { op: "range", value: [3, 9] } }));
+  it("rejects range on multi-value fields", () =>
+    checkInvalidField({ aliases: { op: "range", value: [3, 9] } }));
+  it("rejects range on relation fields", () =>
+    checkInvalidField({ project: { op: "range", value: [3, 9] } }));
+});
 
 describe("filter-entities", () => {
   describe("matchesFilter", () => {

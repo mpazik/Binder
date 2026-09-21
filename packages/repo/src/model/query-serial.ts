@@ -1,6 +1,7 @@
-import { fail, isErr, ok, type Result } from "@binder/utils";
+import { wrapError, fail, isErr, ok, type Result } from "@binder/utils";
 import {
   isIncludesQuery,
+  RangeFilterSchema,
   type ComplexFilter,
   type Filter,
   type FilterOperator,
@@ -53,6 +54,7 @@ const namedOperators: {
   { suffix: ":notIn=", op: "notIn", hasValue: true },
   { suffix: ":match=", op: "match", hasValue: true },
   { suffix: ":in=", op: "in", hasValue: true },
+  { suffix: ":range=", op: "range", hasValue: true },
 ];
 
 const symbolicOperators: { symbol: string; op: FilterOperator }[] = [
@@ -105,20 +107,54 @@ const matchSerialFilter = (token: string): OperatorMatch | null => {
   return null;
 };
 
-const buildFilter = (match: OperatorMatch): Filter => {
+const parseRange = (value: unknown, field: string): Result<Filter> => {
+  const parsed = RangeFilterSchema.safeParse({ op: "range", value });
+  return parsed.success
+    ? ok(parsed.data)
+    : fail(
+        "invalid-range-filter",
+        `Filter field '${field}': range requires two matching numeric, date, datetime, or period endpoints`,
+        { data: { field } },
+      );
+};
+
+const buildFilter = (match: OperatorMatch): Result<Filter> => {
   const { op, rawValue } = match;
 
-  if (op === "eq") return coerceFilterValue(rawValue);
+  if (op === "eq") return ok(coerceFilterValue(rawValue));
+
+  if (op === "range") {
+    const interval = /^([[(])([^,]+),([^,]+)([)\]])$/.exec(rawValue.trim());
+    const endpoint = (raw: string, inclusive: boolean) => {
+      const text = raw.trim();
+      // Quoted year labels distinguish period strings from numeric endpoints.
+      const value = /^"\d{4}"$/.test(text)
+        ? text.slice(1, -1)
+        : /^-?\d+(?:\.\d+)?(?:e[+-]?\d+)?$/i.test(text)
+          ? Number(text)
+          : text;
+      return inclusive ? value : { value, inclusive: false };
+    };
+    return parseRange(
+      interval
+        ? [
+            endpoint(interval[2]!, interval[1] === "["),
+            endpoint(interval[3]!, interval[4] === "]"),
+          ]
+        : undefined,
+      match.field,
+    );
+  }
 
   if (op === "empty") {
-    return { op: "empty", value: rawValue !== "__notEmpty__" };
+    return ok({ op: "empty", value: rawValue !== "__notEmpty__" });
   }
 
   if (op === "in" || op === "notIn") {
-    return { op, value: coerceListValue(rawValue) };
+    return ok({ op, value: coerceListValue(rawValue) });
   }
 
-  return { op, value: coerceFilterValue(rawValue) } as ComplexFilter;
+  return ok({ op, value: coerceFilterValue(rawValue) } as ComplexFilter);
 };
 
 const getInValues = (filter: Filter): (string | number)[] | null => {
@@ -133,24 +169,115 @@ const getInValues = (filter: Filter): (string | number)[] | null => {
   return null;
 };
 
-const mergeFilter = (existing: Filter, incoming: Filter): Filter => {
+const getExcludedValues = (filter: Filter): (string | number)[] | null => {
+  if (typeof filter !== "object" || Array.isArray(filter)) return null;
+  if (
+    filter.op === "not" &&
+    (typeof filter.value === "string" || typeof filter.value === "number")
+  )
+    return [filter.value];
+  if (filter.op === "notIn" && Array.isArray(filter.value)) return filter.value;
+  return null;
+};
+
+type Bound = { value: string | number; inclusive: boolean };
+type Bounds = { lower?: Bound; upper?: Bound };
+
+const getBounds = (filter: Filter): Bounds | undefined => {
+  if (typeof filter !== "object" || Array.isArray(filter)) return undefined;
+  if (filter.op === "range") {
+    const endpoint = (value: (typeof filter.value)[number]): Bound =>
+      typeof value === "object" ? value : { value, inclusive: true };
+    return {
+      lower: endpoint(filter.value[0]),
+      upper: endpoint(filter.value[1]),
+    };
+  }
+  if (typeof filter.value !== "string" && typeof filter.value !== "number")
+    return undefined;
+  switch (filter.op) {
+    case "gt":
+    case "gte":
+      return { lower: { value: filter.value, inclusive: filter.op === "gte" } };
+    case "lt":
+    case "lte":
+      return { upper: { value: filter.value, inclusive: filter.op === "lte" } };
+    default:
+      return undefined;
+  }
+};
+
+const tighterBound = (
+  a: Bound | undefined,
+  b: Bound | undefined,
+  lower: boolean,
+): Bound | undefined => {
+  if (!a) return b;
+  if (!b) return a;
+  if (a.value === b.value)
+    return { value: a.value, inclusive: a.inclusive && b.inclusive };
+  return (lower ? a.value > b.value : a.value < b.value) ? a : b;
+};
+
+const mergeFilter = (
+  existing: Filter,
+  incoming: Filter,
+  field: string,
+): Result<Filter> => {
+  const incompatible = () =>
+    fail(
+      "incompatible-filters",
+      `Filter field '${field}': cannot combine these predicates. Use equality/in, not/notIn, or compatible range bounds.`,
+      { data: { field } },
+    );
+  if (field === "$text") return incompatible();
   const existingValues = getInValues(existing);
   const incomingValues = getInValues(incoming);
   if (existingValues && incomingValues)
-    return { op: "in", value: [...existingValues, ...incomingValues] };
-  return incoming;
+    return ok({ op: "in", value: [...existingValues, ...incomingValues] });
+  const excluded = getExcludedValues(existing);
+  const incomingExcluded = getExcludedValues(incoming);
+  if (excluded && incomingExcluded)
+    return ok({ op: "notIn", value: [...excluded, ...incomingExcluded] });
+  const a = getBounds(existing);
+  const b = getBounds(incoming);
+  if (!a || !b) return incompatible();
+  // Validate categories before comparing, including same-direction bounds.
+  const compatible = parseRange(
+    [(a.lower ?? a.upper)!.value, (b.lower ?? b.upper)!.value],
+    field,
+  );
+  if (isErr(compatible)) return compatible;
+  const lower = tighterBound(a.lower, b.lower, true);
+  const upper = tighterBound(a.upper, b.upper, false);
+  if (lower && upper) {
+    const endpoint = (bound: Bound) => (bound.inclusive ? bound.value : bound);
+    return parseRange([endpoint(lower), endpoint(upper)], field);
+  }
+  const bound = (lower ?? upper)!;
+  return ok({
+    op: lower
+      ? bound.inclusive
+        ? "gte"
+        : "gt"
+      : bound.inclusive
+        ? "lte"
+        : "lt",
+    value: bound.value,
+  });
 };
 
 /**
  * Parse an array of serial filter tokens into a Filters object.
+ * Invalid ranges and incompatible repeated predicates return structured errors.
  *
  * Tokens without an operator are collected as plain text (`$text`).
  *
  * @example
  * parseSerialFilters(["type=Task", "priority>=3", "urgent"])
- * // → { type: "Task", priority: { op: "gte", value: 3 }, $text: "urgent" }
+ * // → ok({ type: "Task", priority: { op: "gte", value: 3 }, $text: "urgent" })
  */
-export const parseSerialFilters = (parts: string[]): Filters => {
+export const parseSerialFilters = (parts: string[]): Result<Filters> => {
   const filters: Filters = {};
   const plainTextParts: string[] = [];
 
@@ -165,16 +292,27 @@ export const parseSerialFilters = (parts: string[]): Filters => {
     }
 
     const newFilter = buildFilter(match);
+    if (isErr(newFilter)) return newFilter;
     const existing = filters[match.field];
-    filters[match.field] =
-      existing !== undefined ? mergeFilter(existing, newFilter) : newFilter;
+    const merged =
+      existing !== undefined
+        ? mergeFilter(existing, newFilter.data, match.field)
+        : newFilter;
+    if (isErr(merged)) return merged;
+    filters[match.field] = merged.data;
   }
 
   if (plainTextParts.length > 0) {
+    if (filters["$text"] !== undefined)
+      return fail(
+        "incompatible-filters",
+        "Cannot combine $text= with plain text search terms",
+        { data: { field: "$text" } },
+      );
     filters["$text"] = plainTextParts.join(" ");
   }
 
-  return filters;
+  return ok(filters);
 };
 
 // ---------------------------------------------------------------------------
@@ -211,6 +349,19 @@ const serializeFilterEntry = (field: string, filter: Filter): string => {
   }
 
   const { op, value } = filter;
+
+  if (op === "range") {
+    const [lower, upper] = value.map((endpoint) =>
+      typeof endpoint === "object"
+        ? endpoint
+        : { value: endpoint, inclusive: true },
+    );
+    const serialValue = (value: string | number) =>
+      typeof value === "string" && /^\d{4}$/.test(value)
+        ? JSON.stringify(value)
+        : value;
+    return `${field}:range=${lower!.inclusive ? "[" : "("}${serialValue(lower!.value)},${serialValue(upper!.value)}${upper!.inclusive ? "]" : ")"}`;
+  }
 
   if (op === "empty") {
     return value ? `${field}:empty` : `${field}:notEmpty`;
@@ -251,14 +402,37 @@ export const serializeFilters = (filters: Filters): string[] => {
 // Includes — parse
 // ---------------------------------------------------------------------------
 
+// Range intervals are opaque to include delimiters: [a,b) is not mismatched nesting.
+function* structuralCharacters(input: string) {
+  for (let index = 0; index < input.length; index++) {
+    if (input.startsWith(":range=", index)) {
+      const interval = /^:range=[[(][^()[\]]*[)\]]/.exec(input.slice(index));
+      if (interval) {
+        index += interval[0].length - 1;
+        continue;
+      }
+    }
+    yield { ch: input[index]!, index };
+  }
+}
+
+const findCloseBracket = (input: string, open: number): number => {
+  let depth = 0;
+  for (const { ch, index } of structuralCharacters(input)) {
+    if (index < open) continue;
+    if (ch === "[") depth++;
+    if (ch === "]" && --depth === 0) return index;
+  }
+  return -1;
+};
+
 const splitTopLevel = (input: string): string[] => {
   const segments: string[] = [];
   let parenDepth = 0;
   let bracketDepth = 0;
   let start = 0;
 
-  for (let i = 0; i < input.length; i++) {
-    const ch = input[i]!;
+  for (const { ch, index: i } of structuralCharacters(input)) {
     if (ch === "(") parenDepth++;
     else if (ch === ")") parenDepth--;
     else if (ch === "[") bracketDepth++;
@@ -295,7 +469,10 @@ const parseIncludesInner = (input: string): Result<Includes> => {
         });
       }
       includes[seg] = true;
-    } else if (bracketIdx !== -1) {
+    } else if (
+      bracketIdx !== -1 &&
+      (parenIdx === -1 || bracketIdx < parenIdx)
+    ) {
       // Filtered field: "field[filters]" or "field[filters](subfields)"
       const fieldName = seg.slice(0, bracketIdx).trim();
       if (!fieldName || !IDENTIFIER_FORMAT_PATTERN.test(fieldName)) {
@@ -306,7 +483,7 @@ const parseIncludesInner = (input: string): Result<Includes> => {
         );
       }
 
-      const closeBracketIdx = seg.indexOf("]", bracketIdx);
+      const closeBracketIdx = findCloseBracket(seg, bracketIdx);
       if (closeBracketIdx === -1) {
         return fail("unmatched-bracket", "Unmatched opening bracket", {
           data: { field: fieldName },
@@ -320,9 +497,31 @@ const parseIncludesInner = (input: string): Result<Includes> => {
         });
       }
 
-      const filterTokens = filterStr.split(",").map((s) => s.trim());
+      const filterTokens: string[] = [];
+      for (const part of splitTopLevel(filterStr)) {
+        const token = part.trim();
+        const last = filterTokens.at(-1);
+        const previous = last === undefined ? null : matchSerialFilter(last);
+        // Commas separate both predicates and in/notIn values. A new
+        // predicate ends a list; otherwise retain the next list item.
+        if (
+          previous &&
+          (previous.op === "in" || previous.op === "notIn") &&
+          !matchSerialFilter(token)
+        ) {
+          filterTokens[filterTokens.length - 1] = `${last},${token}`;
+        } else {
+          filterTokens.push(token);
+        }
+      }
       const filters = parseSerialFilters(filterTokens);
-      const query: IncludesQuery = { filters };
+      if (isErr(filters))
+        return wrapError(
+          filters,
+          filters.error.key,
+          `Invalid filter in include '${fieldName}': ${filters.error.message}`,
+        );
+      const query: IncludesQuery = { filters: filters.data };
 
       const afterBracket = seg.slice(closeBracketIdx + 1).trim();
       if (afterBracket) {
@@ -385,8 +584,7 @@ export const parseSerialIncludes = (input: string): Result<Includes> => {
   let parenDepth = 0;
   let bracketDepth = 0;
   let lastCloseParen = -1;
-  for (let i = 0; i < trimmed.length; i++) {
-    const ch = trimmed[i]!;
+  for (const { ch, index: i } of structuralCharacters(trimmed)) {
     if (ch === "(") parenDepth++;
     else if (ch === ")") {
       parenDepth--;

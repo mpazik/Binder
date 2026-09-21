@@ -46,7 +46,7 @@ Filters constrain which entities are returned. Simple equality uses direct value
 
 **Common operators**: `eq`, `not`, `in`, `notIn`, `empty`
 **String operators**: `contains`, `notContains`, `match`
-**Number/date operators**: `lt`, `lte`, `gt`, `gte`
+**Number/date/period operators**: `lt`, `lte`, `gt`, `gte`, `range`
 **Full-text**: `$text` — case-insensitive substring search across all plaintext and richtext fields (excluding identity fields and tags)
 
 ```json
@@ -57,6 +57,20 @@ Full-text search combines with other filters using AND:
 
 ```json
 { "$text": "authentication", "type": "Task", "status": "active" }
+```
+
+#### Range
+
+`range` takes exactly two endpoints for a scalar numeric, date, datetime, or period field. Scalars are inclusive; explicit endpoints require exactly `{ value, inclusive }`:
+
+```json
+{ "score": { "op": "range", "value": [3, { "value": 9, "inclusive": false }] } }
+```
+
+This means `3 <= score < 9`. Endpoints must match the field datatype: numbers, `IsoDate` (`YYYY-MM-DD`), `IsoTimestamp` (UTC with milliseconds), or calendar period strings. Period endpoints must both match the field's `periodFormat`: day (default), week (`YYYY-W##`), month (`YYYY-MM`), quarter (`YYYY-Q#`), or year (`YYYY`). Fixed-format period labels are compared directly, without date conversion. Arbitrary text and null endpoints are invalid. Reversed bounds match nothing; equal bounds match only when both inclusive.
+
+```json
+{ "weekPeriod": { "op": "range", "value": ["2026-W32", "2026-W37"] } }
 ```
 
 ### Includes
@@ -105,7 +119,7 @@ Computed fields are only included in the response when explicitly listed in `inc
 ### Serial Format
 
 A compact text representation for CLI, URLs, and views — a lossy subset of the full JSON format. Each query parameter has its own independent serial grammar:
-- **Filters**: `type=Task status=done priority>=3` or `deployment issues type=Task`. Plain text tokens (without an operator) are collected into a `$text` filter for full-text search across plaintext and richtext fields. When the same field appears multiple times, compatible values (equality and `in`) are merged into a single `in` filter (e.g. `status=active status=pending` → `status:in=active,pending`); incompatible operators are overwritten by the last occurrence
+- **Filters**: `type=Task status=done priority>=3` or `deployment issues type=Task`. Plain text tokens (without an operator) are collected into a `$text` filter for full-text search across plaintext and richtext fields. When the same field appears multiple times, compatible values (equality and `in`) are merged into a single `in` filter (e.g. `status=active status=pending` → `status:in=active,pending`). Repeated `not`/`notIn` predicates merge as exclusions. Lower and upper bounds combine into `range`; repeated bounds on the same side keep the tighter limit, with exclusive bounds winning ties. Other combinations on one field return errors rather than discarding predicates
 - **Includes**: `title,status,project(title,owner(name,email))`. Parentheses for nesting
 - **OrderBy**: `!priority,createdAt`
 
@@ -113,7 +127,9 @@ A compact text representation for CLI, URLs, and views — a lossy subset of the
 binder search type=Task status=done -f "project(title),tags" -o "!priority" --limit 20
 ```
 
-Advanced features (logical operators, computed fields, nested include filters) require the full JSON/YAML form.
+Includes can filter related entities: `tasks[score>=3,score<9](title)`. The serial filter parser returns a result containing either filters or a validation error, including for nested include filters. See `binder search --help` for CLI quoting and interval syntax.
+
+Logical operators and computed fields are proposed extensions, not currently implemented.
 
 ### Design Rationale
 

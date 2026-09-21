@@ -61,8 +61,10 @@ const searchHandler: CommandHandlerReadonly<{
   } else {
     const tokens = tokenizeSearchQuery(args.query);
     if (isErr(tokens)) return tokens;
+    const filters = parseSerialFilters(tokens.data);
+    if (isErr(filters)) return filters;
     query = {
-      filters: parseSerialFilters(tokens.data),
+      filters: filters.data,
       includes: args.fields,
       orderBy: args.orderBy,
     };
@@ -104,6 +106,21 @@ export const SearchCommand = types({
         array: true,
         default: [],
       })
+      .example(
+        "$0 search 'score>=3' 'score<9'",
+        "Repeated bounds form a range; same-direction bounds keep the tighter limit",
+      )
+      .example(
+        "$0 search 'weekPeriod:range=[2026-W32,2026-W37]'",
+        "Range endpoints must match a scalar number, date, datetime, or period field",
+      )
+      .example(
+        '$0 search \'yearPeriod:range=["2024","2026"]\'',
+        "Quote year endpoints inside the interval to keep them as period strings",
+      )
+      .epilog(
+        "In range intervals, [] includes endpoints and () excludes them. Repeated equality/in values merge as alternatives. Repeated !=/notIn values merge as exclusions. Other mixed predicates on one field are errors.",
+      )
       .options({
         ...namespaceOption,
         ...listFormatOption,

@@ -118,6 +118,28 @@ describe("CLI", () => {
     });
   });
 
+  describe("range search", () => {
+    it("applies both bounds through the CLI", async () => {
+      await check(
+        [
+          "search",
+          "type=Task",
+          "id>=3",
+          "id<4",
+          "-f",
+          "key",
+          "--format",
+          "json",
+        ],
+        (stdout) => {
+          expect(JSON.parse(stdout).items).toEqual([
+            { key: "task-implement-auth" },
+          ]);
+        },
+      );
+    });
+  });
+
   describe("read", () => {
     it("yaml format", async () => {
       await check(

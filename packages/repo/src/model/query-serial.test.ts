@@ -1,5 +1,10 @@
 import { describe, it, expect } from "bun:test";
-import { throwIfError } from "@binder/utils";
+import {
+  throwIfError,
+  type CalendarInterval,
+  type IsoDate,
+  type IsoTimestamp,
+} from "@binder/utils";
 import "@binder/utils/tests";
 import type { Filters, Includes, IncludesQuery } from "./query.ts";
 import {
@@ -11,6 +16,175 @@ import {
   parseSerialOrderBy,
   serializeOrderBy,
 } from "./query-serial.ts";
+
+describe("range serial intervals", () => {
+  const check = (token: string, expected: Filters): void => {
+    expect(throwIfError(parseSerialFilters([token]))).toEqual(expected);
+    expect(serializeFilters(expected)).toEqual([token]);
+  };
+
+  it("round-trips inclusive endpoints", () =>
+    check("score:range=[1,4]", { score: { op: "range", value: [1, 4] } }));
+  it("round-trips an exclusive upper endpoint", () =>
+    check("score:range=[1,4)", {
+      score: { op: "range", value: [1, { value: 4, inclusive: false }] },
+    }));
+  it("round-trips an exclusive lower endpoint", () =>
+    check("score:range=(1,4]", {
+      score: { op: "range", value: [{ value: 1, inclusive: false }, 4] },
+    }));
+  it("round-trips two exclusive endpoints", () =>
+    check("score:range=(1,4)", {
+      score: {
+        op: "range",
+        value: [
+          { value: 1, inclusive: false },
+          { value: 4, inclusive: false },
+        ],
+      },
+    }));
+  it("serializes explicit inclusive endpoints canonically", () => {
+    expect(
+      serializeFilters({
+        score: {
+          op: "range",
+          value: [
+            { value: 1, inclusive: true },
+            { value: 4, inclusive: true },
+          ],
+        },
+      }),
+    ).toEqual(["score:range=[1,4]"]);
+  });
+  it("round-trips fractional endpoints rendered with scientific notation", () =>
+    check("score:range=[-1e-7,4.5]", {
+      score: { op: "range", value: [-1e-7, 4.5] },
+    }));
+  it("round-trips dates", () =>
+    check("dueDate:range=[2026-01-01,2026-02-01)", {
+      dueDate: {
+        op: "range",
+        value: [
+          "2026-01-01" as IsoDate,
+          { value: "2026-02-01" as IsoDate, inclusive: false },
+        ],
+      },
+    }));
+  it("round-trips UTC timestamps", () =>
+    check(
+      "createdAt:range=[2026-01-01T00:00:00.000Z,2026-02-01T00:00:00.000Z]",
+      {
+        createdAt: {
+          op: "range",
+          value: [
+            "2026-01-01T00:00:00.000Z" as IsoTimestamp,
+            "2026-02-01T00:00:00.000Z" as IsoTimestamp,
+          ],
+        },
+      },
+    ));
+  it("round-trips quoted year labels without numeric coercion", () =>
+    check('yearPeriod:range=["2024","2026")', {
+      yearPeriod: {
+        op: "range",
+        value: [
+          "2024" as CalendarInterval,
+          { value: "2026" as CalendarInterval, inclusive: false },
+        ],
+      },
+    }));
+  it("round-trips week labels", () =>
+    check("weekPeriod:range=[2026-W32,2026-W37]", {
+      weekPeriod: {
+        op: "range",
+        value: ["2026-W32" as CalendarInterval, "2026-W37" as CalendarInterval],
+      },
+    }));
+  it("preserves reversed bounds rather than swapping them", () =>
+    check("score:range=[4,1]", { score: { op: "range", value: [4, 1] } }));
+  it("rejects unbounded intervals", () => {
+    expect(parseSerialFilters(["score:range=[1,]"])).toBeErrWithKey(
+      "invalid-range-filter",
+    );
+  });
+  it("rejects missing interval delimiters", () => {
+    expect(parseSerialFilters(["score:range=1,4"])).toBeErrWithKey(
+      "invalid-range-filter",
+    );
+  });
+  it("rejects arbitrary text endpoints", () => {
+    expect(parseSerialFilters(["score:range=[a,z]"])).toBeErrWithKey(
+      "invalid-range-filter",
+    );
+  });
+  it("rejects endpoints from different categories", () => {
+    expect(parseSerialFilters(["score:range=[1,2026-01-01]"])).toBeErrWithKey(
+      "invalid-range-filter",
+    );
+  });
+  it("rejects surplus endpoints", () => {
+    expect(parseSerialFilters(["score:range=[1,4,7]"])).toBeErrWithKey(
+      "invalid-range-filter",
+    );
+  });
+  it("rejects invalid calendar dates", () => {
+    expect(
+      parseSerialFilters(["date:range=[2026-02-30,2026-03-01]"]),
+    ).toBeErrWithKey("invalid-range-filter");
+  });
+  it("preserves intervals and sibling filters inside nested includes", () => {
+    const serial =
+      "project(tasks[score:range=[1,4),status=active](title)),tags";
+    const expected: Includes = {
+      project: {
+        tasks: {
+          filters: {
+            score: { op: "range", value: [1, { value: 4, inclusive: false }] },
+            status: "active",
+          },
+          includes: { title: true },
+        },
+      },
+      tags: true,
+    };
+    expect(throwIfError(parseSerialIncludes(serial))).toEqual(expected);
+    expect(serializeIncludes(expected)).toBe(serial);
+  });
+  it("distinguishes inclusive interval closure from include filter closure", () => {
+    expect(
+      throwIfError(parseSerialIncludes("tasks[score:range=(1,4]],title")),
+    ).toEqual({
+      tasks: {
+        filters: {
+          score: { op: "range", value: [{ value: 1, inclusive: false }, 4] },
+        },
+      },
+      title: true,
+    });
+  });
+  it("keeps two exclusive delimiters inside a filtered include", () => {
+    expect(
+      throwIfError(parseSerialIncludes("tasks[score:range=(1,4)]")),
+    ).toEqual({
+      tasks: {
+        filters: {
+          score: {
+            op: "range",
+            value: [
+              { value: 1, inclusive: false },
+              { value: 4, inclusive: false },
+            ],
+          },
+        },
+      },
+    });
+  });
+  it("returns a validation error for invalid nested range endpoints", () => {
+    expect(parseSerialIncludes("tasks[score:range=[1,nope]]")).toBeErrWithKey(
+      "invalid-range-filter",
+    );
+  });
+});
 
 describe("query-serial", () => {
   describe("coerceFilterValue", () => {
@@ -30,7 +204,7 @@ describe("query-serial", () => {
 
   describe("parseSerialFilters", () => {
     const check = (parts: string[], expected: Filters) => {
-      expect(parseSerialFilters(parts)).toEqual(expected);
+      expect(throwIfError(parseSerialFilters(parts))).toEqual(expected);
     };
 
     describe("simple equality", () => {
@@ -193,11 +367,181 @@ describe("query-serial", () => {
           },
         }));
 
-      it("overwrites when operators are incompatible", () =>
+      it("combines lower and upper bounds without losing exclusivity", () =>
         check(["priority>3", "priority<7"], {
-          priority: { op: "lt", value: 7 },
+          priority: {
+            op: "range",
+            value: [
+              { value: 3, inclusive: false },
+              { value: 7, inclusive: false },
+            ],
+          },
         }));
 
+      it("normalizes the original week bounds in either order", () => {
+        const expected: Filters = {
+          weekPeriod: {
+            op: "range",
+            value: [
+              "2026-W32" as CalendarInterval,
+              "2026-W37" as CalendarInterval,
+            ],
+          },
+        };
+        check(["weekPeriod>=2026-W32", "weekPeriod<=2026-W37"], expected);
+        check(["weekPeriod<=2026-W37", "weekPeriod>=2026-W32"], expected);
+      });
+      it("keeps the numerically tighter lower bound rather than lexical order", () =>
+        check(["score>10", "score>=2"], { score: { op: "gt", value: 10 } }));
+      it("keeps the tighter upper bound", () =>
+        check(["score<=9", "score<5", "score<8"], {
+          score: { op: "lt", value: 5 },
+        }));
+      it("makes equal bounds exclusive if either predicate excludes the endpoint", () => {
+        check(["score>=3", "score>3"], { score: { op: "gt", value: 3 } });
+        check(["score>3", "score>=3"], { score: { op: "gt", value: 3 } });
+      });
+      it("tightens both sides of an already merged range", () =>
+        check(["score>=1", "score<=9", "score>3", "score<7"], {
+          score: {
+            op: "range",
+            value: [
+              { value: 3, inclusive: false },
+              { value: 7, inclusive: false },
+            ],
+          },
+        }));
+      it("intersects explicit intervals with comparison bounds", () =>
+        check(["score:range=[1,9]", "score:range=(3,8]", "score<7"], {
+          score: {
+            op: "range",
+            value: [
+              { value: 3, inclusive: false },
+              { value: 7, inclusive: false },
+            ],
+          },
+        }));
+      it("preserves contradictory bounds as an empty range", () =>
+        check(["score>9", "score<=3"], {
+          score: { op: "range", value: [{ value: 9, inclusive: false }, 3] },
+        }));
+      it("compares canonical date bounds chronologically", () =>
+        check(
+          ["dueDate>=2026-01-01", "dueDate>2026-02-01", "dueDate<=2026-03-01"],
+          {
+            dueDate: {
+              op: "range",
+              value: [
+                { value: "2026-02-01" as IsoDate, inclusive: false },
+                "2026-03-01" as IsoDate,
+              ],
+            },
+          },
+        ));
+      it("merges repeated not and notIn as exclusions", () =>
+        check(
+          ["status!=done", "status:notIn=archived,draft", "status!=cancelled"],
+          {
+            status: {
+              op: "notIn",
+              value: ["done", "archived", "draft", "cancelled"],
+            },
+          },
+        ));
+      it("merges numeric exclusion lists without string conversion", () =>
+        check(["score:notIn=1,2", "score!=3", "score:notIn=4,5"], {
+          score: { op: "notIn", value: [1, 2, 3, 4, 5] },
+        }));
+      it("rejects equality combined with a bound instead of dropping it", () => {
+        expect(parseSerialFilters(["score=3", "score>1"])).toBeErrWithKey(
+          "incompatible-filters",
+        );
+        expect(parseSerialFilters(["score>1", "score=3"])).toBeErrWithKey(
+          "incompatible-filters",
+        );
+      });
+      it("rejects include and exclude combinations", () => {
+        expect(
+          parseSerialFilters(["status:in=active,pending", "status!=pending"]),
+        ).toBeErrWithKey("incompatible-filters");
+      });
+      it("rejects repeated contains instead of guessing AND or OR", () => {
+        expect(
+          parseSerialFilters(["title:contains=one", "title:contains=two"]),
+        ).toBeErrWithKey("incompatible-filters");
+      });
+      it("rejects boolean alternatives that cannot be represented by in", () => {
+        expect(
+          parseSerialFilters(["favorite=true", "favorite=false"]),
+        ).toBeErrWithKey("incompatible-filters");
+      });
+      it("rejects incompatible bound categories even in the same direction", () => {
+        expect(
+          parseSerialFilters(["score>3", "score>2026-W32"]),
+        ).toBeErrWithKey("invalid-range-filter");
+      });
+      it("rejects mixed period granularities", () => {
+        expect(
+          parseSerialFilters(["period>=2026-W32", "period<=2026-09"]),
+        ).toBeErrWithKey("invalid-range-filter");
+      });
+      it("does not silently overwrite explicit full-text search", () => {
+        expect(parseSerialFilters(["$text=one", "two"])).toBeErrWithKey(
+          "incompatible-filters",
+        );
+        expect(parseSerialFilters(["$text=one", "$text=two"])).toBeErrWithKey(
+          "incompatible-filters",
+        );
+      });
+      it("normalizes repeated bounds inside includes", () => {
+        expect(
+          throwIfError(parseSerialIncludes("tasks[score>=3,score<9](title)")),
+        ).toEqual({
+          tasks: {
+            filters: {
+              score: {
+                op: "range",
+                value: [3, { value: 9, inclusive: false }],
+              },
+            },
+            includes: { title: true },
+          },
+        });
+      });
+      it("round-trips merged nested exclusions without treating list items as text", () => {
+        const includes = throwIfError(
+          parseSerialIncludes(
+            "tasks[status!=done,status!=archived,type=Task](title)",
+          ),
+        );
+        expect(includes).toEqual({
+          tasks: {
+            filters: {
+              status: { op: "notIn", value: ["done", "archived"] },
+              type: "Task",
+            },
+            includes: { title: true },
+          },
+        });
+        expect(
+          throwIfError(parseSerialIncludes(serializeIncludes(includes))),
+        ).toEqual(includes);
+      });
+      it("round-trips merged nested equality alternatives", () => {
+        const includes = throwIfError(
+          parseSerialIncludes("tasks[status=active,status=pending](title)"),
+        );
+        expect(
+          throwIfError(parseSerialIncludes(serializeIncludes(includes))),
+        ).toEqual(includes);
+      });
+      it("reports incompatible nested filters with include context", () => {
+        const result = parseSerialIncludes("tasks[score=3,score>1](title)");
+        expect(result).toBeErrWithKey("incompatible-filters");
+        expect(result).toMatchObject({
+          error: { message: expect.stringContaining("tasks") },
+        });
+      });
       it("merges equality with numeric values", () =>
         check(["priority=1", "priority=2", "priority=3"], {
           priority: { op: "in", value: [1, 2, 3] },
@@ -261,7 +605,9 @@ describe("query-serial", () => {
 
     describe("round-trip", () => {
       const checkRoundTrip = (filters: Filters) => {
-        expect(parseSerialFilters(serializeFilters(filters))).toEqual(filters);
+        expect(
+          throwIfError(parseSerialFilters(serializeFilters(filters))),
+        ).toEqual(filters);
       };
 
       it("simple equality", () =>

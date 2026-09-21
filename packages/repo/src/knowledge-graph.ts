@@ -58,7 +58,7 @@ import {
 import {
   buildOrderByClause,
   buildWhereClause,
-  normalizeRelationFilters,
+  normalizeFilters,
 } from "./filter-entities.ts";
 import { resolveIncludes } from "./relationship-resolver.ts";
 
@@ -188,7 +188,7 @@ const internalSearch = async (
   filters: Filters,
   schema: EntitySchema,
 ): ResultAsync<Fieldset[]> => {
-  const normalizedFiltersResult = await normalizeRelationFilters(
+  const normalizedFiltersResult = await normalizeFilters(
     tx,
     namespace,
     filters,
@@ -534,7 +534,7 @@ export const openKnowledgeGraph = <C extends EntitySchema<ConfigDataType>>(
           );
         }
 
-        const normalizedFiltersResult = await normalizeRelationFilters(
+        const normalizedFiltersResult = await normalizeFilters(
           tx,
           namespace,
           filters,

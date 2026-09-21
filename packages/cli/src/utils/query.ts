@@ -35,7 +35,7 @@ const interpolateFilterValue = (
     !Array.isArray(filter) &&
     "op" in filter
   ) {
-    if (typeof filter.value === "string") {
+    if (filter.op !== "range" && typeof filter.value === "string") {
       const result = interpolateAncestralFields(schema, filter.value, context);
       if (isErr(result)) return result;
       return ok({ ...filter, value: result.data });

@@ -1,12 +1,21 @@
 import { describe, expect, it } from "bun:test";
 import { parseSerialFilters, parseSerialIncludes } from "@binder/repo";
-import { isErr, throwIfError } from "@binder/utils";
+import { isErr, throwIfError, type CalendarInterval } from "@binder/utils";
 import { tokenizeSearchQuery } from "./search-query.ts";
 
 const tokens = (...args: string[]) => throwIfError(tokenizeSearchQuery(args));
-const filters = (...args: string[]) => parseSerialFilters(tokens(...args));
+const filters = (...args: string[]) =>
+  throwIfError(parseSerialFilters(tokens(...args)));
 
 describe("search argv predicates", () => {
+  it("preserves interval delimiters in grouped range predicates", () => {
+    expect(filters("type=Task score:range=[1,4) status=active")).toEqual({
+      type: "Task",
+      score: { op: "range", value: [1, { value: 4, inclusive: false }] },
+      status: "active",
+    });
+  });
+
   it("preserves explicit full-text equality in grouped and separate arguments", () => {
     expect(tokens("type=Task $text=urgent")).toEqual([
       "type=Task",
@@ -34,11 +43,11 @@ describe("search argv predicates", () => {
     ]);
   });
 
-  it("tokenizes numeric bounds equivalently without adding range semantics", () => {
+  it("passes grouped numeric bounds to range normalization", () => {
     expect(tokens("score>=3 score<=9")).toEqual(["score>=3", "score<=9"]);
-    expect(filters("score>=3 score<=9")).toEqual(
-      parseSerialFilters(["score>=3", "score<=9"]),
-    );
+    expect(filters("score>=3 score<=9")).toEqual({
+      score: { op: "range", value: [3, 9] },
+    });
   });
   it("accepts normalized weeks and dates without numeric special cases", () => {
     expect(
@@ -48,9 +57,12 @@ describe("search argv predicates", () => {
       "weekPeriod<=2026-W37",
       "date>2026-01-01",
     ]);
-    expect(filters("weekPeriod>=2026-W32 weekPeriod<=2026-W37")).toEqual(
-      parseSerialFilters(["weekPeriod>=2026-W32", "weekPeriod<=2026-W37"]),
-    );
+    expect(filters("weekPeriod>=2026-W32 weekPeriod<=2026-W37")).toEqual({
+      weekPeriod: {
+        op: "range",
+        value: ["2026-W32" as CalendarInterval, "2026-W37" as CalendarInterval],
+      },
+    });
   });
   it("groups equality, booleans, exclusions, and all named operators", () => {
     const separate = [
@@ -58,7 +70,7 @@ describe("search argv predicates", () => {
       "status!=done",
       "favorite=true",
       "tags:in=a,b",
-      "tags:notIn=c,d",
+      "excludedTags:notIn=c,d",
       "title:contains=Fix",
       "body:notContains=draft",
       "name:match=hello",
@@ -66,7 +78,9 @@ describe("search argv predicates", () => {
       "project:notEmpty",
     ];
     expect(tokens(separate.join(" "))).toEqual(separate);
-    expect(filters(separate.join(" "))).toEqual(parseSerialFilters(separate));
+    expect(filters(separate.join(" "))).toEqual(
+      throwIfError(parseSerialFilters(separate)),
+    );
   });
   it("preserves spaced values and separate arguments", () => {
     expect(filters("title=Fix login", "type=Task")).toEqual({
