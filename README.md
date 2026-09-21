@@ -13,18 +13,12 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Built with Bun](https://img.shields.io/badge/Bun-%23000000.svg?style=flat&logo=bun&logoColor=white)](https://bun.sh)
 [![TypeScript](https://img.shields.io/badge/typescript-%23007ACC.svg?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Status](https://img.shields.io/badge/Status-Work_in_Progress-orange)]()
 
 [What it's for](#what-its-for) • [Getting Started](#getting-started) • [How it works](#how-it-works) • [Features](#features) • [Working with Binder](#working-with-binder) • [Roadmap](#roadmap)
 
 </div>
 
 ---
-
-> [!WARNING]  
-> **This project is currently in early development.**  
-> Internal data structures, configuration formats, and APIs are subject to breaking changes.  
-> **Data loss is possible.** Do not use for critical data without independent backups.
 
 <div align="center">
   <video src="https://github.com/user-attachments/assets/ad9ac562-50e9-4375-8a2e-c29c6e2a4b4b" autoplay loop muted playsinline width="720"></video>
