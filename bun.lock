@@ -21,7 +21,7 @@
     },
     "packages/cli": {
       "name": "@binder.do/cli",
-      "version": "0.2.1",
+      "version": "0.3.2",
       "bin": {
         "binder": "./dist/index.js",
       },
