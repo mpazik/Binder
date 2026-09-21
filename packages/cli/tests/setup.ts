@@ -127,10 +127,14 @@ export const createRunHelpers = (getDir: () => string) => {
 /** The caller is responsible for killing the returned process. */
 export const spawnBinder = (
   command: string,
-  opts?: { cwd?: string; env?: Record<string, string | undefined> },
+  opts?: {
+    args?: string[];
+    cwd?: string;
+    env?: Record<string, string | undefined>;
+  },
 ): ChildProcess => {
   const [bin, ...baseArgs] = CMD;
-  return spawn(bin, [...baseArgs, command], {
+  return spawn(bin, [...baseArgs, command, ...(opts?.args ?? [])], {
     cwd: opts?.cwd,
     stdio: ["pipe", "pipe", "pipe"],
     env: { ...process.env, ...(opts?.env ?? {}) },

@@ -1,23 +1,9 @@
-import { type ChildProcess, spawn } from "node:child_process";
+import { type ChildProcess } from "node:child_process";
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
-import { setupWorkspace, teardownWorkspace } from "./setup.ts";
-
-const REPO_ROOT = new URL("../../..", import.meta.url).pathname;
-const CLI_ENTRY = `${REPO_ROOT}/packages/cli/src/index.ts`;
+import { setupWorkspace, spawnBinder, teardownWorkspace } from "./setup.ts";
+import { stopServer, waitForServer } from "./http-helpers.ts";
 const PORT = 17_007;
 const BASE = `http://127.0.0.1:${PORT}`;
-
-const waitForServer = async (retries = 20, delayMs = 150): Promise<void> => {
-  for (let i = 0; i < retries; i++) {
-    const ok = await fetch(`${BASE}/api/records`)
-      .then((r) => r.ok)
-      .catch(() => false);
-    if (ok) return;
-    await Bun.sleep(delayMs);
-  }
-  // eslint-disable-next-line no-restricted-syntax
-  throw new Error("HTTP server did not start in time");
-};
 
 const post = (path: string, body: unknown) =>
   fetch(`${BASE}${path}`, {
@@ -32,15 +18,12 @@ describe("HTTP server", () => {
 
   beforeAll(async () => {
     dir = await setupWorkspace();
-    server = spawn("bun", ["run", CLI_ENTRY, "http", "--port", String(PORT)], {
-      cwd: dir,
-      stdio: "pipe",
-    });
-    await waitForServer();
+    server = spawnBinder("http", { cwd: dir, args: ["--port", String(PORT)] });
+    await waitForServer(server, BASE);
   }, 30_000);
 
   afterAll(async () => {
-    server.kill();
+    await stopServer(server);
     await teardownWorkspace(dir);
   });
 

@@ -1,11 +1,10 @@
-import { type ChildProcess, spawn } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { type ChildProcess } from "node:child_process";
+import { mkdir, symlink, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
-import { setupWorkspace, teardownWorkspace } from "./setup.ts";
-
-const REPO_ROOT = new URL("../../..", import.meta.url).pathname;
-const CLI_ENTRY = `${REPO_ROOT}/packages/cli/src/index.ts`;
+import { setupWorkspace, spawnBinder, teardownWorkspace } from "./setup.ts";
+import { stopServer, waitForServer } from "./http-helpers.ts";
 
 const SERVER_TS = `import { Hono } from "hono";
 import type { ServerModule } from "@binder.do/cli";
@@ -21,20 +20,14 @@ export default mod;
 
 const INDEX_HTML = `<!doctype html><title>custom</title>STATIC_MARKER`;
 
-const waitForServer = async (
-  base: string,
-  retries = 20,
-  delayMs = 150,
-): Promise<void> => {
-  for (let i = 0; i < retries; i++) {
-    const ok = await fetch(`${base}/api/records`)
-      .then((r) => r.ok)
-      .catch(() => false);
-    if (ok) return;
-    await Bun.sleep(delayMs);
-  }
-  // eslint-disable-next-line no-restricted-syntax
-  throw new Error("HTTP server did not start in time");
+const provisionHono = async (dir: string): Promise<void> => {
+  const modules = join(dir, "node_modules");
+  await mkdir(modules, { recursive: true });
+  await symlink(
+    dirname(fileURLToPath(import.meta.resolve("hono/package.json"))),
+    join(modules, "hono"),
+    "dir",
+  );
 };
 
 describe("HTTP server with --static dir and colocated server.ts", () => {
@@ -50,16 +43,16 @@ describe("HTTP server with --static dir and colocated server.ts", () => {
     await writeFile(join(webDir, "index.html"), INDEX_HTML);
     await writeFile(join(webDir, "server.ts"), SERVER_TS);
 
-    server = spawn(
-      "bun",
-      ["run", CLI_ENTRY, "http", "--static", "./web", "--port", String(PORT)],
-      { cwd: dir, stdio: "pipe" },
-    );
-    await waitForServer(BASE);
+    await provisionHono(dir);
+    server = spawnBinder("http", {
+      cwd: dir,
+      args: ["--static", "./web", "--port", String(PORT)],
+    });
+    await waitForServer(server, BASE);
   }, 30_000);
 
   afterAll(async () => {
-    server.kill();
+    await stopServer(server);
     await teardownWorkspace(dir);
   });
 
@@ -97,15 +90,13 @@ describe("HTTP server with default .binder/web convention", () => {
     await writeFile(join(webDir, "index.html"), INDEX_HTML);
     await writeFile(join(webDir, "server.ts"), SERVER_TS);
 
-    server = spawn("bun", ["run", CLI_ENTRY, "http", "--port", String(PORT)], {
-      cwd: dir,
-      stdio: "pipe",
-    });
-    await waitForServer(BASE);
+    await provisionHono(dir);
+    server = spawnBinder("http", { cwd: dir, args: ["--port", String(PORT)] });
+    await waitForServer(server, BASE);
   }, 30_000);
 
   afterAll(async () => {
-    server.kill();
+    await stopServer(server);
     await teardownWorkspace(dir);
   });
 
