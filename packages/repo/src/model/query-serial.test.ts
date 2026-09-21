@@ -48,6 +48,14 @@ describe("query-serial", () => {
 
       it("handles value containing equals sign", () =>
         check(["title=a=b"], { title: "a=b" }));
+
+      it("keeps comparison operators inside equality values", () =>
+        check(["title=Discuss score>=3"], { title: "Discuss score>=3" }));
+
+      it("keeps named operators inside equality values", () =>
+        check(["title=Discuss status:in=open,done"], {
+          title: "Discuss status:in=open,done",
+        }));
     });
 
     describe("symbolic operators", () => {
@@ -98,6 +106,11 @@ describe("query-serial", () => {
           title: { op: "notContains", value: "draft" },
         }));
 
+      it("keeps named operator text inside a contains value", () =>
+        check(["title:contains=status:notContains=draft"], {
+          title: { op: "contains", value: "status:notContains=draft" },
+        }));
+
       it("parses :empty", () =>
         check(["assignee:empty"], {
           assignee: { op: "empty", value: true },
@@ -110,6 +123,14 @@ describe("query-serial", () => {
     });
 
     describe("plain text ($text)", () => {
+      it("preserves explicit full-text equality", () =>
+        check(["$text=urgent"], { $text: "urgent" }));
+
+      it("does not accept arbitrary reserved or invalid field names", () =>
+        check(["$other=urgent", "$textExtra=urgent", "123field=urgent"], {
+          $text: "$other=urgent $textExtra=urgent 123field=urgent",
+        }));
+
       it("collects plain text tokens", () =>
         check(["urgent", "bug"], { $text: "urgent bug" }));
 
@@ -330,6 +351,14 @@ describe("query-serial", () => {
     });
 
     describe("filtered includes", () => {
+      it("preserves explicit full-text equality in relation filters", () =>
+        check("tasks[$text=urgent](title)", {
+          tasks: {
+            filters: { $text: "urgent" },
+            includes: { title: true },
+          },
+        }));
+
       it("parses filter only (no sub-fields)", () =>
         check("relatesTo[type=Task]", {
           relatesTo: { filters: { type: "Task" } },

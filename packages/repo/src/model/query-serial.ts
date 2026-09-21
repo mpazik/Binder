@@ -63,37 +63,43 @@ const symbolicOperators: { symbol: string; op: FilterOperator }[] = [
   { symbol: "<", op: "lt" },
 ];
 
-const matchOperator = (token: string): OperatorMatch | null => {
+const matchSerialFilter = (token: string): OperatorMatch | null => {
+  // Only an operator immediately following a valid field starts a predicate.
+  // Operator characters inside its value must not change the field/operator.
+  // $text is the reserved full-text equality field, not a general $ prefix.
+  const field = token.match(/^(?:\$text(?==)|[A-Za-z][A-Za-z0-9_-]*)/)?.[0];
+  if (!field) return null;
+  const rest = token.slice(field.length);
+
   // Named operators (colon-prefixed)
   for (const { suffix, op, hasValue } of namedOperators) {
-    const idx = token.indexOf(suffix);
-    if (idx !== -1) {
-      const field = token.slice(0, idx);
-      if (!field) continue;
-      const rawValue = hasValue ? token.slice(idx + suffix.length) : "";
+    if (rest.startsWith(suffix)) {
+      const valueOffset = field.length + suffix.length;
+      if (!hasValue && token[valueOffset] && !/\s/.test(token[valueOffset]!))
+        continue;
+      const rawValue = hasValue ? token.slice(valueOffset) : "";
       // :notEmpty → op "empty" but value is negated
       const isNegated = suffix.startsWith(":not") && !hasValue;
-      return { field, op, rawValue: isNegated ? "__notEmpty__" : rawValue };
+      return {
+        field,
+        op,
+        rawValue: isNegated ? "__notEmpty__" : rawValue,
+      };
     }
   }
 
   // Symbolic operators
   for (const { symbol, op } of symbolicOperators) {
-    const idx = token.indexOf(symbol);
-    if (idx !== -1) {
-      const field = token.slice(0, idx);
-      if (!field) continue;
-      return { field, op, rawValue: token.slice(idx + symbol.length) };
+    if (rest.startsWith(symbol)) {
+      const valueOffset = field.length + symbol.length;
+      return { field, op, rawValue: token.slice(valueOffset) };
     }
   }
 
   // Simple equality
-  const eqIdx = token.indexOf("=");
-  if (eqIdx !== -1) {
-    const field = token.slice(0, eqIdx);
-    if (field) {
-      return { field, op: "eq", rawValue: token.slice(eqIdx + 1) };
-    }
+  if (rest.startsWith("=")) {
+    const valueOffset = field.length + 1;
+    return { field, op: "eq", rawValue: token.slice(valueOffset) };
   }
 
   return null;
@@ -152,7 +158,7 @@ export const parseSerialFilters = (parts: string[]): Filters => {
     const trimmed = part.trim();
     if (!trimmed) continue;
 
-    const match = matchOperator(trimmed);
+    const match = matchSerialFilter(trimmed);
     if (!match) {
       plainTextParts.push(trimmed);
       continue;
