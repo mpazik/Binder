@@ -80,6 +80,8 @@ local-tail segment: (P2, L1] = L1
 
 The base must be an ancestor of the head. `(H, H]` is a valid empty segment and contributes no state.
 
+This example places every segment on one chain. Whether a layer's segment is attached to the lower layer's head in this way is an open question recorded below. The definition of a segment does not depend on it: a base is an ancestor in the segment's own chain.
+
 A segment does not need a separate permanent identifier. Its exact version is identified by its base and head. A Layer or named ref provides stable semantic identity when one is needed across segment replacement.
 
 ### Heads and refs
@@ -126,15 +128,57 @@ It does not repeat the inherited `title` value.
 
 Segment state may contain:
 - entities created by the segment;
-- fields contributed or overridden by the segment;
-- explicit field tombstones;
-- explicit entity tombstones;
+- field values and multi-value elements contributed by the segment;
+- explicit field, element, and entity tombstones;
+- retractions of contributions made by earlier segments of the same layer;
 - config contributions;
 - provenance needed by the query or inspection surface.
 
-Absence means that the segment has no contribution for that entity or field. It is distinct from an explicit tombstone that hides a contribution from an earlier segment.
+Absence means that the segment has no contribution for that entity, field, or element. It is distinct from an explicit tombstone that hides a contribution from an earlier segment.
 
 A segment state is deterministic for a valid base and segment. It may be reconstructed by replay or stored as a derived query artifact.
+
+#### Multi-value fields
+
+A single-value field contributes at `(entity, field)`. A multi-value field contributes per element at `(entity, field, element)`, so an upper segment can add or hide one element without shadowing the elements below:
+
+```text
+lower:    tags = [research, database]
+upper:    tags + datomic
+resolved: tags = [research, database, datomic]
+```
+
+#### Retract
+
+A layer may have several segments. A later segment can withdraw a value or tombstone that an earlier segment of the same layer contributed. This is a **retract**. It is not a tombstone: a tombstone hides the lower layer's value, a retract reveals it.
+
+```text
+earlier segment:  status = done
+later segment:    status retracted
+layer folded:     status absent
+```
+
+A key in a segment state is therefore absent, a value, a tombstone, or a retract. A retract only refers to the same layer, so a resolver reading several layers must know which segments belong to which layer.
+
+#### Absolute and relative contributions
+
+A contribution is **absolute** when its folded form does not depend on the base: set, clear, add or remove an element, tombstone. A contribution is **relative** when it does: insert at a position, patch an attribute of an inherited relation value.
+
+A segment state built only from absolute contributions is a function of the segment alone and can be reused above any base. A segment state containing relative contributions is valid only for the base it was folded against and must be folded again when the base changes.
+
+#### Touched keys
+
+A segment state knows which keys it contributes. A resolver uses this to tell whether a hit in a lower state is definitive: it is when no higher state touches the same key.
+
+### Segment state identity
+
+A segment is identified by `(base, head)`. A segment state is identified by its content:
+
+```text
+segmentStateId = H(canonical sorted entries)
+```
+
+Different segments can produce the same segment state. `A → B → A` returns to the original state identity while adding two transactions to history. Splitting a layer's history into segments differently, or storing a segment state in another physical form, does not change this identity. It does not replace transaction identity.
 
 ### Folding is not squash
 
@@ -208,3 +252,10 @@ Pruning is separate. Pruning discards or archives transaction history behind a c
 5. Folding or checkpointing does not change transaction identity.
 6. Rebase and squash create replacement transactions rather than mutate source transactions.
 7. A replacement segment must satisfy transaction atomicity and repository validity at its new base.
+8. A key in a segment state is absent, a value, a tombstone, or a retract. A retract refers only to an earlier segment of the same layer.
+9. A segment state built only from absolute contributions is a function of the segment alone.
+10. Segment state identity is a function of its canonical entries, not of the segment or its physical form.
+
+### Open questions
+
+1. **Layer roots.** The examples place all layers on one chain. Whether an upper layer's first transaction has the lower head as its predecessor, has no predecessor, or has a predecessor that is not rebased when the lower layer moves is undecided. How a layer's segment relates to its lower layer is a Layer property, not part of the segment definition.
