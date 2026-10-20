@@ -120,18 +120,15 @@ export const transactionImportHandler: CommandHandlerWithDb<
 
   if (args.dryRun) {
     ui.block(() => ui.info("Dry run preview"));
-    for (let i = 0; i < allInputs.length; i++) {
-      const input = allInputs[i]!;
+    const previewInputs = allInputs.map((input) => {
       const previewInput = { ...input };
       delete (previewInput as Record<string, unknown>)._source;
-      const processed = await kg.process(previewInput);
-      if (isErr(processed)) {
-        ui.warning(`Transaction ${i + 1} would fail:`);
-        ui.printError(processed.error);
-        continue;
-      }
-      await ui.printTransaction(kg, processed.data, "full");
-    }
+      return previewInput;
+    });
+    const processed = await kg.process(previewInputs);
+    if (isErr(processed)) return processed;
+    for (const transaction of processed.data)
+      await ui.printTransaction(kg, transaction, "full");
     ui.block(() => ui.info("Dry run complete - no changes made"));
     return okVoid;
   }

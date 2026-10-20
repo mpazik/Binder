@@ -354,6 +354,44 @@ describe("CLI", () => {
       );
     });
 
+    it("dry-run applies transactions in order and saves nothing", async () => {
+      const txFile = join(dir, "dry-run-tx.yaml");
+      await writeFile(
+        txFile,
+        [
+          "- author: test",
+          "  configs:",
+          "    - key: DryRunMemo",
+          "      type: Type",
+          "      name: Dry run memo",
+          "      fields: [title]",
+          "- author: test",
+          "  records:",
+          "    - key: dry-run-memo-1",
+          "      type: DryRunMemo",
+          "      title: Remember",
+        ].join("\n"),
+      );
+      await check(["tx", "import", "-d", txFile], "dry-run-memo-1");
+      await checkError(["read", "dry-run-memo-1"]);
+    });
+
+    it("dry-run exits non-zero when a transaction would fail", async () => {
+      const txFile = join(dir, "dry-run-fail-tx.yaml");
+      await writeFile(
+        txFile,
+        [
+          "- author: test",
+          "  records:",
+          "    - key: dry-run-fail-1",
+          "      type: NoSuchType",
+          "      title: Nope",
+        ].join("\n"),
+      );
+      await checkError(["tx", "import", "-d", txFile], "NoSuchType");
+      await checkError(["tx", "import", txFile]);
+    });
+
     it("import reads unquoted YAML values as the type of their field", async () => {
       const txFile = join(dir, "typed-tx.yaml");
       await writeFile(

@@ -10,6 +10,7 @@ import {
   type ResultAsync,
   tryCatch,
   isObjectNonEmpty,
+  wrapError,
 } from "@binder/utils";
 import { and, asc, desc, inArray, sql } from "drizzle-orm";
 import {
@@ -89,8 +90,13 @@ export type KnowledgeGraph<
   }>;
   version: () => ResultAsync<GraphVersion>;
   update: (input: TransactionInput) => ResultAsync<Transaction>;
-  /** Resolve and validate an input into a transaction without persisting it. */
-  process: (input: TransactionInput) => ResultAsync<Transaction>;
+  /**
+   * Resolve and validate inputs into transactions without persisting them.
+   * Each input is applied on top of the previous ones, so later inputs may
+   * depend on earlier ones. All changes are rolled back afterwards. Returns
+   * the first error, or the transactions the inputs would produce.
+   */
+  process: (inputs: TransactionInput[]) => ResultAsync<Transaction[]>;
   apply: (transaction: Transaction) => ResultAsync<Transaction>;
   rollback: (count: number, version?: TransactionId) => ResultAsync<void>;
   getRecordSchema: () => ResultAsync<RecordSchema>;
@@ -626,17 +632,49 @@ export const openKnowledgeGraph = <C extends EntitySchema<ConfigDataType>>(
           configSchema,
         );
       }),
-    process: async (input: TransactionInput) =>
-      db.transaction(async (tx) => {
-        const recordSchemaResult = await getRecordSchema();
+    process: async (inputs: TransactionInput[]) => {
+      const processAndApply = async (
+        tx: DbTransaction,
+        input: TransactionInput,
+      ): ResultAsync<Transaction> => {
+        const recordSchemaResult = await loadRecordSchema(tx);
         if (isErr(recordSchemaResult)) return recordSchemaResult;
-        return processTransactionInput(
+        const transactionResult = await processTransactionInput(
           tx,
           withDefaultSource(input),
           recordSchemaResult.data,
           configSchema,
         );
-      }),
+        if (isErr(transactionResult)) return transactionResult;
+        const applyResult = await applyAndSaveTransaction(
+          tx,
+          transactionResult.data,
+        );
+        if (isErr(applyResult)) return applyResult;
+        return transactionResult;
+      };
+
+      const transactions: Transaction[] = [];
+      const outcome = await db.transaction(async (tx) => {
+        for (const [index, input] of inputs.entries()) {
+          const result = await processAndApply(tx, input);
+          if (isErr(result))
+            return wrapError(
+              result,
+              `Failed to process transaction ${index + 1}`,
+              { data: { transactionIndex: index + 1 } },
+            );
+          transactions.push(result.data);
+        }
+        // The database wrapper rolls back only when the callback returns an
+        // error. Return one so that nothing is committed.
+        return fail("process-rollback", "Discard processed transactions");
+      });
+      // loadRecordSchema caches the uncommitted schema. Drop it.
+      recordSchemaCache = null;
+      if (transactions.length === inputs.length) return ok(transactions);
+      return outcome;
+    },
     apply: (transaction: Transaction) =>
       prepareApplyAndNotify(() => ok(transaction)),
     rollback: async (count, version) => {

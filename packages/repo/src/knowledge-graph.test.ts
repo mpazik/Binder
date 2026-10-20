@@ -8,7 +8,12 @@ import {
   throwIfError,
 } from "@binder/utils";
 import "@binder/utils/tests";
-import type { RecordId, RecordKey, RecordUid } from "./model/record.ts";
+import type {
+  RecordId,
+  RecordKey,
+  RecordType,
+  RecordUid,
+} from "./model/record.ts";
 import { getTestDatabase } from "./db.mock";
 import {
   openKnowledgeGraph,
@@ -33,6 +38,7 @@ import {
   NONEXISTENT_NODE_UID,
 } from "./model/record.mock.ts";
 import {
+  mockAuthor,
   mockTransactionInit,
   mockTransactionUpdate,
 } from "./model/transaction.mock.ts";
@@ -44,6 +50,7 @@ import {
   mockTaskTypeKey,
 } from "./model/config.mock.ts";
 import {
+  type ConfigKey,
   type ConfigUid,
   predefinedFieldKeys,
   type Fieldset,
@@ -54,6 +61,7 @@ import {
 } from "./model";
 import { applyAndSaveTransaction } from "./transaction-applier.ts";
 import { mockRecordSchemaRaw } from "./model/schema.mock.ts";
+import type { TransactionInput } from "./model/transaction-input.ts";
 import {
   mockTransactionInitInput,
   mockTransactionInputUpdate,
@@ -307,6 +315,52 @@ describe("knowledge graph", () => {
           mockTask1Record,
         );
         expect(throwIfError(await kg.version()).id).toBe(1 as TransactionId);
+      });
+    });
+
+    describe("process", () => {
+      const defineTypeInput: TransactionInput = {
+        author: mockAuthor,
+        configs: [
+          {
+            key: "Memo" as ConfigKey,
+            type: "Type" as ConfigKey,
+            name: "Memo",
+            fields: ["title"],
+          },
+        ],
+      };
+      const createRecordInput: TransactionInput = {
+        author: mockAuthor,
+        records: [{ type: "Memo" as RecordType, title: "Remember" }],
+      };
+
+      it("Record of a type defined by an earlier input is accepted", async () => {
+        const transactions = throwIfError(
+          await kg.process([defineTypeInput, createRecordInput]),
+        );
+
+        expect(transactions.map((t) => t.id)).toEqual([
+          2 as TransactionId,
+          3 as TransactionId,
+        ]);
+        expect(transactions[1]!.previous).toBe(transactions[0]!.hash);
+      });
+
+      it("Record of a type defined only by a later input is rejected", async () => {
+        const result = await kg.process([createRecordInput, defineTypeInput]);
+
+        expect(result).toBeErr();
+      });
+
+      it("persists nothing", async () => {
+        throwIfError(await kg.process([defineTypeInput, createRecordInput]));
+
+        expect(throwIfError(await kg.version()).id).toBe(1 as TransactionId);
+        expect(
+          throwIfError(await kg.getRecordSchema()).types["Memo"],
+        ).toBeUndefined();
+        expect(await kg.update(createRecordInput)).toBeErr();
       });
     });
 
@@ -823,12 +877,12 @@ describe("knowledge graph", () => {
         seen.push(tx);
       });
 
-      const transaction = throwIfError(
-        await kg.process(mockTransactionInitInput),
+      const [transaction] = throwIfError(
+        await kg.process([mockTransactionInitInput]),
       );
-      throwIfError(await kg.apply(transaction));
+      throwIfError(await kg.apply(transaction!));
 
-      expect(seen).toEqual([transaction]);
+      expect(seen).toEqual([transaction!]);
     });
 
     it("fires neither commit nor transaction subscription on rollback", async () => {
@@ -1028,19 +1082,21 @@ describe("knowledge graph", () => {
     it("stamps the kg source on process() too", async () => {
       const kgWithSource = openKnowledgeGraph(db, { source: "script-x" });
 
-      const tx = throwIfError(
-        await kgWithSource.process(mockTransactionInitInput),
+      const [tx] = throwIfError(
+        await kgWithSource.process([mockTransactionInitInput]),
       );
 
-      expect(tx.source).toBe("script-x");
+      expect(tx!.source).toBe("script-x");
     });
 
     it("never stamps apply() — a replayed transaction keeps its own source", async () => {
-      const built = throwIfError(await kg.process(mockTransactionInitInput));
-      expect(built.source).toBeUndefined();
+      const [built] = throwIfError(
+        await kg.process([mockTransactionInitInput]),
+      );
+      expect(built!.source).toBeUndefined();
 
       const kgWithSource = openKnowledgeGraph(db, { source: "script-x" });
-      const applied = throwIfError(await kgWithSource.apply(built));
+      const applied = throwIfError(await kgWithSource.apply(built!));
 
       expect(applied.source).toBeUndefined();
     });
