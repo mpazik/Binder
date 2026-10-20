@@ -88,6 +88,10 @@ describe("patch-parser", () => {
       check("field=[a, b, c]", ["a", "b", "c"]);
     });
 
+    it("keeps the written text of numbers in a YAML array", () => {
+      check("field=[007, 1.10, 5]", ["007", "1.10", 5]);
+    });
+
     it("sets array of objects", () => {
       check(
         'options=[{"key":"draft","name":"Draft"},{"key":"active","name":"Active"}]',

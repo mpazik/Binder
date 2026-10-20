@@ -143,8 +143,24 @@ describe("Doc Sync", () => {
         });
       });
 
+      // A number for a text field is read as text and syncs without a diff
+      await writeDoc("tasks-yaml/task-number-title.yaml", "title: 2026\n");
+      await check(["docs", "sync"]);
+      await check(["read", "task-number-title", "--format", "json"], (stdout) =>
+        expect(JSON.parse(stdout)).toMatchObject({ title: "2026" }),
+      );
+      await check(["docs", "sync"], "No changes");
+
+      // Text keeps the written digits of a number-like value
+      await writeDoc("tasks-yaml/task-zero-title.yaml", "title: 007\n");
+      await check(["docs", "sync"]);
+      await check(["read", "task-zero-title", "--format", "json"], (stdout) =>
+        expect(JSON.parse(stdout)).toMatchObject({ title: "007" }),
+      );
+      await check(["docs", "sync"], "No changes");
+
       // Wrong data type -> rejected
-      await writeDoc("tasks-yaml/task-bad.yaml", "title: 123\n");
+      await writeDoc("tasks-yaml/task-bad.yaml", "title: [1, 2]\n");
       await checkError(["docs", "sync"], "Expected string");
       await removeDoc("tasks-yaml/task-bad.yaml");
     });
@@ -236,7 +252,7 @@ describe("Doc Sync", () => {
     it("wrong data type and unknown field report errors", async () => {
       await writeDoc(
         "tasks-yaml/task-lint-errors.yaml",
-        "title: 123\nfakeField: hello\n",
+        "title: [1, 2]\nfakeField: hello\n",
       );
 
       await checkError(["docs", "lint"], {

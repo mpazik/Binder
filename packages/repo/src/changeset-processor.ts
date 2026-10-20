@@ -42,6 +42,7 @@ import {
   fieldSystemType,
   fieldTypes,
   type FieldValue,
+  type Filters,
   getOptionDefsForFieldRef,
   getRelationRef,
   getTypeFieldAttrs,
@@ -86,6 +87,7 @@ import {
   resolveEntityRefs,
   resolveExistingEntities,
 } from "./entity-store.ts";
+import { coerceFieldAttrs, coerceFilters } from "./model/value-coercion.ts";
 import { validateDataType } from "./data-type-validators.ts";
 import { editableEntityTables } from "./schema.ts";
 import { matchesFilters } from "./filter-entities.ts";
@@ -116,6 +118,14 @@ const shouldSkipRelationInputField = (
 ): boolean =>
   includes(relationInputFieldsToSkip, fieldKey) || value === undefined;
 
+// `when` filters are stored as written. Read their values as the types of the
+// fields they name before matching.
+const matchesWhen = (
+  when: Filters,
+  values: Fieldset,
+  schema: EntitySchema,
+): boolean => matchesFilters(coerceFilters(when, schema), values, schema);
+
 const getMandatoryFields = (
   schema: EntitySchema,
   typeKey: EntityType,
@@ -130,7 +140,7 @@ const getMandatoryFields = (
     if (!attrs?.required) continue;
     const fieldKey = getTypeFieldKey(fieldRef) as FieldKey;
     const fieldDef = schema.fields[fieldKey];
-    if (fieldDef?.when && !matchesFilters(fieldDef.when, entityValues, schema))
+    if (fieldDef?.when && !matchesWhen(fieldDef.when, entityValues, schema))
       continue;
     mandatoryFields.push(fieldKey);
   }
@@ -148,7 +158,12 @@ const getFieldAttrs = (
   for (const fieldRef of typeDef.fields) {
     const fieldKey = getTypeFieldKey(fieldRef);
     const attrs = getTypeFieldAttrs(fieldRef);
-    if (attrs) attrsMap.set(fieldKey, attrs);
+    const fieldDef = schema.fields[fieldKey];
+    if (attrs)
+      attrsMap.set(
+        fieldKey,
+        fieldDef ? coerceFieldAttrs(attrs, fieldDef) : attrs,
+      );
   }
   return attrsMap;
 };
@@ -171,7 +186,7 @@ const validateConditionalMandatoryFields = (
     const fieldDef = schema.fields[fieldKey];
     if (!fieldDef?.when) continue;
 
-    if (!matchesFilters(fieldDef.when, mergedValues, schema)) continue;
+    if (!matchesWhen(fieldDef.when, mergedValues, schema)) continue;
 
     if (mergedValues[fieldKey] != null) continue;
     if (inputKeys.includes(fieldKey)) continue;
@@ -1541,7 +1556,7 @@ const buildChangeset = async <N extends NamespaceEditable>(
         // TODO: later this should be a function
         if (
           fieldDef.when &&
-          !matchesFilters(fieldDef.when, input as Fieldset, schema)
+          !matchesWhen(fieldDef.when, input as Fieldset, schema)
         )
           continue;
         fieldsWithDefaults[fieldKey] = fieldDef.default as FieldValue;

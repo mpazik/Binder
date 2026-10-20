@@ -15,7 +15,7 @@ import {
 import { recordDataTypes, standardFields } from "./record-schema.ts";
 import {
   coreDataTypes,
-  type DataTypeDefs,
+  type FieldDataTypeDefs,
   dataTypeDefsToOptions,
 } from "./data-type.ts";
 import { periodFormatOptions } from "./period-format.ts";
@@ -62,7 +62,7 @@ export const configDataTypes = {
     description: "Set of options to choose from",
   },
   query: { name: "Query", description: "Query parameters" },
-} as const satisfies DataTypeDefs;
+} as const satisfies FieldDataTypeDefs;
 export type ConfigDataType = keyof typeof configDataTypes;
 
 export const configSchemaIds = {

@@ -11,6 +11,7 @@ import {
   type Includes,
   type KnowledgeGraph,
   type ReadonlyKnowledgeGraph,
+  coerceFilters,
   matchesFilters,
   mergeIncludes,
   type NamespaceEditable,
@@ -684,6 +685,7 @@ const scoreNavItem = (item: NavigationItem): number => {
 };
 
 const findMatchingNavItem = (
+  schema: EntitySchema,
   items: NavigationItem[],
   entity: Fieldset,
 ): NavigationItem | undefined => {
@@ -692,7 +694,7 @@ const findMatchingNavItem = (
   for (const item of flattenNavigationItems(items)) {
     const filters = item.where ?? item.query?.filters;
     if (!filters) continue;
-    if (!matchesFilters(filters, entity)) continue;
+    if (!matchesFilters(coerceFilters(filters, schema), entity)) continue;
 
     const score = scoreNavItem(item);
     if (!best || score > best.score) best = { item, score };
@@ -708,7 +710,7 @@ export const findEntityLocation = async (
   entity: Fieldset,
   navigation: NavigationItem[],
 ): ResultAsync<LocationInFile | undefined> => {
-  const navItem = findMatchingNavItem(navigation, entity);
+  const navItem = findMatchingNavItem(schema, navigation, entity);
   if (!navItem) return ok(undefined);
 
   const resolvedPathResult = resolvePath(schema, navItem, entity, []);

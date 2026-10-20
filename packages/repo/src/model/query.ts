@@ -29,6 +29,13 @@ const FilterOperatorSchema = z.enum([
 ]);
 export type FilterOperator = z.infer<typeof FilterOperatorSchema>;
 
+// Operators that match text, whatever type the field has.
+export const textFilterOperators = [
+  "contains",
+  "notContains",
+  "match",
+] as const satisfies readonly FilterOperator[];
+
 const FilterValueSchema = z.union([
   z.string(),
   z.number(),

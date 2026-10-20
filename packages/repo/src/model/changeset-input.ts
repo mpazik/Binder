@@ -11,6 +11,11 @@ import {
 import type { EntityRef } from "./entity.ts";
 import { type FieldKey, type Fieldset, type FieldValue } from "./field.ts";
 import { getMultiValueDelimiter, splitByDelimiter } from "./text-format.ts";
+import {
+  coerceFieldset,
+  coerceFieldValue,
+  type FieldDefs,
+} from "./value-coercion.ts";
 import type {
   EntityNsKey,
   EntityNsRef,
@@ -162,14 +167,59 @@ export const normalizeInputValue = (value: FieldValue): FieldValue =>
     ? value.map(normalizeItemInputValue)
     : normalizeItemInputValue(value);
 
+const isRefTuple = (value: unknown): value is [string, Fieldset] =>
+  Array.isArray(value) &&
+  value.length === 2 &&
+  typeof value[0] === "string" &&
+  typeof value[1] === "object" &&
+  value[1] !== null &&
+  !Array.isArray(value[1]);
+
+/** Read the attributes of relation tuples as the types of the attribute fields. */
+const coerceRelationAttrs = (
+  value: FieldValue,
+  schema: FieldDefs,
+): FieldValue => {
+  if (!Array.isArray(value)) return value;
+  if (isRefTuple(value)) return [value[0], coerceFieldset(value[1], schema)];
+  return value.map((item) =>
+    isRefTuple(item) ? [item[0], coerceFieldset(item[1], schema)] : item,
+  );
+};
+
+/**
+ * Convert an input value to its stored shape and read it as the type of the
+ * field. Without a field definition the value only changes shape.
+ */
+const normalizeFieldInputValue = (
+  value: ListMutationInputValue,
+  fieldDef?: FieldDef,
+  schema?: FieldDefs,
+): FieldValue => {
+  const item = normalizeInputValue(value as FieldValue);
+  if (!fieldDef) return item;
+  const coerced = coerceFieldValue(fieldDef, item);
+  return fieldDef.dataType === "relation" && schema
+    ? coerceRelationAttrs(coerced, schema)
+    : coerced;
+};
+
 export const normalizeListMutationInput = (
   input: ListMutationInput,
+  fieldDef?: FieldDef,
+  schema?: FieldDefs,
 ): ListMutation => {
-  if (input[0] === "patch")
-    return ["patch", input[1], normalizeFieldChangesetInput(input[2])];
+  if (input[0] === "patch") {
+    const ref = fieldDef ? coerceFieldValue(fieldDef, input[1]) : input[1];
+    return [
+      "patch",
+      ref as string,
+      normalizeFieldChangesetInput(input[2], schema),
+    ];
+  }
 
   const [kind, value, position] = input;
-  const normalized = normalizeItemInputValue(value);
+  const normalized = normalizeFieldInputValue(value, fieldDef, schema);
   return position !== undefined
     ? [kind, normalized, position]
     : [kind, normalized];
@@ -177,17 +227,31 @@ export const normalizeListMutationInput = (
 
 export const normalizeFieldChangesetInput = (
   input: FieldChangesetInput,
+  schema?: FieldDefs,
 ): FieldChangeset => {
   const result: FieldChangeset = {};
   for (const [key, value] of objEntries(input)) {
+    const fieldDef = schema?.fields[key];
     if (isDiffInput(value)) {
       result[key] = ["diff", value[1]] satisfies ValueChangeDiff;
     } else if (isListMutationInputArray(value)) {
-      result[key] = ["seq", value.map(normalizeListMutationInput)];
+      result[key] = [
+        "seq",
+        value.map((mutation) =>
+          normalizeListMutationInput(mutation, fieldDef, schema),
+        ),
+      ];
     } else if (isListMutationInput(value)) {
-      result[key] = ["seq", [normalizeListMutationInput(value)]];
+      result[key] = [
+        "seq",
+        [normalizeListMutationInput(value, fieldDef, schema)],
+      ];
     } else {
-      result[key] = normalizeInputValue(value as FieldValue);
+      result[key] = normalizeFieldInputValue(
+        value as FieldValue,
+        fieldDef,
+        schema,
+      );
     }
   }
   return result;
@@ -204,35 +268,39 @@ export const normalizeOptionSet = (options: OptionDefInput[]): OptionDef[] =>
 const normalizeFieldValue = (
   fieldDef: FieldDef | undefined,
   value: FieldValue,
+  schema: FieldDefs,
 ): FieldValue | ListMutation | ListMutation[] | FieldChangeInputDiff => {
   if (isDiffInput(value as unknown as FieldChangeInput)) {
     return value as unknown as FieldChangeInputDiff;
   }
   if (isListMutationInputArray(value)) {
-    return value.map(normalizeListMutationInput);
+    return value.map((mutation) =>
+      normalizeListMutationInput(mutation, fieldDef, schema),
+    );
   }
   if (isListMutationInput(value)) {
-    return normalizeListMutationInput(value);
+    return normalizeListMutationInput(value, fieldDef, schema);
   }
   if (fieldDef?.dataType === "optionSet" && Array.isArray(value)) {
     return normalizeOptionSet(value as OptionDefInput[]);
   }
   if (fieldDef?.dataType === "relation") {
-    return normalizeInputValue(value);
+    return normalizeFieldInputValue(value, fieldDef, schema);
   }
-  if (fieldDef?.allowMultiple && !Array.isArray(value)) {
+  const coerced = fieldDef ? coerceFieldValue(fieldDef, value) : value;
+  if (fieldDef?.allowMultiple && !Array.isArray(coerced)) {
     if (
-      typeof value === "string" &&
+      typeof coerced === "string" &&
       (fieldDef.dataType === "plaintext" || fieldDef.dataType === "richtext")
     ) {
       const delimiter = getMultiValueDelimiter(fieldDef);
-      return splitByDelimiter(value, delimiter, fieldDef.sectionDepth).filter(
+      return splitByDelimiter(coerced, delimiter, fieldDef.sectionDepth).filter(
         (item) => item.length > 0,
       );
     }
-    return [value];
+    return [coerced];
   }
-  return value;
+  return coerced;
 };
 
 /**
@@ -274,7 +342,21 @@ export const normalizeInput = <N extends NamespaceEditable>(
     normalized[fieldKey] = normalizeFieldValue(
       fieldDef,
       value as FieldValue,
+      schema,
     ) as typeof value;
+  }
+
+  // `default` and `value` hold a value of the field being defined.
+  const dataType = (collapsed as Record<string, unknown>)["dataType"];
+  if (typeof dataType === "string") {
+    for (const key of ["default", "value"]) {
+      const held = (normalized as Record<string, FieldValue>)[key];
+      if (held !== undefined)
+        (normalized as Record<string, FieldValue>)[key] = coerceFieldValue(
+          { dataType },
+          held,
+        );
+    }
   }
 
   return normalized;

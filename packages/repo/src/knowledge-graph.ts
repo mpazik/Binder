@@ -61,6 +61,7 @@ import {
   normalizeFilters,
 } from "./filter-entities.ts";
 import { resolveIncludes } from "./relationship-resolver.ts";
+import { coerceFilters } from "./model/value-coercion.ts";
 
 export const DEFAULT_SEARCH_LIMIT = 50;
 
@@ -182,13 +183,23 @@ export type KnowledgeGraphCallbacks = {
   afterRollback?: (transactions: Transaction[], count: number) => Promise<void>;
 };
 
+// Filters come from callers that guess value types without the schema, such as
+// the search text parser. Read each value as the type of its field before the
+// filter engine sees it.
+const normalizeSearchFilters = (
+  tx: DbTransaction,
+  namespace: NamespaceEditable,
+  filters: Filters,
+  schema: EntitySchema,
+) => normalizeFilters(tx, namespace, coerceFilters(filters, schema), schema);
+
 const internalSearch = async (
   tx: DbTransaction,
   namespace: NamespaceEditable,
   filters: Filters,
   schema: EntitySchema,
 ): ResultAsync<Fieldset[]> => {
-  const normalizedFiltersResult = await normalizeFilters(
+  const normalizedFiltersResult = await normalizeSearchFilters(
     tx,
     namespace,
     filters,
@@ -534,7 +545,7 @@ export const openKnowledgeGraph = <C extends EntitySchema<ConfigDataType>>(
           );
         }
 
-        const normalizedFiltersResult = await normalizeFilters(
+        const normalizedFiltersResult = await normalizeSearchFilters(
           tx,
           namespace,
           filters,

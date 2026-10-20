@@ -354,6 +354,56 @@ describe("CLI", () => {
       );
     });
 
+    it("import reads unquoted YAML values as the type of their field", async () => {
+      const txFile = join(dir, "typed-tx.yaml");
+      await writeFile(
+        txFile,
+        [
+          "- author: test",
+          "  configs:",
+          "    - key: yearPeriod",
+          "      type: Field",
+          "      name: Year Period",
+          "      dataType: period",
+          "      periodFormat: year",
+          "    - key: Year",
+          "      type: Type",
+          "      name: Year",
+          "      fields: [yearPeriod, title]",
+          "  records:",
+          "    - key: year-2026",
+          "      type: Year",
+          "      yearPeriod: 2026",
+          "      title: 007",
+        ].join("\n"),
+      );
+      await check(["tx", "import", txFile, "-q"]);
+
+      // The number 2026 is stored as the period text, and 007 keeps its zeros.
+      await check(["read", "year-2026", "--format", "json"], (stdout) =>
+        expect(JSON.parse(stdout)).toMatchObject({
+          yearPeriod: "2026",
+          title: "007",
+        }),
+      );
+
+      // Filters read the value as the field type as well.
+      for (const filter of [
+        "yearPeriod=2026",
+        "yearPeriod:in=2025,2026",
+        "yearPeriod:range=[2025,2027]",
+        "title=007",
+      ]) {
+        await check(
+          ["search", "type=Year", filter, "--format", "json"],
+          (stdout) =>
+            expect(
+              JSON.parse(stdout).items.map((item: { key: string }) => item.key),
+            ).toEqual(["year-2026"]),
+        );
+      }
+    });
+
     it("log shows history", async () => {
       await check(["tx", "log"], ["Transaction #", "test"]);
     });

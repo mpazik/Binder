@@ -9,6 +9,8 @@ import {
 } from "yaml";
 import { includes, isErr, type JsonValue } from "@binder/utils";
 import {
+  coerceFieldValue,
+  coerceFilters,
   coreIdentityFieldKeys,
   type EntityType,
   type Fieldset,
@@ -185,7 +187,10 @@ const visitEntityNode = <N extends Namespace>(
       continue;
     }
 
-    if (fieldDef.when && !matchesFilters(fieldDef.when, entityValues)) {
+    if (
+      fieldDef.when &&
+      !matchesFilters(coerceFilters(fieldDef.when, schema), entityValues)
+    ) {
       errors.push(
         createValidationError(
           "conditional-field-mismatch",
@@ -238,6 +243,9 @@ const visitEntityNode = <N extends Namespace>(
       if (fieldDef.dataType === "relation") {
         jsonValue = normalizeInputValue(jsonValue);
       }
+
+      // Read the value as the field type, as normalization does on sync.
+      jsonValue = coerceFieldValue(fieldDef, jsonValue);
 
       // Normalize single values to arrays for allowMultiple fields
       if (fieldDef.allowMultiple && !Array.isArray(jsonValue)) {

@@ -20,9 +20,8 @@ import {
   isErr,
   ok,
   type Result,
-  tryCatch,
 } from "@binder/utils";
-import * as YAML from "yaml";
+import { parseYaml } from "../utils/parse.ts";
 
 export const patchesDescription =
   "field patches (set =, append +=, remove -=, remove by position --)";
@@ -153,14 +152,15 @@ const createPatchFormatError = (patch: string): ErrorObject => {
 const parseYamlValue = (
   value: string,
   patch: string,
-): Result<FieldChangeInput> =>
-  tryCatch(
-    () => YAML.parse(value) as FieldChangeInput,
-    (error) =>
-      createError("invalid-yaml-format", "Invalid YAML/JSON format", {
-        data: { patch, error },
-      }),
+): Result<FieldChangeInput> => {
+  const parsed = parseYaml(value, (error) =>
+    createError("invalid-yaml-format", "Invalid YAML/JSON format", {
+      data: { patch, error },
+    }),
   );
+  if (isErr(parsed)) return parsed;
+  return ok(parsed.data as FieldChangeInput);
+};
 
 export const parseFieldChange = (
   fieldChange: string,

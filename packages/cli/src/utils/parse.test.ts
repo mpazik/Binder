@@ -56,6 +56,34 @@ describe("input-parser", () => {
       check('{"a": 1}\n{"b": 2}', [{ a: 1 }, { b: 2 }]));
   });
 
+  describe("yaml scalar text", () => {
+    const check = (content: string, expected: unknown) =>
+      expect(throwIfError(parseContentToArray(`- ${content}`, "yaml"))).toEqual(
+        [expected],
+      );
+
+    it("keeps a number that prints as written", () =>
+      check("{ a: 2026 }", { a: 2026 }));
+    it("keeps a leading-zero number as written", () =>
+      check("{ a: 007 }", { a: "007" }));
+    it("keeps a trailing-zero decimal as written", () =>
+      check("{ a: 1.10 }", { a: "1.10" }));
+    it("keeps a hexadecimal number as written", () =>
+      check("{ a: 0x1F }", { a: "0x1F" }));
+    it("keeps an exponent number as written", () =>
+      check("{ a: 1e3 }", { a: "1e3" }));
+    it("keeps a signed number as written", () =>
+      check("{ a: +5 }", { a: "+5" }));
+    it("keeps a capitalized boolean as written", () =>
+      check("{ a: True }", { a: "True" }));
+    it("keeps a boolean that prints as written", () =>
+      check("{ a: true }", { a: true }));
+    it("keeps null", () => check("{ a: ~ }", { a: null }));
+    it("keeps the text of list items", () =>
+      check("{ a: [007, 5] }", { a: ["007", 5] }));
+    it("keeps quoted text", () => check('{ a: "007" }', { a: "007" }));
+  });
+
   describe("parseContent", () => {
     const itemSchema = z.object({ id: z.number() });
 

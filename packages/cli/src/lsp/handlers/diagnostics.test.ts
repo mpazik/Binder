@@ -5,7 +5,9 @@ import {
   mockRecordSchema,
   mockNotesField,
   mockOwnersField,
+  mockPriceField,
   mockProjectField,
+  mockRoleField,
   mockStatusField,
   mockFavoriteField,
   mockTasksField,
@@ -67,6 +69,14 @@ describe("diagnostics", () => {
         message:
           "Invalid value for field 'status': Invalid option value: complete. Expected one of: pending, active",
       });
+    });
+
+    it("returns undefined for a number given to a text field", () => {
+      check(mockRoleField, 7, undefined);
+    });
+
+    it("returns undefined for text given to a decimal field", () => {
+      check(mockPriceField, "1.10", undefined);
     });
 
     it("returns undefined for valid boolean value", () => {

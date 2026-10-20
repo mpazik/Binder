@@ -8,27 +8,49 @@ export type DataTypeDef = {
 };
 export type DataTypeDefs = Record<string, DataTypeDef>;
 
+/**
+ * The kind of value a field of the data type stores. Input of another kind is
+ * read as this kind where nothing is lost. A data type without a kind stores a
+ * structured value and is never converted.
+ *
+ * - `text`: text. A number or boolean is read as its text.
+ * - `reference`: text that names an entity. Input reads like `text`. A filter
+ *   value keeps its type, because a number there is an entity id.
+ * - `integer`, `decimal`, `boolean`: numeric or boolean text is read as the
+ *   number or boolean.
+ */
+export type ValueKind =
+  | "text"
+  | "reference"
+  | "integer"
+  | "decimal"
+  | "boolean";
+export type FieldDataTypeDef = DataTypeDef & { valueKind?: ValueKind };
+export type FieldDataTypeDefs = Record<string, FieldDataTypeDef>;
+
 export const coreDataTypes = {
-  seqId: { name: "Sequential Id" },
+  seqId: { name: "Sequential Id", valueKind: "integer" },
   uid: { name: "Uid" },
-  relation: { name: "Relation" },
-  boolean: { name: "Boolean" },
-  integer: { name: "Integer" },
-  decimal: { name: "Decimal" },
-  plaintext: { name: "Plaintext" },
+  relation: { name: "Relation", valueKind: "reference" },
+  boolean: { name: "Boolean", valueKind: "boolean" },
+  integer: { name: "Integer", valueKind: "integer" },
+  decimal: { name: "Decimal", valueKind: "decimal" },
+  plaintext: { name: "Plaintext", valueKind: "text" },
   richtext: {
     name: "Richtext",
     description: "Text with structure and styling",
+    valueKind: "text",
   },
-  date: { name: "Date" },
-  datetime: { name: "Date Time" },
-  period: { name: "Period" },
-  option: { name: "Option", description: "Option value" },
+  date: { name: "Date", valueKind: "text" },
+  datetime: { name: "Date Time", valueKind: "text" },
+  period: { name: "Period", valueKind: "text" },
+  option: { name: "Option", description: "Option value", valueKind: "text" },
   uri: {
     name: "URI",
     description: "URI reference to an external resource",
+    valueKind: "text",
   },
-} as const satisfies DataTypeDefs;
+} as const satisfies FieldDataTypeDefs;
 
 export const dataTypeDefsToOptions = (
   dataTypeDefs: DataTypeDefs,

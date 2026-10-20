@@ -1,4 +1,3 @@
-import * as YAML from "yaml";
 import {
   Document,
   isMap,
@@ -15,13 +14,13 @@ import {
   isErr,
   ok,
   type Result,
-  tryCatch,
 } from "@binder/utils";
 import {
   type EntitySchema,
   type FieldsetNested,
   getMultiValueDelimiter,
 } from "@binder/repo";
+import { parseYaml } from "../utils/parse.ts";
 import { applyInlineFormatting } from "../utils/yaml-format.ts";
 import { parseYamlDocument } from "./yaml-cst.ts";
 
@@ -135,21 +134,15 @@ const humanizeYamlError = (error: unknown): ErrorObject => {
 };
 
 export const parseYamlEntity = (content: string): Result<FieldsetNested> => {
-  const parseResult = tryCatch(
-    () => YAML.parse(content) as FieldsetNested,
-    humanizeYamlError,
-  );
+  const parseResult = parseYaml(content, humanizeYamlError);
   if (isErr(parseResult)) return parseResult;
-  return ok(parseResult.data);
+  return ok(parseResult.data as FieldsetNested);
 };
 
 export const parseYamlList = (content: string): Result<FieldsetNested[]> => {
-  const parseResult = tryCatch(
-    () => YAML.parse(content) as { items: FieldsetNested[] },
-    humanizeYamlError,
-  );
+  const parseResult = parseYaml(content, humanizeYamlError);
   if (isErr(parseResult)) return parseResult;
-  return ok(parseResult.data.items);
+  return ok((parseResult.data as { items: FieldsetNested[] }).items);
 };
 
 export const findEntityInYamlList = (

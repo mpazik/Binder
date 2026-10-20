@@ -1,6 +1,8 @@
 import * as YAML from "yaml";
 import type { ZodType } from "zod";
 import {
+  err,
+  type ErrorObject,
   isErr,
   isOk,
   ok,
@@ -54,8 +56,40 @@ const parseJsonArray = (content: string): Result<unknown[]> => {
   return ok(Array.isArray(result.data) ? result.data : [result.data]);
 };
 
+/**
+ * Parse YAML into plain values. A number or boolean is kept as typed only
+ * when it prints as it was written. `007`, `1.10`, `0x1F`, `1e3`, `+5` and
+ * `True` keep their written text, because the typed value no longer carries
+ * it. The field type reads the text later: a text field keeps `007`, and a
+ * number field reads it as 7.
+ */
+export const parseYaml = (
+  content: string,
+  toError: (error: YAML.YAMLParseError) => ErrorObject = (error) => ({
+    key: "parse-error",
+    message: error.message,
+  }),
+): Result<unknown> => {
+  const doc = YAML.parseDocument(content);
+  const [firstError] = doc.errors;
+  if (firstError) return err(toError(firstError));
+  YAML.visit(doc, {
+    Scalar: (_key, node) => {
+      const isTyped =
+        typeof node.value === "number" || typeof node.value === "boolean";
+      if (
+        isTyped &&
+        node.source !== undefined &&
+        String(node.value) !== node.source
+      )
+        node.value = node.source;
+    },
+  });
+  return tryCatch(() => doc.toJS() as unknown);
+};
+
 const parseYamlArray = (content: string): Result<unknown[]> => {
-  const result = tryCatch(() => YAML.parse(content) as unknown);
+  const result = parseYaml(content);
   if (isErr(result))
     return wrapError(result, "parse-error", "Failed to parse YAML");
   return ok(Array.isArray(result.data) ? result.data : [result.data]);
@@ -67,9 +101,7 @@ export const parseContentAs = <T>(
 ): Result<T> => {
   const format = detectContentFormat(content);
   const rawResult =
-    format === "yaml"
-      ? tryCatch(() => YAML.parse(content) as unknown)
-      : parseJson<unknown>(content);
+    format === "yaml" ? parseYaml(content) : parseJson<unknown>(content);
   if (isErr(rawResult))
     return wrapError(rawResult, "parse-error", "Failed to parse stdin");
   const validationResult = tryCatch(() => schema.parse(rawResult.data));

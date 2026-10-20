@@ -12,6 +12,7 @@ import {
   type FieldAttrDef,
   type FieldDef,
   type FieldPath,
+  coerceFieldValue,
   type FieldsetNested,
   type FieldValue,
   getFieldDefNested,
@@ -83,8 +84,12 @@ export const validateFieldValue = (
 
   if (value === null) return undefined;
 
+  // Read the value as the field type, as normalization does on sync.
+  const coercedValue = coerceFieldValue(fieldDef, value);
   const normalizedValue =
-    fieldDef.allowMultiple && !Array.isArray(value) ? [value] : value;
+    fieldDef.allowMultiple && !Array.isArray(coercedValue)
+      ? [coercedValue]
+      : coercedValue;
 
   const effectiveFieldDef = {
     ...fieldDef,

@@ -7,7 +7,11 @@ import {
 import { mockRecordSchema } from "./schema.mock.ts";
 import {
   mockChaptersFieldKey,
+  mockFavoriteFieldKey,
   mockMembersFieldKey,
+  mockOwnersFieldKey,
+  mockPriceFieldKey,
+  mockRoleFieldKey,
   mockTaskTypeKey,
   mockTeamTypeKey,
 } from "./config.mock.ts";
@@ -98,6 +102,68 @@ Content without any delimiter.`;
         [mockChaptersFieldKey]: [singleDocContent],
       });
     });
+  });
+
+  describe("normalizeInput value types", () => {
+    const check = (fields: Record<string, unknown>, expected: object) =>
+      expect(
+        normalizeInput(
+          {
+            type: mockTeamTypeKey,
+            ...fields,
+          } as EntityChangesetInput<"record">,
+          mockRecordSchema,
+        ),
+      ).toMatchObject(expected);
+
+    it("reads text as a number for a decimal field", () =>
+      check({ [mockPriceFieldKey]: "1.10" }, { [mockPriceFieldKey]: 1.1 }));
+
+    it("reads text as a boolean for a boolean field", () =>
+      check(
+        { [mockFavoriteFieldKey]: "true" },
+        { [mockFavoriteFieldKey]: true },
+      ));
+
+    it("reads the attributes of a relation tuple by their fields", () =>
+      check(
+        { [mockMembersFieldKey]: [[mockUserUid, { [mockRoleFieldKey]: 7 }]] },
+        { [mockMembersFieldKey]: [[mockUserUid, { [mockRoleFieldKey]: "7" }]] },
+      ));
+
+    it("reads the attributes of a relation object tuple by their fields", () =>
+      check(
+        {
+          [mockMembersFieldKey]: [{ [mockUserUid]: { [mockRoleFieldKey]: 7 } }],
+        },
+        { [mockMembersFieldKey]: [[mockUserUid, { [mockRoleFieldKey]: "7" }]] },
+      ));
+
+    it("reads the attributes of a patch mutation by their fields", () =>
+      check(
+        {
+          [mockOwnersFieldKey]: [
+            ["patch", mockUserUid, { [mockRoleFieldKey]: 7 }],
+          ],
+        },
+        {
+          [mockOwnersFieldKey]: [
+            ["patch", mockUserUid, { [mockRoleFieldKey]: "7" }],
+          ],
+        },
+      ));
+
+    it("reads the default of a field definition as the type of the field", () =>
+      check(
+        { type: "Field", dataType: "decimal", default: "1.10" },
+        { default: 1.1 },
+      ));
+
+    it("keeps a value that cannot be read as the field type", () =>
+      check(
+        { [mockPriceFieldKey]: "cheap" },
+        { [mockPriceFieldKey]: "cheap" },
+      ));
   });
 
   describe("normalizeListMutationInput", () => {

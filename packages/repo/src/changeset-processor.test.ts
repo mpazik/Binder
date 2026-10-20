@@ -33,6 +33,7 @@ import {
   mockFieldKeyEmail,
   mockNotExistingRecordTypeKey,
   mockPriorityField,
+  mockPriceFieldKey,
   mockPriorityFieldKey,
   mockProjectTypeKey,
   mockTaskTypeKey,
@@ -99,6 +100,75 @@ describe("changeset processor", () => {
     const insertTask1 = async () => {
       await insertRecord(db, mockTask1Record);
     };
+
+    describe("input value types", () => {
+      const check = async (
+        input: EntityChangesetInput<"record">,
+        expected: Record<string, unknown>,
+      ) => {
+        const result = throwIfError(await process([input]));
+        expect(Object.values(result)[0]).toMatchObject(expected);
+      };
+
+      it("reads a number as the text of a text field", () =>
+        check(
+          { type: mockTaskTypeKey, title: 2026 as unknown as string },
+          {
+            title: "2026",
+          },
+        ));
+
+      it("reads a number as the text of an allowMultiple field", () =>
+        check(
+          {
+            type: mockTaskTypeKey,
+            title: "Task",
+            notes: 2026 as unknown as string,
+          },
+          { notes: ["2026"] },
+        ));
+
+      it("reads the numbers of a list as text", () =>
+        check(
+          {
+            type: mockTaskTypeKey,
+            title: "Task",
+            notes: [2026, "a"] as unknown as string[],
+          },
+          { notes: ["2026", "a"] },
+        ));
+
+      it("reads the default of a type field as the type of the field", async () => {
+        const schema = structuredClone(mockRecordSchema);
+        schema.types[mockTaskTypeKey].fields.push([
+          mockPriceFieldKey,
+          { default: "1.10" as unknown as number },
+        ]);
+        const result = throwIfError(
+          await db.transaction(async (tx) =>
+            processChangesetInput(
+              tx,
+              "record",
+              [{ type: mockTaskTypeKey, title: "Task" }],
+              schema,
+              GENESIS_ENTITY_ID,
+            ),
+          ),
+        );
+        expect(Object.values(result)[0]).toMatchObject({ price: 1.1 });
+      });
+
+      it("reads the value of a list mutation as text", async () => {
+        await insertTask1();
+        await check(
+          {
+            uid: mockTask1Uid,
+            notes: [["insert", 2026]] as unknown as string[],
+          },
+          { notes: ["seq", [["insert", "2026"]]] },
+        );
+      });
+    });
 
     describe("changeset creation", () => {
       const checkChangeset = async (
@@ -631,6 +701,21 @@ describe("changeset processor", () => {
           ],
         ));
 
+      it("reads the value of a when filter as the type of the field it names", async () => {
+        const schema = structuredClone(mockRecordSchema);
+        schema.fields.cancelReason!.when = { price: "1.10" };
+        const result = await db.transaction(async (tx) =>
+          processChangesetInput(
+            tx,
+            "record",
+            [{ type: mockTaskTypeKey, title: "Task", price: 1.1 }],
+            schema,
+            GENESIS_ENTITY_ID,
+          ),
+        );
+        expect(result).toBeErrWithKey("changeset-input-process-failed");
+      });
+
       it("accepts create with conditional required field when condition is met", () =>
         checkSuccess([
           {
@@ -805,7 +890,7 @@ describe("changeset processor", () => {
             {
               type: fieldSystemType,
               key: testFieldKey,
-              dataType: 123 as unknown as string,
+              dataType: { nested: 1 } as unknown as string,
             },
           ],
           [

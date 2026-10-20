@@ -200,6 +200,9 @@ describe("query-serial", () => {
     it("coerces negative float", () => check("-1.5", -1.5));
     it("keeps plain string", () => check("hello", "hello"));
     it("keeps string with digits prefix", () => check("42abc", "42abc"));
+    it("keeps leading-zero digits as text", () => check("007", "007"));
+    it("keeps a trailing zero of a decimal as text", () =>
+      check("3.10", "3.10"));
   });
 
   describe("parseSerialFilters", () => {

@@ -9,7 +9,7 @@ import {
 import {
   type CoreDataType,
   coreDataTypes,
-  type DataTypeDefs,
+  type FieldDataTypeDefs,
 } from "./data-type.ts";
 
 /**
@@ -346,16 +346,21 @@ export const predefinedFieldKeys = Object.keys(
 
 export const recordDataTypes = {
   ...coreDataTypes,
-  fileHash: { name: "File Hash", description: "SHA-256 hash of the file" },
+  fileHash: {
+    name: "File Hash",
+    description: "SHA-256 hash of the file",
+    valueKind: "text",
+  },
   interval: {
     name: "Interval",
     description:
       "Format is not decided, something to store value of specific period, can be timezone relative or specific",
+    valueKind: "text",
   },
-  duration: { name: "Duration" },
+  duration: { name: "Duration", valueKind: "text" },
   query: { name: "Query" },
-  image: { name: "Image", description: "Image URL" },
-} as const satisfies DataTypeDefs;
+  image: { name: "Image", description: "Image URL", valueKind: "text" },
+} as const satisfies FieldDataTypeDefs;
 
 export type RecordDataType = keyof typeof recordDataTypes;
 export type RecordFieldDef = FieldDef<RecordDataType>;

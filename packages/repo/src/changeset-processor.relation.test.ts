@@ -1118,7 +1118,7 @@ describe("changeset processor relations", () => {
           [
             {
               uid: mockTaskWithOwnersRecord.uid,
-              owners: [["patch", "user-1", { role: 123 }]],
+              owners: [["patch", "user-1", { role: { nested: 1 } }]],
             },
           ],
           [
@@ -1126,7 +1126,7 @@ describe("changeset processor relations", () => {
               index: 0,
               namespace: "record",
               field: "owners.role",
-              message: "Expected string for plaintext, got: number",
+              message: "Expected string for plaintext, got: object",
             },
           ],
         );
@@ -1140,6 +1140,14 @@ describe("changeset processor relations", () => {
           },
         ]);
       });
+
+      it("reads a number patch attr as the text of the attribute field", () =>
+        checkSuccess([
+          {
+            uid: mockTaskWithOwnersRecord.uid,
+            owners: [["patch", "user-1", { role: 123 }]],
+          },
+        ]));
 
       it("ignores patch attrs not in field attributes", async () => {
         await checkSuccess([
@@ -1155,7 +1163,7 @@ describe("changeset processor relations", () => {
           [
             {
               uid: mockTaskWithOwnersRecord.uid,
-              owners: ["patch", "user-1", { role: false }],
+              owners: ["patch", "user-1", { role: ["admin"] }],
             },
           ],
           [
@@ -1163,7 +1171,7 @@ describe("changeset processor relations", () => {
               index: 0,
               namespace: "record",
               field: "owners.role",
-              message: "Expected string for plaintext, got: boolean",
+              message: "Expected string for plaintext, got: object",
             },
           ],
         );

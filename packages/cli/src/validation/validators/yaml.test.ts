@@ -136,6 +136,33 @@ status: invalid_status
     );
   });
 
+  it("accepts a number for a text field, as sync reads it as text", async () => {
+    await checkEntity(
+      `
+type: Task
+title: 2026
+status: pending
+`,
+      [],
+    );
+  });
+
+  it("reads a when filter value as the type of the field it names", async () => {
+    const schema = structuredClone(mockRecordSchema);
+    schema.fields.cancelReason!.when = { price: "1.10" };
+    await checkEntity(
+      `
+type: Task
+title: My Task
+status: pending
+price: 1.1
+cancelReason: Not needed
+`,
+      [{ code: "extra-field", severity: "warning" }],
+      schema,
+    );
+  });
+
   it("detects invalid date format", async () => {
     await checkEntity(
       `
@@ -231,7 +258,7 @@ tags:
 title: My Task
 owners:
   - valid-ref
-  - 123
+  - [1, 2, 3]
 `,
       [
         { code: "extra-field", severity: "warning" },
@@ -304,7 +331,7 @@ items:
   - title: My Task
     assignedTo:
       name: John Doe
-      email: 12345
+      email: [12345]
 `,
         [{ code: "invalid-value", severity: "error" }],
         mockNestedNavigationItem,

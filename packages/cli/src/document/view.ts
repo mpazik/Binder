@@ -20,6 +20,7 @@ import {
   type FieldsetNested,
   type FieldValue,
   type Filters,
+  coerceFilters,
   extractUid,
   getDelimiterString,
   getFieldDefNested,
@@ -107,14 +108,22 @@ const getSlotPosition = (slot: ViewFieldSlot): SlotPosition =>
 const isInlinePosition = (slotPosition: SlotPosition): boolean =>
   slotPosition === "phrase" || slotPosition === "line";
 
-const parseWhereFilters = (slot: ViewFieldSlot): Filters | undefined => {
+const parseWhereFilters = (
+  schema: EntitySchema,
+  slot: ViewFieldSlot,
+): Filters | undefined => {
   const whereStr = slot.props?.where;
   if (typeof whereStr !== "string") return undefined;
-  return parseFiltersFromString(whereStr);
+  const filters = parseFiltersFromString(whereStr);
+  return filters && coerceFilters(filters, schema);
 };
 
-const injectWhereFields = (entities: FieldValue, slot: ViewFieldSlot): void => {
-  const filters = parseWhereFilters(slot);
+const injectWhereFields = (
+  schema: EntitySchema,
+  entities: FieldValue,
+  slot: ViewFieldSlot,
+): void => {
+  const filters = parseWhereFilters(schema, slot);
   if (!filters) return;
   const whereFieldset = extractFieldsetFromQuery({ filters });
   if (Array.isArray(entities)) {
@@ -410,7 +419,7 @@ const renderFieldSlot = (
   );
   if (isErr(formatResult)) return formatResult;
 
-  const whereFilters = parseWhereFilters(slot);
+  const whereFilters = parseWhereFilters(schema, slot);
 
   if (isMultiValueRelation(fieldDef) && Array.isArray(value)) {
     const allEntities = value.filter(isFieldsetNested);
@@ -510,7 +519,8 @@ const renderViewAstInternal = (
           (n) => n.type !== "text" || (n as Text).value !== "",
         );
       const isEmptyWhereResult =
-        renderedNodes.length === 0 && parseWhereFilters(node) !== undefined;
+        renderedNodes.length === 0 &&
+        parseWhereFilters(schema, node) !== undefined;
 
       if (
         (isBlockLevelField(fieldDef) || isRelation(fieldDef)) &&
@@ -601,6 +611,7 @@ export const extractFieldPathsFromAst = (ast: ViewAST): FieldPath[] => {
 };
 
 const resolveBaseChildren = (
+  schema: EntitySchema,
   base: FieldsetNested,
   fieldPath: FieldPath,
   slot?: ViewFieldSlot,
@@ -609,7 +620,7 @@ const resolveBaseChildren = (
   if (!Array.isArray(value)) return [];
   const children = value.filter(isFieldsetNested);
   if (!slot) return children;
-  const filters = parseWhereFilters(slot);
+  const filters = parseWhereFilters(schema, slot);
   if (!filters) return children;
   return children.filter((c) => matchesFilters(filters, c as Fieldset));
 };
@@ -769,8 +780,8 @@ export const extractFieldsAst = (
     slot: ViewFieldSlot,
     isMultiValue: boolean,
   ): void => {
-    injectWhereFields(value, slot);
-    if (isMultiValue && parseWhereFilters(slot)) {
+    injectWhereFields(schema, value, slot);
+    if (isMultiValue && parseWhereFilters(schema, slot)) {
       accumulator.append(fieldPath, value);
     } else {
       accumulator.set(fieldPath, value);
@@ -841,7 +852,7 @@ export const extractFieldsAst = (
         snapText,
         itemView,
         slotPosition,
-        resolveBaseChildren(base, fieldPath, viewChild),
+        resolveBaseChildren(schema, base, fieldPath, viewChild),
       );
       if (isErr(valueResult)) {
         error = valueResult.error;
@@ -1092,7 +1103,7 @@ export const extractFieldsAst = (
         blockNodes,
         itemView,
         slotPosition,
-        resolveBaseChildren(base, fieldPath, slot),
+        resolveBaseChildren(schema, base, fieldPath, slot),
       );
       if (isErr(valueResult)) {
         error = valueResult.error;

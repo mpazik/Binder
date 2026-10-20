@@ -16,21 +16,23 @@ import { IDENTIFIER_FORMAT_PATTERN } from "./text-format.ts";
 // Value coercion
 // ---------------------------------------------------------------------------
 
+// The filter text carries no field type. Numbers are guessed only when the
+// number prints as the same text, so "007" and "3.10" stay text. The field
+// type reads them later, in `normalizeFilters`.
+const coerceNumberText = (raw: string): number | string => {
+  const isNumber = /^-?\d+(\.\d+)?$/.test(raw);
+  const number = isNumber ? Number(raw) : undefined;
+  return number !== undefined && String(number) === raw ? number : raw;
+};
+
 export const coerceFilterValue = (raw: string): string | number | boolean => {
   if (raw === "true") return true;
   if (raw === "false") return false;
-  if (/^-?\d+$/.test(raw)) return parseInt(raw, 10);
-  if (/^-?\d+\.\d+$/.test(raw)) return parseFloat(raw);
-  return raw;
+  return coerceNumberText(raw);
 };
 
 const coerceListValue = (raw: string): (string | number)[] =>
-  raw.split(",").map((v) => {
-    const trimmed = v.trim();
-    if (/^-?\d+$/.test(trimmed)) return parseInt(trimmed, 10);
-    if (/^-?\d+\.\d+$/.test(trimmed)) return parseFloat(trimmed);
-    return trimmed;
-  });
+  raw.split(",").map((v) => coerceNumberText(v.trim()));
 
 // ---------------------------------------------------------------------------
 // Filters — parse

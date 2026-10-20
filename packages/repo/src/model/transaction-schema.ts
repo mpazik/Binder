@@ -1,6 +1,6 @@
 import type { EntityId, EntityKey } from "./entity.ts";
 import { type FieldDef, ID_RANGE_CORE_LIMIT, newId } from "./schema.ts";
-import { coreDataTypes, type DataTypeDefs } from "./data-type.ts";
+import { coreDataTypes, type FieldDataTypeDefs } from "./data-type.ts";
 
 /**
  * Transaction namespace field ID ranges.
@@ -20,7 +20,7 @@ const newTxMetaId = (seq: number): EntityId => newId(seq, TX_META_ID_OFFSET);
 
 export const txDataTypes = {
   ...coreDataTypes,
-} as const satisfies DataTypeDefs;
+} as const satisfies FieldDataTypeDefs;
 export type TxDataType = keyof typeof txDataTypes;
 
 export const txSchemaIds = {

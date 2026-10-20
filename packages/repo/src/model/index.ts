@@ -11,6 +11,7 @@ export * from "./record-schema.ts";
 export * from "./changeset.ts";
 export * from "./text-diff.ts";
 export * from "./changeset-input.ts";
+export * from "./value-coercion.ts";
 export * from "./transaction.ts";
 export * from "./namespace.ts";
 export * from "./ref.ts";

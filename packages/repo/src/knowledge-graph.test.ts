@@ -8,6 +8,7 @@ import {
   throwIfError,
 } from "@binder/utils";
 import "@binder/utils/tests";
+import type { RecordId, RecordKey, RecordUid } from "./model/record.ts";
 import { getTestDatabase } from "./db.mock";
 import {
   openKnowledgeGraph,
@@ -353,6 +354,25 @@ describe("knowledge graph", () => {
             filters: { dueDate: { op: "range", value: [3, 9] } },
           }),
         ).toBeErrWithKey("invalid-filter-value");
+      });
+
+      it("reads a number filter as the text of a text field", async () => {
+        const numberTitled = {
+          ...mockTask3Record,
+          id: 9 as RecordId,
+          uid: "_numberTitle" as RecordUid,
+          key: "task-number-title" as RecordKey,
+          title: "2026",
+        };
+        await db.transaction(async (tx) => {
+          await createEntity(tx, "record", numberTitled);
+        });
+
+        await checkSearch({ filters: { title: 2026 } }, [numberTitled]);
+        await checkSearch(
+          { filters: { title: { op: "in", value: [2025, 2026] } } },
+          [numberTitled],
+        );
       });
 
       it("filters by type", () =>

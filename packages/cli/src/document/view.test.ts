@@ -591,6 +591,20 @@ describe("view", () => {
         );
       });
 
+      it("reads a trailing-zero decimal in where as the number of a decimal field", () => {
+        check(
+          `{tasks|where:price=1.10|view:task-item}\n`,
+          {
+            tasks: [
+              { ...mockTask1Record, price: 1.1 },
+              { ...mockTask2Record, price: 2 },
+            ],
+          },
+          `- ${mockTask1Record.title}\n`,
+          whereViews,
+        );
+      });
+
       it("combined with view:", () => {
         const sectionView = createViewEntity(
           "task-section",
