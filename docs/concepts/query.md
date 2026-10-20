@@ -49,6 +49,8 @@ Filters constrain which entities are returned. Simple equality uses direct value
 **Number/date/period operators**: `lt`, `lte`, `gt`, `gte`, `range`
 **Full-text**: `$text` — case-insensitive substring search across all plaintext and richtext fields (excluding identity fields and tags)
 
+A filter value is read as the data type of the field it names, so `yearPeriod=2026` matches the period `"2026"` and `priority=3` matches the integer `3`. See the Data Type concept.
+
 ```json
 { "status": "active", "priority": { "op": "gte", "value": 3 }, "tags": { "op": "in", "value": ["urgent", "important"] } }
 ```
@@ -67,7 +69,7 @@ Full-text search combines with other filters using AND:
 { "score": { "op": "range", "value": [3, { "value": 9, "inclusive": false }] } }
 ```
 
-This means `3 <= score < 9`. Endpoints must match the field datatype: numbers, `IsoDate` (`YYYY-MM-DD`), `IsoTimestamp` (UTC with milliseconds), or calendar period strings. Period endpoints must both match the field's `periodFormat`: day (default), week (`YYYY-W##`), month (`YYYY-MM`), quarter (`YYYY-Q#`), or year (`YYYY`). Fixed-format period labels are compared directly, without date conversion. Arbitrary text and null endpoints are invalid. Reversed bounds match nothing; equal bounds match only when both inclusive.
+This means `3 <= score < 9`. Endpoints must match the field datatype: numbers, `IsoDate` (`YYYY-MM-DD`), `IsoTimestamp` (UTC with milliseconds), or calendar period strings. A number for a period field is read as period text, so `[2025, 2027]` works for a year period. Period endpoints must both match the field's `periodFormat`: day (default), week (`YYYY-W##`), month (`YYYY-MM`), quarter (`YYYY-Q#`), or year (`YYYY`). Fixed-format period labels are compared directly, without date conversion. Arbitrary text and null endpoints are invalid. Reversed bounds match nothing; equal bounds match only when both inclusive.
 
 ```json
 { "weekPeriod": { "op": "range", "value": ["2026-W32", "2026-W37"] } }
